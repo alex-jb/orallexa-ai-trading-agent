@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/avatar/bull_idle.png" alt="Orallexa" width="100">
+<img src="assets/avatar/bull_idle.png" alt="Orallexa — Art Deco 华尔街金牛" width="120">
 
 # Orallexa
 
