@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORALLEXA — AI Trading Intelligence</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #0A0C10; --gold: #C9A84C; --gold-dim: #8B7535; --text: #E8E0D0; --text-dim: #9A9488; --text-muted: #5E5A52; }
+  html, body { width: 100%; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Inter', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+
+  .logo { font-size: 3.5rem; font-weight: 800; letter-spacing: 0.15em; color: var(--gold); text-shadow: 0 0 40px rgba(201,168,76,0.15); }
+  .subtitle { font-size: 1rem; color: var(--text-dim); font-weight: 300; letter-spacing: 0.08em; margin-top: 8px; }
+  .gold-line { width: 120px; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 28px auto; }
+
+  .links { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .link-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 220px; padding: 28px 20px;
+    background: #12151C; border: 1px solid rgba(201,168,76,0.12); border-radius: 12px;
+    text-decoration: none; color: var(--text); transition: all 0.3s;
+  }
+  .link-card:hover { border-color: rgba(201,168,76,0.4); background: #181C26; transform: translateY(-2px); }
+  .link-icon { font-size: 2rem; margin-bottom: 10px; }
+  .link-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .link-desc { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+  .link-tag { font-size: 0.6rem; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-top: 10px; padding: 3px 10px; border: 1px solid rgba(201,168,76,0.25); border-radius: 20px; }
+
+  .footer { margin-top: 48px; text-align: center; }
+  .footer a { color: var(--gold-dim); text-decoration: none; font-size: 0.8rem; }
+  .footer a:hover { color: var(--gold); }
+  .footer .sep { color: var(--text-muted); margin: 0 12px; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .anim { animation: fadeUp 0.6s ease forwards; opacity: 0; }
+  .anim.d1 { animation-delay: 0.1s; } .anim.d2 { animation-delay: 0.2s; } .anim.d3 { animation-delay: 0.3s; } .anim.d4 { animation-delay: 0.4s; }
+</style>
+</head>
+<body>
+
+<div class="anim" style="text-align:center;">
+  <div class="logo">ORALLEXA</div>
+  <div class="subtitle">AI-Powered Trading Intelligence System</div>
+  <div class="gold-line"></div>
+</div>
+
+<div class="links">
+  <a href="https://orallexa-ui.vercel.app" target="_blank" class="link-card anim d1">
+    <div class="link-icon">&#128202;</div>
+    <div class="link-title">Live Demo</div>
+    <div class="link-desc">Interactive trading terminal with simulated data</div>
+    <div class="link-tag">Try it now</div>
+  </a>
+  <a href="./presentation.html" class="link-card anim d2">
+    <div class="link-icon">&#128218;</div>
+    <div class="link-title">Presentation</div>
+    <div class="link-desc">Architecture, ML pipeline, and performance results</div>
+    <div class="link-tag">20 slides</div>
+  </a>
+  <a href="https://github.com/alex-jb/orallexa-ai-trading-agent" target="_blank" class="link-card anim d3">
+    <div class="link-icon">&#128187;</div>
+    <div class="link-title">Source Code</div>
+    <div class="link-desc">Full repo — Python, Next.js, Claude AI integration</div>
+    <div class="link-tag">GitHub</div>
+  </a>
+</div>
+
+<div class="footer anim d4">
+  <a href="https://x.com/orallexatrading">@orallexatrading</a>
+  <span class="sep">·</span>
+  <a href="https://github.com/alex-jb/orallexa-ai-trading-agent">GitHub</a>
+</div>
+
+</body>
+</html>

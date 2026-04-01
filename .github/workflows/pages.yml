@@ -1,9 +1,9 @@
-name: Deploy Presentation to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [master]
-    paths: [presentation.html]
+    paths: [docs/**, presentation.html]
   workflow_dispatch:
 
 permissions:
@@ -23,9 +23,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Sync presentation to docs
+        run: cp presentation.html docs/presentation.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: docs
       - id: deployment
         uses: actions/deploy-pages@v4

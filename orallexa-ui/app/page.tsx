@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import * as Mock from "./mock-data";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
 
@@ -917,9 +918,17 @@ export default function Home() {
   const [dailyIntel, setDailyIntel] = useState<DailyIntelData | null>(null);
   const [intelLoading, setIntelLoading] = useState(false);
   const [livePrice, setLivePrice] = useState<{ price: number; change_pct: number; prev_close: number; high: number; low: number; timestamp: string } | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
+  const apiDead = useRef(false); // true = backend unreachable, use client mocks
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
 
   const fetchContext = useCallback(async () => {
+    if (apiDead.current) {
+      setNews(Mock.mockNews(asset).items as never[]);
+      setProfile(Mock.mockProfile() as never);
+      setJournal(Mock.mockJournal().entries as never[]);
+      return;
+    }
     try {
       const [nRes, pRes, jRes] = await Promise.all([
         fetch(`${API}/api/news/${asset}`),
@@ -933,6 +942,27 @@ export default function Home() {
   }, [asset]);
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
+
+  // Check demo mode / API availability
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    fetch(`${API}/api/status`, { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(d => { clearTimeout(timer); if (d.demo) setIsDemo(true); })
+      .catch(() => {
+        clearTimeout(timer);
+        // API unreachable — activate client-side demo
+        apiDead.current = true;
+        setIsDemo(true);
+        // Seed initial data from mocks
+        setNews(Mock.mockNews("NVDA").items as never[]);
+        setProfile(Mock.mockProfile() as never);
+        setJournal(Mock.mockJournal().entries as never[]);
+        setBreakingSignals(Mock.mockBreakingSignals().signals as never[]);
+        setDailyIntel(Mock.mockDailyIntel() as never);
+      });
+  }, []);
 
   // Poll breaking signals every 60s
   useEffect(() => {
@@ -986,6 +1016,12 @@ export default function Home() {
   const runSignal = async () => {
     setLoading(true); setError("");
     try {
+      if (apiDead.current) {
+        await new Promise(r => setTimeout(r, 600));
+        setDecision(Mock.mockAnalyze(asset) as never);
+        fetchContext();
+        return;
+      }
       const form = new FormData();
       form.append("ticker", asset); form.append("mode", strategy.toLowerCase()); form.append("timeframe", horizon.toLowerCase());
       if (context.trim()) form.append("context", context.trim());
@@ -1002,6 +1038,26 @@ export default function Home() {
 
   const runDeep = async () => {
     setLoading(true); setDeepLoading(true); setError(""); setDeepProgress(null);
+
+    if (apiDead.current) {
+      try {
+        const steps = Mock.DEEP_STEPS;
+        for (let i = 0; i < steps.length; i++) {
+          setDeepProgress({ step: i + 1, total: steps.length, label: steps[i].label, label_zh: steps[i].label_zh });
+          await new Promise(r => setTimeout(r, 700));
+        }
+        setDeepProgress(null);
+        const data = Mock.mockDeepAnalysis(asset);
+        setDecision(data as never);
+        if (data.reports) setDeepReport(data.reports as never);
+        if (data.investment_plan) setInvestmentPlan(data.investment_plan as never);
+        if (data.ml_models) setMlModels(data.ml_models as never);
+        if (data.summary) setMarketSummary(data.summary as never);
+        fetchContext();
+      } finally { setLoading(false); setDeepLoading(false); setDeepProgress(null); }
+      return;
+    }
+
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 300000);
     try {
@@ -1060,6 +1116,14 @@ export default function Home() {
     if (!chartFile) return;
     setLoading(true); setError("");
     try {
+      if (apiDead.current) {
+        await new Promise(r => setTimeout(r, 800));
+        const data = Mock.mockChartAnalysis(asset);
+        setDecision(data as never);
+        setChartInsight(data.chart_insight as never);
+        setLoading(false);
+        return;
+      }
       const form = new FormData();
       form.append("file", chartFile); form.append("ticker", asset); form.append("timeframe", horizon.toLowerCase());
       const res = await fetch(`${API}/api/chart-analysis`, { method: "POST", body: form });
@@ -1075,6 +1139,12 @@ export default function Home() {
   const scanWatchlist = async () => {
     setWatchlistLoading(true); setError("");
     try {
+      if (apiDead.current) {
+        await new Promise(r => setTimeout(r, 500));
+        const tks = watchlistInput.split(/[,，\s]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
+        setWatchlistItems(Mock.mockWatchlistScan(tks).tickers as never[]);
+        return;
+      }
       const form = new FormData();
       form.append("tickers", watchlistInput);
       const res = await fetch(`${API}/api/watchlist-scan`, { method: "POST", body: form });
@@ -1088,6 +1158,11 @@ export default function Home() {
   const fetchDailyIntel = useCallback(async (force = false) => {
     setIntelLoading(true);
     try {
+      if (apiDead.current) {
+        await new Promise(r => setTimeout(r, 300));
+        setDailyIntel(Mock.mockDailyIntel() as never);
+        return;
+      }
       const url = force ? `${API}/api/daily-intel/refresh` : `${API}/api/daily-intel`;
       const res = await fetch(url, force ? { method: "POST" } : {});
       if (res.ok) setDailyIntel(await res.json());
@@ -1106,9 +1181,19 @@ export default function Home() {
   const [mobileMenu, setMobileMenu] = useState(false);
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen min-h-screen text-[#F5E6CA] font-[Lato,system-ui,sans-serif]"
+    <div className="flex flex-col h-screen min-h-screen text-[#F5E6CA] font-[Lato,system-ui,sans-serif]"
       role="application" aria-label="Orallexa Capital Intelligence Dashboard"
       style={{ background: "radial-gradient(ellipse at 30% 0%, #1A1A2E 0%, #0D1117 25%, #0A0A0F 60%, #0A0A0F 100%)" }}>
+
+      {/* Demo Mode Banner */}
+      {isDemo && (
+        <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0"
+          style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.15), rgba(212,175,55,0.25), rgba(212,175,55,0.15))", color: "#D4AF37", borderBottom: "1px solid rgba(212,175,55,0.3)" }}>
+          {zh ? "🎭 演示模式 — 展示数据非实时行情" : "🎭 Demo Mode — Simulated data for demonstration"}
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
 
       {/* ── MOBILE TOP BAR ── */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(212,175,55,0.12)", background: "#0D1117" }}>
@@ -1454,6 +1539,7 @@ export default function Home() {
           )}
         </Mod>
       </aside>
+    </div>{/* end lg:flex-row */}
     </div>
   );
 }
