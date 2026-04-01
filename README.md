@@ -82,25 +82,21 @@ Every decision comes with bull arguments, bear counterarguments, a reasoned verd
 
 ---
 
-## Orallexa vs TradingAgents
+## Orallexa vs Other AI Trading Agents
 
-We're inspired by the multi-agent trading research from [TradingAgents](https://github.com/TauricResearch/TradingAgents). Orallexa extends this idea into a productized, cost-aware, deployable system:
-
-| Feature | TradingAgents | Orallexa |
-|---------|:------------:|:--------:|
-| Multi-agent architecture | ✅ | ✅ |
-| Adversarial Bull/Bear debate | ✅ | ✅ Enhanced (structured 300-400 word arguments) |
-| Dual-model routing (Fast/Deep) | ❌ | ✅ Haiku for structure, Sonnet for reasoning |
-| Token + cost optimization | ❌ | ✅ Effort tuning, retry handling, caching |
-| Real-time dashboard | ❌ | ✅ Next.js with live price, alerts, watchlist |
-| Daily market intelligence | ❌ | ✅ Auto-scan 50+ tickers, AI morning brief |
-| Social media thread generation | ❌ | ✅ Ready-to-post with one-click copy |
-| Desktop voice assistant | ❌ | ✅ Bull Coach with Whisper + TTS |
-| Screenshot chart analysis | ❌ | ✅ Claude Vision integration |
-| Volume spike detection | ❌ | ✅ Institutional activity scanner |
-| Mobile responsive UI | ❌ | ✅ Art Deco theme, EN/ZH bilingual |
-| Docker deployment | ❌ | ✅ One-click `docker compose up` |
-| Production-ready API | ❌ | ✅ 11 REST endpoints with CORS config |
+| Feature | Typical AI Trading Bots | Orallexa |
+|---------|:----------------------:|:--------:|
+| Decision making | Single model prediction | Multi-agent adversarial debate |
+| Reasoning | Black-box confidence score | Transparent Bull/Bear argument chain |
+| ML models | 1-2 models | 9 models (RF, XGB, EMAformer, MOIRAI-2, DDPM, PPO RL, GNN, ...) |
+| Model routing | One model for all tasks | Dual-tier: Haiku (fast) + Sonnet (deep) |
+| Cost control | Burn tokens on every call | Token-optimized with effort tuning and caching |
+| Strategy evolution | Manual parameter tuning | LLM generates, tests, and evolves strategy code |
+| Inter-stock signals | Analyze stocks in isolation | GNN graph propagation across 17 related stocks |
+| Risk management | Basic stop-loss | Structured investment plan with entry/stop/target/R:R |
+| Dashboard | CLI or notebook | Real-time Next.js dashboard, Art Deco theme, EN/ZH bilingual |
+| Voice assistant | None | Desktop AI coach with Whisper + TTS + chart screenshot |
+| Testing | Ad hoc | 108 automated tests (integration + ML regression + API E2E) |
 
 ---
 
@@ -308,9 +304,9 @@ curl -X POST http://localhost:8002/api/analyze \
 
 ## Inspiration
 
-Orallexa is inspired by multi-agent trading research, particularly [TradingAgents](https://github.com/TauricResearch/TradingAgents) from Tauric Research. We share the core idea that **multiple specialized agents produce better trading decisions than any single model.**
+Orallexa is inspired by multi-agent trading research. The core idea: **multiple specialized agents produce better trading decisions than any single model.**
 
-Where we diverge: Orallexa extends this from a research framework into a **deployable product** — with a real-time dashboard, cost-aware model routing, daily intelligence automation, voice-enabled desktop assistant, and Docker-ready deployment. The goal isn't just to run experiments, but to build something traders can actually use every day.
+We extend this from research into a **deployable product** — with a real-time dashboard, 9 ML models, cost-aware model routing, LLM strategy evolution, voice-enabled desktop assistant, and Docker-ready deployment. The goal isn't just to run experiments, but to build something traders can actually use every day.
 
 ---
 
