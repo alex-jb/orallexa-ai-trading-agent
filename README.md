@@ -259,7 +259,7 @@ A floating desktop assistant for hands-free trading analysis:
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/alex-jb09/orallexa.git
+git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
 cd orallexa
 pip install -r requirements.txt
 ```
@@ -426,11 +426,11 @@ We publish daily AI-generated market intelligence and development updates:
 ## Star History
 
 <div align="center">
-<a href="https://www.star-history.com/#alex-jb09/orallexa&Date">
+<a href="https://www.star-history.com/#alex-jb/orallexa-ai-trading-agent&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alex-jb09/orallexa&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alex-jb09/orallexa&type=Date" />
-   <img alt="Star History" src="https://api.star-history.com/svg?repos=alex-jb09/orallexa&type=Date" style="width: 80%; height: auto;" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date" />
+   <img alt="Star History" src="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date" style="width: 80%; height: auto;" />
  </picture>
 </a>
 </div>
@@ -449,7 +449,7 @@ open presentation.html
 start presentation.html
 ```
 
-**GitHub Pages:** After pushing to GitHub, enable Pages in repo settings and the presentation will be available at `https://<username>.github.io/orallexa/presentation.html`
+**GitHub Pages:** After pushing to GitHub, enable Pages in repo settings and the presentation will be available at `https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html`
 
 Keyboard controls: Arrow keys or click to navigate. 21 slides, ~15 min talk.
 
