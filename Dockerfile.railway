@@ -1,0 +1,29 @@
+# ── Orallexa API — Lightweight build for Railway (Demo Mode) ─────
+# No PyTorch, no heavy ML — just FastAPI + demo endpoints
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Minimal deps for demo mode
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn[standard] \
+    python-dotenv \
+    python-multipart \
+    yfinance \
+    pandas \
+    numpy \
+    vaderSentiment
+
+# App code
+COPY . .
+
+RUN mkdir -p memory_data results logs
+
+EXPOSE 8002
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV DEMO_MODE=true
+
+CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8002"]
