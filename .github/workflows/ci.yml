@@ -1,0 +1,96 @@
+name: CI — Tests & Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run fast tests (unit + integration + API)
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            -k "not test_ml_regression and not test_chart_analysis and not test_deep_analysis and not test_evolve" \
+            --junitxml=test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results.xml
+
+  build-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: orallexa-ui/package-lock.json
+
+      - name: Install & Build
+        working-directory: orallexa-ui
+        run: |
+          npm ci
+          npx next build
+
+  python-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile check (all .py files)
+        run: |
+          python -c "
+          import py_compile, pathlib, sys
+          errors = []
+          for f in pathlib.Path('.').rglob('*.py'):
+              if '__pycache__' in str(f) or 'node_modules' in str(f):
+                  continue
+              try:
+                  py_compile.compile(str(f), doraise=True)
+              except py_compile.PyCompileError as e:
+                  errors.append(str(e))
+          if errors:
+              print(f'{len(errors)} compile errors:')
+              for e in errors:
+                  print(f'  {e}')
+              sys.exit(1)
+          print('All Python files compile OK')
+          "
