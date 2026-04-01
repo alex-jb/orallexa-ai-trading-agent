@@ -732,6 +732,72 @@ async def evolve_strategies(
         return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# ALPACA PAPER TRADING
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/alpaca/account")
+async def alpaca_account():
+    """Get Alpaca paper trading account info."""
+    from bot.alpaca_executor import AlpacaExecutor
+    executor = AlpacaExecutor()
+    if not executor.connected:
+        return {"error": "Alpaca not connected. Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env"}
+    return executor.get_account()
+
+
+@app.get("/api/alpaca/positions")
+async def alpaca_positions():
+    """Get all open Alpaca positions."""
+    from bot.alpaca_executor import AlpacaExecutor
+    return AlpacaExecutor().get_positions()
+
+
+@app.get("/api/alpaca/orders")
+async def alpaca_orders(limit: int = 10):
+    """Get recent Alpaca orders."""
+    from bot.alpaca_executor import AlpacaExecutor
+    return AlpacaExecutor().get_recent_orders(limit)
+
+
+@app.post("/api/alpaca/execute")
+async def alpaca_execute(
+    ticker: str = Form("NVDA"),
+    decision: str = Form("BUY"),
+    confidence: float = Form(50.0),
+    entry_price: float = Form(0.0),
+    stop_loss: float = Form(0.0),
+    take_profit: float = Form(0.0),
+    position_pct: float = Form(5.0),
+):
+    """Execute a signal as an Alpaca paper order."""
+    from bot.alpaca_executor import AlpacaExecutor
+    executor = AlpacaExecutor()
+    return executor.execute_signal(
+        ticker=ticker.upper(),
+        decision=decision.upper(),
+        confidence=confidence,
+        entry_price=entry_price,
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        position_pct=position_pct,
+    )
+
+
+@app.post("/api/alpaca/close/{ticker}")
+async def alpaca_close(ticker: str):
+    """Close an open position."""
+    from bot.alpaca_executor import AlpacaExecutor
+    return AlpacaExecutor().close_position(ticker.upper())
+
+
+@app.post("/api/alpaca/close-all")
+async def alpaca_close_all():
+    """Close all open positions."""
+    from bot.alpaca_executor import AlpacaExecutor
+    return AlpacaExecutor().close_all()
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8002)
