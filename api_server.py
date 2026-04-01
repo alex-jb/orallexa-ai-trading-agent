@@ -24,7 +24,7 @@ from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 # Make project root importable
@@ -730,6 +730,136 @@ async def evolve_strategies(
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# WEBSOCKET — LIVE PRICE + SIGNAL STREAM
+# ═══════════════════════════════════════════════════════════════════════════
+
+_ws_clients: set[WebSocket] = set()
+
+
+async def _broadcast(event: str, data: dict) -> None:
+    """Send event to all connected WebSocket clients."""
+    msg = json.dumps({"event": event, **data}, ensure_ascii=False)
+    dead = set()
+    for ws in _ws_clients:
+        try:
+            await ws.send_text(msg)
+        except Exception:
+            dead.add(ws)
+    _ws_clients -= dead
+
+
+@app.websocket("/ws/live")
+async def ws_live(websocket: WebSocket):
+    """
+    WebSocket endpoint for live data streaming.
+
+    Client sends: {"type": "subscribe", "tickers": ["NVDA", "AAPL"]}
+    Server pushes: price updates every 5s, signal alerts on change
+
+    Also accepts: {"type": "ping"} → responds with pong
+    """
+    await websocket.accept()
+    _ws_clients.add(websocket)
+
+    import asyncio
+
+    tickers: list[str] = ["NVDA"]
+    last_prices: dict[str, float] = {}
+    last_signals: dict[str, str] = {}
+
+    async def _price_loop():
+        """Push price updates every 5 seconds."""
+        import yfinance as yf
+        while True:
+            try:
+                for tk in tickers:
+                    try:
+                        t = yf.Ticker(tk)
+                        hist = t.history(period="1d", interval="1m")
+                        if not hist.empty:
+                            price = float(hist["Close"].iloc[-1])
+                            change = 0.0
+                            if len(hist) > 1:
+                                prev = float(hist["Close"].iloc[-2])
+                                change = (price / prev - 1) * 100
+
+                            # Only push if price changed
+                            if abs(price - last_prices.get(tk, 0)) > 0.01:
+                                last_prices[tk] = price
+                                await websocket.send_text(json.dumps({
+                                    "event": "price",
+                                    "ticker": tk,
+                                    "price": round(price, 2),
+                                    "change_pct": round(change, 2),
+                                }))
+                    except Exception:
+                        pass
+                await asyncio.sleep(5)
+            except Exception:
+                break
+
+    price_task = asyncio.create_task(_price_loop())
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                msg = json.loads(data)
+                msg_type = msg.get("type", "")
+
+                if msg_type == "subscribe":
+                    new_tickers = msg.get("tickers", [])
+                    if isinstance(new_tickers, list):
+                        tickers.clear()
+                        tickers.extend([t.upper() for t in new_tickers[:10]])
+                        await websocket.send_text(json.dumps({
+                            "event": "subscribed",
+                            "tickers": tickers,
+                        }))
+
+                elif msg_type == "ping":
+                    await websocket.send_text(json.dumps({"event": "pong"}))
+
+                elif msg_type == "analyze":
+                    # Run quick analysis and push result
+                    tk = msg.get("ticker", tickers[0] if tickers else "NVDA").upper()
+                    await websocket.send_text(json.dumps({
+                        "event": "analyzing", "ticker": tk,
+                    }))
+
+                    def _run_analysis(ticker: str) -> dict:
+                        from core.brain import OrallexaBrain
+                        from models.confidence import guard_decision
+                        brain = OrallexaBrain(ticker)
+                        result = brain.run_for_mode(mode="intraday", timeframe="15m", use_claude=False)
+                        result = guard_decision(result)
+                        return result.to_dict()
+
+                    result = await asyncio.to_thread(_run_analysis, tk)
+                    new_signal = result.get("decision", "WAIT")
+
+                    # Detect signal change
+                    changed = new_signal != last_signals.get(tk)
+                    last_signals[tk] = new_signal
+
+                    await websocket.send_text(json.dumps({
+                        "event": "signal",
+                        "ticker": tk,
+                        "changed": changed,
+                        **result,
+                    }))
+
+            except json.JSONDecodeError:
+                pass
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        price_task.cancel()
+        _ws_clients.discard(websocket)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
