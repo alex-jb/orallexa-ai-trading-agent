@@ -34,19 +34,16 @@ load_dotenv(_ROOT / ".env", override=True)
 
 app = FastAPI(title="Orallexa Capital API")
 
+DEMO_MODE = os.environ.get("DEMO_MODE", "").lower() in ("true", "1", "yes")
+
 
 # ── Warm up heavy imports at startup (avoids 30s cold start on first request) ──
 @app.on_event("startup")
 async def _warmup():
-    import asyncio
-    def _preload():
-        try:
-            from core.brain import OrallexaBrain
-            # Initialize once to trigger all heavy imports (sklearn, torch, etc.)
-            _ = OrallexaBrain("SPY")
-        except Exception:
-            pass
-    await asyncio.to_thread(_preload)
+    """Lazy warmup — don't block startup."""
+    if DEMO_MODE:
+        import logging
+        logging.getLogger("api").info("🎭 DEMO MODE — all endpoints return mock data, no API keys needed")
 
 
 _cors_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [
@@ -59,6 +56,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/status")
+async def status():
+    """Health check + demo mode indicator."""
+    return {"status": "ok", "demo": DEMO_MODE}
 
 
 def _fast_claude_overlay(result, ticker: str, context: str = ""):
@@ -143,6 +146,10 @@ async def analyze(
     context: str = Form(""),
 ):
     """Fast analysis — scalp / intraday / swing. Optional Claude overlay + debate."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_analyze
+        return mock_analyze(ticker, mode, timeframe, context)
+
     import asyncio
 
     def _run():
@@ -193,6 +200,10 @@ async def deep_analysis(
     Lightweight deep analysis: ML models + technical analysis + news sentiment
     + Bull/Bear debate.  ~15-30 seconds.
     """
+    if DEMO_MODE:
+        from engine.demo_data import mock_deep_analysis
+        return mock_deep_analysis(ticker)
+
     from fastapi.responses import JSONResponse
 
     key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -225,15 +236,15 @@ async def deep_analysis(
         try:
             from engine.breaking_signals import detect_breaking
             breaking = detect_breaking(result.decision_output, ticker.upper())
-        except Exception:
-            pass
+        except Exception as _exc:
+            from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
 
         try:
             from engine.decision_log import save_decision
             save_decision(decision=result.decision_output, ticker=ticker.upper(),
                           mode="deep", timeframe="1D")
-        except Exception:
-            pass
+        except Exception as _exc:
+            from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
 
         out = {
             **dec,
@@ -277,6 +288,19 @@ async def deep_analysis_stream(
     from fastapi.responses import StreamingResponse, JSONResponse
     import asyncio
     import time
+
+    if DEMO_MODE:
+        from engine.demo_data import mock_deep_analysis, DEEP_STEPS
+
+        async def demo_stream():
+            for i, (label_en, label_zh) in enumerate(DEEP_STEPS, 1):
+                yield f"event: progress\ndata: {json.dumps({'step': i, 'total': len(DEEP_STEPS), 'label': label_en, 'label_zh': label_zh})}\n\n"
+                await asyncio.sleep(0.8)
+            result = mock_deep_analysis(ticker)
+            result["elapsed_seconds"] = round(len(DEEP_STEPS) * 0.8, 1)
+            yield f"event: done\ndata: {json.dumps(result, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(demo_stream(), media_type="text/event-stream")
 
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not key:
@@ -411,14 +435,14 @@ async def deep_analysis_stream(
         try:
             from engine.breaking_signals import detect_breaking
             breaking = detect_breaking(final_decision, tk)
-        except Exception:
-            pass
+        except Exception as _exc:
+            from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
 
         try:
             from engine.decision_log import save_decision
             save_decision(decision=final_decision, ticker=tk, mode="deep", timeframe="1D")
-        except Exception:
-            pass
+        except Exception as _exc:
+            from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
 
         dec = final_decision.to_dict()
         out = {
@@ -445,6 +469,10 @@ async def chart_analysis(
     timeframe: str = Form("15m"),
 ):
     """Screenshot chart analysis via Claude Vision."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_chart_analysis
+        return mock_chart_analysis(ticker, timeframe)
+
     from skills.chart_analysis import ChartAnalysisSkill
     from models.confidence import guard_decision
 
@@ -485,6 +513,10 @@ def _extract_chart_insight(reasoning: list) -> dict:
 @app.get("/api/news/{ticker}")
 async def news(ticker: str):
     """Live news headlines + VADER sentiment."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_news
+        return mock_news(ticker)
+
     import yfinance as yf
     from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -517,6 +549,10 @@ async def news(ticker: str):
 @app.get("/api/profile")
 async def profile():
     """Trader profile + behavior insights."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_profile
+        return mock_profile()
+
     try:
         from bot.behavior import BehaviorMemory
         from bot.config import BotProfileManager
@@ -543,6 +579,10 @@ async def profile():
 @app.get("/api/journal")
 async def journal():
     """Recent decisions from decision log."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_journal
+        return mock_journal()
+
     try:
         log_path = Path("memory_data/decision_log.json")
         if log_path.exists():
@@ -568,6 +608,10 @@ async def journal():
 @app.get("/api/daily-intel")
 async def daily_intel(force: bool = False):
     """Daily market intelligence — top movers, sectors, news, AI summary, picks. Cached per day."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_daily_intel
+        return mock_daily_intel()
+
     import asyncio
     try:
         from engine.daily_intel import generate_daily_intel
@@ -581,6 +625,10 @@ async def daily_intel(force: bool = False):
 @app.post("/api/daily-intel/refresh")
 async def daily_intel_refresh():
     """Force regenerate daily intelligence report."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_daily_intel
+        return mock_daily_intel()
+
     import asyncio
     try:
         from engine.daily_intel import generate_daily_intel
@@ -594,6 +642,11 @@ async def daily_intel_refresh():
 @app.post("/api/watchlist-scan")
 async def watchlist_scan(tickers: str = Form("NVDA,AAPL,TSLA")):
     """Fast parallel scan of multiple tickers — technical signals only, no LLM."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_watchlist_scan
+        ticker_list = [t.strip().upper() for t in tickers.replace("，", ",").split(",") if t.strip()]
+        return mock_watchlist_scan(ticker_list)
+
     import concurrent.futures
     import yfinance as yf
 
@@ -653,6 +706,10 @@ async def watchlist_scan(tickers: str = Form("NVDA,AAPL,TSLA")):
 @app.get("/api/live/{ticker}")
 async def live_price(ticker: str):
     """Lightweight live price + last signal status. No LLM calls — sub-second response."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_live
+        return mock_live(ticker)
+
     import yfinance as yf
     from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -674,8 +731,8 @@ async def live_price(ticker: str):
             out["high"] = round(float(getattr(info, "day_high", 0) or 0), 2) or None
             out["low"] = round(float(getattr(info, "day_low", 0) or 0), 2) or None
             out["volume"] = int(getattr(info, "last_volume", 0) or 0) or None
-    except Exception:
-        pass
+    except Exception as _exc:
+        from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
 
     # Last signal from decision log (no computation)
     try:
@@ -690,8 +747,8 @@ async def live_price(ticker: str):
                     "timestamp": entry.get("timestamp", ""),
                 }
                 break
-    except Exception:
-        pass
+    except Exception as _exc:
+        from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
 
     return out
 
@@ -699,6 +756,10 @@ async def live_price(ticker: str):
 @app.get("/api/breaking-signals")
 async def breaking_signals(hours: int = 24, limit: int = 10):
     """Recent breaking signals — probability shifts, decision flips, confidence changes."""
+    if DEMO_MODE:
+        from engine.demo_data import mock_breaking_signals
+        return mock_breaking_signals()
+
     try:
         from engine.breaking_signals import get_recent_breaking
         signals = get_recent_breaking(hours=hours, limit=limit)
@@ -795,8 +856,8 @@ async def ws_live(websocket: WebSocket):
                                     "price": round(price, 2),
                                     "change_pct": round(change, 2),
                                 }))
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        from core.logger import get_logger; get_logger("api").debug("Non-critical: %s", _exc)
                 await asyncio.sleep(5)
             except Exception:
                 break
