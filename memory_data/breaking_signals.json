@@ -2,6 +2,36 @@
   {
     "type": "confidence_shift",
     "severity": "medium",
+    "ticker": "AMD",
+    "timestamp": "2026-04-01T11:18:59.142411",
+    "shift": 31.1,
+    "prev_confidence": 47.6,
+    "new_confidence": 78.7,
+    "message": "AMD confidence shifted +31% (48% → 79%)"
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "AMD",
+    "timestamp": "2026-04-01T11:17:10.495564",
+    "shift": -31.1,
+    "prev_confidence": 78.7,
+    "new_confidence": 47.6,
+    "message": "AMD confidence shifted -31% (79% → 48%)"
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "NVDA",
+    "timestamp": "2026-04-01T11:14:49.707655",
+    "shift": -39.4,
+    "prev_confidence": 82.0,
+    "new_confidence": 42.6,
+    "message": "NVDA confidence shifted -39% (82% → 43%)"
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
     "ticker": "QQQ",
     "timestamp": "2026-04-01T11:04:32.534022",
     "shift": -39.4,
