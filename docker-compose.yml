@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api:
     build: .
@@ -7,12 +5,16 @@ services:
       - "8002:8002"
     env_file:
       - .env
-    environment:
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
     volumes:
       - ./memory_data:/app/memory_data
       - ./results:/app/results
+      - ./logs:/app/logs
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/profile')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:
@@ -22,5 +24,6 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped

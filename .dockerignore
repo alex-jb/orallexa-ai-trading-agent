@@ -1,5 +1,6 @@
 .env
 .git
+.github
 __pycache__
 *.pyc
 .venv
@@ -8,7 +9,11 @@ node_modules
 orallexa-ui/node_modules
 orallexa-ui/.next
 .claude
-*.md
+.pytest_cache
 tests/
 desktop_agent/
 assets/avatar/
+presentation.html
+speech_script.txt
+project_summary.txt
+eval_results/
