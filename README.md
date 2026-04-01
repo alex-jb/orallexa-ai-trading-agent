@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/avatar/bull_idle.png" alt="Orallexa" width="120">
+<img src="assets/logo.png" alt="Orallexa — AI Trading Operating System" width="400">
 
 # Orallexa
 

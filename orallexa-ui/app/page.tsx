@@ -628,14 +628,18 @@ function DecisionCard({ d, asset, strategy, horizon, news, risk, investmentPlan,
    PAGE
    ══════════════════════════════════════════════════════════════════════════ */
 /* ── Copy-to-clipboard button for social sharing ─────────────────── */
+const TWITTER_HANDLE = "@orallexatrading";
+function copyWithAttribution(text: string) {
+  navigator.clipboard.writeText(`${text}\n\n${TWITTER_HANDLE}`);
+}
 function CopyBtn({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   if (!text) return null;
   return (
-    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+    <button onClick={() => { copyWithAttribution(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
       className="flex items-center gap-1 px-2 py-1 text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] transition-all hover:text-[#FFD700] shrink-0"
       style={{ color: copied ? "#006B3F" : "#C5A255", background: copied ? "rgba(0,107,63,0.1)" : "rgba(212,175,55,0.06)", border: `1px solid ${copied ? "rgba(0,107,63,0.3)" : "rgba(212,175,55,0.15)"}` }}>
-      {copied ? "Copied!" : (label || "Copy for X")}
+      {copied ? "Copied!" : (label || "Copy for 𝕏")}
     </button>
   );
 }
@@ -653,6 +657,43 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
   const moodColor = data.market_mood === "Risk-On" ? "#006B3F" : data.market_mood === "Risk-Off" ? "#8B0000" : "#D4AF37";
   const moodBg = data.market_mood === "Risk-On" ? "rgba(0,107,63,0.08)" : data.market_mood === "Risk-Off" ? "rgba(139,0,0,0.08)" : "rgba(212,175,55,0.06)";
   const dirColor = (d: string) => d === "bullish" ? "#006B3F" : d === "bearish" ? "#8B0000" : "#D4AF37";
+
+  // Generate FinTwit-style formatted data text for chart sections
+  const moversText = (() => {
+    const g = data.gainers.slice(0, 5).map(m => `🟢 $${m.ticker} +${m.change_pct.toFixed(1)}% ($${m.price})`).join("\n");
+    const l = data.losers.slice(0, 5).map(m => `🔴 $${m.ticker} ${m.change_pct.toFixed(1)}% ($${m.price})`).join("\n");
+    return `🔥 MOVERS — ${data.date}\n\n${g || "Quiet day"}\n\n${l || "Quiet day"}\n\n#stocks #trading`;
+  })();
+
+  const sectorsText = (() => {
+    const leading = data.sectors.filter(s => s.change_pct > 0).slice(0, 4).map(s => `${s.sector} +${s.change_pct.toFixed(1)}%`).join(", ");
+    const lagging = data.sectors.filter(s => s.change_pct < 0).slice(-4).map(s => `${s.sector} ${s.change_pct.toFixed(1)}%`).join(", ");
+    return `📊 SECTOR WATCH — ${data.date}\n\n🟢 Leading: ${leading || "—"}\n🔴 Lagging: ${lagging || "—"}\n\n#trading #markets`;
+  })();
+
+  const volumeText = (() => {
+    if (!data.volume_spikes?.length) return "";
+    const rows = data.volume_spikes.slice(0, 5).map(s => `$${s.ticker} — ${s.volume_ratio.toFixed(0)}x avg volume, ${s.change_pct >= 0 ? "+" : ""}${s.change_pct.toFixed(1)}%`).join("\n");
+    return `🐳 UNUSUAL ACTIVITY\n\n${rows}\n\nSmart money moving. 👀`;
+  })();
+
+  const picksText = (() => {
+    if (!data.ai_picks.length) return "";
+    const rows = data.ai_picks.map(p => {
+      const icon = p.direction === "bullish" ? "🟢" : p.direction === "bearish" ? "🔴" : "⚪";
+      return `${icon} $${p.ticker} (${p.direction}) — ${p.reason}`;
+    }).join("\n");
+    return `🤖 AI PICKS — ${data.date}\n\n${rows}\n\n#stocks #fintwit`;
+  })();
+
+  const headlinesText = (() => {
+    if (!data.headlines.length) return "";
+    const rows = data.headlines.slice(0, 8).map(h => {
+      const icon = h.sentiment === "bullish" ? "🟢" : h.sentiment === "bearish" ? "🔴" : "⚪";
+      return `${icon} $${h.ticker}: ${h.title}`;
+    }).join("\n");
+    return `📰 HEADLINES — ${data.date}\n\n${rows}\n\n#stocks #trading`;
+  })();
 
   return (
     <div className="space-y-4 anim-fade-in">
@@ -673,7 +714,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
       </Mod>
 
       {/* Top Movers — 2 columns */}
-      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.topMovers}</span><CopyBtn text={data.social_posts?.movers || ""} /></div>}>
+      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.topMovers}</span><CopyBtn text={data.social_posts?.movers || moversText} /></div>}>
         <div className="grid grid-cols-2 gap-3">
           {/* Gainers */}
           <div>
@@ -713,7 +754,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
       </Mod>
 
       {/* Sector Heatmap */}
-      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.sectorMap}</span><CopyBtn text={data.social_posts?.sectors || ""} /></div>}>
+      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.sectorMap}</span><CopyBtn text={data.social_posts?.sectors || sectorsText} /></div>}>
         <div className="space-y-1">
           {data.sectors.map((s, i) => {
             const pct = s.change_pct;
@@ -740,7 +781,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
 
       {/* AI Picks */}
       {data.ai_picks.length > 0 && (
-        <Mod title={<div className="flex items-center justify-between w-full"><span>{t.aiPicks} — {t.worthWatching}</span><CopyBtn text={data.social_posts?.picks || ""} /></div>}>
+        <Mod title={<div className="flex items-center justify-between w-full"><span>{t.aiPicks} — {t.worthWatching}</span><CopyBtn text={data.social_posts?.picks || picksText} /></div>}>
           {data.ai_picks.map((p, i) => (
             <button key={i} onClick={() => onSelectTicker(p.ticker)}
               className="w-full text-left py-2 border-b last:border-b-0 hover:bg-[#D4AF37]/4 transition-colors"
@@ -761,7 +802,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
 
       {/* Volume Spikes */}
       {data.volume_spikes && data.volume_spikes.length > 0 && (
-        <Mod title={<div className="flex items-center justify-between w-full"><span>{zh ? "成交量异动" : "Volume Spikes"}</span><CopyBtn text={data.social_posts?.volume || ""} /></div>}>
+        <Mod title={<div className="flex items-center justify-between w-full"><span>{zh ? "成交量异动" : "Volume Spikes"}</span><CopyBtn text={data.social_posts?.volume || volumeText} /></div>}>
           {data.volume_spikes.map((s, i) => (
             <button key={i} onClick={() => onSelectTicker(s.ticker)}
               className="w-full flex justify-between items-center py-[6px] border-b last:border-b-0 hover:bg-[#D4AF37]/4 transition-colors text-left"
@@ -791,7 +832,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
                   <span className="text-[8px] font-[DM_Mono] text-[#4A4D55] mr-2">{i + 1}/{data.orallexa_thread!.length}</span>
                   {tw}
                 </div>
-                <button onClick={() => { navigator.clipboard.writeText(tw); }}
+                <button onClick={() => { copyWithAttribution(tw); }}
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-[Josefin_Sans] text-[#C5A255] hover:text-[#FFD700] px-1.5 py-0.5 uppercase"
                   style={{ background: "rgba(26,26,46,0.9)", border: "1px solid rgba(212,175,55,0.2)" }}
                   aria-label="Copy post">
@@ -802,7 +843,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
           </div>
           <button onClick={() => {
             const full = data.orallexa_thread!.map((tw, i) => `${i + 1}/${data.orallexa_thread!.length} ${tw}`).join("\n\n");
-            navigator.clipboard.writeText(full);
+            copyWithAttribution(full);
           }}
             className="w-full py-2 text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#D4AF37] hover:text-[#FFD700] transition-colors"
             style={{ background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.2)" }}>
@@ -812,7 +853,7 @@ function DailyIntelView({ data, onSelectTicker, t, zh }: {
       )}
 
       {/* Headlines */}
-      <Mod title={t.marketIntel}>
+      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.marketIntel}</span><CopyBtn text={headlinesText} /></div>}>
         {data.headlines.map((h, i) => (
           <div key={i} className="py-[6px] border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
             {h.url ? (
@@ -1089,9 +1130,9 @@ export default function Home() {
         {/* Brand Header with Bull */}
         <div className="pb-4 mb-1 border-b" style={{ borderColor: "rgba(212,175,55,0.15)" }}>
           <div className="flex items-center gap-3">
-            <BullIcon size={22} />
+            <img src="/icon-192.png" alt="" width={22} height={22} style={{ borderRadius: 4 }} />
             <span className="font-[Poiret_One] text-[14px] tracking-[0.3em]"
-              style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.brand}</span>
+              style={{ background: "linear-gradient(135deg, #D4AF37, #4A90D9, #6B5CE7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.brand}</span>
             <span className="text-[9px] font-[Josefin_Sans] font-semibold text-[#006B3F]/70 tracking-[0.12em] uppercase ml-auto">{t.active}</span>
           </div>
           <div className="text-[9px] font-[Josefin_Sans] text-[#6B6E76] tracking-[0.2em] uppercase mt-2 ml-[34px] font-light">{t.subtitle}</div>
