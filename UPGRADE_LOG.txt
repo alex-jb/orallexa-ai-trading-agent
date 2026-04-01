@@ -294,3 +294,76 @@ Description: 113个pytest测试，106+ passed, 0 failed
   - 已有测试: decision(8) + behavior(14) + risk(8) + scalping(13) = 47
 Files: tests/test_engine_integration.py, tests/test_ml_regression.py, tests/test_api_e2e.py (ALL NEW)
 Run: python -m pytest tests/ -v
+
+────────────────────────────────────────────────────────────────────────────────
+
+[2026-04-01] #021 — Daily Intel Social Posts (社交内容升级)
+Status: DONE
+Description: 每个板块生成独立社交帖 + 一键复制到Twitter/X
+  - LLM生成6种内容: thread + movers_post + sectors_post + picks_post + brief_post + volume_post
+  - Prompt风格: 大白话、抓眼球、像朋友聊天不是Bloomberg报告
+  - 前端每个板块加 "Copy for X" 按钮 (CopyBtn组件)
+  - 每条 ≤280字符，可直接粘贴到Twitter/X
+Files: engine/daily_intel.py, orallexa-ui/app/page.tsx
+Rollback: 恢复旧的 _generate_orallexa_thread 函数
+
+────────────────────────────────────────────────────────────────────────────────
+
+[2026-04-01] #022 — CI/CD Pipeline (持续集成)
+Status: DONE
+Description: GitHub Actions — push自动跑3个job
+  - python-lint: 编译检查所有.py文件 (~4s)
+  - test: pytest unit + integration + API E2E (~1min)
+  - build-ui: Next.js TypeScript编译+构建 (~25s)
+Files: .github/workflows/ci.yml (NEW)
+Trigger: 每次push到master
+
+────────────────────────────────────────────────────────────────────────────────
+
+[2026-04-01] #023 — Docker Production Setup (容器化部署)
+Status: DONE
+Description: 一键启动 API + UI
+  - Dockerfile: requirements-docker.txt (无桌面GUI依赖), healthcheck
+  - docker-compose: API健康检查后启动前端, 持久化 data/logs/results
+  - requirements-docker.txt: PyTorch CPU + stable-baselines3 + langgraph
+  Run: docker compose up --build
+Files: Dockerfile, docker-compose.yml, requirements-docker.txt, .dockerignore
+Rollback: N/A
+
+────────────────────────────────────────────────────────────────────────────────
+
+[2026-04-01] #024 — Alpaca Paper Trading Integration (模拟交易对接)
+Status: DONE
+Description: 信号自动执行为Alpaca纸面交易订单
+  - Market + Bracket orders (止损+止盈)
+  - 置信度 < 40% 自动跳过, WAIT不执行
+  - 6个API端点: account, positions, orders, execute, close, close-all
+  - 自动同步到本地PaperTrader日志
+  Setup: .env 加 ALPACA_API_KEY + ALPACA_SECRET_KEY
+Files: bot/alpaca_executor.py (NEW), api_server.py
+Rollback: 删除 bot/alpaca_executor.py
+
+────────────────────────────────────────────────────────────────────────────────
+
+[2026-04-01] #025 — WebSocket Live Stream (实时推送)
+Status: DONE
+Description: ws://localhost:8002/ws/live 实时数据流
+  - 价格推送: 每5秒推送订阅ticker最新价
+  - 订阅: {"type":"subscribe","tickers":["NVDA","AAPL"]} 最多10只
+  - 即时分析: {"type":"analyze","ticker":"NVDA"} → 推送信号
+  - 信号变化检测: changed=true 标记
+  - 多客户端广播支持
+Files: api_server.py
+Rollback: 移除 /ws/live 端点和相关代码
+
+────────────────────────────────────────────────────────────────────────────────
+
+[2026-04-01] #026 — PWA Mobile Support (移动端)
+Status: DONE
+Description: Progressive Web App — 手机可安装
+  - manifest.json: standalone模式, 暗色主题, 竖屏
+  - Apple Web App: status bar, 启动图标
+  - Icons: 192x192 + 512x512 金色O暗底
+  Usage: 手机Chrome打开 → 菜单 → "添加到主屏幕"
+Files: orallexa-ui/public/manifest.json, orallexa-ui/public/icon-*.png, orallexa-ui/app/layout.tsx
+Rollback: 删除 manifest.json 和 icon 文件
