@@ -120,7 +120,7 @@ function GoldRule({ strength = 25 }: { strength?: number }) {
   );
 }
 
-function Heading({ children }: { children: string }) {
+function Heading({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 py-0.5">
       <div className="flex gap-0.5">
