@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 250" font-family="Segoe UI, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="dk" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A1A2E"/>
+      <stop offset="100%" style="stop-color:#0D1117"/>
+    </linearGradient>
+    <marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#D4AF37" fill-opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <rect width="750" height="250" rx="10" fill="#0A0A0F"/>
+  <text x="375" y="28" text-anchor="middle" fill="#D4AF37" font-size="13" font-weight="700" letter-spacing="2.5">DAILY MARKET INTELLIGENCE PIPELINE</text>
+
+  <!-- Step 1 -->
+  <rect x="20" y="50" width="110" height="75" rx="5" fill="url(#dk)" stroke="#006B3F" stroke-width="0.7"/>
+  <text x="75" y="70" text-anchor="middle" fill="#006B3F" font-size="8" font-weight="700" letter-spacing="1">STEP 1</text>
+  <text x="75" y="86" text-anchor="middle" fill="#F5E6CA" font-size="9" font-weight="600">Top Movers</text>
+  <text x="75" y="100" text-anchor="middle" fill="#6B6E76" font-size="7.5">50+ tickers</text>
+  <text x="75" y="112" text-anchor="middle" fill="#6B6E76" font-size="7.5">parallel scan</text>
+
+  <line x1="130" y1="87" x2="150" y2="87" stroke="#D4AF37" stroke-width="1" marker-end="url(#a2)"/>
+
+  <!-- Step 2 -->
+  <rect x="155" y="50" width="110" height="75" rx="5" fill="url(#dk)" stroke="#D4AF37" stroke-width="0.7"/>
+  <text x="210" y="70" text-anchor="middle" fill="#D4AF37" font-size="8" font-weight="700" letter-spacing="1">STEP 2</text>
+  <text x="210" y="86" text-anchor="middle" fill="#F5E6CA" font-size="9" font-weight="600">Volume Spikes</text>
+  <text x="210" y="100" text-anchor="middle" fill="#6B6E76" font-size="7.5">2x+ avg volume</text>
+  <text x="210" y="112" text-anchor="middle" fill="#6B6E76" font-size="7.5">institutional flow</text>
+
+  <line x1="265" y1="87" x2="285" y2="87" stroke="#D4AF37" stroke-width="1" marker-end="url(#a2)"/>
+
+  <!-- Step 3 -->
+  <rect x="290" y="50" width="110" height="75" rx="5" fill="url(#dk)" stroke="#2563EB" stroke-width="0.7"/>
+  <text x="345" y="70" text-anchor="middle" fill="#2563EB" font-size="8" font-weight="700" letter-spacing="1">STEP 3</text>
+  <text x="345" y="86" text-anchor="middle" fill="#F5E6CA" font-size="9" font-weight="600">News + Sentiment</text>
+  <text x="345" y="100" text-anchor="middle" fill="#6B6E76" font-size="7.5">FinBERT / VADER</text>
+  <text x="345" y="112" text-anchor="middle" fill="#6B6E76" font-size="7.5">top 20 headlines</text>
+
+  <line x1="400" y1="87" x2="420" y2="87" stroke="#D4AF37" stroke-width="1" marker-end="url(#a2)"/>
+
+  <!-- Step 4 -->
+  <rect x="425" y="50" width="110" height="75" rx="5" fill="url(#dk)" stroke="#8B0000" stroke-width="0.7"/>
+  <text x="480" y="70" text-anchor="middle" fill="#8B0000" font-size="8" font-weight="700" letter-spacing="1">STEP 4</text>
+  <text x="480" y="86" text-anchor="middle" fill="#F5E6CA" font-size="9" font-weight="600">Sector Heatmap</text>
+  <text x="480" y="100" text-anchor="middle" fill="#6B6E76" font-size="7.5">13 sector ETFs</text>
+  <text x="480" y="112" text-anchor="middle" fill="#6B6E76" font-size="7.5">rotation analysis</text>
+
+  <line x1="535" y1="87" x2="555" y2="87" stroke="#D4AF37" stroke-width="1" marker-end="url(#a2)"/>
+
+  <!-- Step 5: AI -->
+  <rect x="560" y="45" width="170" height="85" rx="5" fill="url(#dk)" stroke="#D4AF37" stroke-width="1.2"/>
+  <rect x="560" y="45" width="170" height="22" rx="5" fill="#D4AF37" fill-opacity="0.12"/>
+  <text x="645" y="61" text-anchor="middle" fill="#D4AF37" font-size="9" font-weight="700" letter-spacing="1.5">CLAUDE SONNET AI</text>
+  <text x="645" y="82" text-anchor="middle" fill="#F5E6CA" font-size="8.5">Morning Brief (300-400w)</text>
+  <text x="645" y="96" text-anchor="middle" fill="#F5E6CA" font-size="8.5">AI Picks (3-5 tickers)</text>
+  <text x="645" y="110" text-anchor="middle" fill="#F5E6CA" font-size="8.5">Orallexa Thread (6-7 posts)</text>
+
+  <!-- Output row -->
+  <line x1="375" y1="130" x2="375" y2="155" stroke="#D4AF37" stroke-width="1.2" marker-end="url(#a2)"/>
+
+  <rect x="80" y="160" width="590" height="35" rx="5" fill="#D4AF37" fill-opacity="0.06" stroke="#D4AF37" stroke-width="0.5"/>
+  <text x="375" y="182" text-anchor="middle" fill="#D4AF37" font-size="10" font-weight="600" letter-spacing="1">OUTPUT: Gainers | Losers | Volume Spikes | Sectors | Headlines | AI Brief | AI Picks | Social Thread</text>
+
+  <!-- Cache note -->
+  <rect x="200" y="210" width="350" height="25" rx="4" fill="url(#dk)" stroke="#6B6E76" stroke-width="0.5"/>
+  <text x="375" y="227" text-anchor="middle" fill="#6B6E76" font-size="8.5">Cached per day | Auto-regenerates | Force refresh available</text>
+</svg>

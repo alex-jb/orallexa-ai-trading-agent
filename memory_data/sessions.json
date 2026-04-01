@@ -1,0 +1,788 @@
+[
+  {
+    "session_id": "sess_20260330_172150",
+    "timestamp": "2026-03-30 17:21:50",
+    "language_mode": "中文",
+    "persona_mode": "Calm Coach",
+    "user_input": "今天我要做短线有什么建议",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260330_171953",
+    "timestamp": "2026-03-30 17:19:53",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "我今天要做QQQ的短线,你有什么建议吗?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260330_171321",
+    "timestamp": "2026-03-30 17:13:21",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "今天做短线qqq你有什么建议",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Watch",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260330_171246",
+    "timestamp": "2026-03-30 17:12:46",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "我今天想做短线5分钟的做QQQ你有什么建议吗?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Watch",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_223048",
+    "timestamp": "2026-03-29 22:30:48",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "帮我找一只和SpaceX相关的股票",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_222919",
+    "timestamp": "2026-03-29 22:29:19",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "我要做短线,我可以截图,你帮我分析吗?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_221305",
+    "timestamp": "2026-03-29 22:13:05",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "我要做短线 我可以截图你帮我分析么",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Watch",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_221210",
+    "timestamp": "2026-03-29 22:12:10",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "我要做短线 我可以截图你帮我分析么",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Watch",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_220336",
+    "timestamp": "2026-03-29 22:03:36",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "我做短线 我可以截图给你你帮我分析么",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Watch",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_145719",
+    "timestamp": "2026-03-29 14:57:19",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "那你帮我找一下SpaceX相关的股票。",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_145509",
+    "timestamp": "2026-03-29 14:55:09",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "可以帮我找到SpaceX什么时候上市,然后背景分析。",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_145426",
+    "timestamp": "2026-03-29 14:54:26",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "帮我分析苹果的",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_144831",
+    "timestamp": "2026-03-29 14:48:31",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "请问最近有哪些科技股或者人工智能股票值得购入?帮我分析一下。",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_144148",
+    "timestamp": "2026-03-29 14:41:48",
+    "language_mode": "中文",
+    "persona_mode": "Calm Coach",
+    "user_input": "你在这一版本和上一版本有什么改进?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_130807",
+    "timestamp": "2026-03-29 13:08:07",
+    "language_mode": "中文",
+    "persona_mode": "Calm Coach",
+    "user_input": "在未来十天有什么可以给我的意见吗?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Buy",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_033645",
+    "timestamp": "2026-03-29 03:36:45",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "用中文解释今日机会",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_033513",
+    "timestamp": "2026-03-29 03:35:13",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "今天我该关注什么股票?我是持仓还是离场比较好?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_033334",
+    "timestamp": "2026-03-29 03:33:34",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "user_input": "Explain today's setup in English",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "top_ticker": "NVDA",
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium"
+  },
+  {
+    "session_id": "sess_20260329_011359",
+    "timestamp": "2026-03-29 01:13:59",
+    "input_mode": "voice",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Hold or exit?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI at 63 showing positive momentum without overbought conditions.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency despite positive returns.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_011354",
+    "timestamp": "2026-03-29 01:13:54",
+    "input_mode": "voice",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "What's the trend?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI at 63 showing positive momentum without overbought conditions.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency despite positive returns.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_011348",
+    "timestamp": "2026-03-29 01:13:48",
+    "input_mode": "voice",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "What's the trend?",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI at 63 showing positive momentum without overbought conditions.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency despite positive returns.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_011332",
+    "timestamp": "2026-03-29 01:13:32",
+    "input_mode": "voice",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Compare my tickers",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI at 63 showing positive momentum without overbought conditions.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency despite positive returns.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005137",
+    "timestamp": "2026-03-29 00:51:37",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005134",
+    "timestamp": "2026-03-29 00:51:34",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005123",
+    "timestamp": "2026-03-29 00:51:23",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005121",
+    "timestamp": "2026-03-29 00:51:21",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005008",
+    "timestamp": "2026-03-29 00:50:08",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005007",
+    "timestamp": "2026-03-29 00:50:07",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005005",
+    "timestamp": "2026-03-29 00:50:05",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_005003",
+    "timestamp": "2026-03-29 00:50:03",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_004928",
+    "timestamp": "2026-03-29 00:49:28",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_004922",
+    "timestamp": "2026-03-29 00:49:22",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_004920",
+    "timestamp": "2026-03-29 00:49:20",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above MA20 and MA50 with RSI in bullish momentum zone (63.29), indicating positive short-term trend continuation.",
+    "main_risk": "Low win rate (13%) in backtest suggests strategy struggles with consistency; momentum reversal if price breaks below MA20 support at 186.73.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000412",
+    "timestamp": "2026-03-29 00:04:12",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000257",
+    "timestamp": "2026-03-29 00:02:57",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000242",
+    "timestamp": "2026-03-29 00:02:42",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000239",
+    "timestamp": "2026-03-29 00:02:39",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000235",
+    "timestamp": "2026-03-29 00:02:35",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000234",
+    "timestamp": "2026-03-29 00:02:34",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000232",
+    "timestamp": "2026-03-29 00:02:32",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000136",
+    "timestamp": "2026-03-29 00:01:36",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  },
+  {
+    "session_id": "sess_20260329_000124",
+    "timestamp": "2026-03-29 00:01:24",
+    "input_mode": "voice_simulated",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "user_input": "Home interaction",
+    "ticker_focus": [
+      "NVDA"
+    ],
+    "ai_conclusion": "Wait for Confirmation",
+    "confidence": "medium",
+    "reason": "Price trading above both MA20 and MA50 with RSI at 63.28 indicating positive momentum without being overbought, supported by solid backtest metrics showing 20.9% annualized return and 1.06 Sharpe ratio.",
+    "main_risk": "Low win rate of 13% from backtest suggests strategy may be prone to whipsaws; losing MA20 support at 186.73 could trigger pullback to MA50 at 185.11.",
+    "next_step": "Wait for Confirmation",
+    "top_ticker": "NVDA",
+    "user_action": "",
+    "outcome_label": "",
+    "tags": [
+      "voice_ui",
+      "nvda"
+    ]
+  }
+]

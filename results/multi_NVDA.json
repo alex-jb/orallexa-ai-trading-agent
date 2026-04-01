@@ -1,0 +1,146 @@
+{
+  "ticker": "NVDA",
+  "best_train_sharpe": 0.6705135499896031,
+  "best_params": {
+    "rsi_min": 30,
+    "rsi_max": 65,
+    "stop_loss": 0.04,
+    "take_profit": 0.1
+  },
+  "best_result": {
+    "iteration": 1,
+    "summary": {
+      "close": 192.85000610351562,
+      "ma20": 186.72800064086914,
+      "ma50": 185.11300048828124,
+      "rsi": 63.28872723500542
+    },
+    "train_metrics": {
+      "total_return": 0.031007767747284865,
+      "annualized_return": 0.1562633461495453,
+      "sharpe": 0.6705135499896031,
+      "max_drawdown": -0.10716321340547771,
+      "win_rate": 0.2641509433962264,
+      "num_trades": 27
+    },
+    "test_metrics": {
+      "total_return": 0.02554019351646941,
+      "annualized_return": 0.3182668882833799,
+      "sharpe": 1.4833282648363288,
+      "max_drawdown": -0.04164636796831145,
+      "win_rate": 0.13043478260869565,
+      "num_trades": 4
+    },
+    "walk_forward_metrics": {
+      "num_windows": 3,
+      "avg_test_sharpe": 3.46617281008729,
+      "avg_test_return": 0.037170349569919305,
+      "avg_test_drawdown": -0.02776424531220763,
+      "avg_test_trades": 5.666666666666667,
+      "windows": [
+        {
+          "train_start": 0,
+          "train_end": 45,
+          "test_start": 45,
+          "test_end": 60,
+          "train_metrics": {
+            "total_return": 0.016038492120044934,
+            "annualized_return": 0.09319315383038762,
+            "sharpe": 0.45414334361550557,
+            "max_drawdown": -0.10716321340547771,
+            "win_rate": 0.2,
+            "num_trades": 19
+          },
+          "test_metrics": {
+            "total_return": 0.03247517980435988,
+            "annualized_return": 0.7107148283608904,
+            "sharpe": 2.1602900861497307,
+            "max_drawdown": -0.04164636796831143,
+            "win_rate": 0.4666666666666667,
+            "num_trades": 10
+          }
+        },
+        {
+          "train_start": 7,
+          "train_end": 52,
+          "test_start": 52,
+          "test_end": 67,
+          "train_metrics": {
+            "total_return": 0.02405773818006751,
+            "annualized_return": 0.14239655364079096,
+            "sharpe": 0.5971303136687752,
+            "max_drawdown": -0.10716321340547771,
+            "win_rate": 0.28888888888888886,
+            "num_trades": 26
+          },
+          "test_metrics": {
+            "total_return": 0.03995142023832399,
+            "annualized_return": 0.9311645459823192,
+            "sharpe": 2.714079785605078,
+            "max_drawdown": -0.04164636796831147,
+            "win_rate": 0.26666666666666666,
+            "num_trades": 5
+          }
+        },
+        {
+          "train_start": 14,
+          "train_end": 59,
+          "test_start": 59,
+          "test_end": 74,
+          "train_metrics": {
+            "total_return": 0.03186800045072036,
+            "annualized_return": 0.19205202532349386,
+            "sharpe": 0.7059728330007777,
+            "max_drawdown": -0.10716321340547771,
+            "win_rate": 0.35555555555555557,
+            "num_trades": 29
+          },
+          "test_metrics": {
+            "total_return": 0.039084448667074057,
+            "annualized_return": 0.9042948676061147,
+            "sharpe": 5.524148558507061,
+            "max_drawdown": 0.0,
+            "win_rate": 0.13333333333333333,
+            "num_trades": 2
+          }
+        }
+      ]
+    }
+  },
+  "history": [
+    {
+      "iteration": 1,
+      "train_metrics": {
+        "total_return": 0.031007767747284865,
+        "annualized_return": 0.1562633461495453,
+        "sharpe": 0.6705135499896031,
+        "max_drawdown": -0.10716321340547771,
+        "win_rate": 0.2641509433962264,
+        "num_trades": 27
+      },
+      "params": {
+        "rsi_min": 30,
+        "rsi_max": 65,
+        "stop_loss": 0.04,
+        "take_profit": 0.1
+      }
+    },
+    {
+      "iteration": 2,
+      "train_metrics": {
+        "total_return": 0.031007767747284865,
+        "annualized_return": 0.1562633461495453,
+        "sharpe": 0.6705135499896031,
+        "max_drawdown": -0.10716321340547771,
+        "win_rate": 0.2641509433962264,
+        "num_trades": 27
+      },
+      "params": {
+        "rsi_min": 30,
+        "rsi_max": 65,
+        "stop_loss": 0.04,
+        "take_profit": 0.1
+      }
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "ticker": "TLSA",
+  "best_sharpe": 2.558999596371956,
+  "best_params": {
+    "rsi_min": 30,
+    "rsi_max": 65,
+    "stop_loss": 0.04,
+    "take_profit": 0.1
+  },
+  "best_result": {
+    "iteration": 1,
+    "summary": {
+      "close": 1.2400000095367432,
+      "ma20": 1.3315000057220459,
+      "ma50": 1.414400005340576,
+      "rsi": 40.27777754782156
+    },
+    "metrics": {
+      "total_return": 0.2863248920857109,
+      "annualized_return": 1.3045376802268636,
+      "sharpe": 2.558999596371956,
+      "max_drawdown": -0.058064462540671546,
+      "win_rate": 0.07894736842105263,
+      "num_trades": 18
+    },
+    "analysis": "## Trading Analysis\n\n### 1. Trend\n**Downtrend** - Price (1.24) is significantly below both MA20 (1.33) and MA50 (1.41). The moving averages are in bearish alignment (MA20 < MA50), confirming sustained downward momentum. Price is ~7% below MA20 and ~12% below MA50.\n\n### 2. Bias\n**Bearish** - All indicators point bearish:\n- Price well below key moving averages\n- RSI at 40.28 shows weakness but not yet oversold\n- Distance from MAs suggests strong selling pressure\n\n### 3. Risks\n- **Catching a falling knife**: Downtrend remains intact with no reversal signals\n- **Further downside**: RSI has room to fall to 30 (oversold) before capitulation\n- **No support confirmation**: Current level shows no technical bounce yet\n- **Momentum risk**: Any bounce may be weak/short-lived in this trend\n\n### 4. Action\n**WATCH** - Do not enter yet\n\n**Wait for:**\n- RSI to reach 30 (oversold) for potential reversal\n- Price to stabilize and show support\n- Bullish divergence or price crossing back above MA20\n- Volume confirmation of trend exhaustion\n\n**Consider entry only if:** Price reclaims 1.33 (MA20) with volume, or RSI shows oversold + bullish divergence.\n\n**Avoid** shorting here as risk/reward weakens near potential support zones."
+  },
+  "history": [
+    {
+      "iteration": 1,
+      "summary": {
+        "close": 1.2400000095367432,
+        "ma20": 1.3315000057220459,
+        "ma50": 1.414400005340576,
+        "rsi": 40.27777754782156
+      },
+      "metrics": {
+        "total_return": 0.2863248920857109,
+        "annualized_return": 1.3045376802268636,
+        "sharpe": 2.558999596371956,
+        "max_drawdown": -0.058064462540671546,
+        "win_rate": 0.07894736842105263,
+        "num_trades": 18
+      },
+      "analysis": "## Trading Analysis\n\n### 1. Trend\n**Downtrend** - Price (1.24) is significantly below both MA20 (1.33) and MA50 (1.41). The moving averages are in bearish alignment (MA20 < MA50), confirming sustained downward momentum. Price is ~7% below MA20 and ~12% below MA50.\n\n### 2. Bias\n**Bearish** - All indicators point bearish:\n- Price well below key moving averages\n- RSI at 40.28 shows weakness but not yet oversold\n- Distance from MAs suggests strong selling pressure\n\n### 3. Risks\n- **Catching a falling knife**: Downtrend remains intact with no reversal signals\n- **Further downside**: RSI has room to fall to 30 (oversold) before capitulation\n- **No support confirmation**: Current level shows no technical bounce yet\n- **Momentum risk**: Any bounce may be weak/short-lived in this trend\n\n### 4. Action\n**WATCH** - Do not enter yet\n\n**Wait for:**\n- RSI to reach 30 (oversold) for potential reversal\n- Price to stabilize and show support\n- Bullish divergence or price crossing back above MA20\n- Volume confirmation of trend exhaustion\n\n**Consider entry only if:** Price reclaims 1.33 (MA20) with volume, or RSI shows oversold + bullish divergence.\n\n**Avoid** shorting here as risk/reward weakens near potential support zones.",
+      "reflection": "# Trading Strategy Review & Analysis\n\n## 1. Key Weaknesses Identified\n\n### **Extremely Low Win Rate (7.89%)**\nThis is the most critical red flag. Only ~1.4 out of 18 trades were profitable, meaning you're losing on 92% of trades. This suggests:\n- Entry signals are poorly timed or misaligned with market structure\n- The strategy is fighting the trend (note: price at 1.24 vs MA20 at 1.33, MA50 at 1.41)\n- You're likely in a long-biased strategy during a strong downtrend\n\n### **Limited Trade Frequency**\nOnly 18 trades suggests overly restrictive entry conditions or a short backtest period, reducing statistical significance.\n\n### **Current Market Position**\n- Price (1.24) is **7% below MA20** and **14% below MA50**\n- RSI at 40.28 shows weakness but not oversold\n- Clear downtrend with bearish structure\n\n## 2. Strategy Characterization: **Too Weak & Misaligned**\n\nThe strategy is not aggressive or noisy—it's **disconnected from market reality**:\n- High Sharpe (2.56) with terrible win rate indicates occasional large wins compensate for many small losses\n- This creates a \"picking up pennies in front of a steamroller\" scenario\n- Max drawdown of only 5.8% seems artificially low, suggesting position sizing issues or short test period\n\n## 3. Specific Entry/Exit Logic Improvements\n\n### **Entry Logic Overhaul:**\n\n**Current Problem:** Likely entering longs in a downtrend\n\n**Solution A - Trend Alignment:**\n```\nLONG Entry: \n- Price > MA20 > MA50 (uptrend confirmation)\n- RSI crosses above 50 (momentum confirmation)\n- Price pullback to MA20 support\n\nSHORT Entry:\n- Price < MA20 < MA50 (downtrend confirmation)  \n- RSI crosses below 50\n- Price bounce to MA20 resistance\n```\n\n**Solution B - Mean Reversion Filter:**\n```\nOnly enter when:\n- RSI < 30 (",
+      "params": {
+        "rsi_min": 30,
+        "rsi_max": 65,
+        "stop_loss": 0.04,
+        "take_profit": 0.1
+      },
+      "accepted": true
+    },
+    {
+      "iteration": 2,
+      "summary": {
+        "close": 1.2400000095367432,
+        "ma20": 1.3315000057220459,
+        "ma50": 1.414400005340576,
+        "rsi": 40.27777754782156
+      },
+      "metrics": {
+        "total_return": 0.2863248920857109,
+        "annualized_return": 1.3045376802268636,
+        "sharpe": 2.558999596371956,
+        "max_drawdown": -0.058064462540671546,
+        "win_rate": 0.07894736842105263,
+        "num_trades": 18
+      },
+      "analysis": "# Trading Analysis\n\n## 1. Trend\n- **Downtrend confirmed**: Price is below both MA20 (-6.9%) and MA50 (-12.3%)\n- MA20 < MA50 indicates bearish momentum\n- Significant distance from moving averages suggests sustained selling pressure\n\n## 2. Bias\n**Bearish** - Multiple confirming factors:\n- Price trading well below key moving averages\n- RSI at 40.28 (approaching oversold but not yet there)\n- No bullish reversal signals present\n\n## 3. Risks\n- **If shorting**: RSI nearing oversold territory (30); potential for bounce or consolidation\n- **If buying**: Catching a falling knife; no support confirmation yet\n- Price could continue declining toward capitulation (RSI < 30)\n- Large gap to MA20 could trigger short-term mean reversion\n\n## 4. Action\n**WATCH** - Stay on sidelines\n\n**Rationale:**\n- Too extended for new shorts (risk/reward unfavorable)\n- Too early for longs (no reversal confirmation)\n- Wait for either:\n  - RSI < 30 + bullish divergence for potential reversal entry\n  - Price reclaiming MA20 for trend change confirmation\n  - Stabilization with volume for support level\n\n**Next steps**: Set alerts at 1.33 (MA20) and monitor RSI approaching 30.",
+      "reflection": "# Trading Strategy Review & Analysis\n\n## 1. Key Weaknesses Identified\n\n### Critical Issues:\n- **Extremely Low Win Rate (7.89%)**: This is alarmingly poor. Only ~1.4 out of 18 trades were profitable, indicating systematic entry/exit problems\n- **Few Trades (18 total)**: Very limited sample size for reliable statistical conclusions\n- **Current Bearish Position**: Price (1.24) is significantly below MA20 (1.33) and MA50 (1.41), suggesting downtrend conditions where the strategy may have been optimized for different market regimes\n- **High Risk-Reward Dependency**: Good Sharpe ratio (2.56) with 8% win rate suggests rare but large wins compensating for frequent small losses - this is fragile and psychologically difficult\n\n## 2. Strategy Characterization: **TOO WEAK & OVERLY SELECTIVE**\n\nThe strategy is:\n- **Under-trading**: Only 18 trades suggests overly restrictive entry conditions\n- **Poor trade quality**: 8% win rate means entry signals are fundamentally flawed\n- **Not aggressive enough**: Missing profitable opportunities while taking bad entries\n\n## 3. Specific Entry/Exit Logic Improvements\n\n### Entry Logic Fixes:\n```\nCurrent Problem: Entries appear mistimed relative to trend\n\nRECOMMENDATION A - Trend Confirmation:\n- Only enter LONG when: Price > MA20 AND MA20 > MA50 AND RSI between 40-60\n- Only enter SHORT when: Price < MA20 AND MA20 < MA50 AND RSI between 40-60\n- Avoid RSI extremes (>70 or <30) for entries - these signal exhaustion not continuation\n\nRECOMMENDATION B - Add Volume/Momentum Filter:\n- Require price to be within 2% of MA20 for mean-reversion entries\n- OR require clear momentum (price crossing above/below MA20 with RSI confirming)\n\nRECOMMENDATION C - Multiple Timeframe Check:\n- Current RSI (40.3) with price below MAs suggests downtrend\n- Don't fight the trend - wait for alignment\n```\n\n### Exit Logic Fixes:\n```\nThe low win",
+      "params": {
+        "rsi_min": 30,
+        "rsi_max": 50,
+        "stop_loss": 0.04,
+        "take_profit": 0.1
+      },
+      "accepted": true
+    }
+  ]
+}

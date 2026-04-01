@@ -1,0 +1,14 @@
+.env
+.git
+__pycache__
+*.pyc
+.venv
+venv
+node_modules
+orallexa-ui/node_modules
+orallexa-ui/.next
+.claude
+*.md
+tests/
+desktop_agent/
+assets/avatar/

@@ -1,0 +1,213 @@
+============================================================
+ORALLEXA — Presentation Speech Script
+Duration: ~12-15 minutes
+============================================================
+
+
+[SLIDE 1 — TITLE]
+
+Good afternoon everyone. Today I'm presenting Orallexa — an AI-powered trading research engine that combines classical machine learning, large language models, and quantitative trading strategies into a unified decision system.
+
+The name Orallexa comes from "Oracle" plus "Alexa" — the idea of an intelligent assistant that can analyze financial markets and give you actionable trading decisions.
+
+
+[SLIDE 2 — PROBLEM STATEMENT]
+
+So why build this? Here's the problem.
+
+Financial markets generate an enormous amount of data every second — price movements, volume, news headlines, earnings reports, social media sentiment. No human trader can process all of this in real-time.
+
+Rule-based trading systems, like "buy when RSI is below 30," are simple but brittle. They don't adapt to changing market conditions.
+
+Pure machine learning models can capture complex patterns, but they're black boxes. You get a prediction, but you don't know why.
+
+And large language models like Claude can reason about markets, but they don't have access to structured quantitative data.
+
+So the question I set out to answer is: what if we combine all three? Classical ML for pattern recognition, rule-based strategies for interpretability, and LLMs for qualitative reasoning? Can we build something better than any single approach?
+
+
+[SLIDE 3 — SYSTEM ARCHITECTURE]
+
+Here's the architecture I built.
+
+At the top, there are three user interfaces: a Streamlit dashboard for quick analysis, a Next.js React web app that looks like a professional trading terminal, and a desktop agent with voice input.
+
+These connect through a FastAPI backend to the core engine — what I call the "Brain." The Brain orchestrates everything.
+
+Below that is the intelligence layer: Claude AI for reasoning, machine learning models for predictions, a RAG system for knowledge retrieval, and sentiment analysis for news.
+
+And at the bottom, everything is fed by real market data from Yahoo Finance.
+
+The key insight is that these aren't separate systems — they're all connected. The ML model's probability feeds into Claude's reasoning. Claude's analysis is enriched by the RAG system. And the behavioral adaptation layer learns from every decision the system makes.
+
+
+[SLIDE 4 — ML PIPELINE]
+
+Let me walk you through the machine learning pipeline, which is the core of this project.
+
+It starts with raw OHLCV data — Open, High, Low, Close, Volume — from Yahoo Finance. For this presentation, I used one year of NVIDIA stock data: 252 trading days from March 2025 to March 2026.
+
+From this raw data, I engineer 28 technical features across four categories:
+
+First, trend indicators — Moving Averages at 5, 10, 20, and 50 day windows, plus Exponential Moving Averages at 12 and 26 days.
+
+Second, momentum indicators — MACD, its signal line, and histogram; RSI; Stochastic K and D; and Rate of Change.
+
+Third, volatility indicators — Bollinger Band percentage and width, Average True Range, and 20-day Historical Volatility.
+
+And fourth, volume and directional indicators — On-Balance Volume, Volume Ratio, ADX, and Plus/Minus Directional Indicators.
+
+I also derive boolean features like "price above MA20" and "MACD cross up" as binary signals.
+
+
+[SLIDE 5 — ML MODELS & RESULTS]
+
+Now, the models. I trained three classifiers on these 28 features.
+
+The label is simple binary classification: will the stock price be higher in 5 trading days? If yes, label is 1. If no, label is 0.
+
+I split the data 80/20 — 201 days for training, 51 days for testing, using a proper time-series split to prevent look-ahead bias.
+
+Model one: Random Forest with 100 trees, max depth of 5, and StandardScaler preprocessing. This was the best performer — Sharpe ratio of 2.94, total return of 13.8%, win rate of 64.3%, and training accuracy of 84.7%.
+
+Model two: XGBoost with 100 estimators, learning rate 0.05, and 80% subsampling. Sharpe ratio of 1.32, return of 7.1%.
+
+Model three: Logistic Regression, regularized with C equals 0.1. Sharpe ratio of 1.82, return of 9.6%.
+
+For comparison, the buy-and-hold baseline had a negative Sharpe of minus 0.81 and lost 7.6% over the same period. So all three ML models significantly outperformed the market.
+
+The Random Forest generated 21.2% excess return over buy-and-hold. That's the value of machine learning in this context.
+
+
+[SLIDE 6 — FEATURE IMPORTANCE]
+
+One of the advantages of Random Forest is interpretability through feature importance.
+
+The top features were: MA5 at 11.6% importance, EMA26 at 10.9%, On-Balance Volume at 7.6%, MA20 at 7.1%, and EMA12 at 6.4%.
+
+What's interesting here is that the short-term moving average MA5 and the long-term EMA26 are the most predictive. This makes intuitive sense — the relationship between short-term and long-term trend is exactly what most technical traders look at.
+
+Volume-based features like OBV also ranked highly, confirming the old Wall Street saying that "volume precedes price."
+
+Volatility features like Bollinger Width and ADX were also significant, telling us that the model pays attention to market regime — whether we're in a trending or range-bound environment.
+
+
+[SLIDE 7 — TRADING STRATEGIES]
+
+Beyond ML, I also implemented seven rule-based trading strategies as pure functions.
+
+Each strategy takes a DataFrame and parameters, and returns a signal series of negative one, zero, or positive one — meaning sell, hold, or buy.
+
+The strategies range from classic approaches like Double Moving Average crossover and MACD crossover, to more sophisticated ones like Dual Thrust opening range breakout and a multi-factor Alpha Combo.
+
+The key design decision here is that strategies are composable. I can run all seven on the same data, rank them by Sharpe ratio, and let the system pick the best one for current market conditions.
+
+This also allows me to compare ML signals against rule-based signals on equal footing — same data, same evaluation metrics, same backtest framework.
+
+
+[SLIDE 8 — LLM INTEGRATION]
+
+Here's where it gets interesting. Machine learning gives us the "what" — buy or sell. But it doesn't give us the "why."
+
+I integrated Anthropic's Claude AI to add qualitative reasoning on top of quantitative signals.
+
+Claude does four things in this system:
+
+One, market analysis — it reads the technical indicators and provides a qualitative interpretation. "The stock is in a moderate uptrend with weakening momentum."
+
+Two, strategy reflection — after a backtest, Claude reviews the results and suggests improvements. "Your RSI thresholds are too tight for this volatility regime."
+
+Three, parameter generation — Claude proposes new strategy parameters based on its analysis.
+
+And four, probability forecasting — it combines the ML model's signal with its own reasoning to produce a probability estimate with step-by-step reasoning.
+
+The insight is: ML captures patterns that humans miss, and LLMs provide reasoning that ML can't express. Together, they're more useful than either alone.
+
+
+[SLIDE 9 — RAG SYSTEM]
+
+To make Claude's analysis even better, I built a Retrieval-Augmented Generation system.
+
+The RAG uses TF-IDF vectorization from scikit-learn to index a knowledge base of market notes. When Claude needs to make an analysis, the system first retrieves the most relevant notes using cosine similarity, then includes them as context.
+
+This means Claude isn't just reasoning from its training data — it has access to specific, up-to-date market observations that I've collected.
+
+The pipeline is: query comes in, TF-IDF converts it to a vector, cosine similarity finds the top-K matching documents, those documents are injected into Claude's prompt, and Claude generates an analysis that's grounded in domain-specific knowledge.
+
+
+[SLIDE 10 — MULTI-AGENT ARCHITECTURE]
+
+For the deep analysis mode, I implemented a multi-agent architecture.
+
+Instead of one monolithic LLM call, three specialized agents analyze the stock independently:
+
+A Market Agent that looks at price action and technical structure.
+A Fundamentals Agent that evaluates the business metrics.
+A News Agent that processes recent headlines and sentiment.
+
+Each agent produces its own assessment, and then a synthesis step combines all three into a final decision.
+
+This is essentially the ensemble principle — the same idea behind Random Forest — but applied to LLM reasoning. Multiple independent perspectives reduce the risk of any single blind spot.
+
+
+[SLIDE 11 — BEHAVIORAL ADAPTATION]
+
+One of my favorite parts of this project is the behavioral adaptation system.
+
+The system tracks every trade it recommends — wins, losses, streaks. This state is stored persistently in a JSON file.
+
+Based on this track record, the system dynamically adjusts its aggressiveness. A winning streak gradually increases risk tolerance. A losing streak makes it more conservative. This is inspired by reinforcement learning — the agent adjusts its policy based on reward signals.
+
+There's also a hard confidence cap at 82%. No analysis, no matter how strong the signals, can express more than 82% confidence. This is both intellectually honest — no one can be certain about financial markets — and practically safer.
+
+And if signals conflict or data is stale, the system automatically downgrades to WAIT with a clear explanation. Knowing when NOT to trade is just as important as knowing when to trade.
+
+
+[SLIDE 12 — DECISION OUTPUT]
+
+Every analysis path in the system — whether it's a quick scalp signal, a deep multi-agent analysis, or an ML prediction — returns the same structured output.
+
+Decision: BUY, SELL, or WAIT.
+Confidence: 0 to 82 percent.
+Risk level: LOW, MEDIUM, or HIGH.
+Signal strength: 0 to 100.
+And a step-by-step reasoning array that explains how the system arrived at its decision.
+
+This universal output format is a key architectural decision. It means any frontend — Streamlit, React, or the desktop agent — can display any analysis the same way. And it makes logging and evaluation consistent across the entire system.
+
+
+[SLIDE 13 — TECH STACK]
+
+In terms of technology, the project uses:
+
+For ML and AI: scikit-learn for Random Forest, Logistic Regression, TF-IDF, and StandardScaler. XGBoost for gradient boosted trees. Anthropic's Claude API for LLM reasoning. And VADER for sentiment analysis.
+
+For data processing: pandas, numpy, yfinance, and matplotlib.
+
+For the backend: Python with FastAPI.
+
+For the frontends: Streamlit for rapid prototyping, Next.js with Tailwind CSS for the production UI, and Tkinter with OpenAI Whisper for the desktop agent.
+
+In total, the project is 66 Python files, over 13,000 lines of code, with 3 ML models, 7 trading strategies, and 3 user interfaces.
+
+
+[SLIDE 14 — KEY TAKEAWAYS]
+
+So what did I learn from building this?
+
+First, the full ML pipeline matters. It's not just about training a model. Feature engineering, proper time-series splitting, evaluation metrics, and deployment all matter just as much.
+
+Second, combining approaches beats any single method. ML plus rules plus LLM reasoning is stronger than any one alone. The Random Forest catches patterns, the rules provide interpretability, and Claude provides qualitative context.
+
+Third, confidence calibration is critical. The 82% cap and the automatic WAIT on conflicting signals are arguably more important than the prediction models themselves. In trading, avoiding bad trades matters more than finding good ones.
+
+Fourth, behavioral adaptation is powerful. A system that learns from its own mistakes and adjusts its risk tolerance is fundamentally different from a static model.
+
+And fifth, there's real value in deploying the same engine across multiple interfaces — a web dashboard for deep analysis, a React app for real-time monitoring, and a desktop agent for hands-free trading support.
+
+
+[SLIDE 15 — THANK YOU]
+
+That's Orallexa. An AI-powered trading research engine that combines classical machine learning, large language models, and quantitative strategies into a unified decision system.
+
+Thank you for your time. I'm happy to take any questions, and I can also show a live demo if anyone is interested.

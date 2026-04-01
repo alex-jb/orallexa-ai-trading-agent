@@ -1,0 +1,471 @@
+[
+  {
+    "date": "2026-03-30",
+    "created_at": "2026-03-30 17:19:21",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA",
+      "QQQ"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Cautious",
+    "portfolio_stance": "Cautious",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price just reclaimed MA20 (185.41 vs 184.68) with aligned moving averages trending upward, suggesting early bullish structure formation..",
+    "main_risks": [
+      "RSI at 49.3 shows neutral momentum without conviction; low win rate (28.6%) in backtest indicates strategy struggles with consistency in current market regime."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-30",
+    "created_at": "2026-03-30 17:12:13",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Cautious",
+    "portfolio_stance": "Cautious",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-30",
+    "created_at": "2026-03-30 17:06:39",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Cautious",
+    "portfolio_stance": "Cautious",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 22:28:33",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price trading below both MA20 and MA50 with oversold RSI (33.67) suggests potential mean reversion, but downtrend momentum remains intact..",
+    "main_risks": [
+      "Failure to reclaim MA20 (184.66) would confirm continued bearish pressure and potential for further downside toward lower support levels."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 22:11:35",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 22:03:00",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 21:59:22",
+    "language_mode": "中文",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 21:55:17",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 21:21:48",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 21:15:25",
+    "language_mode": "中文",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 21:04:46",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Watch",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Watch. Technical structure is mixed..",
+    "main_risks": [
+      "Signal quality may not generalize out of sample."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 14:53:17",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price trading significantly below both MA20 and MA50 with oversold RSI (33.67) suggests potential bounce, but strong backtest metrics (Sharpe 2.48, 61.5% annualized return) indicate the strategy has been effective in similar conditions..",
+    "main_risks": [
+      "Continued downward momentum below key moving averages could extend losses despite oversold conditions; low win rate (31.4%) suggests selective entry timing is critical."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 14:46:06",
+    "language_mode": "Follow User",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price trading significantly below both MA20 and MA50 with oversold RSI suggesting potential for mean reversion, but downtrend structure remains intact..",
+    "main_risks": [
+      "Price is 7.4% below MA20 indicating weak momentum; failure to reclaim moving averages could extend drawdown beyond current -4.4% maximum."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 14:38:46",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price trading below both MA20 and MA50 with oversold RSI suggesting potential bounce, but downtrend momentum remains intact..",
+    "main_risks": [
+      "Continued selling pressure if price fails to reclaim MA support levels, with RSI oversold condition potentially indicating further downside before reversal."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 13:00:41",
+    "language_mode": "中文",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Buy",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Buy. Price trading above both MA20 and MA50 with positive RSI momentum at 63.29, indicating continuation of uptrend. Strong technical alignment across moving averages..",
+    "main_risks": [
+      "Low win rate (13%) in backtest suggests strategy may produce frequent small losses despite positive overall returns. Potential for pullback to MA20 support at 186.73."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 03:32:01",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price trading above MA20 and MA50 with RSI at 63.28 indicates positive momentum without being overbought..",
+    "main_risks": [
+      "Low win rate (13%) and recent max drawdown of 4.4% suggest strategy vulnerability to reversals."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 03:22:14",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Wait for Confirmation",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Constructive",
+    "ai_summary": "Focused on NVDA. Action: Wait for Confirmation. Price trading above MA20 and MA50 with RSI at 63.28 indicates positive momentum without overbought conditions..",
+    "main_risks": [
+      "Low win rate (13%) and recent max drawdown (-4.36%) suggest strategy volatility and potential for false breakouts."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  },
+  {
+    "date": "2026-03-29",
+    "created_at": "2026-03-29 01:42:15",
+    "language_mode": "English",
+    "persona_mode": "Calm Coach",
+    "tickers_reviewed": [
+      "NVDA",
+      "AAPL",
+      "TSLA"
+    ],
+    "top_ticker": "NVDA",
+    "top_action": "Buy",
+    "market_mood": "Constructive",
+    "portfolio_stance": "Selective",
+    "ai_summary": "Today the system focused most on NVDA. The recommended action was Buy. The main driver was: Strong technical setup with price above both MA20 and MA50, RSI in healthy bullish zone without being overbought, and positive momentum confirmed by moving average alignment.. The main risk was: Low win rate (13%) in backtest despite positive returns suggests strategy may rely on few large winners; vulnerable to consolidation or pullback if broader market weakens..",
+    "main_risks": [
+      "Low win rate (13%) in backtest despite positive returns suggests strategy may rely on few large winners; vulnerable to consolidation or pullback if broader market weakens."
+    ],
+    "user_questions": [],
+    "user_action_summary": "",
+    "end_of_day_review": "",
+    "discipline_score": null,
+    "emotion_label": "",
+    "mistake_flags": [],
+    "strength_flags": []
+  }
+]

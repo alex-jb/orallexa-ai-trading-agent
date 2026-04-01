@@ -1,0 +1,48 @@
+{
+  "ticker": "NVDA",
+  "timestamp": "2026-04-01T00:29:49.815833",
+  "leaderboard": [
+    {
+      "name": "evo_g0_s0",
+      "code": "def strategy(df: pd.DataFrame) -> pd.Series:\n    \"\"\"\n    Multi-indicator momentum strategy for NVDA.\n    Combines MACD, RSI, and moving average crossovers.\n    \"\"\"\n    signal = pd.Series(0, index=df.index)\n    \n    # Check required columns\n    required_cols = ['MACD', 'MACD_Signal', 'RSI', 'MA5', 'MA20', 'Close', 'Volume']\n    if not all(col in df.columns for col in required_cols):\n        return signal\n    \n    # MACD bullish crossover\n    macd_cross = (df['MACD'] > df['MACD_Signal']) & \\\n                 (df['MACD'].shift(1) <= df['MACD_Signal'].shift(1))\n    \n    # RSI confirmation - not overbought\n    rsi_ok = df['RSI'] < 75\n    \n    # Price above MA20 (uptrend)\n    price_above_ma = df['Close'] > df['MA20']\n    \n    # MA5 above MA20 (bullish alignment)\n    ma_cross = df['MA5'] > df['MA20']\n    \n    # Volume confirmation - above average\n    if 'Volume' in df.columns:\n        vol_ma = df['Volume'].rolling(20).mean()\n        vol_ok = df['Volume'] > vol_ma * 0.8\n    else:\n        vol_ok = True\n    \n    # Combine conditions\n    long_signal = macd_cross & rsi_ok & price_above_ma & ma_cross & vol_ok\n    \n    signal[long_signal] = 1\n    \n    # Exit condition - MACD bearish crossover or RSI > 80\n    exit_signal = ((df['MACD'] < df['MACD_Signal']) & \\\n                   (df['MACD'].shift(1) >= df['MACD_Signal'].shift(1))) | \\\n                  (df['RSI'] > 80)\n    \n    # Propagate signal forward until exit\n    signal = signal.fillna(method='ffill').fillna(0)\n    signal[exit_signal] = 0\n    \n    return signal.astype(int)",
+      "generation": 0,
+      "parent": "",
+      "sharpe": 0.0,
+      "total_return": 0.0,
+      "max_drawdown": 0.0,
+      "win_rate": 0.0,
+      "n_trades": 0,
+      "reasoning": "Generation 0",
+      "error": "",
+      "created": "2026-04-01T00:29:18.133509"
+    },
+    {
+      "name": "evo_g0_s1",
+      "code": "def strategy(df: pd.DataFrame) -> pd.Series:\n    \"\"\"\n    NVDA trading strategy using MACD, RSI, and moving average crossovers.\n    Goes long when bullish signals align, flat otherwise.\n    \"\"\"\n    signal = pd.Series(0, index=df.index)\n    \n    # Check required columns\n    required_cols = ['Close', 'MA5', 'MA20', 'MACD', 'MACD_Signal', 'RSI']\n    if not all(col in df.columns for col in required_cols):\n        return signal\n    \n    # Initialize conditions\n    ma_bullish = df['MA5'] > df['MA20']\n    macd_bullish = df['MACD'] > df['MACD_Signal']\n    rsi_valid = (df['RSI'] > 30) & (df['RSI'] < 80)\n    \n    # Price above MA20 for trend confirmation\n    price_above_ma = df['Close'] > df['MA20']\n    \n    # MACD histogram positive for momentum\n    macd_hist_positive = False\n    if 'MACD_Hist' in df.columns:\n        macd_hist_positive = df['MACD_Hist'] > 0\n    else:\n        macd_hist_positive = True\n    \n    # Volume confirmation - above average\n    vol_confirm = True\n    if 'Volume' in df.columns:\n        vol_ma = df['Volume'].rolling(window=20).mean()\n        vol_confirm = df['Volume'] > vol_ma * 0.8\n    \n    # Combined signal: all conditions must be met\n    signal = ((ma_bullish & macd_bullish & rsi_valid & \n               price_above_ma & macd_hist_positive & vol_confirm).astype(int))\n    \n    return signal",
+      "generation": 0,
+      "parent": "",
+      "sharpe": 0.0,
+      "total_return": 0.0,
+      "max_drawdown": 0.0,
+      "win_rate": 0.0,
+      "n_trades": 0,
+      "reasoning": "Generation 0",
+      "error": "",
+      "created": "2026-04-01T00:29:21.592924"
+    },
+    {
+      "name": "evo_g0_s2",
+      "code": "def strategy(df: pd.DataFrame) -> pd.Series:\n    \"\"\"\n    NVDA momentum and trend-following strategy using MACD, RSI, and moving averages.\n    \"\"\"\n    signal = pd.Series(0, index=df.index)\n    \n    # Check required columns\n    required_cols = ['MACD', 'MACD_Signal', 'RSI', 'MA5', 'MA20', 'Close']\n    if not all(col in df.columns for col in required_cols):\n        return signal\n    \n    # Long signal conditions:\n    # 1. MACD above signal line (bullish crossover)\n    # 2. RSI between 40-80 (momentum without overbought extremes)\n    # 3. Price above MA20 (in uptrend)\n    # 4. MA5 above MA20 (short-term above long-term)\n    \n    macd_bullish = df['MACD'] > df['MACD_Signal']\n    rsi_optimal = (df['RSI'] > 40) & (df['RSI'] < 80)\n    price_above_ma20 = df['Close'] > df['MA20']\n    ma_alignment = df['MA5'] > df['MA20']\n    \n    # Combine all conditions\n    signal = (macd_bullish & rsi_optimal & price_above_ma20 & ma_alignment).astype(int)\n    \n    return signal",
+      "generation": 0,
+      "parent": "",
+      "sharpe": -1.733,
+      "total_return": -0.042,
+      "max_drawdown": -0.0555,
+      "win_rate": 0.5714,
+      "n_trades": 4,
+      "reasoning": "Generation 0",
+      "error": "",
+      "created": "2026-04-01T00:29:25.094478"
+    }
+  ]
+}

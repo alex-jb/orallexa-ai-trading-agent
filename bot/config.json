@@ -1,0 +1,27 @@
+{
+  "preferred_mode": "intraday",
+  "preferred_timeframe": "15m",
+  "aggressiveness": 0.5,
+  "risk_tolerance": "medium",
+  "common_mistakes": [],
+  "preferred_setups": [],
+  "skill_weights": {
+    "scalp": {
+      "structure": 0.35,
+      "volume": 0.30,
+      "risk_filter": 0.35
+    },
+    "intraday": {
+      "trend": 0.35,
+      "momentum": 0.35,
+      "session": 0.30
+    },
+    "swing": {
+      "trend": 0.30,
+      "news": 0.35,
+      "macro": 0.35
+    }
+  },
+  "warning_sensitivity": "medium",
+  "confidence_adjustments": {}
+}

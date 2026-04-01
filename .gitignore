@@ -1,0 +1,34 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Node
+orallexa-ui/node_modules/
+orallexa-ui/.next/
+orallexxa-ui/node_modules/
+orallexxa-ui/.next/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Data (optional — uncomment to exclude large data files)
+# results/
+# memory_data/
+# eval_results/

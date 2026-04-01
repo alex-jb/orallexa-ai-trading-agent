@@ -1,0 +1,264 @@
+{
+  "date": "2026-04-01",
+  "generated_at": "2026-04-01T10:55:45.525267",
+  "market_mood": "Risk-On",
+  "summary": "**RISK-ON — but the conviction is thin, and the energy wreckage deserves your full attention.**\n\n---\n\n**THE MOOD:** Money is chasing semiconductors and ignoring safety plays, but with nearly every mover today printing well below average volume, this rally has the fingerprints of a low-participation drift, not a institutional stampede.\n\n---\n\n**3 STORIES THAT MATTER:**\n\n**1. Semis are carrying the market on their back — again.**\nMRVL +5.1%, AMD +3.1%, ARM +2.7%, and the SOXX ETF +2.8% as a sector — this is coordinated chip strength that suggests either a positive data point circulating in the ecosystem or a relief trade off recent oversold conditions. MRVL leading at $106.14 on 0.7x volume is the most credible move of the group; it's not a ghost rally. Watch whether SOXX can hold $340 into the close — that level has acted as a pivot multiple times this quarter.\n\n**2. Energy is getting crushed, and it's not noise.**\nXOM -3.8% and CVX -3.2% with the entire Energy sector down -2.9% — this is the sharpest sector loss on the board by a wide margin. With volume at only 0.5x average, this isn't panic selling, it's quiet distribution. The market is repricing something in the oil complex — likely demand expectations or a supply narrative. If crude is breaking down, this rotation out of energy and into semis/industrials has legs.\n\n**3. GS quietly printing +2.5%.**\nGoldman at $867.59 while the broader Financials sector is only +0.4% means GS is moving on something idiosyncratic — deal flow, a desk call, or positioning ahead of a catalyst. It's worth monitoring for follow-through.\n\n---\n\n**VOLUME ALERT:** Nothing. Zero unusual volume spikes detected across the board. Every move today — up or down — is happening in a near-empty room. That's a red flag for sustainability in either direction.\n\n---\n\n**SECTOR ROTATION THEME:** Classic cyclical risk-on rotation — semis, industrials, tech leading; staples, energy, and comm services lagging. The market is betting on growth over defense.\n\n---\n\n**#1 RISK TO WATCH:** The low-volume nature of this entire session. If SOXX breaks back below **$340** or XOM accelerates past **-5%** on rising volume, the thin participation holding this rally together evaporates fast. No headlines means no narrative anchor — one macro print or geopolitical headline flips this instantly.",
+  "gainers": [
+    {
+      "ticker": "MRVL",
+      "price": 106.14,
+      "change_pct": 5.09,
+      "volume": 19024965,
+      "avg_volume": 25728673,
+      "volume_ratio": 0.74,
+      "volume_spike": false
+    },
+    {
+      "ticker": "DKNG",
+      "price": 22.42,
+      "change_pct": 3.7,
+      "volume": 3208875,
+      "avg_volume": 14134349,
+      "volume_ratio": 0.23,
+      "volume_spike": false
+    },
+    {
+      "ticker": "AMD",
+      "price": 211.35,
+      "change_pct": 3.15,
+      "volume": 14411838,
+      "avg_volume": 32616580,
+      "volume_ratio": 0.44,
+      "volume_spike": false
+    },
+    {
+      "ticker": "SOXX",
+      "price": 340.61,
+      "change_pct": 2.8,
+      "volume": 4520671,
+      "avg_volume": 7902889,
+      "volume_ratio": 0.57,
+      "volume_spike": false
+    },
+    {
+      "ticker": "ARM",
+      "price": 156.54,
+      "change_pct": 2.69,
+      "volume": 2463864,
+      "avg_volume": 7465024,
+      "volume_ratio": 0.33,
+      "volume_spike": false
+    },
+    {
+      "ticker": "GS",
+      "price": 867.59,
+      "change_pct": 2.55,
+      "volume": 591747,
+      "avg_volume": 2241202,
+      "volume_ratio": 0.26,
+      "volume_spike": false
+    },
+    {
+      "ticker": "TSM",
+      "price": 347.57,
+      "change_pct": 2.06,
+      "volume": 5144359,
+      "avg_volume": 14094121,
+      "volume_ratio": 0.37,
+      "volume_spike": false
+    },
+    {
+      "ticker": "RIOT",
+      "price": 12.69,
+      "change_pct": 1.97,
+      "volume": 3272539,
+      "avg_volume": 16120311,
+      "volume_ratio": 0.2,
+      "volume_spike": false
+    }
+  ],
+  "losers": [
+    {
+      "ticker": "XOM",
+      "price": 161.61,
+      "change_pct": -3.8,
+      "volume": 11048268,
+      "avg_volume": 24377676,
+      "volume_ratio": 0.45,
+      "volume_spike": false
+    },
+    {
+      "ticker": "CVX",
+      "price": 198.42,
+      "change_pct": -3.21,
+      "volume": 7097123,
+      "avg_volume": 15006021,
+      "volume_ratio": 0.47,
+      "volume_spike": false
+    },
+    {
+      "ticker": "JD",
+      "price": 28.93,
+      "change_pct": -2.2,
+      "volume": 3473959,
+      "avg_volume": 12271562,
+      "volume_ratio": 0.28,
+      "volume_spike": false
+    },
+    {
+      "ticker": "SOFI",
+      "price": 15.8,
+      "change_pct": -1.25,
+      "volume": 18776611,
+      "avg_volume": 66932731,
+      "volume_ratio": 0.28,
+      "volume_spike": false
+    },
+    {
+      "ticker": "BABA",
+      "price": 124.3,
+      "change_pct": -1.19,
+      "volume": 4135059,
+      "avg_volume": 11838277,
+      "volume_ratio": 0.35,
+      "volume_spike": false
+    },
+    {
+      "ticker": "V",
+      "price": 299.48,
+      "change_pct": -1.16,
+      "volume": 2424028,
+      "avg_volume": 7393136,
+      "volume_ratio": 0.33,
+      "volume_spike": false
+    },
+    {
+      "ticker": "NFLX",
+      "price": 95.17,
+      "change_pct": -0.91,
+      "volume": 10226013,
+      "avg_volume": 38354379,
+      "volume_ratio": 0.27,
+      "volume_spike": false
+    },
+    {
+      "ticker": "ORCL",
+      "price": 146.57,
+      "change_pct": -0.85,
+      "volume": 5979640,
+      "avg_volume": 28343789,
+      "volume_ratio": 0.21,
+      "volume_spike": false
+    }
+  ],
+  "volume_spikes": [],
+  "sectors": [
+    {
+      "sector": "Semiconductors",
+      "etf": "SOXX",
+      "change_pct": 2.84
+    },
+    {
+      "sector": "Industrials",
+      "etf": "XLI",
+      "change_pct": 1.77
+    },
+    {
+      "sector": "Technology",
+      "etf": "XLK",
+      "change_pct": 1.43
+    },
+    {
+      "sector": "Materials",
+      "etf": "XLB",
+      "change_pct": 1.26
+    },
+    {
+      "sector": "Consumer Disc",
+      "etf": "XLY",
+      "change_pct": 0.97
+    },
+    {
+      "sector": "Healthcare",
+      "etf": "XLV",
+      "change_pct": 0.64
+    },
+    {
+      "sector": "Clean Energy",
+      "etf": "ICLN",
+      "change_pct": 0.52
+    },
+    {
+      "sector": "Financials",
+      "etf": "XLF",
+      "change_pct": 0.38
+    },
+    {
+      "sector": "Utilities",
+      "etf": "XLU",
+      "change_pct": 0.28
+    },
+    {
+      "sector": "Real Estate",
+      "etf": "XLRE",
+      "change_pct": 0.21
+    },
+    {
+      "sector": "Comm Services",
+      "etf": "XLC",
+      "change_pct": -0.25
+    },
+    {
+      "sector": "Consumer Staples",
+      "etf": "XLP",
+      "change_pct": -0.28
+    },
+    {
+      "sector": "Energy",
+      "etf": "XLE",
+      "change_pct": -2.9
+    }
+  ],
+  "headlines": [],
+  "ai_picks": [
+    {
+      "ticker": "MRVL",
+      "direction": "bullish",
+      "reason": "Custom AI silicon demand accelerating; MRVL's data center interconnect business winning hyperscaler design wins ahead of peers.",
+      "catalyst": "Watch for continuation above recent breakout level; any AI infrastructure commentary amplifies move."
+    },
+    {
+      "ticker": "AMD",
+      "direction": "bullish",
+      "reason": "MI300X GPU traction gaining credibility as NVIDIA alternative; enterprise AI adoption broadening beyond hyperscalers.",
+      "catalyst": "SOXX sector strength acting as tailwind; watch $165 resistance for breakout confirmation."
+    },
+    {
+      "ticker": "XOM",
+      "direction": "bullish",
+      "reason": "Contrarian pick — oil majors oversold on macro fears but free cash flow yield remains exceptional near 52-week lows.",
+      "catalyst": "Watch crude oil price stabilization; any bounce in WTI above key support triggers XOM short-covering rally."
+    },
+    {
+      "ticker": "DKNG",
+      "direction": "bearish",
+      "reason": "+3.7% gain on only 0.2x normal volume signals weak conviction; move likely fades without institutional participation.",
+      "catalyst": "Watch for volume confirmation — if volume stays thin into close, expect mean reversion tomorrow."
+    },
+    {
+      "ticker": "SOXX",
+      "direction": "bullish",
+      "reason": "Semiconductor ETF leading broad market with MRVL and AMD strength confirming AI capex cycle still intact despite macro noise.",
+      "catalyst": "Watch $220 level as near-term pivot; sustained hold signals sector rotation back into semis is real."
+    }
+  ],
+  "orallexa_thread": [
+    "🔔 Orallexa | April 01 Market Intel\n\nRisk-On — but don't let the green fool you. Volume is thin, conviction is thinner. Semis are dragging this market higher almost alone. Here's what actually matters today. 🧵",
+    "TOP MOVERS:\n$MRVL +5.1% — hyperscaler AI silicon design wins accelerating. This isn't hype, it's pipeline.\n$AMD +3.1% — MI300X gaining real traction as an enterprise NVIDIA alternative.\n$DKNG +3.7% — but on 0.2x normal volume. That move is fragile.",
+    "⚠️ VOLUME ALERT:\nNo broad volume spikes today. $DKNG's +3.7% gain on near-empty volume is a red flag — no institutional footprint means no follow-through. Fade risk is high. Watch before chasing.",
+    "SECTOR ROTATION:\nMoney is flooding into Semiconductors +2.84% — $MRVL $AMD $SOXX all confirming the move.\nMoney is fleeing Energy hard. $XOM -3.8%, $CVX -3.2%. Worst sector: Energy -2.9%. Macro fear is winning that trade today.",
+    "OUR AI IS WATCHING:\n📈 $MRVL — data center interconnect dominance + hyperscaler wins = structural, not cyclical.\n📈 $AMD — enterprise AI broadening beyond hyperscalers is the real story.\n🔁 $XOM — contrarian. Oversold, FCF yield exceptional near 52-week lows.",
+    "RISK CLOSE:\nThis rally has one engine: semis. If that stalls, there's no rotation backstop — Energy is broken, volume is absent, and $DKNG-type moves suggest weak hands leading.\n\nOne macro headline flips this session instantly. Stay sharp.",
+    "That's your April 01 edge from Orallexa.\nThin volume rallies demand tighter stops and sharper entries. Our AI runs the data so you trade the signal — not the noise.\n\nFollow for daily market intelligence. 📊\n#trading #markets #Orallexa"
+  ]
+}

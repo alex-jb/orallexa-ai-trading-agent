@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+    volumes:
+      - ./memory_data:/app/memory_data
+      - ./results:/app/results
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./orallexa-ui
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8002
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped

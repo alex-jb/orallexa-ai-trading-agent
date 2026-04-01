@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="Segoe UI, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#D4AF37"/>
+      <stop offset="100%" style="stop-color:#C5A255"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A1A2E"/>
+      <stop offset="100%" style="stop-color:#0D1117"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" rx="12" fill="#0A0A0F"/>
+
+  <!-- Title -->
+  <text x="450" y="35" text-anchor="middle" fill="#D4AF37" font-size="14" font-weight="700" letter-spacing="3">ORALLEXA ARCHITECTURE</text>
+
+  <!-- ═══ Layer 1: Frontend ═══ -->
+  <rect x="30" y="55" width="250" height="170" rx="8" fill="url(#dark)" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.3" filter="url(#shadow)"/>
+  <text x="155" y="78" text-anchor="middle" fill="#D4AF37" font-size="11" font-weight="600" letter-spacing="1.5">REACT DASHBOARD</text>
+  <text x="155" y="95" text-anchor="middle" fill="#6B6E76" font-size="9">Next.js 16 + Tailwind 4</text>
+  <rect x="45" y="108" width="105" height="28" rx="4" fill="#006B3F" fill-opacity="0.15" stroke="#006B3F" stroke-width="0.5"/>
+  <text x="97" y="126" text-anchor="middle" fill="#006B3F" font-size="10" font-weight="600">Signal View</text>
+  <rect x="160" y="108" width="105" height="28" rx="4" fill="#D4AF37" fill-opacity="0.15" stroke="#D4AF37" stroke-width="0.5"/>
+  <text x="212" y="126" text-anchor="middle" fill="#D4AF37" font-size="10" font-weight="600">Intel View</text>
+  <text x="55" y="155" fill="#8B8E96" font-size="8.5">Watchlist Scan</text>
+  <text x="55" y="168" fill="#8B8E96" font-size="8.5">Breaking Alerts</text>
+  <text x="55" y="181" fill="#8B8E96" font-size="8.5">Live Price Refresh</text>
+  <text x="155" y="155" fill="#8B8E96" font-size="8.5">Morning Brief</text>
+  <text x="155" y="168" fill="#8B8E96" font-size="8.5">Sector Heatmap</text>
+  <text x="155" y="181" fill="#8B8E96" font-size="8.5">Orallexa Thread</text>
+  <text x="55" y="215" fill="#4A4D55" font-size="8">Bilingual EN/ZH | Mobile Responsive</text>
+
+  <!-- ═══ Layer 2: API Server ═══ -->
+  <rect x="320" y="55" width="260" height="170" rx="8" fill="url(#dark)" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.3" filter="url(#shadow)"/>
+  <text x="450" y="78" text-anchor="middle" fill="#D4AF37" font-size="11" font-weight="600" letter-spacing="1.5">FASTAPI SERVER</text>
+  <text x="450" y="95" text-anchor="middle" fill="#6B6E76" font-size="9">Python 3.11 | REST API</text>
+
+  <rect x="335" y="108" width="115" height="22" rx="3" fill="#2A2A3E" stroke="#D4AF37" stroke-width="0.3"/>
+  <text x="392" y="123" text-anchor="middle" fill="#F5E6CA" font-size="8.5">/api/analyze</text>
+  <rect x="335" y="134" width="115" height="22" rx="3" fill="#2A2A3E" stroke="#D4AF37" stroke-width="0.3"/>
+  <text x="392" y="149" text-anchor="middle" fill="#F5E6CA" font-size="8.5">/api/deep-analysis</text>
+  <rect x="335" y="160" width="115" height="22" rx="3" fill="#2A2A3E" stroke="#D4AF37" stroke-width="0.3"/>
+  <text x="392" y="175" text-anchor="middle" fill="#F5E6CA" font-size="8.5">/api/daily-intel</text>
+
+  <rect x="460" y="108" width="105" height="22" rx="3" fill="#2A2A3E" stroke="#D4AF37" stroke-width="0.3"/>
+  <text x="512" y="123" text-anchor="middle" fill="#F5E6CA" font-size="8.5">/api/watchlist</text>
+  <rect x="460" y="134" width="105" height="22" rx="3" fill="#2A2A3E" stroke="#D4AF37" stroke-width="0.3"/>
+  <text x="512" y="149" text-anchor="middle" fill="#F5E6CA" font-size="8.5">/api/live/{ticker}</text>
+  <rect x="460" y="160" width="105" height="22" rx="3" fill="#2A2A3E" stroke="#D4AF37" stroke-width="0.3"/>
+  <text x="512" y="175" text-anchor="middle" fill="#F5E6CA" font-size="8.5">/api/breaking</text>
+
+  <text x="450" y="210" text-anchor="middle" fill="#4A4D55" font-size="8">Docker Containerized | CORS Configurable</text>
+
+  <!-- ═══ Layer 3: Desktop Agent ═══ -->
+  <rect x="620" y="55" width="250" height="170" rx="8" fill="url(#dark)" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.3" filter="url(#shadow)"/>
+  <text x="745" y="78" text-anchor="middle" fill="#D4AF37" font-size="11" font-weight="600" letter-spacing="1.5">DESKTOP AGENT</text>
+  <text x="745" y="95" text-anchor="middle" fill="#6B6E76" font-size="9">Tkinter + Voice I/O</text>
+  <text x="640" y="118" fill="#8B8E96" font-size="9">Bull Coach (AI Chat)</text>
+  <text x="640" y="135" fill="#8B8E96" font-size="9">Voice Input (Whisper)</text>
+  <text x="640" y="152" fill="#8B8E96" font-size="9">TTS Output (OpenAI)</text>
+  <text x="640" y="169" fill="#8B8E96" font-size="9">Screenshot Analysis</text>
+  <text x="640" y="186" fill="#8B8E96" font-size="9">System Tray Control</text>
+  <text x="640" y="215" fill="#4A4D55" font-size="8">Hotkey: Ctrl+Shift+S | i18n EN/ZH</text>
+
+  <!-- ═══ Arrows: Frontend → API ═══ -->
+  <line x1="280" y1="140" x2="318" y2="140" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arrowGold)"/>
+  <defs><marker id="arrowGold" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#D4AF37" fill-opacity="0.6"/></marker></defs>
+
+  <!-- ═══ Arrows: API → Desktop ═══ -->
+  <line x1="582" y1="140" x2="618" y2="140" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arrowGold)"/>
+
+  <!-- ═══ Layer 4: Trading Engine ═══ -->
+  <rect x="120" y="265" width="660" height="110" rx="8" fill="url(#dark)" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.4" filter="url(#shadow)"/>
+  <text x="450" y="288" text-anchor="middle" fill="#D4AF37" font-size="12" font-weight="700" letter-spacing="2">MULTI-AGENT TRADING ENGINE</text>
+
+  <!-- Agent boxes -->
+  <rect x="140" y="300" width="110" height="55" rx="5" fill="#006B3F" fill-opacity="0.12" stroke="#006B3F" stroke-width="0.7"/>
+  <text x="195" y="318" text-anchor="middle" fill="#006B3F" font-size="9" font-weight="600">Technical</text>
+  <text x="195" y="332" text-anchor="middle" fill="#006B3F" font-size="9" font-weight="600">Analysis</text>
+  <text x="195" y="348" text-anchor="middle" fill="#6B6E76" font-size="7.5">7 Strategies + Indicators</text>
+
+  <rect x="265" y="300" width="110" height="55" rx="5" fill="#2563EB" fill-opacity="0.12" stroke="#2563EB" stroke-width="0.7"/>
+  <text x="320" y="318" text-anchor="middle" fill="#2563EB" font-size="9" font-weight="600">ML Models</text>
+  <text x="320" y="332" text-anchor="middle" fill="#6B6E76" font-size="7.5">RF | XGBoost | LR</text>
+  <text x="320" y="348" text-anchor="middle" fill="#6B6E76" font-size="7.5">Walk-Forward Valid.</text>
+
+  <rect x="390" y="300" width="110" height="55" rx="5" fill="#D4AF37" fill-opacity="0.12" stroke="#D4AF37" stroke-width="0.7"/>
+  <text x="445" y="318" text-anchor="middle" fill="#D4AF37" font-size="9" font-weight="600">Bull/Bear</text>
+  <text x="445" y="332" text-anchor="middle" fill="#D4AF37" font-size="9" font-weight="600">AI Debate</text>
+  <text x="445" y="348" text-anchor="middle" fill="#6B6E76" font-size="7.5">Bull → Bear → Judge</text>
+
+  <rect x="515" y="300" width="110" height="55" rx="5" fill="#8B0000" fill-opacity="0.12" stroke="#8B0000" stroke-width="0.7"/>
+  <text x="570" y="318" text-anchor="middle" fill="#8B0000" font-size="9" font-weight="600">Sentiment</text>
+  <text x="570" y="332" text-anchor="middle" fill="#8B0000" font-size="9" font-weight="600">Analysis</text>
+  <text x="570" y="348" text-anchor="middle" fill="#6B6E76" font-size="7.5">FinBERT | VADER | News</text>
+
+  <rect x="640" y="300" width="120" height="55" rx="5" fill="#C5A255" fill-opacity="0.12" stroke="#C5A255" stroke-width="0.7"/>
+  <text x="700" y="318" text-anchor="middle" fill="#C5A255" font-size="9" font-weight="600">Risk Manager</text>
+  <text x="700" y="332" text-anchor="middle" fill="#6B6E76" font-size="7.5">Position Sizing</text>
+  <text x="700" y="348" text-anchor="middle" fill="#6B6E76" font-size="7.5">Stop/Target/R:R</text>
+
+  <!-- Arrow: API → Engine -->
+  <line x1="450" y1="227" x2="450" y2="263" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arrowGold)"/>
+
+  <!-- ═══ Layer 5: Data Sources ═══ -->
+  <rect x="120" y="415" width="200" height="55" rx="8" fill="url(#dark)" stroke="#006B3F" stroke-width="0.7" filter="url(#shadow)"/>
+  <text x="220" y="438" text-anchor="middle" fill="#006B3F" font-size="10" font-weight="600">Market Data</text>
+  <text x="220" y="455" text-anchor="middle" fill="#6B6E76" font-size="8.5">yfinance | Real-time + Historical</text>
+
+  <rect x="350" y="415" width="200" height="55" rx="8" fill="url(#dark)" stroke="#D4AF37" stroke-width="0.7" filter="url(#shadow)"/>
+  <text x="450" y="438" text-anchor="middle" fill="#D4AF37" font-size="10" font-weight="600">Claude AI</text>
+  <text x="450" y="455" text-anchor="middle" fill="#6B6E76" font-size="8.5">Sonnet 4 + Haiku 4.5</text>
+
+  <rect x="580" y="415" width="200" height="55" rx="8" fill="url(#dark)" stroke="#2563EB" stroke-width="0.7" filter="url(#shadow)"/>
+  <text x="680" y="438" text-anchor="middle" fill="#2563EB" font-size="10" font-weight="600">ML Pipeline</text>
+  <text x="680" y="455" text-anchor="middle" fill="#6B6E76" font-size="8.5">scikit-learn | XGBoost</text>
+
+  <!-- Arrows: Engine → Sources -->
+  <line x1="300" y1="377" x2="220" y2="413" stroke="#006B3F" stroke-width="1" stroke-opacity="0.5" marker-end="url(#arrowGold)"/>
+  <line x1="450" y1="377" x2="450" y2="413" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.5" marker-end="url(#arrowGold)"/>
+  <line x1="600" y1="377" x2="680" y2="413" stroke="#2563EB" stroke-width="1" stroke-opacity="0.5" marker-end="url(#arrowGold)"/>
+
+  <!-- Output label -->
+  <rect x="330" y="490" width="240" height="22" rx="4" fill="#D4AF37" fill-opacity="0.1" stroke="#D4AF37" stroke-width="0.5"/>
+  <text x="450" y="505" text-anchor="middle" fill="#D4AF37" font-size="9" font-weight="600" letter-spacing="1">OUTPUT: DecisionOutput → BUY | SELL | WAIT</text>
+</svg>

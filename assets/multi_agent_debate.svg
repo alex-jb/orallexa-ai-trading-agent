@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 320" font-family="Segoe UI, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="dark2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A1A2E"/>
+      <stop offset="100%" style="stop-color:#0D1117"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#D4AF37" fill-opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <rect width="750" height="320" rx="10" fill="#0A0A0F"/>
+  <text x="375" y="30" text-anchor="middle" fill="#D4AF37" font-size="13" font-weight="700" letter-spacing="2.5">ADVERSARIAL DEBATE PIPELINE</text>
+
+  <!-- Step 1: Initial Signal -->
+  <rect x="30" y="60" width="140" height="80" rx="6" fill="url(#dark2)" stroke="#6B6E76" stroke-width="0.7"/>
+  <text x="100" y="85" text-anchor="middle" fill="#6B6E76" font-size="9" font-weight="600" letter-spacing="1">STEP 1</text>
+  <text x="100" y="105" text-anchor="middle" fill="#F5E6CA" font-size="11" font-weight="700">Technical</text>
+  <text x="100" y="120" text-anchor="middle" fill="#F5E6CA" font-size="11" font-weight="700">Signal</text>
+  <text x="100" y="135" text-anchor="middle" fill="#6B6E76" font-size="8">7 strategies + ML</text>
+
+  <line x1="170" y1="100" x2="210" y2="100" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arr)"/>
+
+  <!-- Step 2: Bull -->
+  <rect x="215" y="50" width="150" height="100" rx="6" fill="url(#dark2)" stroke="#006B3F" stroke-width="1"/>
+  <rect x="215" y="50" width="150" height="24" rx="6" fill="#006B3F" fill-opacity="0.2"/>
+  <text x="290" y="67" text-anchor="middle" fill="#006B3F" font-size="10" font-weight="700" letter-spacing="1">BULL ANALYST</text>
+  <text x="290" y="88" text-anchor="middle" fill="#8B8E96" font-size="8.5">Argues FOR the trade</text>
+  <text x="290" y="102" text-anchor="middle" fill="#8B8E96" font-size="8.5">Momentum, catalysts</text>
+  <text x="290" y="116" text-anchor="middle" fill="#8B8E96" font-size="8.5">Entry setup, R:R case</text>
+  <text x="290" y="136" text-anchor="middle" fill="#006B3F" font-size="8">Claude Haiku | 300-400 words</text>
+
+  <line x1="365" y1="100" x2="405" y2="100" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arr)"/>
+  <text x="385" y="92" text-anchor="middle" fill="#4A4D55" font-size="7">countered by</text>
+
+  <!-- Step 3: Bear -->
+  <rect x="410" y="50" width="150" height="100" rx="6" fill="url(#dark2)" stroke="#8B0000" stroke-width="1"/>
+  <rect x="410" y="50" width="150" height="24" rx="6" fill="#8B0000" fill-opacity="0.2"/>
+  <text x="485" y="67" text-anchor="middle" fill="#8B0000" font-size="10" font-weight="700" letter-spacing="1">BEAR ANALYST</text>
+  <text x="485" y="88" text-anchor="middle" fill="#8B8E96" font-size="8.5">Argues AGAINST</text>
+  <text x="485" y="102" text-anchor="middle" fill="#8B8E96" font-size="8.5">Risks, headwinds</text>
+  <text x="485" y="116" text-anchor="middle" fill="#8B8E96" font-size="8.5">Counters bull claims</text>
+  <text x="485" y="136" text-anchor="middle" fill="#8B0000" font-size="8">Claude Haiku | 300-400 words</text>
+
+  <line x1="560" y1="100" x2="600" y2="100" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arr)"/>
+
+  <!-- Step 4: Judge -->
+  <rect x="605" y="50" width="120" height="100" rx="6" fill="url(#dark2)" stroke="#D4AF37" stroke-width="1.2"/>
+  <rect x="605" y="50" width="120" height="24" rx="6" fill="#D4AF37" fill-opacity="0.15"/>
+  <text x="665" y="67" text-anchor="middle" fill="#D4AF37" font-size="10" font-weight="700" letter-spacing="1">JUDGE</text>
+  <text x="665" y="88" text-anchor="middle" fill="#8B8E96" font-size="8.5">Weighs evidence</text>
+  <text x="665" y="102" text-anchor="middle" fill="#8B8E96" font-size="8.5">Makes final call</text>
+  <text x="665" y="116" text-anchor="middle" fill="#8B8E96" font-size="8.5">Outputs decision</text>
+  <text x="665" y="136" text-anchor="middle" fill="#D4AF37" font-size="8">Claude Sonnet</text>
+
+  <!-- Output -->
+  <line x1="665" y1="152" x2="665" y2="185" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arr)"/>
+
+  <rect x="540" y="190" width="185" height="55" rx="6" fill="#D4AF37" fill-opacity="0.08" stroke="#D4AF37" stroke-width="0.7"/>
+  <text x="632" y="210" text-anchor="middle" fill="#D4AF37" font-size="10" font-weight="700">DecisionOutput</text>
+  <text x="632" y="225" text-anchor="middle" fill="#8B8E96" font-size="8">BUY | SELL | WAIT</text>
+  <text x="632" y="238" text-anchor="middle" fill="#8B8E96" font-size="8">confidence + probabilities + plan</text>
+
+  <!-- Risk Manager -->
+  <line x1="632" y1="247" x2="632" y2="275" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arr)"/>
+  <rect x="540" y="278" width="185" height="30" rx="5" fill="url(#dark2)" stroke="#C5A255" stroke-width="0.7"/>
+  <text x="632" y="298" text-anchor="middle" fill="#C5A255" font-size="9" font-weight="600">Risk Manager → Investment Plan</text>
+
+  <!-- Left side: Input data box -->
+  <rect x="30" y="175" width="140" height="130" rx="6" fill="url(#dark2)" stroke="#2563EB" stroke-width="0.7"/>
+  <text x="100" y="196" text-anchor="middle" fill="#2563EB" font-size="9" font-weight="600" letter-spacing="1">INPUT DATA</text>
+  <text x="45" y="218" fill="#8B8E96" font-size="8.5">RSI, MACD, ADX</text>
+  <text x="45" y="233" fill="#8B8E96" font-size="8.5">MA20/MA50 alignment</text>
+  <text x="45" y="248" fill="#8B8E96" font-size="8.5">Bollinger %B</text>
+  <text x="45" y="263" fill="#8B8E96" font-size="8.5">Volume ratio</text>
+  <text x="45" y="278" fill="#8B8E96" font-size="8.5">News sentiment</text>
+  <text x="45" y="293" fill="#8B8E96" font-size="8.5">ML model signals</text>
+
+  <!-- Arrows from input to bull/bear -->
+  <line x1="170" y1="220" x2="290" y2="152" stroke="#2563EB" stroke-width="0.8" stroke-opacity="0.4" stroke-dasharray="4,3"/>
+  <line x1="170" y1="240" x2="485" y2="152" stroke="#2563EB" stroke-width="0.8" stroke-opacity="0.4" stroke-dasharray="4,3"/>
+
+  <!-- Middle: context note -->
+  <text x="350" y="175" text-anchor="middle" fill="#4A4D55" font-size="7.5" font-style="italic">Both analysts receive identical market data — the debate is in interpretation</text>
+</svg>

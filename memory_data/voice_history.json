@@ -1,0 +1,26 @@
+[
+  {
+    "timestamp": "2026-03-30 17:21:50",
+    "question": "今天我要做短线有什么建议",
+    "answer": "基于今天的市场数据，我建议你暂时观望。目前主要标的都处在技术面较弱的状态，NVDA虽然刚刚收复20日均线但RSI只有49.3缺乏强势动能，QQQ和TSLA都在关键均线下方运行显示下行压力。如果一定要做短线的话，可以关注NVDA是否能在185.41上方站稳并配合放量，这是唯一一个显示出潜在反弹信号的标的。不过整体来看，今天的市场环境对短线交易风险较高，建议控制仓位或者等待更明确的技术信号出现。",
+    "ticker": "NVDA"
+  },
+  {
+    "timestamp": "2026-03-30 17:19:53",
+    "question": "我今天要做QQQ的短线,你有什么建议吗?",
+    "answer": "For QQQ short-term trading today, I'd recommend waiting on the sidelines. QQQ is currently trading below both its 20-day and 50-day moving averages with RSI at 43.93, indicating weakening momentum without clear directional conviction. Our backtesting shows concerning metrics with a 0% win rate and negative Sharpe ratio for current strategies in this market environment. If you must trade, wait for a clear break above the 20-day moving average with increasing volume to confirm any bullish reversal, but the risk-reward setup isn't favorable for short-term entries right now.",
+    "ticker": "NVDA"
+  },
+  {
+    "timestamp": "2026-03-30 17:13:21",
+    "question": "今天做短线qqq你有什么建议",
+    "answer": "API key error: Make sure ANTHROPIC_API_KEY is set.",
+    "ticker": "NVDA"
+  },
+  {
+    "timestamp": "2026-03-30 17:12:46",
+    "question": "我今天想做短线5分钟的做QQQ你有什么建议吗?",
+    "answer": "API key error: Make sure ANTHROPIC_API_KEY is set.",
+    "ticker": "NVDA"
+  }
+]

@@ -1,0 +1,32 @@
+# ── Core ─────────────────────────────────
+anthropic
+yfinance
+pandas
+numpy
+matplotlib
+scikit-learn
+xgboost
+
+# ── API Server ───────────────────────────
+fastapi
+uvicorn[standard]
+python-dotenv
+python-multipart
+
+# ── NLP / Sentiment ──────────────────────
+vaderSentiment
+textblob
+
+# ── Streamlit UI (optional) ──────────────
+streamlit
+
+# ── Testing ──────────────────────────────
+pytest
+
+# ── Desktop Agent (optional) ─────────────
+openai
+sounddevice
+pystray
+Pillow
+pygame
+keyboard

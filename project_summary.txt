@@ -1,0 +1,223 @@
+============================================================
+ORALLEXA — AI-Powered Trading Research Engine
+Project Summary & Development Journal
+Date: March 31, 2026
+============================================================
+
+## PROJECT OVERVIEW
+
+Orallexa is an AI-powered trading research and decision engine I built from scratch. It combines classical machine learning, large language models (Claude AI), rule-based quantitative strategies, and real-time market data to generate actionable trading signals (BUY / SELL / WAIT) with confidence scores and step-by-step reasoning.
+
+The project has three user interfaces: a Streamlit dashboard, a Next.js React web app, and a desktop agent with voice input and animated avatar.
+
+Total codebase: 66 Python files, ~13,400 lines of Python + ~500 lines of TypeScript/React.
+
+
+## WHAT I BUILT (Development Timeline)
+
+### Phase 1: Quantitative Engine (engine/)
+- Built a backtesting framework from scratch: data ingestion, strategy execution, performance evaluation (Sharpe ratio, max drawdown, win rate)
+- Implemented 7 rule-based trading strategies as pure functions:
+  1. Double Moving Average crossover
+  2. MACD crossover
+  3. Bollinger Band breakout
+  4. RSI mean-reversion
+  5. Trend Momentum (MA + MACD + Volume confirmation)
+  6. Dual Thrust (opening range breakout)
+  7. Alpha Combo (multi-factor composite signal)
+- Each strategy takes a DataFrame and parameters, returns a signal series {-1, 0, +1}
+- Built a multi-strategy runner that evaluates all strategies on the same data and ranks them
+- Implemented walk-forward validation to prevent overfitting
+
+### Phase 2: Machine Learning Integration (engine/ml_signal.py)
+- Built an ML signal generator that trains supervised classifiers on 28 technical indicator features
+- Features include: MA5/10/20/50, EMA12/26, MACD/Signal/Histogram, RSI, Stochastic K/D, ROC, Bollinger %B/Width, ATR, Historical Volatility, Volume Ratio, OBV, ADX, +DI/-DI, and derived boolean features (Above_MA20, MACD_Cross_Up, RSI_Oversold, etc.)
+- Label: binary classification — will price be higher in N days? (forward return > 0)
+- Models trained:
+  - Random Forest Classifier (100 trees, max_depth=5, StandardScaler preprocessing)
+  - XGBoost Classifier (100 estimators, learning_rate=0.05, subsample=0.8)
+  - Logistic Regression (C=0.1, regularized, StandardScaler preprocessing)
+- Compared ML signals vs rule-based strategies vs buy-and-hold baseline
+- This is the KEY DIFFERENTIATOR vs pure rule-based approaches — ML can capture non-linear feature interactions that simple if/else rules miss
+
+### Phase 3: LLM/AI Integration (llm/)
+- Integrated Anthropic Claude API (claude-sonnet-4-5) for:
+  - Market analysis: Claude reads technical indicators and provides qualitative interpretation
+  - Strategy reflection: Claude reviews backtest results and suggests parameter improvements
+  - Parameter generation: Claude proposes new strategy parameters based on market conditions
+  - Probability forecasting: combines technical signals with Claude's reasoning for probability estimates
+- Built a RAG (Retrieval-Augmented Generation) system:
+  - Local vector store using TF-IDF + cosine similarity (sklearn)
+  - Market notes stored in JSON, indexed with TfidfVectorizer
+  - RAG-enriched analysis: Claude's responses incorporate retrieved market knowledge
+- Multi-agent deep analysis: market agent, fundamentals agent, news agent each analyze independently, then a final decision is synthesized
+
+### Phase 4: Skills System (skills/)
+- Designed a modular "skills" architecture where each trading capability is an independent module:
+  - ScalpingSkill: 5-minute breakout/pullback/volume detection using EMA9/21, VWAP, ADX, volume ratio
+  - PredictionSkill: daily/swing probability forecast combining technical scoring with Claude overlay
+  - IntradaySkill: intraday signal generation
+  - RiskManagementSkill: position sizing (Kelly criterion style), stop-loss calculation, risk/reward targets
+  - ChartAnalysisSkill: upload a screenshot, Claude Vision reads the chart and gives analysis
+  - MarketDataSkill: yfinance wrapper for OHLCV data
+  - TechnicalAnalysisSkillV2: computes 28+ technical indicators from raw price data
+  - NewsSkill: fetches live news headlines
+  - TradeFilterSkill: filters and validates trade signals
+
+### Phase 5: Behavioral Adaptation (bot/)
+- Built a "behavior memory" system that tracks trade outcomes and adapts over time:
+  - Persistent state stored in memory.json: wins, losses, streaks, aggressiveness level
+  - Aggressiveness dynamically adjusts: winning streaks -> more aggressive, losing streaks -> more conservative
+  - Confidence guard system: hard cap at 82% confidence (no model should express certainty), conflicting signals force WAIT
+  - Daily trade limits, streak tracking, and pattern detection
+- Strategy arena: strategies compete against each other and the best performers are prioritized
+
+### Phase 6: Frontend Interfaces
+- Streamlit Dashboard (app.py): 3-mode interface (scalp/predict/research) with real-time charts
+- Next.js React UI (orallexa-ui/): premium dark-themed trading terminal with:
+  - Engine decision card with expandable reasoning accordion
+  - Real-time news sentiment panel with clickable headlines
+  - Trader behavior profile (win rate, aggressiveness, patterns)
+  - Decision execution log
+  - Chart screenshot upload + analysis
+  - English/Chinese language toggle
+  - FastAPI backend (api_server.py) bridging Python engine to React frontend
+- Desktop Agent (desktop_agent/): always-on trading coach with:
+  - System tray icon
+  - Hotkey-triggered chart screenshot analysis (Ctrl+Shift+S)
+  - Voice input via OpenAI Whisper
+  - Text-to-speech response readback
+  - Animated avatar character window
+
+
+## HOW THIS RELATES TO MACHINE LEARNING
+
+This project is a comprehensive application of machine learning to financial time series prediction:
+
+### Classical ML Techniques Used
+1. **Supervised Classification**: Random Forest, XGBoost, Logistic Regression trained on technical indicator features to predict price direction
+2. **Feature Engineering**: 28 hand-crafted technical features from raw OHLCV data — moving averages, momentum oscillators, volatility measures, volume indicators
+3. **Train/Test Split + Walk-Forward Validation**: proper time-series splitting to prevent look-ahead bias
+4. **StandardScaler Preprocessing**: feature normalization for models sensitive to scale (LR, distance-based)
+5. **TF-IDF Vectorization + Cosine Similarity**: for the RAG vector store — text retrieval using classical NLP
+
+### LLM / Deep Learning Techniques Used
+6. **Large Language Model Integration**: Claude AI as a reasoning engine that interprets quantitative signals in qualitative context
+7. **RAG (Retrieval-Augmented Generation)**: combining local knowledge retrieval with LLM generation for more informed analysis
+8. **Multi-Agent AI Architecture**: multiple specialized AI agents (market, fundamentals, news) analyze independently, then synthesize — ensemble approach applied to LLM reasoning
+9. **Vision Model**: Claude Vision for chart image analysis — the model "reads" candlestick patterns, support/resistance levels from screenshots
+10. **Sentiment Analysis**: VADER + TextBlob for news headline sentiment scoring — NLP classification
+
+### ML Evaluation & Risk Management
+11. **Sharpe Ratio, Max Drawdown, Win Rate**: standard quantitative finance metrics for model/strategy evaluation
+12. **Confidence Calibration**: hard cap at 82% to prevent overconfident predictions — a form of model calibration
+13. **Behavioral Reinforcement**: the aggressiveness adaptation system is inspired by reinforcement learning — the agent adjusts its policy (risk tolerance) based on reward signals (trade outcomes)
+
+### The ML Pipeline
+```
+Raw Market Data (yfinance)
+    → Feature Engineering (28 technical indicators)
+    → ML Models (RF / XGBoost / LR) → probability signal
+    → Rule-Based Strategies (7 strategies) → directional signal
+    → LLM Reasoning (Claude) → qualitative overlay
+    → Sentiment Analysis (VADER) → news signal
+    → RAG Context (TF-IDF retrieval) → enriched context
+    → Confidence Guard (calibration) → capped output
+    → Behavior Adaptation (RL-inspired) → risk-adjusted decision
+    → Final Output: BUY/SELL/WAIT + confidence + reasoning
+```
+
+
+## TOOLS & TECHNOLOGIES USED
+
+### AI / ML Tools
+- **Anthropic Claude API** (claude-sonnet-4-5) — LLM reasoning, strategy reflection, chart vision
+- **scikit-learn** — Random Forest, Logistic Regression, TF-IDF, StandardScaler, cosine similarity
+- **XGBoost** — gradient boosted tree classifier
+- **VADER Sentiment** — rule-based sentiment analysis for news headlines
+- **TextBlob** — additional NLP sentiment scoring
+
+### Data & Computation
+- **pandas** — data manipulation, time series handling
+- **numpy** — numerical computation
+- **yfinance** — real-time and historical market data from Yahoo Finance
+- **matplotlib** — chart visualization
+
+### Backend
+- **Python 3** — primary language
+- **FastAPI + Uvicorn** — REST API server for React frontend
+- **Streamlit** — rapid dashboard prototyping
+
+### Frontend
+- **Next.js 15** — React framework
+- **Tailwind CSS** — utility-first styling
+- **TypeScript** — type-safe frontend code
+
+### Desktop Agent
+- **Tkinter** — GUI windows
+- **pystray** — system tray integration
+- **OpenAI Whisper** — speech-to-text
+- **pygame** — audio playback
+- **Pillow** — screenshot capture and image processing
+
+### Development
+- **Claude Code** — AI-assisted development (used extensively for architecture, debugging, code generation)
+- **Git** — version control
+- **VS Code** — editor
+
+
+## CURRENT PROJECT STATUS
+
+### Completed
+- Full quantitative backtesting engine with 7 strategies
+- ML signal generator (RF, XGBoost, LR) with 28 features
+- Claude AI integration for analysis, reflection, and parameter generation
+- RAG knowledge base with TF-IDF retrieval
+- Multi-agent deep analysis pipeline
+- Scalping, prediction, and intraday skills
+- Risk management and position sizing
+- Behavioral adaptation with persistent memory
+- Streamlit dashboard (3 modes)
+- Next.js React UI with FastAPI backend
+- Desktop agent with voice, hotkey, avatar
+- News sentiment analysis
+- Chart screenshot analysis via Claude Vision
+- Confidence calibration and edge guards
+- English/Chinese bilingual UI
+
+### In Progress
+- UI visual polish and interaction refinement
+- Deep analysis end-to-end stability (API key configuration, long-running request handling)
+- Desktop agent voice command integration
+
+### Future Ideas
+- Live paper trading mode with real-time position tracking
+- Portfolio-level multi-asset allocation
+- Automated strategy evolution using genetic algorithms
+- Mobile app interface
+- WebSocket real-time data streaming
+
+
+## KEY DESIGN DECISIONS
+
+1. **Confidence cap at 82%**: No prediction model should express certainty about financial markets. This is both intellectually honest and practically safer.
+
+2. **Strategies as pure functions**: Every strategy is a stateless function that takes data in, puts signals out. This makes them testable, composable, and easy to swap.
+
+3. **DecisionOutput as universal contract**: Every analysis path (scalp, predict, deep) returns the same dataclass. This simplifies the UI and logging layers.
+
+4. **Behavioral memory**: The system learns from its own track record. Losing streaks make it more cautious. This mimics how experienced traders adapt.
+
+5. **Multi-agent AI**: Instead of one monolithic LLM call, specialized agents analyze market, fundamentals, and news independently. This is the ensemble principle applied to LLM reasoning.
+
+
+## FOR NOTEBOOK LM / PRESENTATION
+
+Key talking points for a presentation:
+- This project demonstrates the full ML pipeline: data collection → feature engineering → model training → evaluation → deployment
+- It compares classical ML (Random Forest, XGBoost) against rule-based strategies against LLM reasoning
+- The RAG system shows how to combine retrieval with generation for domain-specific AI
+- The behavioral adaptation system draws inspiration from reinforcement learning
+- The confidence calibration addresses a critical real-world ML challenge: knowing when NOT to make a prediction
+- Three different frontends (Streamlit, React, Desktop) show ML model serving in different deployment contexts
+- Total: 66 Python files, ~13,400 lines of code, 3 ML models, 7 trading strategies, 1 LLM integration, 1 RAG system, 3 user interfaces

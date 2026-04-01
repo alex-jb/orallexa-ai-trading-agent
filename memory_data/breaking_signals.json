@@ -1,0 +1,23 @@
+[
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "QQQ",
+    "timestamp": "2026-04-01T11:04:32.534022",
+    "shift": -39.4,
+    "prev_confidence": 82.0,
+    "new_confidence": 42.6,
+    "message": "QQQ confidence shifted -39% (82% → 43%)"
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-01T10:37:51.085298",
+    "direction": "bullish",
+    "shift_pct": 18.0,
+    "prev_up": 38.0,
+    "new_up": 56.0,
+    "message": "AAPL upside probability shifted +18% (38% → 56%)"
+  }
+]
