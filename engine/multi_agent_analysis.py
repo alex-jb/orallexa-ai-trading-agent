@@ -461,19 +461,22 @@ def run_multi_agent_analysis(
         rag_context=rag_context,
     )
 
-    # ── Agent 5: Risk Manager (1 LLM call) ──
+    # ── Agent 5 + 6: Risk Manager & Deep Market Report (parallel, 2 LLM calls) ──
     from llm.claude_client import get_client
+    from concurrent.futures import ThreadPoolExecutor
     client = get_client()
-    risk_data = _run_risk_manager(
-        client, debate_decision, market_report, news_report, ml_report,
-        ticker, summary=summary,
-    )
 
-    # ── Agent 6: LLM Deep Market Report (1 LLM call) ──
-    deep_market_report = _run_llm_market_report(
-        client, market_report, news_report, ml_report,
-        ticker, summary=summary,
-    )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        risk_future = pool.submit(
+            _run_risk_manager, client, debate_decision,
+            market_report, news_report, ml_report, ticker, summary,
+        )
+        report_future = pool.submit(
+            _run_llm_market_report, client,
+            market_report, news_report, ml_report, ticker, summary,
+        )
+        risk_data = risk_future.result()
+        deep_market_report = report_future.result()
 
     # ── Apply edge guards ──
     from models.confidence import guard_decision

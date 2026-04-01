@@ -1,5 +1,40 @@
 [
   {
+    "timestamp": "2026-04-01T11:26:43.323823",
+    "ticker": "AMD",
+    "mode": "deep",
+    "timeframe": "1D",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 47.6,
+    "risk_level": "MEDIUM",
+    "reasoning": [
+      "Step 1: Technical analysis",
+      "  Price above MA20 but MA20 < MA50 — mixed",
+      "  RSI 59.1 — bullish momentum, not overbought",
+      "  MACD histogram positive (1.286) — bullish momentum",
+      "  BB%: 0.91 — near upper band, extended",
+      "  ADX 11.9 — weak/choppy market",
+      "Step 2: Probability estimation",
+      "Step 3: Decision (technical only)",
+      "  WAIT | Signal: 63/100 | Confidence: 21%",
+      "Bull: # Bull Case for AMD (TICKER: AMD)  ## 1. **Momentum & Trend — Building Strength Despite Mixed Signals**  AMD is displaying **emerging bullish momentum** that shouldn't be dismissed. The RSI at 59.1 sits in the sweet spot—elevated enough to signal genuine buying interest, yet below 70, meaning there's room to run without overbought exhaustion. More importantly, the **MACD histogram at +1.28 is positive and expanding**, indicating that momentum is *accelerating* rather than fading. While the price ($212.33) sits marginally above the MA20 ($201.93) with the MA50 at $212.33, this near-convergence actually represents a **critical inflection point**. The 50-day moving average is acting as dynamic support, and the fact that price is holding at this level—rather than breaking below—suggests institutional accumulation. The Bollinger Band position at 0.91 indicates price is in the upper half of its recent range but not stretched to extremes, leaving room for a meaningful breakout.  ## 2. **Entry Setup — Optimal Risk/Reward Geometry**  The technical setup is textbook bullish. We have **price above the 20-day MA, RSI in the 50-60 range (optimal for continuation), and positive MACD momentum**—this is the classic \"early-stage breakout\" configuration. The ADX at 11.8 is low, which typically precedes trend acceleration; as institutional money enters, we should expect ADX to climb sharply, confirming a sustained move. The volume ratio of 0.52 suggests **controlled accumulation without panic buying**, which is healthier than spike-driven rallies. This is a patient entry point before the move becomes obvious to retail traders.  ## 3. **Catalyst & Model Conviction**  The **Chronos2 ML model delivers a 1.72 Sharpe ratio with 9.99% returns**—a stark contrast to traditional models and buy-and-hold. This 10.57% excess return suggests the model has identified a genuine edge that price action alone doesn't reveal. With 13 trades and a 47.8% win rate, Chronos2 is capturing micro-trends that human analysis misses. In semiconductor cycles, AMD typically benefits from AI infrastructure buildouts and data center strength; the technical setup aligns with a sector rotation into chip stocks.  ## 4. **Risk/Reward — Asymmetric Upside**  A stop-loss below the MA50 ($212) limits downside to ~0.2%, while a move to $225-230 (just 6-8% higher) is well within reach given the momentum setup. That's a **30:1 to 40:1 risk/reward ratio**—exceptional entry geometry. The combination of technical confluence, ML model outperformance, and controlled risk makes this a **high-conviction long setup**.",
+      "Bear: # Bear Case Against AMD (TICKER: AMD)  ## 1. **Momentum is a Mirage—RSI & MACD Divergence Signals Exhaustion**  The bull celebrates RSI at 59.1 as \"room to run,\" but this misreads the technical setup entirely. AMD is *already* in the upper half of the RSI range with minimal cushion before overbought territory (70), yet the stock has failed to break decisively higher. More damning: the **MACD histogram at +1.28 is dangerously small relative to prior moves**—this is not \"accelerating momentum\" but rather *decelerating momentum masquerading as strength*. When positive MACD histograms shrink while price stalls, it signals that bulls are losing conviction. The bull ignores the critical fact that **ADX sits at just 11.83—a deeply weak trend indicator**. An ADX below 20 means there is *no directional trend at all*; AMD is range-bound, not trending. Buying into a range-bound stock at the upper edge of its range is precisely how traders get trapped.  ## 2. **Volume Collapse & Bollinger Band Extremes Scream Caution**  The Vol Ratio of 0.52 is the smoking gun the bull glosses over. This means today's volume is *half* of the 20-day average—a massive red flag. Strong rallies are built on expanding volume; AMD's move higher is occurring on a whisper. The **BB% at 0.91 reveals the stock is trading near the upper Bollinger Band**, which historically precedes mean reversion, not continuation. The bull's claim about \"dynamic support\" at the MA50 ignores that AMD is *barely touching* this level (price $212.33 vs. MA50 $212.33)—this is not support, it's a knife's edge. One bad earnings miss or sector rotation could trigger a cascade below this level with no volume to support the stock.  ## 3. **ML Models Scream Sell—Ignore the Chronos2 Outlier**  The bull cherry-picks Chronos2's +9.99% return, but this is statistical noise from a small sample (13 trades). The *consensus* across Random Forest, XGBoost, and Logistic Regression is unambiguous: **negative Sharpe ratios (-0.35 to -0.46) and sub-44% win rates**. These aren't edge cases—they're the majority signal. Chronos2's outperformance lacks robustness and likely reflects overfitting to recent data. The fact that Buy & Hold returns -0.79% suggests AMD itself is in a downtrend; buying here is fighting the tape.  ## 4. **Macro Headwinds & Sentiment Collapse**  The initial signal shows **WAIT with only 21% confidence**—this is a rejection, not a green light. News sentiment is truncated in your data, but AMD faces structural headwinds: AI chip competition intensifying, PC market weakness, and potential margin compression. The risk/reward is inverted: limited upside (RSI already elevated, volume weak) against significant downside (support at MA50 is fragile, ADX shows no trend conviction).  **Verdict: Wait for a clearer setup—lower volume entry, stronger trend confirmation, or a retest of MA20 support.**",
+      "Judge: Conflicting signals with weak trend strength (ADX 11.83) and below-average volume (Vol Ratio 0.52) argue against initiating a position despite modestly bullish momentum indicators.",
+      "Judge: The bear case is most convincing on ADX and volume: a trendless environment (ADX < 20) combined with volume running at roughly half normal levels means any breakout attempt lacks conviction and is prone to reversal. The bull case has merit in that RSI at 59 and positive MACD histogram suggest near-term upside bias, and Chronos2's strong Sharpe of 1.72 is notable, but it stands alone against four other models all showing negative returns. The call would be invalidated—shifting to BUY—if price closes above $215 on volume exceeding the 20-day average with ADX rising above 20, confirming a genuine trend is establishing.",
+      "Risk Plan: This is a minimal, speculative position (3% of portfolio) taken against a WAIT signal, justified only by the modestly bullish RSI (59.1), positive MACD histogram, and Chronos2's strong Sharpe of 1.72."
+    ],
+    "probabilities": {
+      "up": 0.35,
+      "neutral": 0.38,
+      "down": 0.27
+    },
+    "source": "prediction+debate",
+    "signal_strength": 63.0,
+    "recommendation": "Mixed signals. Wait for clarity."
+  },
+  {
     "timestamp": "2026-04-01T11:18:59.148094",
     "ticker": "AMD",
     "mode": "intraday",

@@ -191,7 +191,7 @@ async def deep_analysis(
 ):
     """
     Lightweight deep analysis: ML models + technical analysis + news sentiment
-    + Bull/Bear debate.  3 LLM calls instead of 10+.  ~15-30 seconds.
+    + Bull/Bear debate.  ~15-30 seconds.
     """
     from fastapi.responses import JSONResponse
 
@@ -214,7 +214,6 @@ async def deep_analysis(
         return run_multi_agent_analysis(ticker=tk, brain=brain)
 
     try:
-        # Run in thread so it doesn't block other requests; 4 min timeout
         result = await asyncio.wait_for(
             asyncio.to_thread(_run_deep, ticker.upper()),
             timeout=240,
@@ -222,7 +221,6 @@ async def deep_analysis(
         dec = result.decision_output.to_dict()
         plan = result.investment_plan or {}
 
-        # Detect breaking signals
         breaking = None
         try:
             from engine.breaking_signals import detect_breaking
@@ -230,7 +228,6 @@ async def deep_analysis(
         except Exception:
             pass
 
-        # Save to decision log
         try:
             from engine.decision_log import save_decision
             save_decision(decision=result.decision_output, ticker=ticker.upper(),
@@ -270,6 +267,175 @@ async def deep_analysis(
             status_code=500,
             content={"detail": detail},
         )
+
+
+@app.post("/api/deep-analysis-stream")
+async def deep_analysis_stream(
+    ticker: str = Form("NVDA"),
+):
+    """SSE streaming deep analysis — sends progress events then final result."""
+    from fastapi.responses import StreamingResponse, JSONResponse
+    import asyncio
+    import time
+
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        load_dotenv(_ROOT / ".env", override=True)
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "ANTHROPIC_API_KEY is not set."},
+        )
+
+    tk = ticker.upper()
+
+    async def event_stream():
+        def _send(event: str, data: dict) -> str:
+            return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        yield _send("progress", {"step": 1, "total": 6, "label": "Loading market data...",
+                                  "label_zh": "加载行情数据..."})
+        t0 = time.time()
+
+        try:
+            from core.brain import OrallexaBrain
+            brain = OrallexaBrain(tk)
+            ta = brain._prepare_data()
+            train_df, test_df = brain._single_split(ta)
+            summary = brain._safe_summary_from_df(ta)
+        except Exception as exc:
+            yield _send("error", {"detail": f"Data load failed: {exc}"})
+            return
+
+        yield _send("progress", {"step": 2, "total": 6, "label": "Technical & news analysis...",
+                                  "label_zh": "技术面 & 新闻分析..."})
+
+        try:
+            from engine.multi_agent_analysis import _run_market_analyst, _run_news_analyst, _run_ml_analyst
+            market_report = _run_market_analyst(summary, tk)
+            news_report, _ = await asyncio.to_thread(_run_news_analyst, tk)
+            ml_report, ml_result = await asyncio.to_thread(_run_ml_analyst, train_df, test_df, tk)
+        except Exception as exc:
+            yield _send("error", {"detail": f"Analysis failed: {exc}"})
+            return
+
+        yield _send("progress", {"step": 3, "total": 6, "label": "Building initial signal...",
+                                  "label_zh": "生成初始信号..."})
+
+        from skills.prediction import PredictionSkill
+        from models.decision import DecisionOutput
+        try:
+            initial_decision = PredictionSkill(tk).execute(use_claude=False)
+        except Exception:
+            from models.confidence import make_recommendation
+            initial_decision = DecisionOutput(
+                decision="WAIT", confidence=40.0, risk_level="MEDIUM",
+                reasoning=["Technical analysis inconclusive"],
+                probabilities={"up": 0.33, "neutral": 0.34, "down": 0.33},
+                source="prediction", signal_strength=40.0,
+                recommendation=make_recommendation("WAIT", 40.0, "MEDIUM"),
+            )
+
+        yield _send("progress", {"step": 4, "total": 6, "label": "Bull/Bear debate (3 LLM calls)...",
+                                  "label_zh": "多空辩论（3次AI调用）..."})
+
+        try:
+            rag_context = f"{ml_report}\n\n{news_report}"
+            from llm.debate import run_lightweight_debate
+            debate_decision = await asyncio.to_thread(
+                run_lightweight_debate,
+                initial_decision=initial_decision, summary=summary,
+                ticker=tk, rag_context=rag_context,
+            )
+        except Exception as exc:
+            yield _send("error", {"detail": f"Debate failed: {exc}"})
+            return
+
+        yield _send("progress", {"step": 5, "total": 6, "label": "Risk assessment & deep report (parallel)...",
+                                  "label_zh": "风险评估 & 深度报告（并行）..."})
+
+        try:
+            from llm.claude_client import get_client
+            from engine.multi_agent_analysis import _run_risk_manager, _run_llm_market_report
+            client = get_client()
+
+            risk_future = asyncio.to_thread(
+                _run_risk_manager, client, debate_decision,
+                market_report, news_report, ml_report, tk, summary,
+            )
+            report_future = asyncio.to_thread(
+                _run_llm_market_report, client,
+                market_report, news_report, ml_report, tk, summary,
+            )
+            risk_data, deep_market_report = await asyncio.gather(risk_future, report_future)
+        except Exception as exc:
+            yield _send("error", {"detail": f"Risk/Report failed: {exc}"})
+            return
+
+        yield _send("progress", {"step": 6, "total": 6, "label": "Finalizing...",
+                                  "label_zh": "生成最终结果..."})
+
+        from models.confidence import guard_decision
+        final_decision = guard_decision(debate_decision)
+        plan_summary = risk_data.get("plan_summary", "")
+        final_decision.reasoning.append(f"Risk Plan: {plan_summary[:200]}")
+
+        # Build ML models list
+        ml_models = []
+        if ml_result:
+            results = ml_result.get("results", {})
+            for name in ("random_forest", "xgboost", "logistic_regression",
+                         "chronos2", "moirai2", "emaformer", "diffusion", "gnn", "rl_ppo"):
+                data = results.get(name)
+                if data:
+                    m = data["metrics"]
+                    ml_models.append({
+                        "model": name.replace("_", " ").title(),
+                        "sharpe": round(m.get("sharpe", 0), 2),
+                        "return": round(m.get("total_return", 0) * 100, 1),
+                        "win_rate": round(m.get("win_rate", 0) * 100, 1),
+                        "trades": m.get("n_trades", 0),
+                    })
+            bh = results.get("buy_and_hold", {}).get("metrics", {})
+            if bh:
+                ml_models.append({
+                    "model": "Buy & Hold",
+                    "sharpe": round(bh.get("sharpe", 0), 2),
+                    "return": round(bh.get("total_return", 0) * 100, 1),
+                    "win_rate": round(bh.get("win_rate", 0) * 100, 1),
+                    "trades": bh.get("n_trades", 0),
+                })
+
+        breaking = None
+        try:
+            from engine.breaking_signals import detect_breaking
+            breaking = detect_breaking(final_decision, tk)
+        except Exception:
+            pass
+
+        try:
+            from engine.decision_log import save_decision
+            save_decision(decision=final_decision, ticker=tk, mode="deep", timeframe="1D")
+        except Exception:
+            pass
+
+        dec = final_decision.to_dict()
+        out = {
+            **dec,
+            "reports": {"market": deep_market_report, "fundamentals": ml_report, "news": news_report},
+            "investment_plan": risk_data,
+            "analysis_narrative": risk_data.get("analysis_narrative", ""),
+            "ml_models": ml_models,
+            "summary": summary,
+        }
+        if breaking:
+            out["breaking_signal"] = breaking
+
+        elapsed = round(time.time() - t0, 1)
+        yield _send("done", {**out, "elapsed_seconds": elapsed})
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/chart-analysis")

@@ -3,6 +3,16 @@
     "type": "confidence_shift",
     "severity": "medium",
     "ticker": "AMD",
+    "timestamp": "2026-04-01T11:26:43.319418",
+    "shift": -31.1,
+    "prev_confidence": 78.7,
+    "new_confidence": 47.6,
+    "message": "AMD confidence shifted -31% (79% → 48%)"
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "AMD",
     "timestamp": "2026-04-01T11:18:59.142411",
     "shift": 31.1,
     "prev_confidence": 47.6,
