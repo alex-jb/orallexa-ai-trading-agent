@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/avatar/bull_idle.png" alt="Orallexa" width="100">
+<img src="assets/avatar/bull_idle.png" alt="Orallexa — Art Deco Wall Street Bull" width="120">
 
 # Orallexa
 
@@ -96,7 +96,11 @@ Every decision comes with bull arguments, bear counterarguments, a reasoned verd
 | Risk management | Basic stop-loss | Structured investment plan with entry/stop/target/R:R |
 | Dashboard | CLI or notebook | Real-time Next.js dashboard, Art Deco theme, EN/ZH bilingual |
 | Voice assistant | None | Desktop AI coach with Whisper + TTS + chart screenshot |
-| Testing | Ad hoc | 108 automated tests (integration + ML regression + API E2E) |
+| Testing | Ad hoc | 113 automated tests + CI/CD on every push |
+| Deployment | Manual setup | Docker one-click + PWA mobile support |
+| Live data | REST polling | WebSocket real-time price + signal stream |
+| Trade execution | None | Alpaca paper trading with bracket orders |
+| Social sharing | None | Per-section "Copy for X" — one-click post to Twitter |
 
 ---
 
@@ -229,7 +233,7 @@ Two views in one UI:
 - **Signal View** — Run analysis on any ticker. Decision card, probability bars, risk management, multi-timeframe confirmation, watchlist scanning, breaking alerts, live price refresh.
 - **Intel View** — Daily market intelligence. Morning brief, gainers/losers, sector heatmap, volume spikes, AI picks, social thread with copy buttons.
 
-Art Deco gold theme. Polymarket-inspired probability display. Mobile responsive. Full EN/ZH bilingual.
+Art Deco Gatsby theme — gold on noir, 1920s geometric elegance. Polymarket-inspired probability display. Mobile responsive. Full EN/ZH bilingual.
 
 ---
 
@@ -320,8 +324,11 @@ We extend this from research into a **deployable product** — with a real-time 
 | **Machine Learning** | scikit-learn, XGBoost, PyTorch (EMAformer, DDPM, GAT, PPO) |
 | **Market Data** | yfinance (real-time + historical) |
 | **NLP** | FinBERT, VADER, TextBlob |
+| **Trading** | Alpaca paper trading (bracket orders) |
+| **Real-time** | WebSocket live price + signal stream |
 | **Desktop** | Tkinter, OpenAI Whisper + TTS |
-| **Deployment** | Docker, Docker Compose |
+| **Deployment** | Docker, Docker Compose, GitHub Actions CI/CD |
+| **Mobile** | PWA (installable, standalone) |
 
 ---
 
@@ -366,6 +373,11 @@ python -m pytest tests/test_ml_regression.py -v
 | `GET` | `/api/profile` | Trader behavior profile |
 | `GET` | `/api/journal` | Decision execution log |
 | `POST` | `/api/evolve-strategies` | LLM strategy evolution (gen x pop) |
+| `GET` | `/api/alpaca/account` | Paper trading account info |
+| `GET` | `/api/alpaca/positions` | Open positions |
+| `POST` | `/api/alpaca/execute` | Execute signal as paper order |
+| `POST` | `/api/alpaca/close/{ticker}` | Close position |
+| `WS` | `/ws/live` | Real-time price + signal stream |
 
 ---
 
@@ -403,9 +415,24 @@ orallexa/
 │   ├── main.py                 # Entry + hotkeys
 │   └── chat_popover.py         # Chat window
 │
-└── bot/                        # Trading bot
-    ├── behavior.py             # Adaptation
-    └── paper_trading.py        # Paper trading
+├── bot/                        # Trading bot
+│   ├── behavior.py             # Adaptation
+│   ├── paper_trading.py        # Paper trading journal
+│   ├── alpaca_executor.py      # Alpaca paper order execution
+│   └── alerts.py               # Price alert system
+│
+├── tests/                      # 113 automated tests
+│   ├── test_engine_integration.py
+│   ├── test_ml_regression.py
+│   └── test_api_e2e.py
+│
+├── .github/workflows/
+│   ├── ci.yml                  # Tests + lint + build on push
+│   └── pages.yml               # Presentation deploy
+│
+├── Dockerfile                  # API container
+├── docker-compose.yml          # One-click deploy
+└── requirements-docker.txt     # Container-specific deps
 ```
 
 ---

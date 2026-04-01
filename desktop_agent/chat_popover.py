@@ -23,34 +23,34 @@ FONT       = "Segoe UI"
 FONT_MONO  = "Consolas"
 MIN_PT     = 10    # accessibility: WCAG AA minimum (was 8, too small)
 
-# ── Colours: Financial Dashboard palette (UI Pro Max) ────────────────────────
-BG          = "#020617"     # deep dark background
-BG_CARD     = "#0E1223"     # card surface
-BG_METRIC   = "#1A1E2F"     # metric cell / muted surface
-BG_INPUT    = "#0F172A"     # input row
-BG_TOOLBAR  = "#0B0F1A"     # toolbar
-FG          = "#F8FAFC"     # primary foreground
-FG_DIM      = "#94A3B8"     # muted foreground
-FG_MUTED    = "#718096"     # very dim (WCAG 5.0:1 on #020617)
-FG_HINT     = "#6B7E95"     # hint / placeholder (WCAG 4.5:1+ on dark bg)
+# ── Colours: Art Deco Gatsby palette ─────────────────────────────────────────
+BG          = "#0A0A0F"     # deep noir background
+BG_CARD     = "#12111A"     # card surface — midnight
+BG_METRIC   = "#1A1820"     # metric cell — dark plum
+BG_INPUT    = "#100F18"     # input row
+BG_TOOLBAR  = "#08080D"     # toolbar — deepest
+FG          = "#F5F0E1"     # warm ivory foreground
+FG_DIM      = "#A89F8B"     # muted champagne
+FG_MUTED    = "#7A7262"     # very dim (WCAG 5.0:1 on dark bg)
+FG_HINT     = "#6B6355"     # hint / placeholder (WCAG 4.5:1+)
 
-COL_BUY     = "#22c55e"     # green — positive / bullish
-COL_BUY_DIM = "#14532d"     # dark green bg
-COL_SELL    = "#ef4444"     # red — negative / bearish
-COL_SELL_DIM= "#7f1d1d"     # dark red bg
-COL_WAIT    = "#f59e0b"     # amber — neutral / wait
-COL_WAIT_DIM= "#78350f"     # dark amber bg
-COL_ACTIVE  = "#2563eb"     # active toggle / primary blue
+COL_BUY     = "#D4AF37"     # Art Deco gold — bullish
+COL_BUY_DIM = "#2A2210"     # dark gold bg
+COL_SELL    = "#C44536"     # vintage red — bearish
+COL_SELL_DIM= "#3A1510"     # dark vintage red bg
+COL_WAIT    = "#B8860B"     # dark goldenrod — wait
+COL_WAIT_DIM= "#2E2108"     # dark amber bg
+COL_ACTIVE  = "#D4AF37"     # gold active toggle
 
-ACCENT      = "#2563EB"     # primary blue
-ACCENT_DIM  = "#1E3A5F"     # dark blue
-BTN_MIC     = "#2563eb"
-BTN_MIC_REC = "#dc2626"
-BTN_SEND    = "#2563eb"
-BTN_STOP    = "#dc2626"
-BTN_HOVER   = "#334155"     # hover state
-BTN_ACTIVE  = "#1d4ed8"     # pressed state
-BORDER      = "#334155"     # border (more visible than before)
+ACCENT      = "#D4AF37"     # Art Deco gold
+ACCENT_DIM  = "#3D3115"     # dark gold
+BTN_MIC     = "#D4AF37"
+BTN_MIC_REC = "#C44536"
+BTN_SEND    = "#D4AF37"
+BTN_STOP    = "#C44536"
+BTN_HOVER   = "#2A2520"     # hover — warm dark
+BTN_ACTIVE  = "#B8860B"     # pressed — deep gold
+BORDER      = "#3D3520"     # border — warm bronze line
 
 W, H = 390, 580
 
@@ -428,6 +428,14 @@ class ChatPopover:
             self._voice_btn.config(text=t("voice_off"), bg=BG_INPUT, fg=FG_MUTED)
             self._tts.stop()
 
+    def show_voice_status(self, recording: bool) -> None:
+        """Update mic button to reflect external voice toggle (K key)."""
+        if recording:
+            self._mic_btn.config(bg=BTN_MIC_REC, text="\u23F9")
+            self._add_status("[K] Voice recording...")
+        else:
+            self._mic_btn.config(bg=BTN_MIC, text="\U0001F3A4")
+
     def _on_lang_click(self, lang_key: str) -> None:
         self._lang_mode = lang_key
         if lang_key != "auto":
@@ -616,65 +624,84 @@ class ChatPopover:
                          daemon=True).start()
 
     def _get_reply(self, text: str, lang: str) -> None:
-        reply, action = self._bb.route_and_respond(text, lang=lang)
+        try:
+            reply, action = self._bb.route_and_respond(text, lang=lang)
+        except Exception as exc:
+            from core.logger import get_logger
+            get_logger("chat_popover").error("route_and_respond failed: %s", exc)
+            reply = ("AI 暂时无法回复，请检查网络和API密钥。" if lang == "zh"
+                     else f"Error: {exc}")
+            action = "none"
 
         decision_result = None
-        if action == "analysis":
-            try:
-                from core.brain import OrallexaBrain
-                brain = OrallexaBrain(self._bb.ticker)
-                decision_result = brain.run_for_mode(
-                    mode=self._bb.mode,
-                    timeframe=self._bb.timeframe,
-                    use_claude=False,
-                )
-            except Exception as exc:
-                from core.logger import get_logger
-                get_logger("chat_popover").warning("Analysis failed for %s: %s", self._bb.ticker, exc)
-        elif action == "screenshot":
-            decision_result = getattr(self._bb, "last_chart_result", None)
+        try:
+            if action == "analysis":
+                try:
+                    from core.brain import OrallexaBrain
+                    brain = OrallexaBrain(self._bb.ticker)
+                    decision_result = brain.run_for_mode(
+                        mode=self._bb.mode,
+                        timeframe=self._bb.timeframe,
+                        use_claude=False,
+                    )
+                except Exception as exc:
+                    from core.logger import get_logger
+                    get_logger("chat_popover").warning(
+                        "Analysis failed for %s: %s", self._bb.ticker, exc)
+            elif action == "screenshot":
+                decision_result = getattr(self._bb, "last_chart_result", None)
+        except Exception:
+            pass
 
         self._root.after(0, self._show_reply, reply, lang, action, decision_result)
 
     def _show_reply(self, reply: str, lang: str, action: str,
                     decision_result=None) -> None:
-        # Remove "thinking..." status
-        tw = self._msg_text
-        tw.config(state="normal")
-        content = tw.get("1.0", "end")
-        thinking_str = t("thinking")
-        idx = content.rfind(f"\n{thinking_str}\n")
-        if idx >= 0:
-            tw.delete(f"1.0 + {idx} chars",
-                      f"1.0 + {idx + len(chr(10) + thinking_str + chr(10))} chars")
-        tw.config(state="disabled")
+        try:
+            # Remove "thinking..." status
+            tw = self._msg_text
+            tw.config(state="normal")
+            content = tw.get("1.0", "end")
+            thinking_str = t("thinking")
+            idx = content.rfind(f"\n{thinking_str}\n")
+            if idx >= 0:
+                tw.delete(f"1.0 + {idx} chars",
+                          f"1.0 + {idx + len(chr(10) + thinking_str + chr(10))} chars")
+            tw.config(state="disabled")
 
-        if decision_result is not None:
-            self._show_decision_card(decision_result)
-        elif self._on_state_change:
-            self._on_state_change("WAIT", "")
+            if decision_result is not None:
+                self._show_decision_card(decision_result)
+            elif self._on_state_change:
+                self._on_state_change("WAIT", "")
 
-        self._notify_changes()
-        self._add_message("bull", reply)
-        self._update_header()
-        self._busy = False
+            self._notify_changes()
+            self._add_message("bull", reply if reply else "[no response]")
+            self._update_header()
 
-        # TTS (gated on voice toggle)
-        if reply and self._voice_on:
-            self._stop_btn.config(fg=BTN_STOP)
-            threading.Thread(target=self._tts.speak,
-                             args=(reply, self._effective_lang(lang)),
-                             daemon=True).start()
+            # TTS (gated on voice toggle)
+            if reply and self._voice_on:
+                self._stop_btn.config(fg=BTN_STOP)
+                threading.Thread(target=self._tts.speak,
+                                 args=(reply, self._effective_lang(lang)),
+                                 daemon=True).start()
+        except Exception as exc:
+            from core.logger import get_logger
+            get_logger("chat_popover").error("_show_reply error: %s", exc)
+        finally:
+            self._busy = False
 
     # ── Voice ─────────────────────────────────────────────────────────────────
 
     def _mic_press(self, _event) -> None:
         if self._busy:
             return
-        self._mic_btn.config(bg=BTN_MIC_REC, text="\u23F9")
-        self._vh.start_recording()
-        if self._on_state_change:
-            self._on_state_change("LISTENING", "")
+        try:
+            self._vh.start_recording()
+            self._mic_btn.config(bg=BTN_MIC_REC, text="\u23F9")
+            if self._on_state_change:
+                self._on_state_change("LISTENING", "")
+        except Exception as exc:
+            self._add_status(f"[Mic error: {exc}]")
 
     def _mic_release(self, _event) -> None:
         self._mic_btn.config(bg=BTN_MIC, text="\U0001F3A4")
@@ -684,7 +711,11 @@ class ChatPopover:
         threading.Thread(target=self._finish_voice, daemon=True).start()
 
     def _finish_voice(self) -> None:
-        text, lang = self._vh.stop_and_transcribe()
+        try:
+            text, lang = self._vh.stop_and_transcribe()
+        except Exception as exc:
+            self._root.after(0, lambda: self._add_status(f"[Transcribe error: {exc}]"))
+            return
         self._root.after(0, self._on_voice_done, text, lang)
 
     def _on_voice_done(self, text: str, lang: str) -> None:

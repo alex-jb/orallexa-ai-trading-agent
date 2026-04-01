@@ -57,12 +57,12 @@ def _state_bubbles(lang: str | None = None) -> dict[str, list[str]]:
     }
 
 STATE_COLORS: dict[str, str] = {
-    "idle":      "#94a3b8",   # slate grey
-    "listening": "#60a5fa",   # blue
-    "thinking":  "#818cf8",   # indigo
-    "confident": "#34d399",   # green
-    "warning":   "#f87171",   # red
-    "wait":      "#fbbf24",   # amber
+    "idle":      "#A89F8B",   # champagne — Art Deco neutral
+    "listening": "#7BA7CC",   # steel blue — 1920s art poster
+    "thinking":  "#8B7EC8",   # muted lavender — Gatsby violet
+    "confident": "#D4AF37",   # Art Deco gold — the money color
+    "warning":   "#C44536",   # vintage crimson
+    "wait":      "#B8860B",   # dark goldenrod
 }
 
 

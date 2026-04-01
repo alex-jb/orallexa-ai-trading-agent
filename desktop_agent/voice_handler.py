@@ -59,9 +59,17 @@ class VoiceHandler:
         return self._recording
 
     def start_recording(self) -> None:
-        """Begin capturing from the default microphone."""
+        """Begin capturing from the default microphone.
+
+        Raises RuntimeError if sounddevice is not installed.
+        """
         if self._recording:
             return
+        # Fail fast if dependency is missing
+        try:
+            import sounddevice  # noqa: F401
+        except ImportError:
+            raise RuntimeError("sounddevice not installed — run: pip install sounddevice")
         self._frames     = []
         self._recording  = True
         self._stop_event = threading.Event()
