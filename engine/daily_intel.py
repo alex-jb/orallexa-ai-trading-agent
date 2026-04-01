@@ -327,7 +327,7 @@ Rules:
 
 # ── Step 6: Orallexa Thread (DEEP_MODEL) ─────────────────────────────────────
 
-def _generate_orallexa_thread(
+def _generate_social_posts(
     summary: str,
     mood: str,
     gainers: list[dict],
@@ -336,8 +336,19 @@ def _generate_orallexa_thread(
     picks: list[dict],
     sectors: list[dict],
     headlines: list[dict],
-) -> list[str]:
-    """Generate a ready-to-post Orallexa social thread (5-7 posts)."""
+) -> dict:
+    """
+    Generate per-section social posts + a full thread.
+    Each section gets its own ready-to-copy post for Twitter/X, LinkedIn, etc.
+
+    Returns dict:
+      "thread": [list of 6-7 posts]
+      "movers_post": str   — top movers as a standalone post
+      "sectors_post": str  — sector rotation post
+      "picks_post": str    — AI picks post
+      "brief_post": str    — morning brief condensed post
+      "volume_post": str   — volume spike alert post
+    """
     import llm.claude_client as cc
     from llm.claude_client import get_client, _extract_text
     from llm.call_logger import logged_create
@@ -350,9 +361,20 @@ def _generate_orallexa_thread(
     top_sector = sectors[0] if sectors else None
     worst_sector = sectors[-1] if sectors else None
 
-    prompt = f"""Write a social media thread (6-7 posts) for a trading intelligence platform called Orallexa.
+    # ── Build all social content in one LLM call ──
+    prompt = f"""You are a social media content creator for Orallexa, a trading intelligence platform.
+Your audience: retail traders on Twitter/X who want actionable intel, not Wall Street jargon.
 
-Date: {date_str}
+STYLE RULES:
+- Write like a smart friend texting about the market, NOT a Bloomberg terminal
+- Use plain language. "NVDA is ripping" not "NVDA exhibits upward momentum"
+- Be opinionated. Take a stance. "This looks like a trap" or "Money is clearly rotating into semis"
+- Use numbers to back up every claim
+- Hook readers in the first line — they're scrolling fast
+- Use $TICKER format, emoji sparingly (1-2 per post max)
+- Each post MUST be under 280 characters
+
+TODAY'S DATA ({date_str}):
 Market Mood: {mood}
 Top Gainers: {gainers_str or "quiet day"}
 Top Losers: {losers_str or "quiet day"}
@@ -361,52 +383,81 @@ Best Sector: {top_sector['sector'] + ' ' + str(top_sector['change_pct']) + '%' i
 Worst Sector: {worst_sector['sector'] + ' ' + str(worst_sector['change_pct']) + '%' if worst_sector else 'N/A'}
 AI Picks:
 {picks_str}
+Morning Brief:
+{summary[:600]}
 
-Morning Brief Summary:
-{summary[:500]}
+OUTPUT FORMAT — Return ONLY valid JSON (no markdown):
+{{
+  "thread": [
+    "post 1 — HOOK: bold opening, market mood + biggest move of the day",
+    "post 2 — MOVERS: who's moving and the real reason why (not just 'earnings beat')",
+    "post 3 — VOLUME: smart money signal or unusual activity alert",
+    "post 4 — SECTORS: where money is flowing, what it means for tomorrow",
+    "post 5 — PICKS: our AI is watching these tickers and here's why",
+    "post 6 — RISK: the one thing everyone is ignoring + CTA. End with #trading #markets"
+  ],
+  "movers_post": "standalone post about today's top movers — who's hot, who's not, and why it matters (under 280 chars)",
+  "sectors_post": "standalone post about sector rotation — where the money is going and what it tells us (under 280 chars)",
+  "picks_post": "standalone post about AI picks — what our models flagged and why you should care (under 280 chars)",
+  "brief_post": "the whole morning in 2 sentences — if someone reads only ONE post today, this is it (under 280 chars)",
+  "volume_post": "standalone volume alert — big money moving, here's where (under 280 chars)"
+}}
 
-Output ONLY valid JSON array of strings (each string = one post, max 280 chars):
-["post 1", "post 2", ...]
+IMPORTANT:
+- Every post must be UNDER 280 characters
+- Write like you're talking to a friend, not writing a report
+- Be specific: "$NVDA +8% on datacenter revenue" not "tech stocks are up"
+- The thread should tell a story from hook to close
+- Standalone posts should work independently (someone sees just that one post)"""
 
-Thread structure:
-1. HOOK — bold opening with the market mood + most important move. Use emoji sparingly (1-2 max). Must grab attention.
-2. TOP MOVERS — who's up big and why (1-2 sentences, use $TICKER format)
-3. VOLUME ALERT — any unusual volume = smart money moving. If none, skip and cover losers.
-4. SECTOR ROTATION — where money is flowing in/out
-5. AI PICKS — "Our AI is watching: $TICKER1 (bull case), $TICKER2 (contrarian)"
-6. RISK/CLOSE — the one thing that could flip everything, end with CTA
-
-Rules:
-- Each post MUST be under 280 characters
-- Use $TICKER format (not just ticker name)
-- Use 2-3 relevant hashtags in the last post only: #trading #markets #Orallexa
-- Tone: confident, data-backed, slightly edgy. Not hype, not boring.
-- NO "not financial advice" disclaimers
-- Start post 1 with "🔔 Orallexa {date_str} Market Intel" or similar hook"""
+    result = {
+        "thread": [],
+        "movers_post": "",
+        "sectors_post": "",
+        "picks_post": "",
+        "brief_post": "",
+        "volume_post": "",
+    }
 
     try:
         client = get_client()
         response, _ = logged_create(
-            client, request_type="daily_intel_thread",
-            model=cc.DEEP_MODEL, max_tokens=800, temperature=0.5,
+            client, request_type="daily_intel_social",
+            model=cc.DEEP_MODEL, max_tokens=1200, temperature=0.6,
             messages=[{"role": "user", "content": prompt}],
         )
         text = _extract_text(response).strip()
         text = text.replace("```json", "").replace("```", "").strip()
-        start, end = text.find("["), text.rfind("]")
+        start, end = text.find("{"), text.rfind("}")
         if start != -1 and end != -1:
             text = text[start:end + 1]
-        posts = json.loads(text)
-        # Enforce 280 char limit
-        return [p[:280] for p in posts if isinstance(p, str) and len(p.strip()) > 10]
+        data = json.loads(text)
+
+        # Thread
+        thread = data.get("thread", [])
+        result["thread"] = [p[:280] for p in thread if isinstance(p, str) and len(p.strip()) > 10]
+
+        # Standalone posts (enforce 280 char limit)
+        for key in ("movers_post", "sectors_post", "picks_post", "brief_post", "volume_post"):
+            val = data.get(key, "")
+            if isinstance(val, str) and val.strip():
+                result[key] = val[:280]
+
     except Exception as e:
-        logger.warning("Orallexa thread generation failed: %s", e)
-        # Fallback: single post
+        logger.warning("Social content generation failed: %s", e)
+        # Fallback
         g = gainers[0] if gainers else None
-        fallback = f"🔔 {date_str} Market Intel | {mood}\n\n"
+        hook = f"🔔 {date_str} Market Intel | {mood}"
         if g:
-            fallback += f"Top mover: ${g['ticker']} +{g['change_pct']:.1f}%"
-        return [fallback]
+            hook += f"\n\nTop mover: ${g['ticker']} +{g['change_pct']:.1f}%"
+        result["thread"] = [hook]
+        result["brief_post"] = hook
+        if gainers_str:
+            result["movers_post"] = f"📈 {date_str} movers: {gainers_str}"
+        if spikes_str:
+            result["volume_post"] = f"🔊 Volume alert: {spikes_str}"
+
+    return result
 
 
 # ── Cache ────────────────────────────────────────────────────────────────────
@@ -470,8 +521,8 @@ def generate_daily_intel(force: bool = False) -> dict:
     # Step 5: AI picks (Sonnet)
     picks = _generate_picks(gainers, losers, spikes, headlines)
 
-    # Step 6: Orallexa thread (Sonnet)
-    orallexa_thread = _generate_orallexa_thread(
+    # Step 6: Social content — thread + per-section posts (Sonnet)
+    social = _generate_social_posts(
         summary, mood, gainers, losers, spikes, picks, sectors, headlines
     )
 
@@ -486,7 +537,14 @@ def generate_daily_intel(force: bool = False) -> dict:
         "sectors": sectors,
         "headlines": headlines,
         "ai_picks": picks,
-        "orallexa_thread": orallexa_thread,
+        "orallexa_thread": social.get("thread", []),
+        "social_posts": {
+            "movers": social.get("movers_post", ""),
+            "sectors": social.get("sectors_post", ""),
+            "picks": social.get("picks_post", ""),
+            "brief": social.get("brief_post", ""),
+            "volume": social.get("volume_post", ""),
+        },
     }
 
     _save_cache(result)
