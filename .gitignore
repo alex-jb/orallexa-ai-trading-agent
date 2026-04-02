@@ -38,3 +38,4 @@ logs/
 # results/
 # memory_data/
 # eval_results/
+.gstack/

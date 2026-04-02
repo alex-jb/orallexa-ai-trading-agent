@@ -1,5 +1,79 @@
 [
   {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T15:11:46.385294",
+    "direction": "bullish",
+    "shift_pct": 38.0,
+    "prev_up": 34.0,
+    "new_up": 72.0,
+    "message": "AAPL upside probability shifted +38% (34% → 72%)",
+    "additional_alerts": [
+      "probability_shift",
+      "confidence_shift"
+    ]
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T15:11:46.183205",
+    "shift": 32.8,
+    "prev_confidence": 49.2,
+    "new_confidence": 82.0,
+    "message": "AAPL confidence shifted +33% (49% → 82%)"
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T15:11:45.969409",
+    "shift": -32.8,
+    "prev_confidence": 82.0,
+    "new_confidence": 49.2,
+    "message": "AAPL confidence shifted -33% (82% → 49%)"
+  },
+  {
+    "type": "confidence_shift",
+    "severity": "medium",
+    "ticker": "NVDA",
+    "timestamp": "2026-04-02T15:11:45.825165",
+    "shift": -42.6,
+    "prev_confidence": 42.6,
+    "new_confidence": 0.0,
+    "message": "NVDA confidence shifted -43% (43% → 0%)"
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "MSFT",
+    "timestamp": "2026-04-02T15:11:45.238681",
+    "direction": "bullish",
+    "shift_pct": 22.0,
+    "prev_up": 34.0,
+    "new_up": 56.0,
+    "message": "MSFT upside probability shifted +22% (34% → 56%)",
+    "additional_alerts": [
+      "probability_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T15:11:44.957220",
+    "direction": "bearish",
+    "shift_pct": -22.0,
+    "prev_up": 56.0,
+    "new_up": 34.0,
+    "message": "AAPL upside probability shifted -22% (56% → 34%)",
+    "additional_alerts": [
+      "probability_shift",
+      "confidence_shift"
+    ]
+  },
+  {
     "type": "confidence_shift",
     "severity": "medium",
     "ticker": "AMD",

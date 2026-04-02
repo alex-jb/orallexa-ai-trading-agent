@@ -1,5 +1,317 @@
 [
   {
+    "timestamp": "2026-04-02T15:11:46.387941",
+    "ticker": "AAPL",
+    "mode": "swing",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "BUY",
+    "confidence": 45.9,
+    "risk_level": "LOW",
+    "reasoning": [
+      "Step 1: Technical analysis",
+      "  Price above MA20 but MA20 < MA50 — mixed",
+      "  RSI 58.9 — bullish momentum, not overbought",
+      "  MACD histogram positive (0.773) — bullish momentum",
+      "  BB%: 0.63 — mid-to-upper band, healthy trend",
+      "Step 2: Probability estimation",
+      "Step 3: Decision (technical only)",
+      "  BUY | Signal: 78/100 | Confidence: 46%"
+    ],
+    "probabilities": {
+      "up": 0.72,
+      "neutral": 0.21,
+      "down": 0.07
+    },
+    "source": "prediction",
+    "signal_strength": 78.0,
+    "recommendation": "Moderate setup. Half position, stop below support."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:46.185661",
+    "ticker": "AAPL",
+    "mode": "intraday",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 82.0,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Step 1: Trend analysis",
+      "  Strong uptrend: Price > EMA9 > EMA21 > EMA50",
+      "Step 2: Momentum",
+      "  MACD histogram rising (0.0572) — accelerating bullish",
+      "  RSI14 58.4 — healthy momentum range",
+      "Step 3: Session context",
+      "  Price 255.58 above VWAP 254.58 — buyers in control",
+      "Step 4: Volume",
+      "  Low volume 0.90x — weak participation",
+      "Step 5: Decision",
+      "  BUY | Signal: 100/100 | Confidence: 82%",
+      "Edge guard: Conflicting signals. Wait for clarity."
+    ],
+    "probabilities": {
+      "up": 0.34,
+      "down": 0.33,
+      "neutral": 0.33
+    },
+    "source": "intraday",
+    "signal_strength": 100.0,
+    "recommendation": "Conflicting signals. Wait for clarity."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.972222",
+    "ticker": "AAPL",
+    "mode": "scalp",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 49.2,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Breakout: Close 255.58 at/above 20-bar high 255.70",
+      "Pullback to EMA9 (255.34) in uptrend (EMA9 > EMA21)",
+      "Volume ratio: 0.29x (no spike)",
+      "RSI7 at 79.9 — neutral",
+      "Micro-trend confirmed: EMA9 > EMA21 for 2+ consecutive bars",
+      "ATR5 = 0.29 (0.11% of price) — very tight range",
+      "Trade filter: setup present but lacks volume or RSI confirmation"
+    ],
+    "probabilities": {
+      "up": 0.38,
+      "down": 0.32,
+      "neutral": 0.3
+    },
+    "source": "scalping",
+    "signal_strength": 60.0,
+    "recommendation": "No setup. Stand aside."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.827533",
+    "ticker": "NVDA",
+    "mode": "swing",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 0.0,
+    "risk_level": "MEDIUM",
+    "reasoning": [
+      "Step 1: Technical analysis",
+      "  Price (177.43) < MA20 (177.62) < MA50 (182.65) — bearish stack",
+      "  RSI 46.9 — below midline, mild bearish pressure",
+      "  MACD histogram positive (0.026) — bullish momentum",
+      "  BB%: 0.49 — mid-to-upper band, healthy trend",
+      "  ADX 28.0 — strong trend in play",
+      "Step 2: Probability estimation",
+      "Step 3: Decision (technical only)",
+      "  WAIT | Signal: 50/100 | Confidence: 0%"
+    ],
+    "probabilities": {
+      "up": 0.38,
+      "neutral": 0.34,
+      "down": 0.28
+    },
+    "source": "prediction",
+    "signal_strength": 50.0,
+    "recommendation": "No setup. Stand aside."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.666006",
+    "ticker": "AAPL",
+    "mode": "intraday",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 82.0,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Step 1: Trend analysis",
+      "  Strong uptrend: Price > EMA9 > EMA21 > EMA50",
+      "Step 2: Momentum",
+      "  MACD histogram rising (0.0572) — accelerating bullish",
+      "  RSI14 58.4 — healthy momentum range",
+      "Step 3: Session context",
+      "  Price 255.58 above VWAP 254.58 — buyers in control",
+      "Step 4: Volume",
+      "  Low volume 0.90x — weak participation",
+      "Step 5: Decision",
+      "  BUY | Signal: 100/100 | Confidence: 82%",
+      "Edge guard: Conflicting signals. Wait for clarity."
+    ],
+    "probabilities": {
+      "up": 0.34,
+      "down": 0.33,
+      "neutral": 0.33
+    },
+    "source": "intraday",
+    "signal_strength": 100.0,
+    "recommendation": "Conflicting signals. Wait for clarity."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.525683",
+    "ticker": "AAPL",
+    "mode": "intraday",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 82.0,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Step 1: Trend analysis",
+      "  Strong uptrend: Price > EMA9 > EMA21 > EMA50",
+      "Step 2: Momentum",
+      "  MACD histogram rising (0.0572) — accelerating bullish",
+      "  RSI14 58.4 — healthy momentum range",
+      "Step 3: Session context",
+      "  Price 255.58 above VWAP 254.58 — buyers in control",
+      "Step 4: Volume",
+      "  Low volume 0.90x — weak participation",
+      "Step 5: Decision",
+      "  BUY | Signal: 100/100 | Confidence: 82%",
+      "Edge guard: Conflicting signals. Wait for clarity."
+    ],
+    "probabilities": {
+      "up": 0.34,
+      "down": 0.33,
+      "neutral": 0.33
+    },
+    "source": "intraday",
+    "signal_strength": 100.0,
+    "recommendation": "Conflicting signals. Wait for clarity."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.380632",
+    "ticker": "AAPL",
+    "mode": "intraday",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 82.0,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Step 1: Trend analysis",
+      "  Strong uptrend: Price > EMA9 > EMA21 > EMA50",
+      "Step 2: Momentum",
+      "  MACD histogram rising (0.0572) — accelerating bullish",
+      "  RSI14 58.4 — healthy momentum range",
+      "Step 3: Session context",
+      "  Price 255.58 above VWAP 254.58 — buyers in control",
+      "Step 4: Volume",
+      "  Low volume 0.90x — weak participation",
+      "Step 5: Decision",
+      "  BUY | Signal: 100/100 | Confidence: 82%",
+      "Edge guard: Conflicting signals. Wait for clarity."
+    ],
+    "probabilities": {
+      "up": 0.34,
+      "down": 0.33,
+      "neutral": 0.33
+    },
+    "source": "intraday",
+    "signal_strength": 100.0,
+    "recommendation": "Conflicting signals. Wait for clarity."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.240564",
+    "ticker": "MSFT",
+    "mode": "scalp",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "BUY",
+    "confidence": 36.9,
+    "risk_level": "MEDIUM",
+    "reasoning": [
+      "Pullback to EMA9 (371.28) in uptrend (EMA9 > EMA21)",
+      "Volume ratio: 0.17x (no spike)",
+      "RSI7 at 58.9 — healthy momentum range",
+      "Micro-trend confirmed: EMA9 > EMA21 for 2+ consecutive bars",
+      "ATR5 = 0.42 (0.11% of price) — very tight range",
+      "Decision: BUY | Signal: 45/100 | Confidence: 37%"
+    ],
+    "probabilities": {
+      "up": 0.56,
+      "neutral": 0.26,
+      "down": 0.18
+    },
+    "source": "scalping",
+    "signal_strength": 45.0,
+    "recommendation": "Early signal. Reduce size until confirmed."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:45.112778",
+    "ticker": "AAPL",
+    "mode": "intraday",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 82.0,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Step 1: Trend analysis",
+      "  Strong uptrend: Price > EMA9 > EMA21 > EMA50",
+      "Step 2: Momentum",
+      "  MACD histogram rising (0.0572) — accelerating bullish",
+      "  RSI14 58.4 — healthy momentum range",
+      "Step 3: Session context",
+      "  Price 255.58 above VWAP 254.58 — buyers in control",
+      "Step 4: Volume",
+      "  Low volume 0.90x — weak participation",
+      "Step 5: Decision",
+      "  BUY | Signal: 100/100 | Confidence: 82%",
+      "Edge guard: Conflicting signals. Wait for clarity."
+    ],
+    "probabilities": {
+      "up": 0.34,
+      "down": 0.33,
+      "neutral": 0.33
+    },
+    "source": "intraday",
+    "signal_strength": 100.0,
+    "recommendation": "Conflicting signals. Wait for clarity."
+  },
+  {
+    "timestamp": "2026-04-02T15:11:44.962230",
+    "ticker": "AAPL",
+    "mode": "intraday",
+    "timeframe": "15m",
+    "entry_price": 0.0,
+    "notes": "",
+    "decision": "WAIT",
+    "confidence": 82.0,
+    "risk_level": "HIGH",
+    "reasoning": [
+      "Step 1: Trend analysis",
+      "  Strong uptrend: Price > EMA9 > EMA21 > EMA50",
+      "Step 2: Momentum",
+      "  MACD histogram rising (0.0572) — accelerating bullish",
+      "  RSI14 58.4 — healthy momentum range",
+      "Step 3: Session context",
+      "  Price 255.58 above VWAP 254.58 — buyers in control",
+      "Step 4: Volume",
+      "  Low volume 0.90x — weak participation",
+      "Step 5: Decision",
+      "  BUY | Signal: 100/100 | Confidence: 82%",
+      "Edge guard: Conflicting signals. Wait for clarity."
+    ],
+    "probabilities": {
+      "up": 0.34,
+      "down": 0.33,
+      "neutral": 0.33
+    },
+    "source": "intraday",
+    "signal_strength": 100.0,
+    "recommendation": "Conflicting signals. Wait for clarity."
+  },
+  {
     "timestamp": "2026-04-01T11:26:43.323823",
     "ticker": "AMD",
     "mode": "deep",
