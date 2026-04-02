@@ -3,6 +3,136 @@
     "type": "probability_shift",
     "severity": "high",
     "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:19:25.609238",
+    "direction": "bullish",
+    "shift_pct": 38.0,
+    "prev_up": 34.0,
+    "new_up": 72.0,
+    "message": "AAPL upside probability shifted +38% (34% → 72%)",
+    "additional_alerts": [
+      "probability_shift",
+      "confidence_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:19:25.087623",
+    "direction": "bearish",
+    "shift_pct": -46.0,
+    "prev_up": 80.0,
+    "new_up": 34.0,
+    "message": "AAPL upside probability shifted -46% (80% → 34%)",
+    "additional_alerts": [
+      "probability_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:19:24.756259",
+    "direction": "bullish",
+    "shift_pct": 46.0,
+    "prev_up": 34.0,
+    "new_up": 80.0,
+    "message": "AAPL upside probability shifted +46% (34% → 80%)",
+    "additional_alerts": [
+      "probability_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:19:22.237896",
+    "direction": "bearish",
+    "shift_pct": -38.0,
+    "prev_up": 72.0,
+    "new_up": 34.0,
+    "message": "AAPL upside probability shifted -38% (72% → 34%)",
+    "additional_alerts": [
+      "probability_shift",
+      "confidence_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:15:50.369051",
+    "direction": "bullish",
+    "shift_pct": 38.0,
+    "prev_up": 34.0,
+    "new_up": 72.0,
+    "message": "AAPL upside probability shifted +38% (34% → 72%)",
+    "additional_alerts": [
+      "probability_shift",
+      "confidence_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:15:50.183441",
+    "direction": "bearish",
+    "shift_pct": -46.0,
+    "prev_up": 80.0,
+    "new_up": 34.0,
+    "message": "AAPL upside probability shifted -46% (80% → 34%)",
+    "additional_alerts": [
+      "probability_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:15:50.051406",
+    "direction": "bullish",
+    "shift_pct": 46.0,
+    "prev_up": 34.0,
+    "new_up": 80.0,
+    "message": "AAPL upside probability shifted +46% (34% → 80%)",
+    "additional_alerts": [
+      "probability_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "MSFT",
+    "timestamp": "2026-04-02T16:15:49.230282",
+    "direction": "bullish",
+    "shift_pct": 17.0,
+    "prev_up": 56.0,
+    "new_up": 73.0,
+    "message": "MSFT upside probability shifted +17% (56% → 73%)",
+    "additional_alerts": [
+      "confidence_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
+    "timestamp": "2026-04-02T16:15:48.966012",
+    "direction": "bearish",
+    "shift_pct": -38.0,
+    "prev_up": 72.0,
+    "new_up": 34.0,
+    "message": "AAPL upside probability shifted -38% (72% → 34%)",
+    "additional_alerts": [
+      "probability_shift",
+      "confidence_shift"
+    ]
+  },
+  {
+    "type": "probability_shift",
+    "severity": "high",
+    "ticker": "AAPL",
     "timestamp": "2026-04-02T15:11:46.385294",
     "direction": "bullish",
     "shift_pct": 38.0,

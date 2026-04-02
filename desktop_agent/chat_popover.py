@@ -27,34 +27,36 @@ FONT_HEAD  = FONT_HEADING    # Josefin Sans (labels, headers, uppercase)
 FONT_MONO  = _FONT_MONO      # DM Mono (prices, data, metrics)
 MIN_PT     = 10    # accessibility: WCAG AA minimum (was 8, too small)
 
-# ── Colours: Art Deco Gatsby palette ─────────────────────────────────────────
-BG          = "#0A0A0F"     # deep noir background
-BG_CARD     = "#12111A"     # card surface — midnight
-BG_METRIC   = "#1A1820"     # metric cell — dark plum
-BG_INPUT    = "#100F18"     # input row
-BG_TOOLBAR  = "#08080D"     # toolbar — deepest
-FG          = "#F5F0E1"     # warm ivory foreground
-FG_DIM      = "#A89F8B"     # muted champagne
-FG_MUTED    = "#7A7262"     # very dim (WCAG 5.0:1 on dark bg)
-FG_HINT     = "#6B6355"     # hint / placeholder (WCAG 4.5:1+)
+# ── Colours: Art Deco palette — aligned with DESIGN.md tokens ────────────────
+BG          = "#0A0A0F"     # --bg-deep
+BG_CARD     = "#1A1A2E"     # --bg-card
+BG_METRIC   = "#12111A"     # metric cell — between panel and card
+BG_INPUT    = "#0D1117"     # --bg-panel
+BG_TOOLBAR  = "#0A0A0F"     # same as bg-deep
+FG          = "#F5E6CA"     # --champagne (primary text)
+FG_DIM      = "#C5A255"     # --gold-muted
+FG_MUTED    = "#6B6E76"     # --text-muted
+FG_HINT     = "#4A4D55"     # --text-dim
 
-COL_BUY     = "#D4AF37"     # Art Deco gold — bullish
-COL_BUY_DIM = "#2A2210"     # dark gold bg
-COL_SELL    = "#C44536"     # vintage red — bearish
-COL_SELL_DIM= "#3A1510"     # dark vintage red bg
-COL_WAIT    = "#B8860B"     # dark goldenrod — wait
-COL_WAIT_DIM= "#2E2108"     # dark amber bg
-COL_ACTIVE  = "#D4AF37"     # gold active toggle
+COL_BUY     = "#006B3F"     # --emerald (bull/buy)
+COL_BUY_DIM = "#0A1F16"     # dark emerald bg
+COL_SELL    = "#8B0000"     # --ruby (bear/sell)
+COL_SELL_DIM= "#1F0A0A"     # dark ruby bg
+COL_WAIT    = "#D4AF37"     # --gold (wait/neutral)
+COL_WAIT_DIM= "#1A1608"     # dark gold bg
+COL_ACTIVE  = "#D4AF37"     # --gold
 
-ACCENT      = "#D4AF37"     # Art Deco gold
-ACCENT_DIM  = "#3D3115"     # dark gold
+ACCENT      = "#D4AF37"     # --gold
+ACCENT_BRIGHT = "#FFD700"   # --gold-bright
+ACCENT_DIM  = "#1A1A2E"     # --bg-card
 BTN_MIC     = "#D4AF37"
-BTN_MIC_REC = "#C44536"
+BTN_MIC_REC = "#8B0000"     # ruby
 BTN_SEND    = "#D4AF37"
-BTN_STOP    = "#C44536"
-BTN_HOVER   = "#2A2520"     # hover — warm dark
-BTN_ACTIVE  = "#B8860B"     # pressed — deep gold
-BORDER      = "#3D3520"     # border — warm bronze line
+BTN_STOP    = "#8B0000"
+BTN_HOVER   = "#2A2A3E"     # --bg-input
+BTN_ACTIVE  = "#C5A255"     # --gold-muted
+BORDER      = "#2A2A3E"     # --border
+BORDER_GOLD = "#3D3520"     # --border-gold (Tkinter-compatible approximation)
 
 W, H = 390, 680
 
@@ -113,19 +115,31 @@ class ChatPopover:
     def _build_ui(self) -> None:
         win = self._win
 
+        # ── Gold accent line at top (Art Deco brand signature) ────
+        gold_line = tk.Frame(win, bg=ACCENT, height=2)
+        gold_line.pack(fill="x", side="top")
+
         # ── Title bar ────────────────────────────────────────────
-        title_bar = tk.Frame(win, bg=ACCENT_DIM, height=36)
+        title_bar = tk.Frame(win, bg=BG_CARD, height=36)
         title_bar.pack(fill="x", side="top")
         title_bar.pack_propagate(False)
 
+        # Diamond ornament before title
+        tk.Label(title_bar, text="\u25C6", bg=BG_CARD, fg=ACCENT,
+                 font=(FONT, 8), padx=4).pack(side="left")
+
         self._title_lbl = tk.Label(
-            title_bar, text=t("bull_coach"), bg=ACCENT_DIM, fg=FG,
-            font=(FONT_HEAD, 10, "bold"), anchor="w", padx=10)
+            title_bar, text=t("bull_coach").upper(), bg=BG_CARD, fg=FG,
+            font=(FONT_HEAD, 10, "bold"), anchor="w", padx=4)
         self._title_lbl.pack(side="left", fill="y")
 
-        # Clear chat button (Phase 1)
+        # Diamond ornament after title
+        tk.Label(title_bar, text="\u25C6", bg=BG_CARD, fg=ACCENT,
+                 font=(FONT, 6)).pack(side="left", padx=(2, 0))
+
+        # Clear chat button
         clear_btn = tk.Button(
-            title_bar, text=t("clear"), bg=ACCENT_DIM, fg=FG_MUTED,
+            title_bar, text=t("clear"), bg=BG_CARD, fg=FG_MUTED,
             font=(FONT, 8), bd=0, padx=6,
             activebackground=BTN_HOVER, activeforeground=FG,
             command=self._clear_chat, cursor="hand2")
@@ -133,18 +147,21 @@ class ChatPopover:
 
         # Quit app button — exits the entire desktop agent
         quit_btn = tk.Button(
-            title_bar, text=t("tray_quit"), bg=ACCENT_DIM, fg="#C45A5A",
+            title_bar, text=t("tray_quit"), bg=BG_CARD, fg="#8B0000",
             font=(FONT, 8), bd=0, padx=6,
-            activebackground="#7f1d1d", activeforeground="#FF6666",
+            activebackground="#1F0A0A", activeforeground="#CC3333",
             command=self._quit_app, cursor="hand2")
         quit_btn.pack(side="right", fill="y")
 
         close_btn = tk.Button(
-            title_bar, text="\u2715", bg=ACCENT_DIM, fg=FG_MUTED,
+            title_bar, text="\u2715", bg=BG_CARD, fg=FG_MUTED,
             font=(FONT, 10), bd=0, padx=8,
             activebackground=BTN_HOVER, activeforeground=FG,
             command=self.hide, cursor="hand2")
         close_btn.pack(side="right", fill="y")
+
+        # Gold divider line below title
+        tk.Frame(win, bg=BORDER_GOLD, height=1).pack(fill="x")
 
         # ── Toolbar: ticker + mode toggles (Phase 1) ─────────────
         toolbar = tk.Frame(win, bg=BG_TOOLBAR, pady=4, padx=8)
@@ -324,11 +341,11 @@ class ChatPopover:
         scrollbar.config(command=self._msg_text.yview)
 
         self._msg_text.tag_config("user_name", foreground=ACCENT,
-                                  font=(FONT, MIN_PT, "bold"))
+                                  font=(FONT_HEAD, MIN_PT, "bold"))
         self._msg_text.tag_config("user_msg",  foreground=FG,
                                   font=(FONT, 10), lmargin1=12, lmargin2=12)
-        self._msg_text.tag_config("bot_name",  foreground=COL_BUY,
-                                  font=(FONT, MIN_PT, "bold"))
+        self._msg_text.tag_config("bot_name",  foreground=ACCENT_BRIGHT,
+                                  font=(FONT_HEAD, MIN_PT, "bold"))
         self._msg_text.tag_config("bot_msg",   foreground=FG,
                                   font=(FONT, 10))
         self._msg_text.tag_config("dim",       foreground=FG_MUTED,
@@ -506,7 +523,8 @@ class ChatPopover:
             "WAIT": (COL_WAIT, COL_WAIT_DIM),
         }
         fg_col, bg_col = color_map.get(dec, (FG_DIM, BG_METRIC))
-        _dec_icons = {"BUY": "\u25B2", "SELL": "\u25BC", "WAIT": "\u25CF"}
+        # Art Deco diamond icons for decisions
+        _dec_icons = {"BUY": "\u25B2", "SELL": "\u25BC", "WAIT": "\u25C6"}
         _icon = _dec_icons.get(dec, "")
         self._dec_badge.config(text=f" {_icon} {dec} ", fg=fg_col, bg=bg_col)
         self._dec_context.config(text=self._bb.display_label)
