@@ -6,6 +6,8 @@
 
 ### AI Trading Operating System
 
+<img src="assets/showcase_demo.gif" alt="Market Scan → AI Analysis → Decision" width="480">
+
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
