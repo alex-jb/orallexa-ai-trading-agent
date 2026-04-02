@@ -24,6 +24,9 @@ streamlit
 scipy
 tqdm
 
+# ── X/Twitter Publishing ────────────────
+tweepy
+
 # ── Testing ──────────────────────────────
 pytest
 

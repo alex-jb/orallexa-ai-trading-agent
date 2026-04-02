@@ -989,6 +989,88 @@ async def alpaca_close_all():
     return AlpacaExecutor().close_all()
 
 
+# ── X/Twitter Publishing ─────────────────────────────────────────────────
+
+@app.get("/api/x/status")
+async def x_status():
+    """Check if X API credentials are configured and valid."""
+    try:
+        from bot.x_publisher import XPublisher
+        pub = XPublisher()
+        info = pub.verify_credentials()
+        return {"connected": True, **info}
+    except ValueError as exc:
+        return {"connected": False, "error": str(exc)}
+    except Exception as exc:
+        return {"connected": False, "error": str(exc)[:200]}
+
+
+@app.post("/api/x/tweet")
+async def x_post_tweet(text: str = Form(...)):
+    """Post a single tweet to X."""
+    from bot.x_publisher import XPublisher
+    pub = XPublisher()
+    result = pub.post_tweet(text)
+    if result.success:
+        return {"success": True, "tweet_id": result.tweet_ids[0]}
+    return {"success": False, "errors": result.errors}
+
+
+@app.post("/api/x/thread")
+async def x_post_thread(tweets: str = Form(...)):
+    """Post a thread to X. Tweets separated by ||| delimiter."""
+    import asyncio
+    from bot.x_publisher import XPublisher
+
+    tweet_list = [t.strip() for t in tweets.split("|||") if t.strip()]
+    if not tweet_list:
+        return {"success": False, "errors": ["No tweets provided"]}
+
+    pub = XPublisher()
+    result = await asyncio.to_thread(pub.post_thread, tweet_list)
+    return {
+        "success": result.success,
+        "tweet_ids": result.tweet_ids,
+        "posted": len(result.tweet_ids),
+        "total": len(tweet_list),
+        "errors": result.errors,
+    }
+
+
+@app.post("/api/x/post-signal")
+async def x_post_signal(
+    ticker: str = Form("NVDA"),
+    decision: str = Form("BUY"),
+    confidence: float = Form(70.0),
+    reasoning: str = Form(""),
+):
+    """Post a trading signal alert to X."""
+    from bot.x_publisher import XPublisher
+    pub = XPublisher()
+    result = pub.post_signal_alert(ticker, decision, confidence, reasoning)
+    if result.success:
+        return {"success": True, "tweet_id": result.tweet_ids[0]}
+    return {"success": False, "errors": result.errors}
+
+
+@app.post("/api/x/post-daily-intel")
+async def x_post_daily_intel():
+    """Post today's daily intel morning brief to X."""
+    import asyncio
+    from bot.x_publisher import XPublisher
+    from engine.daily_intel import get_daily_intel
+
+    intel = await asyncio.to_thread(get_daily_intel)
+    if not intel:
+        return {"success": False, "errors": ["No daily intel available"]}
+
+    pub = XPublisher()
+    result = pub.post_daily_intel(intel)
+    if result.success:
+        return {"success": True, "tweet_id": result.tweet_ids[0]}
+    return {"success": False, "errors": result.errors}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8002)
