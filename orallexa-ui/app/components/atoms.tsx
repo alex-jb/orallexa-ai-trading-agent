@@ -120,18 +120,20 @@ export function BullIcon({ size = 20 }: { size?: number }) {
 }
 
 /* Larger brand mark for headers — diamond-framed bull with name */
-export function BrandMark() {
+export function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <BullIcon size={28} />
+    <div className="flex items-center gap-2.5">
+      <BullIcon size={compact ? 24 : 32} />
       <div>
-        <div className="font-[Poiret_One] text-[15px] tracking-[0.3em] leading-none"
+        <div className={`font-[Poiret_One] ${compact ? "text-[13px] tracking-[0.2em]" : "text-[16px] tracking-[0.3em]"} leading-none shimmer-gold`}
           style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
           ORALLEXA
         </div>
-        <div className="text-[7px] font-[Josefin_Sans] text-[#6B6E76] tracking-[0.25em] uppercase mt-0.5 font-light">
-          Capital Intelligence
-        </div>
+        {!compact && (
+          <div className="text-[7px] font-[Josefin_Sans] text-[#C5A255]/50 tracking-[0.25em] uppercase mt-1 font-light">
+            Capital Intelligence
+          </div>
+        )}
       </div>
     </div>
   );

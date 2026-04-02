@@ -146,20 +146,50 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
         <div className="h-[2px]" style={{ background: "linear-gradient(90deg, transparent, #D4AF37, transparent)" }} />
         <div className="relative px-8 pt-8 pb-3">
           <Heading>{t.engineDec}</Heading>
-          <div className="mt-6 mb-4 flex items-center justify-center gap-4">
-            <DecoFan size={50} opacity={0.08} />
-            <div className="text-[48px] font-[Poiret_One] leading-none tracking-[0.15em]" style={{ color: "#2A2A3E" }}>{t.standby}</div>
-            <DecoFan size={50} opacity={0.08} />
+
+          {/* Geometric bull icon in diamond frame — brand centerpiece */}
+          <div className="mt-8 mb-6 flex flex-col items-center anim-fade-in">
+            <svg width="140" height="140" viewBox="0 0 100 100" fill="none" className="mb-5" style={{ opacity: 0.2 }}>
+              <defs>
+                <linearGradient id="emptyGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#D4AF37" />
+                  <stop offset="50%" stopColor="#FFD700" />
+                  <stop offset="100%" stopColor="#C5A255" />
+                </linearGradient>
+              </defs>
+              {/* Outer diamond */}
+              <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke="url(#emptyGold)" strokeWidth="1.5" />
+              {/* Inner diamond */}
+              <polygon points="50,18 82,50 50,82 18,50" fill="none" stroke="url(#emptyGold)" strokeWidth="1" opacity="0.5" />
+              {/* Bull horns */}
+              <path d="M40,42 L35,25 L28,18 L30,22 L36,32 L42,42" fill="url(#emptyGold)" opacity="0.8" />
+              <path d="M60,42 L65,25 L72,18 L70,22 L64,32 L58,42" fill="url(#emptyGold)" opacity="0.8" />
+              {/* Central orb */}
+              <circle cx="50" cy="48" r="10" fill="none" stroke="url(#emptyGold)" strokeWidth="1.5" />
+              <circle cx="50" cy="48" r="4" fill="#FFD700" opacity="0.4" />
+              {/* Stepped shoulders */}
+              <path d="M38,55 L28,55 L28,60 L22,60" fill="none" stroke="url(#emptyGold)" strokeWidth="1" opacity="0.5" />
+              <path d="M62,55 L72,55 L72,60 L78,60" fill="none" stroke="url(#emptyGold)" strokeWidth="1" opacity="0.5" />
+              {/* Snout */}
+              <path d="M46,58 L50,65 L54,58" fill="none" stroke="url(#emptyGold)" strokeWidth="1" />
+            </svg>
+
+            <div className="text-[48px] font-[Poiret_One] leading-none tracking-[0.2em]" style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(255,215,0,0.18), rgba(197,162,85,0.12))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.standby}</div>
           </div>
-          <div className="text-center text-[12px] font-[Josefin_Sans] text-[#4A4D55] tracking-[0.1em] mb-1 font-light">{t.runToBegin}</div>
-          <div className="text-center text-[9px] font-[Josefin_Sans] text-[#6B6E76]/60 tracking-[0.08em] mb-3">
+
+          <div className="text-center text-[12px] font-[Josefin_Sans] tracking-[0.12em] mb-2 font-light" style={{ color: "#C5A255" }}>{t.runToBegin}</div>
+          <div className="text-center text-[9px] font-[Josefin_Sans] text-[#6B6E76]/70 tracking-[0.08em] mb-1">
             {zh ? "试试 NVDA · TSLA · QQQ — 左侧快速按钮" : "Try NVDA · TSLA · QQQ — quick buttons on the left"}
           </div>
+          <div className="flex items-center justify-center gap-2 mt-3 mb-2">
+            <span className="h-px w-12" style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.2))" }} />
+            <span className="inline-block w-[4px] h-[4px] rotate-45" style={{ background: "rgba(212,175,55,0.3)" }} />
+            <span className="h-px w-12" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.2), transparent)" }} />
+          </div>
         </div>
-        <GoldRule strength={15} />
-        <div className="relative grid grid-cols-3 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
+        <div className="relative grid grid-cols-3 border-t" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
           {[t.signal, t.confidence, t.risk].map((l, i) => (
-            <div key={l} className={`py-6 px-4 text-center ${i < 2 ? "border-r" : ""}`} style={{ borderColor: "rgba(212,175,55,0.08)" }}>
+            <div key={l} className={`py-6 px-4 text-center ${i < 2 ? "border-r" : ""}`} style={{ borderColor: "rgba(212,175,55,0.06)" }}>
               <div className="text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.22em] mb-2 text-[#4A4D55]">{l}</div>
               <div className="text-[20px] font-[DM_Mono] font-medium text-[#2A2A3E]">—</div>
             </div>

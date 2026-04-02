@@ -6,12 +6,12 @@
 <title>ORALLEXA — AI Trading Intelligence</title>
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-  :root { --bg: #0A0C10; --gold: #C9A84C; --gold-dim: #8B7535; --text: #E8E0D0; --text-dim: #9A9488; --text-muted: #5E5A52; }
+  :root { --bg: #0A0A0F; --gold: #D4AF37; --gold-dim: #C5A255; --text: #F5E6CA; --text-dim: #9A9488; --text-muted: #6B6E76; }
   html, body { width: 100%; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Inter', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif; }
   body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
 
-  .logo { font-size: 3.5rem; font-weight: 800; letter-spacing: 0.15em; color: var(--gold); text-shadow: 0 0 40px rgba(201,168,76,0.15); }
-  .subtitle { font-size: 1rem; color: var(--text-dim); font-weight: 300; letter-spacing: 0.08em; margin-top: 8px; }
+  .logo-img { width: 420px; max-width: 90vw; height: auto; margin-bottom: 8px; }
+  .subtitle { font-size: 1rem; color: var(--text-dim); font-weight: 300; letter-spacing: 0.08em; margin-top: 0; }
   .gold-line { width: 120px; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 28px auto; }
 
   .links { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
@@ -40,8 +40,7 @@
 <body>
 
 <div class="anim" style="text-align:center;">
-  <div class="logo">ORALLEXA</div>
-  <div class="subtitle">AI-Powered Trading Intelligence System</div>
+  <img src="../assets/logo.svg" alt="Orallexa" class="logo-img">
   <div class="gold-line"></div>
 </div>
 

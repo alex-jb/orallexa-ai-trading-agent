@@ -1,12 +1,14 @@
 """
 desktop_agent/generate_avatar.py
 ──────────────────────────────────────────────────────────────────
-Generates the Art Deco Wall Street Bull avatar.
+Generates the Art Deco Wall Street Bull avatar — v2 redesign.
 
 Design concept:
+  - Diamond-framed geometric bull matching the Orallexa SVG logo
   - OpenClaw-style cuteness: big round head, oversized expressive eyes
   - Wall Street Charging Bull: powerful golden bull, iconic silhouette
   - Great Gatsby Art Deco: gold palette, top hat, monocle, geometric patterns
+  - New: stepped corner ornaments, diamond accents, gold gradient effects
 
 Run once to generate all assets:
     python desktop_agent/generate_avatar.py
@@ -27,50 +29,56 @@ SIZE = 128        # canvas px per frame
 N_FRAMES = 6      # walk cycle
 OUT_DIR = Path(__file__).parent.parent / "assets" / "avatar"
 
-# ── Art Deco Gold Palette ────────────────────────────────────────────────────
+# ── Art Deco Gold Palette v2 ────────────────────────────────────────────────
+# Aligned with DESIGN.md tokens: gold #D4AF37, gold-bright #FFD700, gold-muted #C5A255
 P = {
-    # Body — warm antique gold
-    "body":      (198, 150,  42),    # rich gold
-    "hi":        (232, 195,  90),    # bright gold highlight
+    # Body — warm antique gold (richer, matching logo gradients)
+    "body":      (212, 175,  55),    # #D4AF37 — primary gold
+    "hi":        (255, 215,   0),    # #FFD700 — gold-bright highlight
     "sh":        (148, 105,  15),    # deep bronze shadow
-    "ol":        ( 22,  18,  10),    # near-black outline
+    "mid":       (197, 162,  85),    # #C5A255 — gold-muted
+    "ol":        ( 10,  10,  15),    # near-black outline (#0A0A0F)
 
-    # Horns — polished gold
-    "horn":      (225, 190,  70),    # bright gold
-    "horn_sh":   (170, 135,  30),    # shadow gold
+    # Horns — polished gold with brighter tips
+    "horn":      (255, 215,   0),    # #FFD700 — bright gold
+    "horn_sh":   (197, 162,  85),    # #C5A255 — shadow gold
 
     # Facial features
-    "ear_in":    (210, 165,  70),
-    "snout":     (215, 170,  80),    # lighter gold muzzle
-    "nostril":   ( 40,  28,  10),
+    "ear_in":    (225, 185,  75),
+    "snout":     (230, 190,  90),    # lighter gold muzzle
+    "nostril":   ( 10,  10,  15),
 
-    # Eye — big, expressive (OpenClaw style)
-    "eye_w":     (250, 245, 235),    # warm ivory white
-    "eye_iris":  ( 55,  75, 115),    # deep navy blue (distinguished)
-    "eye_p":     ( 12,  10,   6),    # near-black pupil
+    # Eye — big, expressive (OpenClaw style) with richer contrast
+    "eye_w":     (245, 230, 202),    # #F5E6CA champagne (matching text color)
+    "eye_iris":  (  0, 107,  63),    # #006B3F emerald (matching bull/buy color)
+    "eye_p":     ( 10,  10,  15),    # near-black pupil
     "eye_shine": (255, 255, 255),
-    "eye_shine2": (255, 248, 220),   # warm secondary shine
+    "eye_shine2": (255, 215,  0),    # gold secondary shine (brand accent)
 
-    # Monocle
-    "monocle":   (225, 190,  70),    # gold rim
-    "monocle_ch": (190, 155,  45),   # chain gold
+    # Monocle — brighter gold
+    "monocle":   (255, 215,   0),    # #FFD700 bright gold rim
+    "monocle_ch": (212, 175,  55),   # chain gold
 
     # Bowtie — gold with dark accent
-    "bow_main":  (225, 190,  70),
+    "bow_main":  (255, 215,   0),
     "bow_dark":  (148, 105,  15),
-    "bow_knot":  ( 22,  18,  10),
+    "bow_knot":  ( 10,  10,  15),
 
-    # Top hat — classic black with gold band
-    "hat_main":  ( 28,  22,  16),
-    "hat_band":  (225, 190,  70),
-    "hat_hi":    ( 50,  42,  32),
-    "hat_band_detail": (198, 150, 42),
+    # Top hat — dark with gold band (sharper contrast)
+    "hat_main":  ( 16,  16,  24),    # near-black, matches bg-card
+    "hat_band":  (255, 215,   0),    # #FFD700
+    "hat_hi":    ( 38,  38,  50),
+    "hat_band_detail": (212, 175, 55),  # #D4AF37
 
-    # Hooves
-    "hoof":      ( 38,  26,  10),
+    # Hooves — dark
+    "hoof":      ( 26,  26,  46),    # matches bg-card
 
     "white":     (255, 255, 255),
-    "blush":     (235, 170, 100, 50),  # subtle warm blush
+    "blush":     (255, 180, 100, 40),  # warm gold blush
+
+    # Art Deco frame elements (new)
+    "frame_gold":  (212, 175,  55, 100),  # semi-transparent gold
+    "frame_bright": (255, 215,  0, 140),  # brighter frame accent
 }
 
 
@@ -107,6 +115,35 @@ def _rect(d: ImageDraw.ImageDraw, x0: int, y0: int, x1: int, y1: int,
     d.rectangle([x0, y0, x1, y1], **kw)
 
 
+def _diamond(d: ImageDraw.ImageDraw, cx: int, cy: int, size: int,
+             fill: tuple | None = None, ol: tuple | None = None,
+             lw: int = 1) -> None:
+    """Draw a diamond shape (Art Deco motif)."""
+    pts = [(cx, cy - size), (cx + size, cy), (cx, cy + size), (cx - size, cy)]
+    kw: dict = {}
+    if fill: kw["fill"] = _a(fill)
+    if ol:   kw["outline"] = _a(ol); kw["width"] = lw
+    d.polygon(pts, **kw)
+
+
+def _stepped_corner(d: ImageDraw.ImageDraw, x: int, y: int,
+                    size: int, flip_h: bool = False, flip_v: bool = False,
+                    color: tuple = (212, 175, 55, 80)) -> None:
+    """Draw an L-shaped stepped corner ornament (Art Deco signature)."""
+    dx = -1 if flip_h else 1
+    dy = -1 if flip_v else 1
+    s = size
+    # Outer L
+    d.line([(x, y), (x + dx * s, y)], fill=_a(color), width=1)
+    d.line([(x, y), (x, y + dy * s)], fill=_a(color), width=1)
+    # Inner step
+    s2 = s // 2
+    d.line([(x + dx * 3, y + dy * 3), (x + dx * s2, y + dy * 3)],
+           fill=_a(color), width=1)
+    d.line([(x + dx * 3, y + dy * 3), (x + dx * 3, y + dy * s2)],
+           fill=_a(color), width=1)
+
+
 # ── Walk cycle ────────────────────────────────────────────────────────────────
 
 def _walk(frame: int) -> tuple[float, float, float, float]:
@@ -133,21 +170,25 @@ def draw_bull(frame: int, idle: bool = False) -> Image.Image:
     bob   = 0 if idle else -round(1.0 * abs(math.sin(t_val)))
 
     # ── Anchor points  (character faces RIGHT) ───────────────────
-    # OpenClaw-style proportions: huge head, tiny body
     BX,  BY  = 48, 92 + bob        # body centre
     BRX, BRY = 22, 15              # body radii (compact)
 
     HX,  HY  = 82, 60 + bob        # head centre
     HR       = 26                   # BIG head (cuter)
 
+    # ── 0. Subtle diamond frame behind character (Art Deco logo motif) ──
+    if idle:
+        cx, cy = 64, 68
+        _diamond(d, cx, cy, 52, ol=P["frame_gold"], lw=1)
+        _diamond(d, cx, cy, 44, ol=(212, 175, 55, 50), lw=1)
+
     # ── 1. Tail ──────────────────────────────────────────────────
     tx, ty = BX - BRX - 1, BY - 5
-    # Curly tail with gold tip
     d.arc([tx - 12, ty - 8, tx + 4, ty + 12],
           start=25, end=280, fill=_a(P["ol"]), width=4)
     d.arc([tx - 10, ty - 6, tx + 2, ty + 10],
           start=25, end=280, fill=_a(P["body"]), width=3)
-    # Gold tuft
+    # Gold tuft with bright tip
     _ell(d, tx - 10, ty, 4, 3, P["hi"], P["ol"], 1)
 
     # ── 2. Back legs (short, stubby — cute) ──────────────────────
@@ -159,30 +200,26 @@ def draw_bull(frame: int, idle: bool = False) -> Image.Image:
 
     # ── 3. Body (compact barrel) ─────────────────────────────────
     _ell(d, BX, BY, BRX, BRY, P["body"], P["ol"], 3)
-    # Geometric highlight (Art Deco angular)
+    # Geometric highlight (Art Deco angular — brighter gold)
     _poly(d, [(BX - 14, BY - 8), (BX - 6, BY - 13),
               (BX + 2, BY - 7), (BX - 8, BY - 2)],
           P["hi"])
     # Belly shadow
     _ell(d, BX + 2, BY + 6, BRX - 10, BRY - 7, P["sh"])
 
-    # ── 4. Gold Bowtie (Gatsby) ──────────────────────────────────
+    # ── 4. Gold Bowtie (Gatsby) — with diamond center ────────────
     btx = HX - 16
     bty = HY + 18 + bob
     # Left wing (geometric, Art Deco)
-    _poly(d, [(btx - 1, bty), (btx - 9, bty - 5),
-              (btx - 10, bty), (btx - 9, bty + 5)],
+    _poly(d, [(btx - 1, bty), (btx - 10, bty - 6),
+              (btx - 11, bty), (btx - 10, bty + 6)],
           P["bow_main"], P["ol"], 1)
     # Right wing
-    _poly(d, [(btx + 1, bty), (btx + 9, bty - 5),
-              (btx + 10, bty), (btx + 9, bty + 5)],
+    _poly(d, [(btx + 1, bty), (btx + 10, bty - 6),
+              (btx + 11, bty), (btx + 10, bty + 6)],
           P["bow_main"], P["ol"], 1)
-    # Centre diamond (Art Deco motif)
-    _poly(d, [(btx, bty - 3), (btx + 3, bty),
-              (btx, bty + 3), (btx - 3, bty)],
-          P["bow_knot"], P["ol"], 1)
-    # Gold dot in centre
-    _ell(d, btx, bty, 1, 1, P["hi"])
+    # Centre diamond (Art Deco motif — brighter)
+    _diamond(d, btx, bty, 3, fill=P["ol"], ol=P["hi"], lw=1)
 
     # ── 5. Front legs (short, stubby) ────────────────────────────
     for lx, lift in [(HX - 10, fa), (HX + 2, fb)]:
@@ -197,10 +234,10 @@ def draw_bull(frame: int, idle: bool = False) -> Image.Image:
 
     # ── 7. Head (BIG, round — OpenClaw cute proportions) ─────────
     _ell(d, HX, HY, HR, HR, P["body"], P["ol"], 3)
-    # Forehead highlight (rounded, warm)
+    # Forehead highlight (brighter gold)
     _ell(d, HX - 8, HY - 14, HR // 3, HR // 4, P["hi"])
 
-    # ── 8. Top Hat (Gatsby gentleman) ────────────────────────────
+    # ── 8. Top Hat (Gatsby gentleman — sharper) ──────────────────
     hat_cx = HX - 1
     hat_by = HY - HR + 3
 
@@ -218,23 +255,22 @@ def draw_bull(frame: int, idle: bool = False) -> Image.Image:
     _rect(d, hat_cx - 12, hat_by - 22, hat_cx + 10, hat_by - 20,
           P["hat_main"], P["ol"], 2)
 
-    # Gold band with Art Deco pattern
+    # Gold band with Art Deco pattern (brighter gold)
     _rect(d, hat_cx - 14, hat_by - 1, hat_cx + 12, hat_by + 3,
           P["hat_band"], P["ol"], 1)
 
-    # Art Deco diamonds on hat band
+    # Art Deco diamonds on hat band (matching logo diamonds)
     for offset in [-8, -2, 4]:
         x = hat_cx + offset
         y = hat_by + 1
-        _poly(d, [(x, y - 2), (x + 2, y), (x, y + 2), (x - 2, y)],
-              P["hat_band_detail"])
+        _diamond(d, x, y, 2, fill=P["hat_band_detail"])
 
     # Hat highlight
     _poly(d, [(hat_cx - 10, hat_by - 18), (hat_cx - 6, hat_by - 18),
               (hat_cx - 6, hat_by - 4), (hat_cx - 10, hat_by - 4)],
           P["hat_hi"])
 
-    # ── 9. Horn (Art Deco geometric, visible behind hat) ─────────
+    # ── 9. Horn (Art Deco geometric, more angular) ───────────────
     hbx, hby = HX + 8, HY - HR + 6
     _poly(d, [
         (hbx, hby + 2),
@@ -261,25 +297,25 @@ def draw_bull(frame: int, idle: bool = False) -> Image.Image:
     d.arc([SX - 6, SY + 2, SX + 6, SY + 8],
           start=10, end=170, fill=_a(P["nostril"]), width=2)
 
-    # ── 11. Cheek blush (warm, subtle) ────────────────────────────
+    # ── 11. Cheek blush (warm gold) ───────────────────────────────
     _ell(d, HX + 12, HY + 8, 6, 4, P["blush"])
 
-    # ── 12. Eye (BIG, expressive — OpenClaw-inspired) ────────────
+    # ── 12. Eye (BIG, expressive — emerald iris matching brand) ──
     EX, EY = HX + 8, HY - 4
-    # Big white
+    # Big white (champagne tint)
     _ell(d, EX, EY, 10, 10, P["eye_w"], P["ol"], 2)
-    # Large iris
+    # Large emerald iris
     _ell(d, EX + 2, EY + 1, 7, 7, P["eye_iris"])
     # Pupil
     _ell(d, EX + 2, EY + 1, 4, 4, P["eye_p"])
     # Big main shine (top-left)
     _ell(d, EX - 2, EY - 3, 3, 3, P["eye_shine"])
-    # Smaller warm shine (bottom-right)
+    # Gold secondary shine (brand accent)
     _ell(d, EX + 4, EY + 3, 2, 2, P["eye_shine2"])
 
-    # ── 13. Monocle (gold rim around right eye) ──────────────────
+    # ── 13. Monocle (bright gold rim) ────────────────────────────
     _ell(d, EX, EY, 13, 13, ol=P["monocle"], lw=2)
-    # Chain hanging down
+    # Chain hanging down with gold links
     chain_pts = [
         (EX - 11, EY + 7),
         (EX - 14, EY + 16),
@@ -288,12 +324,21 @@ def draw_bull(frame: int, idle: bool = False) -> Image.Image:
     for i in range(len(chain_pts) - 1):
         d.line([chain_pts[i], chain_pts[i + 1]],
                fill=_a(P["monocle_ch"]), width=1)
+    # Diamond-shaped chain links (Art Deco detail)
     for pt in chain_pts[1:]:
-        _ell(d, pt[0], pt[1], 1, 1, P["monocle_ch"])
+        _diamond(d, pt[0], pt[1], 2, fill=P["monocle_ch"])
 
     # ── 14. Eyebrow (confident, slightly raised) ─────────────────
     d.line([(EX - 8, EY - 12), (EX + 7, EY - 11)],
            fill=_a(P["ol"]), width=3)
+
+    # ── 15. Stepped corner ornaments (when idle, Art Deco frame) ─
+    if idle:
+        _stepped_corner(d, 4, 4, 16, color=(212, 175, 55, 60))
+        _stepped_corner(d, SIZE - 5, 4, 16, flip_h=True, color=(212, 175, 55, 60))
+        _stepped_corner(d, 4, SIZE - 5, 16, flip_v=True, color=(212, 175, 55, 60))
+        _stepped_corner(d, SIZE - 5, SIZE - 5, 16, flip_h=True, flip_v=True,
+                        color=(212, 175, 55, 60))
 
     return img
 
@@ -343,26 +388,22 @@ def _draw_hat_indicator(img: Image.Image, color: tuple) -> Image.Image:
     out = img.copy()
     d = ImageDraw.Draw(out)
     cx, cy = 62, 24
-    sz = 6
-    # Outer diamond
-    _poly(d, [(cx, cy - sz), (cx + sz, cy),
-              (cx, cy + sz), (cx - sz, cy)],
-          (*color, 180))
-    # Inner diamond (brighter)
-    _poly(d, [(cx, cy - 3), (cx + 3, cy),
-              (cx, cy + 3), (cx - 3, cy)],
-          (*color[:3], 255))
+    # Outer diamond (larger, matching logo aesthetic)
+    _diamond(d, cx, cy, 7, fill=(*color[:3], 120), ol=(*color[:3], 200), lw=1)
+    # Inner diamond (bright core)
+    _diamond(d, cx, cy, 3, fill=(*color[:3], 255))
     return out
 
 
 # ── State configs ────────────────────────────────────────────────────────────
+# Colors updated to match DESIGN.md semantic palette
 STATE_CONFIGS = {
     "idle":      {"tint": None,           "glow": None,            "dot": None},
     "listening": {"tint": None,           "glow": (100, 170, 220), "dot": (100, 170, 220)},
     "thinking":  {"tint": (80, 100, 160), "glow": (80, 100, 160),  "dot": (80, 100, 160)},
-    "confident": {"tint": (40, 160, 80),  "glow": (40, 160, 80),   "dot": (40, 160, 80)},
-    "warning":   {"tint": (200, 60, 40),  "glow": (200, 60, 40),   "dot": (200, 60, 40)},
-    "wait":      {"tint": (180, 150, 50), "glow": (180, 150, 50),  "dot": (180, 150, 50)},
+    "confident": {"tint": (  0, 107, 63), "glow": (  0, 107, 63),  "dot": (  0, 107, 63)},   # emerald
+    "warning":   {"tint": (139,   0,  0), "glow": (139,   0,  0),  "dot": (139,   0,  0)},   # ruby
+    "wait":      {"tint": (212, 175, 55), "glow": (212, 175, 55),  "dot": (212, 175, 55)},   # gold
 }
 
 

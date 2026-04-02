@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import * as Mock from "./mock-data";
 import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData } from "./types";
 import { T, API, displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, riskColor, sentCls, recBg, decColorJournal, nsSummary, copyWithAttribution } from "./types";
-import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView } from "./components";
+import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, BrandMark, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView } from "./components";
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -343,11 +343,15 @@ export default function Home() {
       role="application" aria-label="Orallexa Capital Intelligence Dashboard"
       style={{ background: "radial-gradient(ellipse at 30% 0%, #1A1A2E 0%, #0D1117 25%, #0A0A0F 60%, #0A0A0F 100%)" }}>
 
-      {/* Demo Mode Banner */}
+      {/* Demo Mode Banner — Art Deco styled */}
       {isDemo && (
-        <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0"
-          style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.15), rgba(212,175,55,0.25), rgba(212,175,55,0.15))", color: "#D4AF37", borderBottom: "1px solid rgba(212,175,55,0.3)" }}>
-          {zh ? "🎭 演示模式 — 展示数据非实时行情" : "🎭 Demo Mode — Simulated data for demonstration"}
+        <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0 flex items-center justify-center gap-3"
+          style={{ background: "linear-gradient(90deg, #0A0A0F, rgba(212,175,55,0.12), rgba(212,175,55,0.18), rgba(212,175,55,0.12), #0A0A0F)", color: "#C5A255", borderBottom: "1px solid rgba(212,175,55,0.2)" }}>
+          <span className="inline-block w-[3px] h-[3px] rotate-45" style={{ background: "#D4AF37" }} />
+          <span className="h-px w-8" style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.4))" }} />
+          {zh ? "演示模式 — 展示数据非实时行情" : "Demo Mode — Simulated data for demonstration"}
+          <span className="h-px w-8" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.4), transparent)" }} />
+          <span className="inline-block w-[3px] h-[3px] rotate-45" style={{ background: "#D4AF37" }} />
         </div>
       )}
 
@@ -364,10 +368,7 @@ export default function Home() {
 
       {/* ── MOBILE TOP BAR ── */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(212,175,55,0.12)", background: "#0D1117" }}>
-        <div className="flex items-center gap-2">
-          <BullIcon size={18} />
-          <span className="font-[Poiret_One] text-[12px] tracking-[0.2em] shimmer-gold">{t.brand}</span>
-        </div>
+        <BrandMark compact />
         <button onClick={() => setMobileMenu(!mobileMenu)} aria-label={mobileMenu ? "Close menu" : "Open menu"} aria-expanded={mobileMenu}
           className="mobile-menu-btn px-3 py-2 text-[#C5A255] text-[14px]" style={{ border: "1px solid rgba(212,175,55,0.2)" }}>
           {mobileMenu ? "✕" : "☰"}
@@ -379,15 +380,12 @@ export default function Home() {
         role="navigation" aria-label="Controls"
         style={{ borderColor: "rgba(212,175,55,0.12)", background: "linear-gradient(180deg, #0D1117 0%, #0A0A0F 100%)" }}>
 
-        {/* Brand Header with Bull */}
+        {/* Brand Header — geometric bull in diamond frame */}
         <div className="pb-4 mb-1 border-b" style={{ borderColor: "rgba(212,175,55,0.15)" }}>
-          <div className="flex items-center gap-3">
-            <img src="/icon-192.png" alt="" width={22} height={22} style={{ borderRadius: 4 }} />
-            <span className="font-[Poiret_One] text-[14px] tracking-[0.3em]"
-              style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.brand}</span>
-            <span className="text-[9px] font-[Josefin_Sans] font-semibold text-[#006B3F]/70 tracking-[0.12em] uppercase ml-auto">{t.active}</span>
+          <div className="flex items-center justify-between">
+            <BrandMark />
+            <span className="text-[8px] font-[Josefin_Sans] font-semibold text-[#006B3F]/70 tracking-[0.12em] uppercase">{t.active}</span>
           </div>
-          <div className="text-[9px] font-[Josefin_Sans] text-[#6B6E76] tracking-[0.2em] uppercase mt-2 ml-[34px] font-light">{t.subtitle}</div>
         </div>
 
         <div>
@@ -412,12 +410,12 @@ export default function Home() {
         <Mod title={t.engineStatus}>
           <Row label={t.engine} value={t.active} color="#006B3F" />
           <div className="flex items-center justify-between py-[5px]">
-            <span className="text-[10px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.12em]">{t.strategy}</span>
-            <div className="flex gap-1">
+            <span className="text-[10px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.12em] shrink-0">{t.strategy}</span>
+            <div className="flex gap-1 flex-wrap justify-end">
               {(["SCALP", "INTRADAY", "SWING"] as const).map((s) => (
                 <button key={s} onClick={() => { setStrategy(s); setHorizon(s === "SCALP" ? "5M" : s === "INTRADAY" ? "15M" : "1D"); }}
                   aria-label={`Strategy: ${s}`} aria-pressed={strategy === s}
-                  className={`px-2.5 py-1 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.08em] transition-colors ${strategy === s ? "text-[#D4AF37] bg-[#D4AF37]/10" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
+                  className={`px-2 py-1 text-[8px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.06em] transition-colors ${strategy === s ? "text-[#D4AF37] bg-[#D4AF37]/10" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
                   style={{ border: `1px solid ${strategy === s ? "rgba(212,175,55,0.3)" : "rgba(212,175,55,0.08)"}` }}>{t[s.toLowerCase() as keyof typeof t] || s}</button>
               ))}
             </div>
@@ -552,9 +550,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-4 lg:mb-6 pb-4 border-b" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
           <div className="flex items-center gap-3 lg:gap-6">
             <div className="hidden lg:flex items-center gap-3">
-              <BullIcon size={18} />
-              <span className="font-[Poiret_One] text-[12px] tracking-[0.28em] shimmer-gold">Orallexa Capital Engine</span>
-              <span className="text-[9px] font-[Josefin_Sans] font-semibold text-[#006B3F]/60 uppercase">{t.active}</span>
+              <BrandMark />
             </div>
             <div className="h-4 w-px" style={{ background: "rgba(212,175,55,0.15)" }} />
             <div className="flex gap-5">

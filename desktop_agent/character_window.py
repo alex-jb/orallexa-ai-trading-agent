@@ -60,12 +60,12 @@ def _state_bubbles(lang: str | None = None) -> dict[str, list[str]]:
     }
 
 STATE_COLORS: dict[str, str] = {
-    "idle":      "#A89F8B",   # champagne — Art Deco neutral
+    "idle":      "#C5A255",   # gold-muted — Art Deco neutral
     "listening": "#7BA7CC",   # steel blue — 1920s art poster
     "thinking":  "#8B7EC8",   # muted lavender — Gatsby violet
-    "confident": "#D4AF37",   # Art Deco gold — the money color
-    "warning":   "#C44536",   # vintage crimson
-    "wait":      "#B8860B",   # dark goldenrod
+    "confident": "#006B3F",   # emerald — matching DESIGN.md bull/success
+    "warning":   "#8B0000",   # ruby — matching DESIGN.md bear/error
+    "wait":      "#D4AF37",   # Art Deco gold — matching DESIGN.md warning
 }
 
 
@@ -96,16 +96,15 @@ def _load_state_sprite(state: str) -> ImageTk.PhotoImage | None:
 
 # ── Speech bubble ─────────────────────────────────────────────────────────────
 
-def _make_bubble(text: str, accent: str = "#94a3b8",
+def _make_bubble(text: str, accent: str = "#D4AF37",
                  max_width: int = 220) -> ImageTk.PhotoImage:
-    """Render a styled speech bubble with accent-colored border.
+    """Render an Art Deco speech bubble with sharp corners and diamond accent.
 
-    Phase 2: min font 11pt (was 13), max width clamp, multiline support.
-    Phase 3: bubble never exceeds max_width.
+    Design: 0px radius (Art Deco), gold accent border, diamond arrow,
+    stepped corner ornaments at top corners.
     """
     pad = 10
-    radius = 14
-    font_size = 11   # min 8pt for accessibility; 11pt for bubble readability
+    font_size = 11
 
     tmp = Image.new("RGBA", (1, 1))
     td  = ImageDraw.Draw(tmp)
@@ -141,7 +140,7 @@ def _make_bubble(text: str, accent: str = "#94a3b8",
     th = bbox[3] - bbox[1]
 
     bw = min(max(tw + pad * 2, 60), max_width)
-    bh = th + pad * 2 + 10
+    bh = th + pad * 2 + 14  # extra space for diamond arrow
 
     img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
     d   = ImageDraw.Draw(img)
@@ -149,15 +148,32 @@ def _make_bubble(text: str, accent: str = "#94a3b8",
     ac = accent.lstrip("#")
     ar, ag, ab = int(ac[:2], 16), int(ac[2:4], 16), int(ac[4:6], 16)
 
-    body_h = bh - 10
-    d.rounded_rectangle([0, 0, bw - 1, body_h], radius=radius,
-                        fill=(26, 26, 46, 235),
-                        outline=(ar, ag, ab, 200), width=2)
-    cx = bw // 2
-    d.polygon([(cx - 8, body_h - 1), (cx + 8, body_h - 1), (cx, bh - 1)],
-              fill=(26, 26, 46, 235))
+    body_h = bh - 12
+    body_color = (10, 10, 15, 240)      # #0A0A0F near-black (matching bg-deep)
+    border_color = (ar, ag, ab, 180)
 
-    d.multiline_text((pad, pad), display, fill=(226, 232, 240, 255), font=font)
+    # Sharp rectangle body (0px radius — Art Deco signature)
+    d.rectangle([0, 0, bw - 1, body_h], fill=body_color, outline=border_color, width=2)
+
+    # Gold accent line at top (brand gradient effect)
+    d.line([(2, 2), (bw - 3, 2)], fill=(212, 175, 55, 200), width=1)
+
+    # Stepped corner ornaments (tiny, Art Deco)
+    for cx_corner, cy_corner in [(3, 3), (bw - 4, 3)]:
+        d.line([(cx_corner, cy_corner), (cx_corner + (6 if cx_corner < bw // 2 else -6), cy_corner)],
+               fill=(ar, ag, ab, 120), width=1)
+        d.line([(cx_corner, cy_corner), (cx_corner, cy_corner + 6)],
+               fill=(ar, ag, ab, 120), width=1)
+
+    # Diamond arrow at bottom (instead of triangle)
+    cx = bw // 2
+    d.polygon([(cx - 6, body_h - 1), (cx, body_h + 10), (cx + 6, body_h - 1)],
+              fill=body_color, outline=border_color, width=1)
+    # Clean up the join
+    d.line([(cx - 5, body_h), (cx + 5, body_h)], fill=body_color, width=2)
+
+    # Text in champagne (#F5E6CA)
+    d.multiline_text((pad, pad + 1), display, fill=(245, 230, 202, 255), font=font)
 
     return _rgba_to_photo(img)
 
