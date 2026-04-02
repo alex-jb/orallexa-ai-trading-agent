@@ -96,17 +96,44 @@ export function Toggle({ label, open, onToggle, children }: { label: string; ope
 
 export function BullIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M2 8C2 8 4 4 7 5C7 5 9 2 12 2C15 2 17 5 17 5C20 4 22 8 22 8C22 8 20 10 18 11C18 14 16 18 12 20C8 18 6 14 6 11C4 10 2 8 2 8Z"
-        fill="url(#bullGrad)" stroke="#D4AF37" strokeWidth="0.5" />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
       <defs>
-        <linearGradient id="bullGrad" x1="2" y1="2" x2="22" y2="20">
+        <linearGradient id="bullGrad" x1="0" y1="0" x2="32" y2="32">
           <stop offset="0%" stopColor="#FFD700" />
           <stop offset="50%" stopColor="#D4AF37" />
           <stop offset="100%" stopColor="#C5A255" />
         </linearGradient>
       </defs>
+      {/* Diamond frame (matching logo) */}
+      <polygon points="16,2 30,16 16,30 2,16" fill="none" stroke="url(#bullGrad)" strokeWidth="1" opacity="0.6" />
+      <polygon points="16,6 26,16 16,26 6,16" fill="none" stroke="url(#bullGrad)" strokeWidth="0.7" opacity="0.3" />
+      {/* Geometric bull horns */}
+      <path d="M11,14 L9,8 L7,6 L8,7 L10,10 L12,14" fill="url(#bullGrad)" opacity="0.9" />
+      <path d="M21,14 L23,8 L25,6 L24,7 L22,10 L20,14" fill="url(#bullGrad)" opacity="0.9" />
+      {/* Central orb */}
+      <circle cx="16" cy="16" r="4" fill="none" stroke="url(#bullGrad)" strokeWidth="1.2" />
+      <circle cx="16" cy="16" r="1.5" fill="#FFD700" opacity="0.7" />
+      {/* Snout */}
+      <path d="M14,20 L16,23 L18,20" fill="none" stroke="url(#bullGrad)" strokeWidth="0.8" />
     </svg>
+  );
+}
+
+/* Larger brand mark for headers — diamond-framed bull with name */
+export function BrandMark() {
+  return (
+    <div className="flex items-center gap-3">
+      <BullIcon size={28} />
+      <div>
+        <div className="font-[Poiret_One] text-[15px] tracking-[0.3em] leading-none"
+          style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          ORALLEXA
+        </div>
+        <div className="text-[7px] font-[Josefin_Sans] text-[#6B6E76] tracking-[0.25em] uppercase mt-0.5 font-light">
+          Capital Intelligence
+        </div>
+      </div>
+    </div>
   );
 }
 

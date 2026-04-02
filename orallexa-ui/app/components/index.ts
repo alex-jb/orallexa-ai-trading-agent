@@ -4,3 +4,4 @@ export { BreakingBanner } from "./breaking";
 export { MarketStrip } from "./market-strip";
 export { WatchlistGrid } from "./watchlist";
 export { DecisionCard } from "./decision-card";
+export { DailyIntelView } from "./daily-intel";
