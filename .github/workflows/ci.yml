@@ -53,11 +53,12 @@ jobs:
           cache: npm
           cache-dependency-path: orallexa-ui/package-lock.json
 
-      - name: Install & Type Check & Build
+      - name: Install & Type Check & Test & Build
         working-directory: orallexa-ui
         run: |
           npm ci
           npx tsc --noEmit
+          npx vitest run
           npx next build
 
   python-lint:
