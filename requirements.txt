@@ -23,6 +23,7 @@ streamlit
 # ── Evaluation ───────────────────────────
 scipy
 tqdm
+optuna
 
 # ── X/Twitter Publishing ────────────────
 tweepy
