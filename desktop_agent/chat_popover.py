@@ -127,6 +127,14 @@ class ChatPopover:
             command=self._clear_chat, cursor="hand2")
         clear_btn.pack(side="right", fill="y")
 
+        # Quit app button — exits the entire desktop agent
+        quit_btn = tk.Button(
+            title_bar, text=t("tray_quit"), bg=ACCENT_DIM, fg="#C45A5A",
+            font=(FONT, 8), bd=0, padx=6,
+            activebackground="#7f1d1d", activeforeground="#FF6666",
+            command=self._quit_app, cursor="hand2")
+        quit_btn.pack(side="right", fill="y")
+
         close_btn = tk.Button(
             title_bar, text="\u2715", bg=ACCENT_DIM, fg=FG_MUTED,
             font=(FONT, 10), bd=0, padx=8,
@@ -415,6 +423,15 @@ class ChatPopover:
         self._msg_text.config(state="disabled")
         self._hide_decision_card()
         self._add_message("bull", t("chat_cleared"), init=True)
+
+    def _quit_app(self) -> None:
+        """Exit the entire desktop agent application."""
+        try:
+            self._tts.stop()
+        except Exception:
+            pass
+        self._root.quit()
+        self._root.destroy()
 
     def _stop_tts(self) -> None:
         self._tts.stop()

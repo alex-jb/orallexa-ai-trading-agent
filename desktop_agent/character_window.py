@@ -78,6 +78,7 @@ def _load_frames(prefix: str) -> list[ImageTk.PhotoImage]:
 
 
 def _rgba_to_photo(img: Image.Image) -> ImageTk.PhotoImage:
+    img = img.convert("RGBA")
     bg = Image.new("RGB", img.size, (1, 1, 1))
     bg.paste(img.convert("RGB"), mask=img.split()[3])
     return ImageTk.PhotoImage(bg)
