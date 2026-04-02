@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="Orallexa — AI Trading Operating System" width="400">
+<img src="assets/logo.svg" alt="Orallexa — AI Trading Operating System" width="480">
 
 # Orallexa
 
@@ -46,21 +46,19 @@ Every stage is automated. Every stage is observable. The system runs continuousl
 <!-- EVAL_TABLE_START -->
 | Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
 |----------|--------|-----------|------------|--------|---------|---------|
-| dual_thrust | NVDA | 0.960 | -0.931 | 90.3% | 0.0006 | FAIL |
-| alpha_combo | NVDA | 0.920 | -1.073 | 79.8% | 0.0163 | FAIL |
-| macd_crossover | NVDA | 0.909 | -1.007 | 26.4% | 0.0025 | FAIL |
-| trend_momentum | NVDA | 0.738 | -1.125 | 23.3% | 0.0046 | FAIL |
-| macd_crossover | TSLA | 0.693 | -0.273 | 99.7% | 0.0205 | FAIL |
-| double_ma | NVDA | 0.625 | -1.532 | 23.9% | 0.0175 | FAIL |
-| dual_thrust | AAPL | 0.561 | -0.501 | 34.0% | 0.0830 | FAIL |
-| double_ma | TSLA | 0.517 | -0.277 | 99.6% | 0.1873 | FAIL |
-| bollinger_breakout | TSLA | 0.437 | -0.151 | 99.5% | 0.0549 | FAIL |
-| bollinger_breakout | AAPL | 0.385 | -0.758 | 100.0% | 0.0834 | FAIL |
+| rsi_reversal | INTC | 1.409 | 0.445 | 43.4% | 0.0018 | FAIL |
+| alpha_combo | JPM | 1.111 | -1.259 | 97.4% | 0.1354 | FAIL |
+| trend_momentum | JPM | 1.092 | -0.804 | 90.2% | 0.1037 | FAIL |
+| macd_crossover | JPM | 0.987 | -1.016 | 100.0% | 0.2360 | FAIL |
+| dual_thrust | NVDA | 0.960 | -0.931 | 89.4% | 0.0006 | FAIL |
+| alpha_combo | NVDA | 0.920 | -1.073 | 99.8% | 0.0163 | FAIL |
+| macd_crossover | NVDA | 0.909 | -1.007 | 100.0% | 0.0025 | FAIL |
+| double_ma | JPM | 0.796 | -1.030 | 93.2% | 0.1291 | FAIL |
+| dual_thrust | JPM | 0.742 | -1.416 | 100.0% | 0.1810 | FAIL |
+| trend_momentum | NVDA | 0.738 | -1.125 | 83.1% | 0.0046 | FAIL |
 <!-- EVAL_TABLE_END -->
 
-> 21 strategy-ticker pairs (7 strategies x 3 tickers). Top 10 by OOS Sharpe. [Full report](docs/evaluation_report.md)
-
-> Walk-forward validation with 50-bar warmup buffer, Monte Carlo (1,000 iterations), Deflated Sharpe Ratio. [Full report](docs/evaluation_report.md)
+> 70 strategy-ticker pairs (7 strategies x 10 tickers). Top 10 by OOS Sharpe. [Full report](docs/evaluation_report.md)
 
 ---
 

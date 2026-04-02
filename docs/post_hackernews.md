@@ -14,8 +14,10 @@ A few things that might interest this crowd:
 
 **Dual-tier Claude routing.** Haiku handles fast classification tasks (~$0.001/call), Sonnet handles deep reasoning and debate (~$0.003/call). Full analysis per ticker: ~$0.003.
 
-**Stack:** Python backend, Next.js dashboard with WebSocket live data, Alpaca paper trading, Whisper voice input, Docker deployment. 113 tests, CI/CD.
+**Walk-forward evaluation harness.** Every strategy is tested with expanding-window walk-forward validation, Monte Carlo simulation (1,000 iterations on trade returns only), and statistical significance tests including Deflated Sharpe Ratio. Per-window indicator computation with 50-bar warmup buffer prevents data leakage. 70 strategy-ticker pairs across 10 tickers. The evaluation report with charts is generated automatically: https://github.com/alex-jb/orallexa-ai-trading-agent/blob/master/docs/evaluation_report.md
+
+**Stack:** Python backend, Next.js dashboard with WebSocket live data, Alpaca paper trading, Whisper voice input, Docker deployment. 127 tests, CI/CD.
 
 The core insight: structured disagreement produces better decisions than consensus. The Bear agent regularly catches risks (earnings proximity, mean reversion signals, liquidity gaps) that a single-pass system misses.
 
-MIT licensed. Would appreciate feedback on the adversarial agent architecture.
+MIT licensed. Would appreciate feedback on the adversarial agent architecture and the evaluation methodology.

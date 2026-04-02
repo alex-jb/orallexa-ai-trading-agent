@@ -1,1 +1,1 @@
-https://img.shields.io/badge/Walk--Forward Sharpe-0.96 (OOS)-green?style=flat-square
+https://img.shields.io/badge/Walk--Forward Sharpe-1.41 (OOS)-green?style=flat-square
