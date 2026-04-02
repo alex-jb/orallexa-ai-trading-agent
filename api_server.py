@@ -48,6 +48,8 @@ async def _warmup():
 
 _cors_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [
     "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001",
+    "https://orallexa-ui.vercel.app",
+    "https://orallexa-ui-*.vercel.app",
 ]
 
 app.add_middleware(
