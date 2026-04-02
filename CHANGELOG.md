@@ -2,6 +2,43 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-01] — Cloud Deployment & Final Polish
+
+### Cloud Infrastructure
+- **Cloud Deploy** — Live demo: [Vercel](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app) (frontend) + [Railway](https://orallexa-ai-trading-agent-production.up.railway.app) (backend, demo mode)
+- **Demo Mode** — `DEMO_MODE=true` runs full UI with simulated data, zero API cost
+- **Lightweight Docker** — `Dockerfile.railway` for cloud: no PyTorch, <1GB image
+- **README Rewrite** — Repositioned as "AI Trading Operating System", live demo links
+- **New Logo** — Blue wings + gold/blue text, deployed to README, PWA icons, presentation, dashboard
+
+### Experience Fixes
+- **API Startup** — Removed blocking warmup, now starts instantly
+- **7 Silent Exceptions** — All bare `except: pass` replaced with debug logging
+- **Viewport Warning** — Fixed Next.js metadata deprecation
+
+---
+
+## [2026-04-01] — Deep Learning Models & Testing
+
+### New ML Models (9 total)
+- **#014 EMAformer** — AAAI 2026 Transformer with Embedding Armor (Sharpe 1.24, +4.3% return)
+- **#015 PPO RL Agent** — Reinforcement learning, Sharpe optimized from -2.76 to +4.86
+- **#016 LLM Strategy Evolution** — Claude generates/tests/evolves Python strategy code across generations
+- **#017 GNN (GAT)** — Graph Attention Network, 17-stock relationship graph, inter-stock signals
+- **#018 DDPM Diffusion** — Probabilistic forecasting, 50 price paths, VaR/confidence intervals
+- **#019 LangGraph** — Bull/Bear debate migrated to StateGraph with typed state + conditional routing
+
+### Quality & DevOps
+- **#020 Test Suite** — 113 tests (integration + ML regression + API E2E), 108 passed, 0 failed
+- **#021 Social Posts** — Per-section "Copy for X" button, plain-language Twitter-ready content
+- **#022 CI/CD** — GitHub Actions: lint + test + build on every push (3 jobs, ~1 min)
+- **#023 Docker** — `docker compose up` one-click deploy with healthcheck
+- **#024 Alpaca Paper Trading** — Execute signals as bracket orders with auto stop-loss/take-profit
+- **#025 WebSocket** — `/ws/live` real-time price stream + signal change detection
+- **#026 PWA** — Installable mobile app with custom icons
+
+---
+
 ## [2026-04-01] — Production Readiness: Docker + README + Deploy Fixes
 
 ### Added
