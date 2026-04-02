@@ -17,7 +17,7 @@ An end-to-end trading intelligence system that goes from raw market data
 to executed paper trades — with 9 ML models, LLM reasoning, real-time dashboard,
 and one-click social content along the way.
 
-[English](#the-system) | [中文](README_CN.md) | [Presentation](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html)
+[Live Demo](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app) | [Presentation](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) | [中文](README_CN.md)
 
 </div>
 
@@ -206,6 +206,10 @@ A floating assistant for hands-free trading analysis:
 ---
 
 ## Quick Start
+
+### Try It Now (No Install)
+
+**[Live Demo](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app)** — runs in demo mode with simulated data, no API key needed.
 
 ### Option 1: Manual
 
