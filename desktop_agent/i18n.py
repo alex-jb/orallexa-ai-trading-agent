@@ -41,14 +41,16 @@ _STRINGS: dict[str, dict[str, str]] = {
     # ── Chat popover: empty-state hint ───────────────────────────
     "hint": {
         "en": (
-            "Ready. Try:\n"
+            "Welcome back, Master!\n"
+            "Try:\n"
             "  \"Analyze NVDA\"\n"
             "  \"TSLA swing\"\n"
             "  \"Screenshot this chart\"\n"
             "  or press Ctrl+Shift+S"
         ),
         "zh": (
-            "准备就绪，试试:\n"
+            "Welcome back, Master!\n"
+            "试试:\n"
             "  \"分析 NVDA\"\n"
             "  \"TSLA 波段\"\n"
             "  \"截图分析图表\"\n"

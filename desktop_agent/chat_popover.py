@@ -27,38 +27,41 @@ FONT_HEAD  = FONT_HEADING    # Josefin Sans (labels, headers, uppercase)
 FONT_MONO  = _FONT_MONO      # DM Mono (prices, data, metrics)
 MIN_PT     = 10    # accessibility: WCAG AA minimum (was 8, too small)
 
-# ── Colours: Art Deco palette — aligned with DESIGN.md tokens ────────────────
-BG          = "#0A0A0F"     # --bg-deep
-BG_CARD     = "#1A1A2E"     # --bg-card
-BG_METRIC   = "#12111A"     # metric cell — between panel and card
-BG_INPUT    = "#0D1117"     # --bg-panel
-BG_TOOLBAR  = "#0A0A0F"     # same as bg-deep
+# ── Colours: Desktop Pet palette — matching Figma design ─────────────────────
+BG          = "#0F0F16"     # dark pet background
+BG_CARD     = "#161623"     # card surface
+BG_METRIC   = "#12111A"     # metric cell
+BG_INPUT    = "#161623"     # input row (same as card)
+BG_TOOLBAR  = "#0F0F16"     # same as bg
 FG          = "#F5E6CA"     # --champagne (primary text)
 FG_DIM      = "#C5A255"     # --gold-muted
 FG_MUTED    = "#6B6E76"     # --text-muted
 FG_HINT     = "#4A4D55"     # --text-dim
 
-COL_BUY     = "#006B3F"     # --emerald (bull/buy)
-COL_BUY_DIM = "#0A1F16"     # dark emerald bg
-COL_SELL    = "#8B0000"     # --ruby (bear/sell)
-COL_SELL_DIM= "#1F0A0A"     # dark ruby bg
+COL_BUY     = "#DC3C3C"     # red = bullish (中国红=涨)
+COL_BUY_DIM = "#1E1010"     # dark red bg
+COL_SELL    = "#32AA5A"     # green = bearish (绿=跌)
+COL_SELL_DIM= "#101E14"     # dark green bg
 COL_WAIT    = "#D4AF37"     # --gold (wait/neutral)
 COL_WAIT_DIM= "#1A1608"     # dark gold bg
 COL_ACTIVE  = "#D4AF37"     # --gold
 
 ACCENT      = "#D4AF37"     # --gold
 ACCENT_BRIGHT = "#FFD700"   # --gold-bright
-ACCENT_DIM  = "#1A1A2E"     # --bg-card
+ACCENT_DIM  = "#161623"     # --bg-card
 BTN_MIC     = "#D4AF37"
-BTN_MIC_REC = "#8B0000"     # ruby
+BTN_MIC_REC = "#DC3C3C"     # red
 BTN_SEND    = "#D4AF37"
-BTN_STOP    = "#8B0000"
+BTN_STOP    = "#DC3C3C"
 BTN_HOVER   = "#2A2A3E"     # --bg-input
 BTN_ACTIVE  = "#C5A255"     # --gold-muted
 BORDER      = "#2A2A3E"     # --border
-BORDER_GOLD = "#3D3520"     # --border-gold (Tkinter-compatible approximation)
+BORDER_GOLD = "#3D3520"     # approx for Tkinter
 
-W, H = 390, 680
+# Pixel accent size (for decorative pixel dots)
+PX_DOT = 3
+
+W, H = 340, 580
 
 
 class ChatPopover:
@@ -115,43 +118,23 @@ class ChatPopover:
     def _build_ui(self) -> None:
         win = self._win
 
-        # ── Gold accent line at top (Art Deco brand signature) ────
-        gold_line = tk.Frame(win, bg=ACCENT, height=2)
+        # ── Gold gradient accent line at top ──────────────────────
+        gold_line = tk.Frame(win, bg=ACCENT, height=3)
         gold_line.pack(fill="x", side="top")
 
-        # ── Title bar ────────────────────────────────────────────
-        title_bar = tk.Frame(win, bg=BG_CARD, height=36)
+        # ── Title bar (compact, matching Figma) ──────────────────
+        title_bar = tk.Frame(win, bg=BG_CARD, height=34)
         title_bar.pack(fill="x", side="top")
         title_bar.pack_propagate(False)
 
-        # Diamond ornament before title
-        tk.Label(title_bar, text="\u25C6", bg=BG_CARD, fg=ACCENT,
-                 font=(FONT, 8), padx=4).pack(side="left")
-
         self._title_lbl = tk.Label(
-            title_bar, text=t("bull_coach").upper(), bg=BG_CARD, fg=FG,
-            font=(FONT_HEAD, 10, "bold"), anchor="w", padx=4)
+            title_bar, text="ORALLEXA", bg=BG_CARD, fg=ACCENT,
+            font=(FONT_HEAD, 10, "bold"), anchor="w", padx=10)
         self._title_lbl.pack(side="left", fill="y")
 
-        # Diamond ornament after title
-        tk.Label(title_bar, text="\u25C6", bg=BG_CARD, fg=ACCENT,
-                 font=(FONT, 6)).pack(side="left", padx=(2, 0))
-
-        # Clear chat button
-        clear_btn = tk.Button(
-            title_bar, text=t("clear"), bg=BG_CARD, fg=FG_MUTED,
-            font=(FONT, 8), bd=0, padx=6,
-            activebackground=BTN_HOVER, activeforeground=FG,
-            command=self._clear_chat, cursor="hand2")
-        clear_btn.pack(side="right", fill="y")
-
-        # Quit app button — exits the entire desktop agent
-        quit_btn = tk.Button(
-            title_bar, text=t("tray_quit"), bg=BG_CARD, fg="#8B0000",
-            font=(FONT, 8), bd=0, padx=6,
-            activebackground="#1F0A0A", activeforeground="#CC3333",
-            command=self._quit_app, cursor="hand2")
-        quit_btn.pack(side="right", fill="y")
+        # Green online dot
+        tk.Label(title_bar, text="\u25CF", bg=BG_CARD, fg="#32AA5A",
+                 font=(FONT, 6), padx=2).pack(side="left")
 
         close_btn = tk.Button(
             title_bar, text="\u2715", bg=BG_CARD, fg=FG_MUTED,
@@ -160,8 +143,39 @@ class ChatPopover:
             command=self.hide, cursor="hand2")
         close_btn.pack(side="right", fill="y")
 
-        # Gold divider line below title
-        tk.Frame(win, bg=BORDER_GOLD, height=1).pack(fill="x")
+        quit_btn = tk.Button(
+            title_bar, text=t("tray_quit"), bg=BG_CARD, fg="#DC3C3C",
+            font=(FONT, 8), bd=0, padx=6,
+            activebackground="#1E1010", activeforeground="#FF6666",
+            command=self._quit_app, cursor="hand2")
+        quit_btn.pack(side="right", fill="y")
+
+        clear_btn = tk.Button(
+            title_bar, text=t("clear"), bg=BG_CARD, fg=FG_MUTED,
+            font=(FONT, 8), bd=0, padx=6,
+            activebackground=BTN_HOVER, activeforeground=FG,
+            command=self._clear_chat, cursor="hand2")
+        clear_btn.pack(side="right", fill="y")
+
+        # ── Welcome section ──────────────────────────────────────
+        welcome_frame = tk.Frame(win, bg=BG, pady=10)
+        welcome_frame.pack(fill="x")
+        tk.Label(welcome_frame, text="Welcome back, Master!",
+                 bg=BG, fg=ACCENT_BRIGHT,
+                 font=(FONT, 12, "bold")).pack()
+
+        self._market_status = tk.Label(welcome_frame, text="",
+                 bg=BG, fg=FG_MUTED, font=(FONT, MIN_PT - 1))
+        self._market_status.pack(pady=(2, 0))
+
+        # Pixel dot divider
+        px_div = tk.Frame(win, bg=BG, height=8)
+        px_div.pack(fill="x")
+        # Three tiny gold squares as pixel diamond
+        for i, offset in enumerate([-6, 0, 6]):
+            dot = tk.Frame(px_div, bg=ACCENT if i == 1 else FG_DIM,
+                          width=PX_DOT, height=PX_DOT)
+            dot.place(relx=0.5, rely=0.5, x=offset, anchor="center")
 
         # ── Toolbar: ticker + mode toggles (Phase 1) ─────────────
         toolbar = tk.Frame(win, bg=BG_TOOLBAR, pady=4, padx=8)
@@ -523,7 +537,7 @@ class ChatPopover:
             "WAIT": (COL_WAIT, COL_WAIT_DIM),
         }
         fg_col, bg_col = color_map.get(dec, (FG_DIM, BG_METRIC))
-        # Art Deco diamond icons for decisions
+        # Pixel-pet style decision icons
         _dec_icons = {"BUY": "\u25B2", "SELL": "\u25BC", "WAIT": "\u25C6"}
         _icon = _dec_icons.get(dec, "")
         self._dec_badge.config(text=f" {_icon} {dec} ", fg=fg_col, bg=bg_col)
@@ -635,6 +649,11 @@ class ChatPopover:
             self._ticker_entry.delete(0, "end")
             self._ticker_entry.insert(0, self._bb.ticker)
         self._refresh_mode_btns()
+
+    def update_market_status(self, text: str) -> None:
+        """Update the market status line in the welcome section."""
+        if hasattr(self, "_market_status"):
+            self._market_status.config(text=text)
 
     def _notify_changes(self) -> None:
         changes = self._bb.last_changes

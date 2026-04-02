@@ -147,33 +147,9 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
         <div className="relative px-8 pt-8 pb-3">
           <Heading>{t.engineDec}</Heading>
 
-          {/* Geometric bull icon in diamond frame — brand centerpiece */}
+          {/* Pixel bull pet — NFT style mascot */}
           <div className="mt-8 mb-6 flex flex-col items-center anim-fade-in">
-            <svg width="140" height="140" viewBox="0 0 100 100" fill="none" className="mb-5" style={{ opacity: 0.2 }}>
-              <defs>
-                <linearGradient id="emptyGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#D4AF37" />
-                  <stop offset="50%" stopColor="#FFD700" />
-                  <stop offset="100%" stopColor="#C5A255" />
-                </linearGradient>
-              </defs>
-              {/* Outer diamond */}
-              <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke="url(#emptyGold)" strokeWidth="1.5" />
-              {/* Inner diamond */}
-              <polygon points="50,18 82,50 50,82 18,50" fill="none" stroke="url(#emptyGold)" strokeWidth="1" opacity="0.5" />
-              {/* Bull horns */}
-              <path d="M40,42 L35,25 L28,18 L30,22 L36,32 L42,42" fill="url(#emptyGold)" opacity="0.8" />
-              <path d="M60,42 L65,25 L72,18 L70,22 L64,32 L58,42" fill="url(#emptyGold)" opacity="0.8" />
-              {/* Central orb */}
-              <circle cx="50" cy="48" r="10" fill="none" stroke="url(#emptyGold)" strokeWidth="1.5" />
-              <circle cx="50" cy="48" r="4" fill="#FFD700" opacity="0.4" />
-              {/* Stepped shoulders */}
-              <path d="M38,55 L28,55 L28,60 L22,60" fill="none" stroke="url(#emptyGold)" strokeWidth="1" opacity="0.5" />
-              <path d="M62,55 L72,55 L72,60 L78,60" fill="none" stroke="url(#emptyGold)" strokeWidth="1" opacity="0.5" />
-              {/* Snout */}
-              <path d="M46,58 L50,65 L54,58" fill="none" stroke="url(#emptyGold)" strokeWidth="1" />
-            </svg>
-
+            <img src="/pixel_bull.png" alt="Orallexa Bull" width={96} height={104} className="mb-4 image-rendering-pixelated" style={{ imageRendering: "pixelated" }} />
             <div className="text-[48px] font-[Poiret_One] leading-none tracking-[0.2em]" style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(255,215,0,0.18), rgba(197,162,85,0.12))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.standby}</div>
           </div>
 

@@ -33,8 +33,8 @@ load_fonts()
 # ── Constants ─────────────────────────────────────────────────────────────────
 ASSETS       = Path(__file__).parent.parent / "assets" / "avatar"
 TRANS        = "#010101"
-CHAR_W       = 128
-CHAR_H       = 128
+CHAR_W       = 96
+CHAR_H       = 108
 WALK_SPEED   = 2
 FPS_MOVE     = 40
 FPS_SPRITE   = 8
@@ -60,12 +60,12 @@ def _state_bubbles(lang: str | None = None) -> dict[str, list[str]]:
     }
 
 STATE_COLORS: dict[str, str] = {
-    "idle":      "#C5A255",   # gold-muted — Art Deco neutral
-    "listening": "#7BA7CC",   # steel blue — 1920s art poster
-    "thinking":  "#8B7EC8",   # muted lavender — Gatsby violet
-    "confident": "#006B3F",   # emerald — matching DESIGN.md bull/success
-    "warning":   "#8B0000",   # ruby — matching DESIGN.md bear/error
-    "wait":      "#D4AF37",   # Art Deco gold — matching DESIGN.md warning
+    "idle":      "#D4AF37",   # gold — neutral pixel bull
+    "listening": "#64A0DC",   # blue — listening pixel bull
+    "thinking":  "#9678C8",   # purple — thinking pixel bull
+    "confident": "#DC3C3C",   # red — bullish/buy (中国红=涨)
+    "warning":   "#32AA5A",   # green — bearish/sell (绿=跌)
+    "wait":      "#D4AF37",   # gold — neutral
 }
 
 
