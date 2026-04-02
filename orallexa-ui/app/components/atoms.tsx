@@ -119,23 +119,15 @@ export function BullIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-/* Larger brand mark for headers — diamond-framed bull with name */
+/* Brand mark using the official logo.svg from /public */
 export function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <BullIcon size={compact ? 24 : 32} />
-      <div>
-        <div className={`font-[Poiret_One] ${compact ? "text-[13px] tracking-[0.2em]" : "text-[16px] tracking-[0.3em]"} leading-none shimmer-gold`}
-          style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-          ORALLEXA
-        </div>
-        {!compact && (
-          <div className="text-[7px] font-[Josefin_Sans] text-[#C5A255]/50 tracking-[0.25em] uppercase mt-1 font-light">
-            Capital Intelligence
-          </div>
-        )}
-      </div>
-    </div>
+    <img
+      src="/logo.svg"
+      alt="Orallexa Capital Intelligence"
+      className={compact ? "h-[28px]" : "h-[36px]"}
+      style={{ width: "auto" }}
+    />
   );
 }
 

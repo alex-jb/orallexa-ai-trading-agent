@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_everything-claude-code_playwright__browser_navigate",
+      "Bash(start:*)",
+      "Bash(python desktop_agent/generate_avatar.py)",
+      "Skill(plan-design-review)",
+      "Bash(taskkill /f /im node.exe)",
+      "Bash(npx next:*)",
+      "Bash(cmd.exe /c start http://localhost:3001)",
+      "Bash(taskkill //F //PID 10116)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3002)",
+      "Bash(curl:*)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(npx serve:*)",
+      "Bash(cmd.exe /c start http://localhost:3333)",
+      "Bash(powershell -Command \"Stop-Process -Id 10116 -Force\")"
+    ]
+  }
+}

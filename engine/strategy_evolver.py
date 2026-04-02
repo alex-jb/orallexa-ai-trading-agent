@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import threading
 import textwrap
 import traceback
 from dataclasses import dataclass, field, asdict
@@ -29,10 +30,18 @@ import numpy as np
 import pandas as pd
 
 from core.logger import get_logger
+from engine.backtest import simple_backtest
+from engine.evaluation import evaluate
 
 logger = get_logger("strategy_evolver")
 
 RESULTS_DIR = Path("results") / "evolved_strategies"
+
+# Maximum time (seconds) to execute a single LLM-generated strategy
+EXEC_TIMEOUT_SECONDS = 10
+
+# Maximum total LLM cost per evolution run (USD)
+MAX_COST_PER_RUN = 2.0
 
 # Available columns the LLM strategy can use
 AVAILABLE_COLUMNS = [
@@ -85,7 +94,7 @@ def strategy(df: pd.DataFrame) -> pd.Series:
     Args:
         df: DataFrame with columns: {columns}
     Returns:
-        pd.Series of integers: 1 (long), 0 (flat)
+        pd.Series of integers: 1 (long), 0 (flat), -1 (short/exit)
     \"\"\"
     # Your strategy logic here
     signal = pd.Series(0, index=df.index)
@@ -97,8 +106,9 @@ Rules:
 - Import ONLY numpy and pandas (already available as np and pd)
 - Use ONLY columns from this list: {columns}
 - Check column existence before using: `if "RSI" in df.columns`
-- Return pd.Series of 0s and 1s aligned with df.index
+- Return pd.Series of -1, 0, and 1 values aligned with df.index
 - NO print statements, NO side effects, NO file I/O
+- Do NOT use pd.read_csv, pd.read_html, open(), or any file/network operations
 - Strategy must be DIFFERENT from: {existing}
 - Keep it under 30 lines of logic (simple is better)
 - Use vectorized pandas operations, avoid for-loops
@@ -131,9 +141,10 @@ Available columns: {columns}
 
 Rules:
 - Same function signature: `def strategy(df: pd.DataFrame) -> pd.Series`
-- Return pd.Series of 0s and 1s
+- Return pd.Series of -1, 0, and 1 values
 - Import ONLY numpy and pandas (available as np and pd)
 - Check column existence before using
+- Do NOT use pd.read_csv, pd.read_html, open(), or any file/network operations
 - Try to improve Sharpe ratio by:
   * Combining signals from multiple top strategies
   * Adding a filter that reduces false signals
@@ -192,7 +203,7 @@ def _generate_strategy_code(
             mutation_hint=f"Mutation hint: {hint}",
         )
 
-    response, _ = logged_create(
+    response, record = logged_create(
         client, request_type="strategy_evolution",
         model=cc.FAST_MODEL,
         max_tokens=1200,
@@ -221,25 +232,73 @@ def _generate_strategy_code(
                 code = "\n".join(lines[i:])
                 break
 
-    return code, f"Generation {generation}"
+    cost = record.estimated_cost_usd if record else 0.0
+    return code, f"Generation {generation}", cost
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SANDBOX EXECUTION
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _execute_strategy(code: str, df: pd.DataFrame) -> Optional[pd.Series]:
+# Pandas attributes that must NOT be accessible in the sandbox
+_DANGEROUS_PD_ATTRS = [
+    "read_csv", "read_html", "read_sql", "read_excel", "read_json",
+    "read_parquet", "read_feather", "read_hdf", "read_pickle",
+    "read_table", "read_fwf", "read_clipboard", "read_orc",
+    "read_spss", "read_stata", "ExcelWriter",
+]
+
+
+def _make_safe_pd():
+    """Create a restricted pandas module proxy that blocks file I/O."""
+    import types
+    safe_pd = types.ModuleType("pandas")
+    # Copy safe attributes from pd
+    for attr in dir(pd):
+        if attr not in _DANGEROUS_PD_ATTRS and not attr.startswith("_"):
+            try:
+                setattr(safe_pd, attr, getattr(pd, attr))
+            except (AttributeError, TypeError):
+                pass
+    # Ensure core types are available
+    safe_pd.Series = pd.Series
+    safe_pd.DataFrame = pd.DataFrame
+    safe_pd.Index = pd.Index
+    return safe_pd
+
+
+def _execute_strategy(code: str, df: pd.DataFrame, timeout: int = EXEC_TIMEOUT_SECONDS) -> Optional[pd.Series]:
     """
-    Safely execute strategy code in a restricted namespace.
+    Safely execute strategy code in a restricted namespace with timeout.
     Returns signal Series or None on failure.
     """
+    if not code or "def strategy" not in code:
+        logger.warning("Strategy code missing or no 'def strategy' found")
+        return None
+
+    safe_pd = _make_safe_pd()
     sandbox = {
+        "__builtins__": {},
         "np": np,
-        "pd": pd,
+        "pd": safe_pd,
         "pd_Series": pd.Series,
         "pd_DataFrame": pd.DataFrame,
+        "range": range,
+        "len": len,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "abs": abs,
+        "min": min,
+        "max": max,
+        "sum": sum,
+        "round": round,
+        "isinstance": isinstance,
+        "getattr": getattr,
+        "hasattr": hasattr,
     }
 
+    # Compile
     try:
         exec(code, sandbox)
     except Exception as e:
@@ -251,43 +310,72 @@ def _execute_strategy(code: str, df: pd.DataFrame) -> Optional[pd.Series]:
         logger.warning("Strategy code does not define a `strategy` function")
         return None
 
-    try:
-        signal = strategy_fn(df)
-    except Exception as e:
-        logger.warning("Strategy execution error: %s", e)
+    # Execute with timeout
+    result = [None]
+    error = [None]
+
+    def _run():
+        try:
+            result[0] = strategy_fn(df)
+        except Exception as e:
+            error[0] = e
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout)
+
+    if thread.is_alive():
+        logger.warning("Strategy execution timed out after %ds", timeout)
         return None
 
+    if error[0] is not None:
+        logger.warning("Strategy execution error: %s", error[0])
+        return None
+
+    signal = result[0]
     if not isinstance(signal, pd.Series):
         return None
 
-    # Validate: must be same length as df, values in {0, 1}
+    # Validate: must be same length as df
     if len(signal) != len(df):
         return None
 
-    # Clamp to binary
-    signal = signal.clip(0, 1).fillna(0).astype(int)
+    # Clamp to {-1, 0, 1} and fill NaN
+    signal = signal.clip(-1, 1).fillna(0).round().astype(int)
     return signal
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# BACKTESTING (reuse from ml_signal)
+# METRICS EXTRACTION (from simple_backtest output)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _backtest(df: pd.DataFrame, signal: pd.Series, tc: float = 0.001) -> dict:
-    """Lightweight backtest. Returns metrics dict."""
-    returns = df["Close"].pct_change().fillna(0)
-    position = signal.shift(1).fillna(0)
-    trades = position.diff().abs().fillna(0)
+def _extract_metrics(bt_df: pd.DataFrame) -> dict:
+    """Extract standard metrics from a simple_backtest() output DataFrame."""
+    if bt_df is None or len(bt_df) == 0:
+        return {
+            "sharpe": 0.0, "total_return": 0.0, "max_drawdown": 0.0,
+            "win_rate": 0.0, "n_trades": 0, "mkt_return": 0.0,
+        }
 
-    net = position * returns - trades * tc
-    cum = (1 + net).cumprod()
-    mkt = (1 + returns).cumprod()
+    net = bt_df["net_strategy_return"] if "net_strategy_return" in bt_df.columns else bt_df.get("strategy_return", pd.Series(0, index=bt_df.index))
+    cum = bt_df["CumulativeNetStrategyReturn"] if "CumulativeNetStrategyReturn" in bt_df.columns else (1 + net).cumprod()
+    mkt_cum = bt_df["CumulativeMarketReturn"] if "CumulativeMarketReturn" in bt_df.columns else pd.Series(1.0, index=bt_df.index)
 
     sharpe = float(net.mean() / net.std() * np.sqrt(252)) if net.std() > 1e-9 else 0.0
-    total = float(cum.iloc[-1] - 1)
-    maxdd = float(((cum - cum.cummax()) / cum.cummax()).min())
-    winrate = float((net[position > 0] > 0).mean()) if (position > 0).any() else 0.0
-    n_trades = int(trades[trades > 0].count())
+    total = float(cum.iloc[-1] - 1) if len(cum) > 0 else 0.0
+    maxdd = float(((cum - cum.cummax()) / cum.cummax().clip(lower=1e-9)).min()) if len(cum) > 0 else 0.0
+
+    shifted = bt_df.get("Signal", bt_df.get("signal", pd.Series(0, index=bt_df.index))).shift(1).fillna(0)
+    in_position = shifted != 0
+    if in_position.any():
+        winrate = float((net[in_position] > 0).mean())
+    else:
+        winrate = 0.0
+
+    pos_changes = shifted.diff().abs().fillna(0)
+    n_trades = int((pos_changes > 0).sum())
+
+    mkt_return = float(mkt_cum.iloc[-1] - 1) if len(mkt_cum) > 0 else 0.0
 
     return {
         "sharpe": round(sharpe, 4),
@@ -295,8 +383,23 @@ def _backtest(df: pd.DataFrame, signal: pd.Series, tc: float = 0.001) -> dict:
         "max_drawdown": round(maxdd, 4),
         "win_rate": round(winrate, 4),
         "n_trades": n_trades,
-        "mkt_return": round(float(mkt.iloc[-1] - 1), 4),
+        "mkt_return": round(mkt_return, 4),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# INDICATOR COMPUTATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _ensure_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Add technical indicators if not already present."""
+    if "RSI" in df.columns and "MACD" in df.columns:
+        return df  # Already computed
+
+    from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2
+    ta = TechnicalAnalysisSkillV2(df)
+    ta.add_indicators()
+    return ta.copy()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -317,6 +420,7 @@ class StrategyEvolver:
     def __init__(self, ticker: str = "NVDA"):
         self.ticker = ticker
         self.all_strategies: list[EvolvedStrategy] = []
+        self.total_cost: float = 0.0
 
     def run(
         self,
@@ -325,6 +429,7 @@ class StrategyEvolver:
         generations: int = 3,
         population: int = 4,
         top_k: int = 2,
+        max_cost: float = MAX_COST_PER_RUN,
     ) -> dict:
         """
         Run the full evolution loop.
@@ -333,8 +438,18 @@ class StrategyEvolver:
         logger.info("Starting strategy evolution for %s: %d generations x %d population",
                      self.ticker, generations, population)
 
+        # Ensure indicators are computed
+        train_df = _ensure_indicators(train_df)
+        test_df = _ensure_indicators(test_df)
+
         for gen in range(generations):
             logger.info("=== Generation %d ===", gen)
+
+            # Check cost budget
+            if self.total_cost >= max_cost:
+                logger.warning("Cost budget exhausted ($%.2f >= $%.2f). Stopping.",
+                               self.total_cost, max_cost)
+                break
 
             # Select top performers to evolve from
             top = sorted(
@@ -345,15 +460,19 @@ class StrategyEvolver:
             existing_names = [s.name for s in self.all_strategies]
 
             for idx in range(population):
+                if self.total_cost >= max_cost:
+                    break
+
                 name = f"evo_g{gen}_s{idx}"
 
                 try:
-                    code, reasoning = _generate_strategy_code(
+                    code, reasoning, cost = _generate_strategy_code(
                         generation=gen,
                         top_strategies=top,
                         existing_names=existing_names,
                         ticker=self.ticker,
                     )
+                    self.total_cost += cost
                 except Exception as e:
                     logger.warning("LLM generation failed: %s", e)
                     self.all_strategies.append(EvolvedStrategy(
@@ -380,7 +499,19 @@ class StrategyEvolver:
                     ))
                     continue
 
-                metrics = _backtest(test_df, test_signal)
+                # Use simple_backtest for consistent metrics
+                test_bt = test_df.copy()
+                test_bt["signal"] = test_signal
+                try:
+                    bt_result = simple_backtest(test_bt, signal_col="signal")
+                    metrics = _extract_metrics(bt_result)
+                except Exception as e:
+                    logger.warning("Backtest failed for %s: %s", name, e)
+                    self.all_strategies.append(EvolvedStrategy(
+                        name=name, code=code, generation=gen,
+                        error=f"Backtest failed: {e}", reasoning=reasoning,
+                    ))
+                    continue
 
                 strat = EvolvedStrategy(
                     name=name,
@@ -414,8 +545,84 @@ class StrategyEvolver:
             "total_strategies": len(self.all_strategies),
             "valid_strategies": len(valid),
             "failed_strategies": len(self.all_strategies) - len(valid),
+            "total_cost_usd": round(self.total_cost, 4),
             "best": best.to_dict() if best else None,
             "leaderboard": [s.to_dict() for s in leaderboard[:10]],
+        }
+
+    def validate_with_harness(self, best: EvolvedStrategy, df: pd.DataFrame) -> dict:
+        """
+        Validate the best evolved strategy using the evaluation harness
+        (walk-forward + Monte Carlo + statistical tests).
+
+        Returns dict with harness results or error.
+        """
+        from eval.walk_forward import run_walk_forward
+        from eval.monte_carlo import run_monte_carlo
+        from eval.statistical_tests import run_statistical_tests
+
+        df = _ensure_indicators(df)
+
+        # Execute strategy to get signals
+        signal = _execute_strategy(best.code, df)
+        if signal is None:
+            return {"error": "Strategy execution failed on full data"}
+
+        bt_df = df.copy()
+        bt_df["signal"] = signal
+        bt_result = simple_backtest(bt_df, signal_col="signal")
+
+        # Wrap the evolved code as a callable for walk-forward
+        def evolved_fn(sub_df, params):
+            sub_df = _ensure_indicators(sub_df)
+            return _execute_strategy(best.code, sub_df) or pd.Series(0, index=sub_df.index)
+
+        # Walk-forward validation
+        raw_df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
+        wf = run_walk_forward(
+            df=raw_df, strategy_fn=evolved_fn,
+            strategy_name=best.name, params={},
+        )
+
+        # Monte Carlo
+        mc = run_monte_carlo(
+            backtest_df=bt_result, strategy_name=best.name,
+            ticker=self.ticker, n_iterations=1000, seed=42,
+        )
+
+        # Statistical tests
+        signal_shifted = bt_result["Signal"].shift(1).fillna(0) if "Signal" in bt_result.columns else bt_result["signal"].shift(1).fillna(0)
+        mask = signal_shifted != 0
+        ret_col = "net_strategy_return" if "net_strategy_return" in bt_result.columns else "strategy_return"
+        trade_returns = bt_result.loc[mask, ret_col].dropna().values if ret_col in bt_result.columns else np.array([])
+
+        stats = run_statistical_tests(
+            trade_returns=trade_returns,
+            strategy_name=best.name,
+            ticker=self.ticker,
+            num_strategies_tested=max(len([s for s in self.all_strategies if not s.error]), 1),
+            seed=42,
+        )
+
+        return {
+            "walk_forward": {
+                "windows": wf.num_windows,
+                "avg_oos_sharpe": wf.avg_oos_sharpe,
+                "pct_positive": wf.pct_positive_sharpe,
+                "passed": wf.passed,
+            },
+            "monte_carlo": {
+                "original_sharpe": mc.original_sharpe,
+                "percentile_rank": mc.sharpe_percentile_rank,
+                "passed": mc.passed,
+            },
+            "statistical": {
+                "p_value": stats.p_value,
+                "sharpe_ci": [stats.sharpe_ci_lower, stats.sharpe_ci_upper],
+                "dsr": stats.dsr,
+                "significant": stats.returns_significant,
+            },
+            "overall_pass": wf.passed and mc.passed and (stats.returns_significant if stats.sufficient_data else False),
         }
 
     def _save(self, leaderboard: list[EvolvedStrategy]) -> None:
@@ -425,6 +632,7 @@ class StrategyEvolver:
         data = {
             "ticker": self.ticker,
             "timestamp": datetime.now().isoformat(),
+            "total_cost_usd": round(self.total_cost, 4),
             "leaderboard": [s.to_dict() for s in leaderboard],
         }
         with open(path, "w", encoding="utf-8") as f:
