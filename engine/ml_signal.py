@@ -53,9 +53,13 @@ def _make_features_labels(df: pd.DataFrame, forward_days: int = 5) -> Tuple[pd.D
     X = X.iloc[:-forward_days]
     y = y.iloc[:-forward_days]
 
-    # Fill any remaining NaN with 0
-    X = X.fillna(0)
-    y = y.fillna(0)
+    # Drop early rows where indicators have NaN (MA50 needs ~50 rows)
+    first_valid = X.dropna(how="any").index[0] if not X.dropna(how="any").empty else X.index[0]
+    X = X.loc[first_valid:]
+    y = y.loc[first_valid:]
+
+    # Forward-fill then back-fill any remaining sparse NaN (safer than zero-fill)
+    X = X.ffill().bfill().fillna(0)
 
     return X, y
 

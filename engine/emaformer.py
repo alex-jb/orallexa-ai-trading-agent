@@ -259,10 +259,11 @@ class EMAformerPredictor:
         data = self._df_to_array(train_df)
         n_features = data.shape[1]
 
-        # Normalize
+        # Normalize — fit stats on training data only (no test leakage)
         self._mean = data.mean(axis=0)
         self._std = data.std(axis=0) + 1e-8
         data_norm = (data - self._mean) / self._std
+        # Note: self._mean and self._std are saved for test-time normalization
 
         dataset = TimeSeriesDataset(data_norm, self.seq_len, self.pred_len, self.cycle)
         if len(dataset) < 10:

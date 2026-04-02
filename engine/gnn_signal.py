@@ -218,15 +218,20 @@ def _build_feature_tensors(
     data: dict[str, pd.DataFrame],
     tickers: list[str],
     dates: pd.DatetimeIndex,
+    train_end: int = 0,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Build (T, N, F) feature tensor and (T, N) label tensor.
     Label: 1 if close price goes up in next 5 days, else 0.
+    train_end: index for train/test split — normalize stats from [:train_end] only.
+               If 0, uses 80% of dates.
     """
     T = len(dates)
     N = len(tickers)
     F = N_NODE_FEATURES
     forward = 5
+    if train_end <= 0:
+        train_end = int(T * 0.8)
 
     features = torch.zeros(T, N, F)
     labels = torch.zeros(T, N)
@@ -235,15 +240,17 @@ def _build_feature_tensors(
         df = data[t].loc[dates]
         for k, col in enumerate(NODE_FEATURES):
             if col in df.columns:
-                vals = df[col].fillna(0).values
-                # Z-score normalize
-                mean, std = vals.mean(), vals.std() + 1e-8
+                vals = df[col].ffill().bfill().fillna(0).values
+                # Z-score normalize using train data only (avoid test leakage)
+                train_vals = vals[:train_end]
+                mean, std = train_vals.mean(), train_vals.std() + 1e-8
                 features[:, j, k] = torch.tensor((vals - mean) / std, dtype=torch.float32)
 
-        # Labels: forward return > 0
+        # Labels: forward return > 0 (only where we have future data)
         close = df["Close"].values
         for i in range(T - forward):
-            labels[i, j] = 1.0 if close[min(i + forward, T - 1)] > close[i] else 0.0
+            labels[i, j] = 1.0 if close[i + forward] > close[i] else 0.0
+        # Last `forward` days have no valid label — leave as 0 (masked in training)
 
     return features, labels
 
@@ -301,10 +308,9 @@ class GNNSignalGenerator:
 
         # Build graph
         adj = _build_adjacency(self.target, tickers)
-        features, labels = _build_feature_tensors(data, tickers, dates)
-
         # Train/test split
         split = int(len(dates) * 0.8)
+        features, labels = _build_feature_tensors(data, tickers, dates, train_end=split)
         train_x, train_y = features[:split], labels[:split]
         test_x, test_y = features[split:], labels[split:]
 

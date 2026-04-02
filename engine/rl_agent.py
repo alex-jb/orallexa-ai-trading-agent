@@ -83,8 +83,9 @@ def _build_env(df: pd.DataFrame, features: list[str], initial_balance: float = 1
             return self.balance + self.position * price
 
         def _obs(self):
-            start = max(0, self.step_idx - self.window)
-            end = self.step_idx
+            # Use data up to previous day to avoid lookahead bias
+            end = max(1, self.step_idx)
+            start = max(0, end - self.window)
             feat_data = self.df[self.features].iloc[start:end].values
 
             # Z-score normalization within window
