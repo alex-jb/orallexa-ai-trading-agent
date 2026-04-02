@@ -17,7 +17,7 @@ An end-to-end trading intelligence system that goes from raw market data
 to executed paper trades — with 9 ML models, LLM reasoning, real-time dashboard,
 and one-click social content along the way.
 
-[Live Demo](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app) | [Presentation](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) | [中文](README_CN.md)
+[Live Demo](https://orallexa-ui.vercel.app) | [Presentation](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) | [中文](README_CN.md)
 
 </div>
 
@@ -101,7 +101,7 @@ Want to share this? Every analysis has a built-in "Copy for X" button that forma
 
 ## Try It Instantly
 
-**[Open Live Demo](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app)** — runs in demo mode, no API key needed.
+**[Open Live Demo](https://orallexa-ui.vercel.app)** — runs in demo mode, no API key needed.
 
 Click **NVDA**, **TSLA**, or **QQQ** quick-start buttons to see a full analysis in seconds.
 
@@ -230,7 +230,7 @@ A floating assistant for hands-free trading analysis:
 
 ### Try It Now (No Install)
 
-**[Live Demo](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app)** — runs in demo mode with simulated data, no API key needed.
+**[Live Demo](https://orallexa-ui.vercel.app)** — runs in demo mode with simulated data, no API key needed.
 
 ### Option 1: Manual
 
@@ -239,8 +239,13 @@ git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
 cd orallexa-ai-trading-agent
 pip install -r requirements.txt
 
-# Set API key
+# Set API keys
 echo "ANTHROPIC_API_KEY=your_key" > .env
+
+# Optional: Alpaca paper trading (free, no real money)
+# Get keys at https://app.alpaca.markets → Settings → API Keys
+echo "ALPACA_API_KEY=your_key" >> .env
+echo "ALPACA_SECRET_KEY=your_secret" >> .env
 
 # Terminal 1: API server
 python api_server.py

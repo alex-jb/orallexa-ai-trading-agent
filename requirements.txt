@@ -30,3 +30,4 @@ pystray
 Pillow
 pygame
 keyboard
+alpaca-py

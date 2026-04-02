@@ -160,7 +160,9 @@ class AlpacaExecutor:
             if entry_price <= 0:
                 from alpaca.data.requests import StockLatestQuoteRequest
                 from alpaca.data.historical import StockHistoricalDataClient
-                data_client = StockHistoricalDataClient()
+                api_key = os.environ.get("ALPACA_API_KEY", "")
+                secret_key = os.environ.get("ALPACA_SECRET_KEY", "")
+                data_client = StockHistoricalDataClient(api_key, secret_key)
                 quote = data_client.get_stock_latest_quote(StockLatestQuoteRequest(symbol_or_symbols=ticker))
                 entry_price = float(quote[ticker].ask_price or quote[ticker].bid_price)
 
