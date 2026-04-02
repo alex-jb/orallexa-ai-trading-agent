@@ -20,6 +20,10 @@ textblob
 # ── Streamlit UI (optional) ──────────────
 streamlit
 
+# ── Evaluation ───────────────────────────
+scipy
+tqdm
+
 # ── Testing ──────────────────────────────
 pytest
 

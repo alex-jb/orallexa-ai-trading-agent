@@ -39,10 +39,24 @@ def _calc_metrics_from_returns(returns: pd.Series, signal_series: pd.Series | No
     positive_returns = returns[returns > 0]
     win_rate = float(len(positive_returns) / len(returns)) if len(returns) > 0 else 0.0
 
+    # Sortino ratio (downside deviation only)
+    downside = returns[returns < 0]
+    downside_std = downside.std() if len(downside) > 0 else 0.0
+    sortino = 0.0
+    if downside_std != 0 and not np.isnan(downside_std):
+        sortino = float((avg_return / downside_std) * np.sqrt(252))
+
+    # Calmar ratio (annualized return / max drawdown)
+    calmar = 0.0
+    if max_drawdown != 0:
+        calmar = float(annualized_return / abs(max_drawdown))
+
     return {
         "total_return": total_return,
         "annualized_return": annualized_return,
         "sharpe": sharpe,
+        "sortino": sortino,
+        "calmar": calmar,
         "max_drawdown": max_drawdown,
         "win_rate": win_rate,
         "num_trades": num_trades,

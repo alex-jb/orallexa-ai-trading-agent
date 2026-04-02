@@ -12,6 +12,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
 [![Tests](https://img.shields.io/badge/Tests-113_passing-22c55e?style=flat-square)](tests/)
+[![Walk-Forward](https://img.shields.io/badge/Walk--Forward_Sharpe-0.92_(OOS)-green?style=flat-square)](docs/evaluation_report.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
@@ -37,6 +38,23 @@ Market Data → 9 ML Models → LLM Reasoning → Adversarial Debate
 ```
 
 Every stage is automated. Every stage is observable. The system runs continuously — scanning markets, generating intelligence, pushing signals, and producing ready-to-post content.
+
+---
+
+## Strategy Evaluation (Walk-Forward OOS)
+
+<!-- EVAL_TABLE_START -->
+| Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
+|----------|--------|-----------|------------|--------|---------|---------|
+| alpha_combo | NVDA | 0.920 | -1.073 | 85.4% | 0.0163 | FAIL |
+| macd_crossover | NVDA | 0.909 | -1.007 | 75.2% | 0.0025 | FAIL |
+| trend_momentum | NVDA | 0.738 | -1.125 | 73.3% | 0.0046 | FAIL |
+| double_ma | NVDA | 0.625 | -1.532 | 100.0% | 0.0175 | FAIL |
+| bollinger_breakout | NVDA | 0.201 | -1.326 | 97.7% | 0.1579 | FAIL |
+| rsi_reversal | NVDA | -0.070 | -1.365 | 96.8% | 0.2523 | FAIL |
+<!-- EVAL_TABLE_END -->
+
+> Walk-forward validation with 50-bar warmup buffer, Monte Carlo (1,000 iterations), Deflated Sharpe Ratio. [Full report](docs/evaluation_report.md)
 
 ---
 
