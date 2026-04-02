@@ -16,9 +16,11 @@ orallexa-ui/.next/
 orallexxa-ui/node_modules/
 orallexxa-ui/.next/
 
-# Internal logs (keep local only)
+# Internal logs & changelogs (keep local only)
 UPGRADE_LOG.txt
 UPGRADE_LOG_internal.txt
+CHANGELOG.md
+CHANGELOG_CN.md
 
 # IDE
 .vscode/
