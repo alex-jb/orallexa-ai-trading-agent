@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/Tests-113_passing-22c55e?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-127_passing-22c55e?style=flat-square)](tests/)
 [![Walk-Forward](https://img.shields.io/badge/Walk--Forward_Sharpe-0.96_(OOS)-green?style=flat-square)](docs/evaluation_report.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
