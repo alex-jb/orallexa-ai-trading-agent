@@ -30,8 +30,9 @@ SAMPLE_RATE    = 16_000   # Hz  (Whisper prefers 16 kHz)
 CHANNELS       = 1
 DTYPE          = "int16"
 MAX_SECONDS    = 30       # hard cap — auto-stop after this
-SILENCE_DB     = -40      # dBFS below which audio is considered silence
-SILENCE_SECS   = 1.5      # seconds of silence before auto-stop
+SILENCE_DB     = -35      # dBFS below which audio is considered silence (relaxed)
+SILENCE_SECS   = 3.0      # seconds of silence before auto-stop (longer tolerance)
+MIN_CHUNKS     = 30       # minimum ~2 seconds before auto-stop can trigger
 
 
 class VoiceHandler:
@@ -88,10 +89,14 @@ class VoiceHandler:
             self._thread.join(timeout=5.0)
 
         if not self._frames:
+            logger.warning("No audio frames captured — mic may not be working")
             return "", "en"
 
+        logger.info("Transcribing %d frames...", len(self._frames))
         wav_bytes = self._frames_to_wav(self._frames)
-        return self._transcribe(wav_bytes)
+        text, lang = self._transcribe(wav_bytes)
+        logger.info("Transcription result: text=%r, lang=%s", text[:80] if text else "", lang)
+        return text, lang
 
     # ── Recording thread ──────────────────────────────────────────────────────
 
@@ -107,26 +112,45 @@ class VoiceHandler:
         silence_limit  = int(SILENCE_SECS * SAMPLE_RATE / 1024)   # chunks
         max_chunks     = int(MAX_SECONDS * SAMPLE_RATE / 1024)
         total_chunks   = 0
+        peak_db        = -999.0
 
-        with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
-                            dtype=DTYPE, blocksize=1024) as stream:
-            while not self._stop_event.is_set():
-                chunk, _ = stream.read(1024)
-                self._frames.append(chunk.copy())
-                total_chunks += 1
+        logger.info("Recording started (rate=%d, silence_db=%d, silence_secs=%.1f)",
+                     SAMPLE_RATE, SILENCE_DB, SILENCE_SECS)
 
-                # Auto-stop on silence
-                rms = float(np.sqrt(np.mean(chunk.astype(np.float32) ** 2)))
-                db  = 20 * np.log10(max(rms, 1e-9)) - 90   # rough dBFS
-                if db < SILENCE_DB:
-                    silence_frames += 1
-                else:
-                    silence_frames = 0
+        try:
+            with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
+                                dtype=DTYPE, blocksize=1024) as stream:
+                while not self._stop_event.is_set():
+                    chunk, _ = stream.read(1024)
+                    self._frames.append(chunk.copy())
+                    total_chunks += 1
 
-                if silence_frames >= silence_limit and total_chunks > 20:
-                    break   # auto-stop after sustained silence
-                if total_chunks >= max_chunks:
-                    break   # hard cap
+                    # Compute dB level
+                    rms = float(np.sqrt(np.mean(chunk.astype(np.float32) ** 2)))
+                    db  = 20 * np.log10(max(rms, 1e-9))
+                    if db > peak_db:
+                        peak_db = db
+
+                    # Auto-stop on silence (only after minimum recording)
+                    if db < SILENCE_DB:
+                        silence_frames += 1
+                    else:
+                        silence_frames = 0
+
+                    if silence_frames >= silence_limit and total_chunks > MIN_CHUNKS:
+                        logger.info("Auto-stop: silence for %.1fs after %d chunks",
+                                    SILENCE_SECS, total_chunks)
+                        break
+
+                    if total_chunks >= max_chunks:
+                        logger.info("Auto-stop: max duration reached")
+                        break
+        except Exception as exc:
+            logger.error("Recording error: %s", exc)
+
+        duration = total_chunks * 1024 / SAMPLE_RATE
+        logger.info("Recording stopped: %.1fs, %d chunks, peak=%.1f dB, frames=%d",
+                     duration, total_chunks, peak_db, len(self._frames))
 
         self._recording = False
 

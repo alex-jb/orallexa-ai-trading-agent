@@ -52,7 +52,7 @@ BTN_HOVER   = "#2A2520"     # hover — warm dark
 BTN_ACTIVE  = "#B8860B"     # pressed — deep gold
 BORDER      = "#3D3520"     # border — warm bronze line
 
-W, H = 390, 580
+W, H = 390, 680
 
 
 class ChatPopover:
@@ -289,7 +289,11 @@ class ChatPopover:
 
         tk.Frame(self._card_frame, bg=BORDER, height=1).pack(fill="x")
 
-        # ── Message area ─────────────────────────────────────────
+        # ── Input row (pack FIRST at bottom so it never gets pushed out) ──
+        input_frame = tk.Frame(win, bg=BG_INPUT, pady=6, padx=8)
+        input_frame.pack(fill="x", side="bottom")
+
+        # ── Message area (fills remaining space between card and input) ──
         msg_frame = tk.Frame(win, bg=BG)
         msg_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
@@ -322,10 +326,6 @@ class ChatPopover:
 
         # Phase 3: Empty state with hints
         self._add_message("bull", t("hint"), init=True)
-
-        # ── Input row ─────────────────────────────────────────────
-        input_frame = tk.Frame(win, bg=BG_INPUT, pady=6, padx=8)
-        input_frame.pack(fill="x", side="bottom")
 
         # Mic button
         self._mic_btn = tk.Button(
@@ -609,7 +609,17 @@ class ChatPopover:
         if not text or self._busy:
             return
         self._entry.delete(0, "end")
-        self._process_input(text, self._effective_lang())
+        # Auto-detect language from text content
+        detected = self._detect_lang(text)
+        self._process_input(text, self._effective_lang(detected))
+
+    @staticmethod
+    def _detect_lang(text: str) -> str:
+        """Detect language from text — check for CJK characters."""
+        for ch in text:
+            if '\u4e00' <= ch <= '\u9fff':
+                return "zh"
+        return "en"
 
     def _process_input(self, text: str, lang: str) -> None:
         self._lang = lang

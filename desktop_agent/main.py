@@ -164,9 +164,7 @@ def main() -> None:
 
         threading.Thread(target=_do_analysis, daemon=True).start()
 
-    # ── Voice toggle hotkey (K) ─────────────────────────────────
-    _voice_active = False
-
+    # ── Voice hotkey: hold K to talk ─────────────────────────────
     # Check voice dependencies at startup
     _voice_deps_ok = True
     _voice_dep_missing = []
@@ -180,91 +178,75 @@ def main() -> None:
     if _voice_dep_missing:
         from core.logger import get_logger
         get_logger("main").warning(
-            "Voice dependencies missing: %s — run: pip install %s",
+            "Voice deps missing: %s — run: pip install %s",
             ", ".join(_voice_dep_missing), " ".join(_voice_dep_missing),
         )
 
-    def _on_voice_toggle() -> None:
-        """Toggle voice recording with K key. Press once to start, again to stop."""
-        nonlocal _voice_active
+    def _on_voice_start() -> None:
+        """Called when K is held long enough — start recording."""
         if popover is None:
             return
-
-        # Don't capture K if the chat popover's text entry is focused
-        try:
-            focused = bull._win.focus_get()
-            if focused and isinstance(focused, tk.Entry):
-                return
-        except Exception:
-            pass
 
         if not _voice_deps_ok:
             bull._win.after(0, lambda: bull._show_bubble(
                 f"pip install {' '.join(_voice_dep_missing)}",
                 accent="#C44536"))
-            bull._win.after(0, lambda: popover._add_status(
-                f"[Voice disabled — missing: {', '.join(_voice_dep_missing)}]"))
             return
 
-        if not _voice_active:
-            # ── START recording ──────────────────────────────────
-            _voice_active = True
+        try:
+            voice.start_recording()
+        except Exception as exc:
+            bull._win.after(0, lambda: bull._show_bubble(
+                f"Mic error: {exc}", accent="#C44536"))
+            return
+
+        def _show():
+            bull.set_state("listening")
+            bull._show_bubble("\U0001F3A4 Recording...  hold [K]", accent="#D4AF37")
+            popover.show_voice_status(True)
+
+        bull._win.after(0, _show)
+
+    def _on_voice_stop() -> None:
+        """Called when K is released after hold — stop and transcribe."""
+        if popover is None or not voice.is_recording:
+            return
+
+        def _show_processing():
+            bull.set_state("thinking")
+            bull._show_bubble("\u23F3 Transcribing...", accent="#8B7EC8")
+            popover.show_voice_status(False)
+
+        bull._win.after(0, _show_processing)
+
+        def _finish():
             try:
-                voice.start_recording()
+                text, lang = voice.stop_and_transcribe()
             except Exception as exc:
-                _voice_active = False
+                bull._win.after(0, lambda: bull.set_state("idle"))
                 bull._win.after(0, lambda: bull._show_bubble(
-                    f"Mic error: {exc}", accent="#C44536"))
+                    "Transcribe error", accent="#C44536"))
                 return
 
-            def _show_start():
-                bull.set_state("listening")
-                bull._show_bubble("\U0001F3A4 Voice ON  [K]", accent="#D4AF37")
-                popover.show_voice_status(True)
+            if text:
+                def _send():
+                    bull._show_bubble("\u2713 Got it!", accent="#A89F8B")
+                    popover._process_input(
+                        text, popover._effective_lang(lang))
+                bull._win.after(0, _send)
+            else:
+                def _no_speech():
+                    bull.set_state("idle")
+                    bull._show_bubble("No speech detected", accent="#C44536")
+                    popover._add_status("[K] No speech detected")
+                bull._win.after(0, _no_speech)
 
-            bull._win.after(0, _show_start)
-        else:
-            # ── STOP recording & transcribe ──────────────────────
-            _voice_active = False
-
-            def _show_processing():
-                bull.set_state("thinking")
-                bull._show_bubble("\u23F3 Transcribing...  [K]", accent="#8B7EC8")
-                popover.show_voice_status(False)
-
-            bull._win.after(0, _show_processing)
-
-            def _finish_voice():
-                try:
-                    text, lang = voice.stop_and_transcribe()
-                except Exception as exc:
-                    bull._win.after(0, lambda: bull.set_state("idle"))
-                    bull._win.after(0, lambda: bull._show_bubble(
-                        f"Transcribe error", accent="#C44536"))
-                    return
-
-                if text:
-                    def _send():
-                        bull._show_bubble("\U0001F3A4 Voice OFF  [K]",
-                                         accent="#A89F8B")
-                        popover._process_input(
-                            text, popover._effective_lang(lang))
-
-                    bull._win.after(0, _send)
-                else:
-                    def _no_speech():
-                        bull.set_state("idle")
-                        bull._show_bubble("No speech detected  [K]",
-                                         accent="#C44536")
-                        popover._add_status("[K] No speech detected")
-
-                    bull._win.after(0, _no_speech)
-
-            threading.Thread(target=_finish_voice, daemon=True).start()
+        threading.Thread(target=_finish, daemon=True).start()
 
     hotkey = HotkeyListener(
         on_screenshot=_on_screenshot_hotkey,
-        on_voice_toggle=_on_voice_toggle,
+        on_voice_start=_on_voice_start,
+        on_voice_stop=_on_voice_stop,
     )
     hotkey.start()
 

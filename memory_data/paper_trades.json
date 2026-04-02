@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2026-04-01T21:25:06.328699",
+    "ticker": "NVDA",
+    "direction": "LONG",
+    "entry_price": 167.21,
+    "stop_loss": 165.0,
+    "take_profit": 190.0,
+    "confidence": 75.0,
+    "source": "alpaca_d46cfeda-a2e5-4031-ace6-64241d4519b4",
+    "status": "OPEN",
+    "exit_price": 0.0,
+    "exit_time": "",
+    "pnl_pct": 0.0,
+    "pnl_dollar": 0.0,
+    "position_size": 29
+  }
+]

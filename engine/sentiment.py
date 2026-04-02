@@ -71,10 +71,20 @@ def _init_textblob():
         return False
 
 
-# Initialize — try FinBERT first, then VADER, then TextBlob
-if not _init_finbert():
-    if not _init_vader():
-        _init_textblob()
+# Lazy initialization — don't load heavy models at import time.
+# FinBERT (transformers + PyTorch) takes 30-60s to load, blocking startup.
+_initialized = False
+
+
+def _ensure_initialized():
+    """Initialize scorer on first use, not at import time."""
+    global _initialized
+    if _initialized:
+        return
+    _initialized = True
+    if not _init_finbert():
+        if not _init_vader():
+            _init_textblob()
 
 
 def get_scorer_type() -> str:
@@ -91,6 +101,7 @@ def score_text(text: str) -> Dict:
     compound: -1.0 (most negative) to +1.0 (most positive)
     label: 'positive' | 'neutral' | 'negative'
     """
+    _ensure_initialized()
     if not text or not text.strip():
         return {"compound": 0.0, "label": "neutral",
                 "positive": 0.0, "negative": 0.0, "neutral": 1.0}
