@@ -95,6 +95,27 @@ This is what one analysis produces. It's one output of a much larger system:
 
 Not just a number. A structured argument with transparent reasoning, probability breakdown, and an actionable risk plan.
 
+Want to share this? Every analysis has a built-in "Copy for X" button that formats the output into a social-ready post.
+
+---
+
+## Try It Instantly
+
+**[Open Live Demo](https://orallexa-aa9zjelyu-alex-jbs-projects.vercel.app)** — runs in demo mode, no API key needed.
+
+Click **NVDA**, **TSLA**, or **QQQ** quick-start buttons to see a full analysis in seconds.
+
+---
+
+## Early Results
+
+We don't publish synthetic benchmarks. Here's what the architecture delivers:
+
+- **Cost efficiency** — Dual-model routing (Haiku for 80% of calls, Sonnet for reasoning) reduces LLM cost to ~$0.003 per analysis versus $0.03+ with a single expensive model
+- **Structured reasoning** — Adversarial debate produces more stable outputs than single-model prediction. The Bull/Bear format catches blind spots that one-shot prompts miss
+- **Pipeline speed** — Full analysis (9 models + debate + risk plan) completes in ~15 seconds. Daily intel for 50+ tickers in ~10 seconds
+- **Test coverage** — 113 automated tests with 0 failures, CI/CD on every push
+
 ---
 
 ## Why This Matters

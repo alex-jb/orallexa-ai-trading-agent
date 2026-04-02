@@ -555,7 +555,10 @@ function DecisionCard({ d, asset, strategy, horizon, news, risk, investmentPlan,
             <div className="text-[48px] font-[Poiret_One] leading-none tracking-[0.15em]" style={{ color: "#2A2A3E" }}>{t.standby}</div>
             <DecoFan size={50} opacity={0.08} />
           </div>
-          <div className="text-center text-[12px] font-[Josefin_Sans] text-[#4A4D55] tracking-[0.1em] mb-3 font-light">{t.runToBegin}</div>
+          <div className="text-center text-[12px] font-[Josefin_Sans] text-[#4A4D55] tracking-[0.1em] mb-1 font-light">{t.runToBegin}</div>
+          <div className="text-center text-[9px] font-[Josefin_Sans] text-[#6B6E76]/60 tracking-[0.08em] mb-3">
+            {zh ? "试试 NVDA · TSLA · QQQ — 左侧快速按钮" : "Try NVDA · TSLA · QQQ — quick buttons on the left"}
+          </div>
         </div>
         <GoldRule strength={15} />
         <div className="relative grid grid-cols-3 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
@@ -621,6 +624,22 @@ function DecisionCard({ d, asset, strategy, horizon, news, risk, investmentPlan,
           ))}
         </div>
       </Toggle>}
+      {/* Copy Analysis for X */}
+      <div className="relative px-8 py-3 border-t flex justify-end" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
+        <CopyBtn text={[
+          `$${asset} — AI Trading Signal`,
+          ``,
+          `Action: ${d.decision}`,
+          `Confidence: ${d.confidence.toFixed(0)}%`,
+          `Signal: ${d.signal_strength}/100`,
+          ``,
+          d.reasoning.find(r => r.startsWith("Bull:")) ? `Bull: ${d.reasoning.find(r => r.startsWith("Bull:"))!.slice(5, 120).trim()}...` : "",
+          d.reasoning.find(r => r.startsWith("Bear:")) ? `Bear: ${d.reasoning.find(r => r.startsWith("Bear:"))!.slice(5, 120).trim()}...` : "",
+          d.reasoning.find(r => r.startsWith("Judge:")) ? `\nVerdict: ${d.reasoning.find(r => r.startsWith("Judge:"))!.slice(6, 150).trim()}` : "",
+          ``,
+          `Powered by Orallexa AI`,
+        ].filter(Boolean).join("\n")} label={zh ? "复制分析结果" : "Copy Analysis for X"} />
+      </div>
     </div>
   );
 }
@@ -1230,6 +1249,16 @@ export default function Home() {
             className="w-full px-3 py-2.5 text-[14px] font-[DM_Mono] font-medium text-[#F5E6CA] outline-none"
             style={{ background: "#2A2A3E", border: "1px solid rgba(212,175,55,0.15)" }}
             onKeyDown={(e) => { if (e.key === "Enter") runSignal(); }} />
+          <div className="flex items-center gap-1.5 mt-2">
+            <span className="text-[8px] font-[Josefin_Sans] text-[#4A4D55] uppercase tracking-[0.1em]">{zh ? "快速试用" : "Try"}</span>
+            {[["NVDA", "AI"], ["TSLA", "EV"], ["QQQ", "Index"]].map(([tk, tag]) => (
+              <button key={tk} onClick={() => { setAsset(tk); setTimeout(runSignal, 100); }}
+                className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium text-[#6B6E76] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all"
+                style={{ border: "1px solid rgba(212,175,55,0.1)", borderRadius: 3 }}>
+                {tk}<span className="text-[7px] text-[#4A4D55] ml-0.5">{tag}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <Mod title={t.engineStatus}>
