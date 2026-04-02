@@ -17,10 +17,14 @@ from datetime import datetime
 from typing import Optional
 
 from desktop_agent.i18n import t, set_lang, get_lang
+from desktop_agent.fonts import load_fonts, FONT_HEADING, FONT_BODY, FONT_MONO as _FONT_MONO
+
+load_fonts()
 
 # ── Font config ───────────────────────────────────────────────────────────────
-FONT       = "Segoe UI"
-FONT_MONO  = "Consolas"
+FONT       = FONT_BODY       # Lato (body text, chat messages)
+FONT_HEAD  = FONT_HEADING    # Josefin Sans (labels, headers, uppercase)
+FONT_MONO  = _FONT_MONO      # DM Mono (prices, data, metrics)
 MIN_PT     = 10    # accessibility: WCAG AA minimum (was 8, too small)
 
 # ── Colours: Art Deco Gatsby palette ─────────────────────────────────────────
@@ -116,7 +120,7 @@ class ChatPopover:
 
         self._title_lbl = tk.Label(
             title_bar, text=t("bull_coach"), bg=ACCENT_DIM, fg=FG,
-            font=(FONT, 10, "bold"), anchor="w", padx=10)
+            font=(FONT_HEAD, 10, "bold"), anchor="w", padx=10)
         self._title_lbl.pack(side="left", fill="y")
 
         # Clear chat button (Phase 1)
@@ -148,10 +152,10 @@ class ChatPopover:
 
         # Ticker entry
         tk.Label(toolbar, text=t("ticker"), bg=BG_TOOLBAR, fg=FG_MUTED,
-                 font=(FONT, MIN_PT)).pack(side="left", padx=(0, 4))
+                 font=(FONT_HEAD, MIN_PT)).pack(side="left", padx=(0, 4))
         self._ticker_entry = tk.Entry(
             toolbar, bg=BG, fg=FG, insertbackground=FG,
-            font=(FONT, 9, "bold"), width=6, relief="flat", bd=2,
+            font=(FONT_MONO, 9, "bold"), width=6, relief="flat", bd=2,
             highlightthickness=1, highlightbackground=BORDER,
             highlightcolor=ACCENT)
         self._ticker_entry.insert(0, self._bb.ticker)
@@ -165,7 +169,7 @@ class ChatPopover:
                                       ("swing", t("swing"))]:
             btn = tk.Button(
                 toolbar, text=mode_label, bd=0, padx=8, pady=2,
-                font=(FONT, MIN_PT), cursor="hand2",
+                font=(FONT_HEAD, MIN_PT), cursor="hand2",
                 command=lambda m=mode_key: self._on_mode_click(m))
             btn.pack(side="left", padx=2)
             self._mode_btns[mode_key] = btn
@@ -226,7 +230,7 @@ class ChatPopover:
 
         self._dec_badge = tk.Label(
             badge_row, text="", bg=COL_BUY_DIM, fg=COL_BUY,
-            font=(FONT, 12, "bold"), padx=12, pady=2)
+            font=(FONT_HEAD, 12, "bold"), padx=12, pady=2)
         self._dec_badge.pack(side="left")
 
         self._dec_context = tk.Label(
@@ -256,7 +260,7 @@ class ChatPopover:
 
         self._why_btn = tk.Button(
             self._expand_frame, text=f"\u25B6  {t('why')}", bg=BG_CARD,
-            fg=FG_DIM, font=(FONT, MIN_PT, "bold"), bd=0, anchor="w",
+            fg=FG_DIM, font=(FONT_HEAD, MIN_PT, "bold"), bd=0, anchor="w",
             activebackground=BG_CARD, activeforeground=FG,
             cursor="hand2", command=self._toggle_why)
         self._why_btn.pack(anchor="w", pady=(2, 0))
@@ -268,7 +272,7 @@ class ChatPopover:
 
         self._tech_btn = tk.Button(
             self._expand_frame, text=f"\u25B6  {t('tech_details')}", bg=BG_CARD,
-            fg=FG_MUTED, font=(FONT, MIN_PT), bd=0, anchor="w",
+            fg=FG_MUTED, font=(FONT_HEAD, MIN_PT), bd=0, anchor="w",
             activebackground=BG_CARD, activeforeground=FG_DIM,
             cursor="hand2", command=self._toggle_tech)
         self._tech_btn.pack(anchor="w", pady=(2, 0))
@@ -382,7 +386,7 @@ class ChatPopover:
         frame.pack(side="left", fill="x", expand=True, padx=2)
 
         lbl = tk.Label(frame, text=label, bg=BG_METRIC, fg=FG_MUTED,
-                       font=(FONT, MIN_PT, "bold"))
+                       font=(FONT_HEAD, MIN_PT, "bold"))
         lbl.pack(anchor="w")
         # Human label (primary — what user reads first)
         val = tk.Label(frame, text=value, bg=BG_METRIC, fg=FG,
@@ -390,7 +394,7 @@ class ChatPopover:
         val.pack(anchor="w")
         # Numeric detail (secondary — glanceable)
         sublbl = tk.Label(frame, text=sub, bg=BG_METRIC, fg=FG_MUTED,
-                          font=(FONT, MIN_PT))
+                          font=(FONT_MONO, MIN_PT))
         sublbl.pack(anchor="w")
         return {"frame": frame, "value": val, "sub": sublbl}
 

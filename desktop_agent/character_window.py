@@ -26,6 +26,9 @@ from typing import Literal
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 
 from desktop_agent.i18n import t, get_lang
+from desktop_agent.fonts import load_fonts, FONT_BODY
+
+load_fonts()
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 ASSETS       = Path(__file__).parent.parent / "assets" / "avatar"
@@ -106,8 +109,9 @@ def _make_bubble(text: str, accent: str = "#94a3b8",
 
     tmp = Image.new("RGBA", (1, 1))
     td  = ImageDraw.Draw(tmp)
+    _font_path = Path(__file__).parent.parent / "assets" / "fonts" / "Lato-Regular.ttf"
     try:
-        font = ImageFont.truetype("segoeui.ttf", font_size)
+        font = ImageFont.truetype(str(_font_path), font_size) if _font_path.exists() else ImageFont.truetype("segoeui.ttf", font_size)
     except OSError:
         try:
             font = ImageFont.truetype("arial.ttf", font_size)

@@ -37,7 +37,7 @@ html {
 body {
   background: var(--bg-deep);
   color: var(--champagne);
-  font-family: 'Lato', 'Josefin Sans', system-ui, sans-serif;
+  font-family: var(--font-lato), 'Lato', system-ui, sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -172,6 +172,27 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 @media (max-width: 768px) {
   .desktop-sidebar { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
+
+  /* Tighter padding on mobile */
+  .block-container { padding: 0.5rem !important; }
+
+  /* Decision card text scale down */
+  .mobile-decision-text { font-size: 32px !important; }
+}
+
+/* ── Safe area for notched phones ─────────────────────────────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .shimmer-gold { animation: none !important; -webkit-text-fill-color: #D4AF37 !important; }
 }
 
 /* ── Print ────────────────────────────────────────────────────────── */

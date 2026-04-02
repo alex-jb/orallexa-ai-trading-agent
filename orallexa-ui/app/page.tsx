@@ -180,7 +180,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 function Toggle({ label, open, onToggle, children }: { label: string; open: boolean; onToggle: () => void; children: React.ReactNode; }) {
   return (
     <div className="border-t" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
-      <button onClick={onToggle} className="w-full text-left px-7 py-3 text-[10px] font-[Josefin_Sans] text-[#C5A255] uppercase tracking-[0.16em] hover:text-[#FFD700] transition-colors">
+      <button onClick={onToggle} aria-expanded={open} className="w-full text-left px-7 py-3 text-[10px] font-[Josefin_Sans] text-[#C5A255] uppercase tracking-[0.16em] hover:text-[#FFD700] transition-colors">
         {open ? "▾" : "▸"} {label}
       </button>
       {open && <div className="px-7 pb-4">{children}</div>}
@@ -940,6 +940,8 @@ export default function Home() {
   const [isDemo, setIsDemo] = useState(false);
   const apiDead = useRef(false); // true = backend unreachable, use client mocks
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
+  const [lastAnalyzedAt, setLastAnalyzedAt] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
 
   const fetchContext = useCallback(async () => {
     if (apiDead.current) {
@@ -961,6 +963,36 @@ export default function Home() {
   }, [asset]);
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
+
+  // Online/offline detection
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    setIsOnline(navigator.onLine);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+  }, []);
+
+  // Auto-dismiss errors after 8 seconds
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 8000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !loading) { e.preventDefault(); runSignal(); }
+      if (e.key === "Escape" && error) { setError(""); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "d" && !loading) { e.preventDefault(); runDeep(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "1") { e.preventDefault(); setViewMode("signal"); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "2") { e.preventDefault(); setViewMode("intel"); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  });
 
   // Check demo mode / API availability
   useEffect(() => {
@@ -986,10 +1018,11 @@ export default function Home() {
   // Poll breaking signals every 60s
   useEffect(() => {
     const fetchBreaking = async () => {
+      if (apiDead.current) return;
       try {
         const res = await fetch(`${API}/api/breaking-signals?hours=24&limit=5`);
         if (res.ok) { const d = await res.json(); setBreakingSignals(d.signals || []); }
-      } catch { /* ignore */ }
+      } catch { /* background poll, silent fail is OK */ }
     };
     fetchBreaking();
     const interval = setInterval(fetchBreaking, 60000);
@@ -1048,7 +1081,7 @@ export default function Home() {
       const res = await fetch(`${API}/api/analyze`, { method: "POST", body: form });
       if (!res.ok) { const body = await res.text(); let detail = "Analysis failed"; try { const j = JSON.parse(body); detail = j.detail || detail; } catch {} throw new Error(detail); }
       const data = await res.json();
-      setDecision(data);
+      setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
       if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
       fetchContext();
     } catch (e) { setError(e instanceof Error ? e.message : "Analysis unavailable. Is the API server running?"); }
@@ -1107,7 +1140,7 @@ export default function Home() {
               else if (eventType === "error") { throw new Error(data.detail || "Analysis failed"); }
               else if (eventType === "done") {
                 setDeepProgress(null);
-                setDecision(data);
+                setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
                 if (data.reports) setDeepReport(data.reports);
                 if (data.investment_plan) {
                   const plan = data.investment_plan;
@@ -1148,7 +1181,7 @@ export default function Home() {
       const res = await fetch(`${API}/api/chart-analysis`, { method: "POST", body: form });
       if (!res.ok) throw new Error("Chart analysis failed");
       const data = await res.json();
-      setDecision(data);
+      setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
       const ci = data.chart_insight;
       setChartInsight(ci ? { trend: ci.trend || "—", setup: ci.setup || "—", levels: ci.levels || "—", summary: ci.summary || data.recommendation || "" } : { trend: "—", setup: "—", levels: "—", summary: data.recommendation || "" });
     } catch { setError("Chart analysis unavailable."); }
@@ -1185,7 +1218,7 @@ export default function Home() {
       const url = force ? `${API}/api/daily-intel/refresh` : `${API}/api/daily-intel`;
       const res = await fetch(url, force ? { method: "POST" } : {});
       if (res.ok) setDailyIntel(await res.json());
-    } catch { /* ignore */ }
+    } catch { if (!apiDead.current) setError(zh ? "每日情报加载失败" : "Daily intel failed to load"); }
     finally { setIntelLoading(false); }
   }, []);
 
@@ -1209,6 +1242,15 @@ export default function Home() {
         <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0"
           style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.15), rgba(212,175,55,0.25), rgba(212,175,55,0.15))", color: "#D4AF37", borderBottom: "1px solid rgba(212,175,55,0.3)" }}>
           {zh ? "🎭 演示模式 — 展示数据非实时行情" : "🎭 Demo Mode — Simulated data for demonstration"}
+        </div>
+      )}
+
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0"
+          role="alert"
+          style={{ background: "rgba(139,0,0,0.15)", color: "#FF6666", borderBottom: "1px solid rgba(139,0,0,0.3)" }}>
+          {zh ? "网络已断开 — 数据可能不是最新的" : "Network offline — data may be stale"}
         </div>
       )}
 
@@ -1236,7 +1278,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <img src="/icon-192.png" alt="" width={22} height={22} style={{ borderRadius: 4 }} />
             <span className="font-[Poiret_One] text-[14px] tracking-[0.3em]"
-              style={{ background: "linear-gradient(135deg, #D4AF37, #4A90D9, #6B5CE7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.brand}</span>
+              style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.brand}</span>
             <span className="text-[9px] font-[Josefin_Sans] font-semibold text-[#006B3F]/70 tracking-[0.12em] uppercase ml-auto">{t.active}</span>
           </div>
           <div className="text-[9px] font-[Josefin_Sans] text-[#6B6E76] tracking-[0.2em] uppercase mt-2 ml-[34px] font-light">{t.subtitle}</div>
@@ -1295,10 +1337,11 @@ export default function Home() {
         </div>
 
         {/* Claude AI overlay toggle */}
-        <button onClick={() => setUseClaude(!useClaude)}
+        <button onClick={() => setUseClaude(!useClaude)} role="checkbox" aria-checked={useClaude}
+          aria-label={zh ? "Claude AI 信号优化" : "Claude AI Overlay"}
           className={`w-full flex items-center justify-center gap-2 py-2 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.12em] transition-all ${useClaude ? "text-[#D4AF37]" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
           style={{ background: useClaude ? "rgba(212,175,55,0.06)" : "transparent", border: `1px solid ${useClaude ? "rgba(212,175,55,0.25)" : "rgba(212,175,55,0.08)"}` }}>
-          <span className={`inline-block w-2 h-2 rounded-sm ${useClaude ? "bg-[#D4AF37]" : "border border-[#4A4D55]"}`} />
+          <span className={`inline-block w-2 h-2 rounded-sm ${useClaude ? "bg-[#D4AF37]" : "border border-[#4A4D55]"}`} aria-hidden="true" />
           {zh ? "Claude AI 信号优化" : "Claude AI Overlay"}
         </button>
 
@@ -1306,18 +1349,18 @@ export default function Home() {
 
         {/* Primary CTA — gold gradient */}
         <button onClick={runSignal} disabled={loading} aria-label="Run signal analysis" aria-busy={loading && !deepLoading}
-          data-tooltip={zh ? "快速技术分析" : "Fast technical analysis"}
+          data-tooltip={zh ? "快速技术分析 (Ctrl+Enter)" : "Fast technical analysis (Ctrl+Enter)"}
           className="w-full py-3 text-[11px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0F] transition-all hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
           style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", border: "1px solid #D4AF37" }}>
-          {loading && !deepLoading ? <><span className="inline-block w-3 h-3 border-2 border-[#0A0A0F] border-t-transparent rounded-full anim-spin mr-2" />{t.scanning}</> : t.runSignal}
+          {loading && !deepLoading ? <><span className="inline-block w-3 h-3 border-2 border-[#0A0A0F] border-t-transparent rounded-full anim-spin mr-2" />{t.scanning}</> : <>{t.runSignal}<span className="hidden lg:inline text-[8px] font-[DM_Mono] ml-2 opacity-60">⌘↵</span></>}
         </button>
 
         {/* Secondary — outlined */}
         <button onClick={runDeep} disabled={loading} aria-label="Run deep intelligence analysis" aria-busy={deepLoading}
-          data-tooltip={zh ? "多Agent深度分析 (含AI辩论)" : "Multi-agent deep analysis with AI debate"}
+          data-tooltip={zh ? "多Agent深度分析 (Ctrl+D)" : "Multi-agent deep analysis (Ctrl+D)"}
           className="w-full py-3 bg-transparent text-[#C5A255] text-[11px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.16em] transition-all hover:text-[#FFD700] hover:shadow-[0_0_15px_rgba(212,175,55,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ border: "1px solid rgba(212,175,55,0.25)" }}>
-          {deepLoading ? <><span className="inline-block w-3 h-3 border-2 border-[#C5A255] border-t-transparent rounded-full anim-spin mr-2" />{t.scanning}</> : t.openIntel}
+          {deepLoading ? <><span className="inline-block w-3 h-3 border-2 border-[#C5A255] border-t-transparent rounded-full anim-spin mr-2" />{t.scanning}</> : <>{t.openIntel}<span className="hidden lg:inline text-[8px] font-[DM_Mono] ml-2 opacity-50">⌘D</span></>}
         </button>
 
         {/* Auto-refresh toggle */}
@@ -1417,10 +1460,10 @@ export default function Home() {
           {/* View toggle: Signal | Intel */}
           <div className="flex items-center mr-3" style={{ border: "1px solid rgba(212,175,55,0.15)" }}>
             <button onClick={() => setViewMode("signal")} aria-pressed={viewMode === "signal"}
-              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "signal" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>{t.signalTab}</button>
+              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "signal" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>{t.signalTab}<span className="hidden lg:inline text-[7px] font-[DM_Mono] ml-1 opacity-40">1</span></button>
             <div className="w-px h-4" style={{ background: "rgba(212,175,55,0.15)" }} />
             <button onClick={() => setViewMode("intel")} aria-pressed={viewMode === "intel"}
-              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "intel" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>{t.intelTab}</button>
+              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "intel" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>{t.intelTab}<span className="hidden lg:inline text-[7px] font-[DM_Mono] ml-1 opacity-40">2</span></button>
           </div>
           <div className="flex items-center" role="radiogroup" aria-label="Language" style={{ border: "1px solid rgba(212,175,55,0.15)" }}>
             <button onClick={() => setLang("EN")} role="radio" aria-checked={lang === "EN"} aria-label="English"
@@ -1431,9 +1474,37 @@ export default function Home() {
           </div>
         </div>
 
-        {error && <div className="border px-4 py-3 mb-4 text-center text-[11px] font-[Lato] text-[#FF6666] anim-error" role="alert" style={{ background: "rgba(139,0,0,0.08)", borderColor: "rgba(139,0,0,0.3)" }}>
-          {error}
-          <button onClick={() => setError("")} className="ml-3 text-[9px] text-[#8B6E6E] hover:text-[#FF6666] uppercase" aria-label="Dismiss error">✕</button>
+        {/* Connection + timestamp strip */}
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? (apiDead.current ? "bg-[#C5A255]" : "bg-[#006B3F]") : "bg-[#8B0000]"}`} />
+            <span className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.1em]"
+              style={{ color: isOnline ? (apiDead.current ? "#C5A255" : "#006B3F") : "#8B0000" }}>
+              {!isOnline ? (zh ? "离线" : "Offline") : apiDead.current ? (zh ? "演示模式" : "Demo") : (zh ? "已连接" : "Connected")}
+            </span>
+          </div>
+          {lastAnalyzedAt && (
+            <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+              {zh ? "最近分析" : "Last signal"}: {lastAnalyzedAt}
+            </span>
+          )}
+        </div>
+
+        {error && <div className="border px-4 py-3 mb-4 anim-error" role="alert" style={{ background: "rgba(139,0,0,0.08)", borderColor: "rgba(139,0,0,0.3)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[14px] shrink-0" style={{ color: "#8B0000" }}>⚠</span>
+              <span className="text-[11px] font-[Lato] text-[#FF6666] truncate">{error}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => { setError(""); runSignal(); }}
+                className="px-3 py-1.5 text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] text-[#D4AF37] hover:text-[#FFD700] transition-colors"
+                style={{ border: "1px solid rgba(212,175,55,0.25)", background: "rgba(212,175,55,0.06)" }}>
+                {zh ? "重试" : "Retry"}
+              </button>
+              <button onClick={() => setError("")} className="text-[12px] text-[#8B6E6E] hover:text-[#FF6666] px-1" aria-label="Dismiss error">✕</button>
+            </div>
+          </div>
         </div>}
         {loading && <div className="border px-4 py-4 mb-4" role="status" aria-live="polite" style={{ background: "rgba(212,175,55,0.04)", borderColor: "rgba(212,175,55,0.15)" }}>
           <div className="flex items-center justify-center gap-3">

@@ -63,7 +63,7 @@ st.set_page_config(
 # Palette: near-black / charcoal / gold-champagne / dark emerald accents
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ── Luxury dark base ── */
 .stApp{background:#08090C!important}
@@ -180,195 +180,123 @@ openai_client    = OpenAI()
 anthropic_client = anthropic.Anthropic()
 
 # ══════════════════════════════════════════════════════════
-# THEME — clean, calm, modern. Advice-first not dashboard.
+# THEME — Unified dark luxury (see DESIGN.md)
 # ══════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
-
-html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
-
-/* ── sidebar ── */
-section[data-testid="stSidebar"] {
-    background: #ffffff !important;
-    border-right: 1px solid #e5e7eb !important;
-}
-section[data-testid="stSidebar"] .stRadio label { font-size: 0.875rem !important; }
-
 /* ── main padding ── */
-.block-container { padding-top: 2.2rem !important; max-width: 1080px !important; }
+.block-container { padding-top: 2.2rem !important; }
 
 /* ── hero section ── */
 .hero-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #111827;
-    letter-spacing: -0.03em;
-    line-height: 1.2;
-    margin-bottom: 0.4rem;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 2rem; font-weight: 400;
+    color: #E8DCC8; letter-spacing: -0.03em;
+    line-height: 1.2; margin-bottom: 0.4rem;
 }
-.hero-sub {
-    font-size: 1rem;
-    color: #6b7280;
-    line-height: 1.6;
-    margin-bottom: 1.4rem;
-    max-width: 500px;
-}
+.hero-sub { font-size: 1rem; color: #7A7D85; line-height: 1.6;
+    margin-bottom: 1.4rem; max-width: 500px; }
 
 /* ── answer card ── */
-.answer-card {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 1.4rem 1.5rem;
-    margin-top: 0.6rem;
-}
-.answer-section-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #9ca3af;
-    margin-bottom: 0.25rem;
-}
-.answer-conclusion {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: #111827;
-    letter-spacing: -0.02em;
-    margin-bottom: 0.1rem;
-}
-.answer-value {
-    font-size: 0.95rem;
-    color: #374151;
-    line-height: 1.6;
-}
-.answer-risk {
-    font-size: 0.95rem;
-    color: #b45309;
-    line-height: 1.6;
-}
+.answer-card { background: #111318; border: 1px solid #1C1E24;
+    border-radius: 3px; padding: 1.4rem 1.5rem; margin-top: 0.6rem; }
+.answer-section-label { font-size: 0.65rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: #C9A84C; margin-bottom: 0.25rem; }
+.answer-conclusion { font-size: 1.35rem; font-weight: 700;
+    color: #E8DCC8; letter-spacing: -0.02em; margin-bottom: 0.1rem; }
+.answer-value { font-size: 0.95rem; color: #7A7D85; line-height: 1.6; }
+.answer-risk  { font-size: 0.95rem; color: #C9A84C; line-height: 1.6; }
 
 /* ── 3 summary cards row ── */
-.summary-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
-}
-.sc-label { font-size: 0.68rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
-.sc-value { font-size: 1rem; font-weight: 600; color: #111827; line-height: 1.4; }
-.sc-sub   { font-size: 0.8rem; color: #6b7280; margin-top: 0.1rem; }
+.summary-card { background: #111318; border: 1px solid #1C1E24;
+    border-radius: 3px; padding: 1rem 1.1rem; }
+.sc-label { font-size: 0.68rem; font-weight: 600; color: #C9A84C;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+.sc-value { font-size: 1rem; font-weight: 600; color: #E8DCC8; line-height: 1.4; }
+.sc-sub   { font-size: 0.8rem; color: #7A7D85; margin-top: 0.1rem; }
 
 /* ── ticker card (Today page) ── */
-.ticker-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 1.1rem 1.2rem;
-    margin-bottom: 0.7rem;
-}
-.tk-name  { font-size: 1.3rem; font-weight: 700; color: #111827; letter-spacing: -0.02em; }
-.tk-label { font-size: 0.72rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
-.tk-val   { font-size: 0.88rem; color: #374151; line-height: 1.5; }
+.ticker-card { background: #111318; border: 1px solid #1C1E24;
+    border-radius: 3px; padding: 1.1rem 1.2rem; margin-bottom: 0.7rem; }
+.tk-name  { font-size: 1.3rem; font-weight: 700; color: #E8DCC8; letter-spacing: -0.02em; }
+.tk-label { font-size: 0.72rem; font-weight: 600; color: #5A5D65;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+.tk-val   { font-size: 0.88rem; color: #7A7D85; line-height: 1.5; }
 
 /* ── memory card ── */
-.mem-card {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 1.1rem 1.25rem;
-    margin-bottom: 0.6rem;
-}
-.mem-date { font-size: 0.72rem; color: #9ca3af; margin-bottom: 0.5rem; font-weight: 500; }
-.mem-summary { font-size: 0.88rem; color: #374151; line-height: 1.6; }
+.mem-card { background: #111318; border: 1px solid #1C1E24;
+    border-radius: 3px; padding: 1.1rem 1.25rem; margin-bottom: 0.6rem; }
+.mem-date { font-size: 0.72rem; color: #5A5D65; margin-bottom: 0.5rem; font-weight: 500; }
+.mem-summary { font-size: 0.88rem; color: #7A7D85; line-height: 1.6; }
 
 /* ── behavior card ── */
-.beh-card {
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
-    margin-bottom: 0.5rem;
-}
-.beh-strength   { background: #f0fdf4; border: 1px solid #bbf7d0; }
-.beh-pattern    { background: #fffbeb; border: 1px solid #fde68a; }
-.beh-improve    { background: #eff6ff; border: 1px solid #bfdbfe; }
-.beh-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
-.beh-strength .beh-label { color: #15803d; }
-.beh-pattern  .beh-label { color: #b45309; }
-.beh-improve  .beh-label { color: #1d4ed8; }
-.beh-text { font-size: 0.875rem; color: #374151; line-height: 1.5; }
+.beh-card { border-radius: 3px; padding: 1rem 1.1rem; margin-bottom: 0.5rem; }
+.beh-strength { background: rgba(74,103,65,0.1); border: 1px solid rgba(74,103,65,0.3); }
+.beh-pattern  { background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.2); }
+.beh-improve  { background: rgba(107,112,128,0.08); border: 1px solid rgba(107,112,128,0.2); }
+.beh-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+.beh-strength .beh-label { color: #4A6741; }
+.beh-pattern  .beh-label { color: #C9A84C; }
+.beh-improve  .beh-label { color: #7A7D85; }
+.beh-text { font-size: 0.875rem; color: #7A7D85; line-height: 1.5; }
 
 /* ── chat bubbles ── */
-.user-bubble {
-    background: #4f46e5;
-    color: #fff;
-    padding: 0.55rem 0.9rem;
-    border-radius: 18px 18px 4px 18px;
-    margin: 0.3rem 0 0.3rem 18%;
-    font-size: 0.88rem;
-    line-height: 1.55;
-    word-wrap: break-word;
-}
-.coach-bubble {
-    background: #f3f4f6;
-    color: #111827;
-    padding: 0.55rem 0.9rem;
-    border-radius: 18px 18px 18px 4px;
-    margin: 0.3rem 18% 0.3rem 0;
-    font-size: 0.88rem;
-    line-height: 1.6;
-    word-wrap: break-word;
-}
-.bubble-lbl { font-size: 0.65rem; color: #9ca3af; margin-bottom: 0.08rem; }
+.user-bubble { background: rgba(201,168,76,0.12); color: #E8DCC8;
+    padding: 0.55rem 0.9rem; border-radius: 3px 3px 3px 3px;
+    margin: 0.3rem 0 0.3rem 18%; font-size: 0.88rem;
+    line-height: 1.55; word-wrap: break-word; border: 1px solid rgba(201,168,76,0.2); }
+.coach-bubble { background: #111318; color: #7A7D85;
+    padding: 0.55rem 0.9rem; border-radius: 3px;
+    margin: 0.3rem 18% 0.3rem 0; font-size: 0.88rem;
+    line-height: 1.6; word-wrap: break-word; border: 1px solid #1C1E24; }
+.bubble-lbl { font-size: 0.65rem; color: #5A5D65; margin-bottom: 0.08rem; }
 .bubble-lbl-r { text-align: right; }
 
 /* ── badge ── */
-.bdg {
-    display: inline-block;
-    padding: 0.18rem 0.65rem;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-}
-.bdg-watch { background: #fef9c3; color: #713f12; }
-.bdg-enter { background: #dcfce7; color: #14532d; }
-.bdg-avoid { background: #fee2e2; color: #7f1d1d; }
-.bdg-hold  { background: #ede9fe; color: #4c1d95; }
+.bdg { display: inline-block; padding: 0.18rem 0.65rem; border-radius: 2px;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; }
+.bdg-watch { background: rgba(201,168,76,0.12); color: #C9A84C; }
+.bdg-enter { background: rgba(74,103,65,0.15); color: #4A6741; }
+.bdg-avoid { background: rgba(139,58,58,0.15); color: #8B3A3A; }
+.bdg-hold  { background: rgba(107,112,128,0.12); color: #7A7D85; }
 
 /* ── section heading ── */
-.sec-h {
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #9ca3af;
-    margin: 1.4rem 0 0.6rem 0;
-    padding-bottom: 0.3rem;
-    border-bottom: 1px solid #f3f4f6;
-}
+.sec-h { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #C9A84C;
+    margin: 1.4rem 0 0.6rem 0; padding-bottom: 0.3rem;
+    border-bottom: 1px solid #1C1E24; }
 
 /* ── page title ── */
-.pg-title { font-size: 1.5rem; font-weight: 700; color: #111827; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
-.pg-sub   { font-size: 0.88rem; color: #6b7280; margin-bottom: 1.2rem; }
+.pg-title { font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 1.5rem; font-weight: 400; color: #E8DCC8;
+    letter-spacing: -0.02em; margin-bottom: 0.2rem; }
+.pg-sub { font-size: 0.88rem; color: #5A5D65; margin-bottom: 1.2rem; }
 
 /* ── wordmark ── */
-.wm     { font-size: 1.15rem; font-weight: 700; color: #111827; letter-spacing: -0.02em; }
-.wm em  { color: #4f46e5; font-style: normal; }
-.wm-sub { font-size: 0.7rem; color: #9ca3af; }
+.wm     { font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 1.15rem; font-weight: 400; color: #E8DCC8; letter-spacing: -0.02em; }
+.wm em  { color: #C9A84C; font-style: normal; }
+.wm-sub { font-size: 0.7rem; color: #5A5D65; }
 
 /* ── quick prompt chips ── */
 .qp-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.8rem; }
 
-/* ── metric override — readable ── */
-[data-testid="stMetric"] {
-    background: #ffffff !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 12px !important;
-    padding: 0.9rem 1rem !important;
-}
+/* ── metric override — dark ── */
+[data-testid="stMetric"] { background: #111318 !important;
+    border: 1px solid #1C1E24 !important; border-radius: 3px !important;
+    padding: 0.9rem 1rem !important; }
 
-audio { width: 100%; border-radius: 8px; margin-top: 0.3rem; }
+/* ── empty state ── */
+.empty-state { background: #111318; border: 1px solid #1C1E24;
+    border-radius: 3px; text-align: center; padding: 48px 24px; }
+.empty-state-title { font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 1.5rem; color: #E8DCC8; margin-bottom: 8px; }
+.empty-state-desc { font-size: 13px; color: #7A7D85; max-width: 400px;
+    margin: 0 auto 20px; line-height: 1.6; }
+
+audio { width: 100%; border-radius: 3px; margin-top: 0.3rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -613,15 +541,15 @@ def equity_data(ticker, params, train_ratio=0.7, tc=0.001, sl=0.001):
 # ══════════════════════════════════════════════════════════
 # CHARTS
 # ══════════════════════════════════════════════════════════
-CP = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444"]
+CP = ["#C9A84C", "#4A6741", "#8B3A3A", "#7A7D85"]
 
 
 def _ls(ax, fig):
-    fig.patch.set_facecolor("#fff"); ax.set_facecolor("#f9fafb")
-    ax.tick_params(colors="#6b7280", labelsize=8)
-    ax.title.set_color("#111827"); ax.title.set_fontsize(10)
-    ax.grid(True, color="#e5e7eb", lw=0.5, ls="--")
-    for sp in ax.spines.values(): sp.set_edgecolor("#e5e7eb")
+    fig.patch.set_facecolor("#08090C"); ax.set_facecolor("#111318")
+    ax.tick_params(colors="#5A5D65", labelsize=8)
+    ax.title.set_color("#E8DCC8"); ax.title.set_fontsize(10)
+    ax.grid(True, color="#1C1E24", lw=0.5, ls="--")
+    for sp in ax.spines.values(): sp.set_edgecolor("#1C1E24")
 
 
 def chart_equity(ticker, tr, te):
@@ -630,9 +558,9 @@ def chart_equity(ticker, tr, te):
         _ls(ax, fig)
         ax.plot(bt["CumulativeGrossStrategyReturn"], label="Gross",  color=CP[0], lw=1.3)
         ax.plot(bt["CumulativeNetStrategyReturn"],   label="Net",    color=CP[1], lw=1.3)
-        ax.plot(bt["CumulativeMarketReturn"],        label="Market", color="#9ca3af", lw=1, ls="--")
+        ax.plot(bt["CumulativeMarketReturn"],        label="Market", color="#5A5D65", lw=1, ls="--")
         ax.set_title(f"{ticker} — {lbl}")
-        ax.legend(fontsize=7, facecolor="#fff", edgecolor="#e5e7eb")
+        ax.legend(fontsize=7, facecolor="#111318", edgecolor="#1C1E24", labelcolor="#7A7D85")
     plt.tight_layout(); return fig
 
 
@@ -640,10 +568,10 @@ def chart_portfolio(df):
     fig, ax = plt.subplots(figsize=(9, 3.5))
     _ls(ax, fig)
     ax.plot(df["PortfolioNetCumulative"],    label="Strategy", color=CP[0], lw=1.5)
-    ax.plot(df["PortfolioMarketCumulative"], label="Buy & Hold", color="#9ca3af", lw=1, ls="--")
+    ax.plot(df["PortfolioMarketCumulative"], label="Buy & Hold", color="#5A5D65", lw=1, ls="--")
     ax.fill_between(df.index, df["PortfolioNetCumulative"], alpha=0.07, color=CP[0])
     ax.set_title("Portfolio Equity Curve")
-    ax.legend(fontsize=7, facecolor="#fff", edgecolor="#e5e7eb")
+    ax.legend(fontsize=7, facecolor="#111318", edgecolor="#1C1E24", labelcolor="#7A7D85")
     plt.tight_layout(); return fig
 
 
@@ -652,9 +580,9 @@ def chart_vs(ticker, cur, prop):
     _ls(ax, fig)
     ax.plot(cur["CumulativeNetStrategyReturn"],  label="Current",  color=CP[1], lw=1.3)
     ax.plot(prop["CumulativeNetStrategyReturn"], label="Proposal", color=CP[0], lw=1.3)
-    ax.plot(cur["CumulativeMarketReturn"],       label="Market",   color="#9ca3af", lw=1, ls="--")
+    ax.plot(cur["CumulativeMarketReturn"],       label="Market",   color="#5A5D65", lw=1, ls="--")
     ax.set_title(f"{ticker} — Current vs Proposal")
-    ax.legend(fontsize=7, facecolor="#fff", edgecolor="#e5e7eb")
+    ax.legend(fontsize=7, facecolor="#111318", edgecolor="#1C1E24", labelcolor="#7A7D85")
     plt.tight_layout(); return fig
 
 
@@ -667,11 +595,11 @@ def chart_sharpe(results):
     _ls(ax, fig)
     clrs = [CP[1] if v > 0 else CP[3] for v in vals]
     bars = ax.bar(tks, vals, color=clrs, width=0.4, zorder=3)
-    ax.axhline(0, color="#d1d5db", lw=0.7, ls="--")
+    ax.axhline(0, color="#1C1E24", lw=0.7, ls="--")
     ax.set_title("Walk-Forward Avg Sharpe by Ticker")
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width()/2, b.get_height() + 0.02,
-                f"{v:.2f}", ha="center", va="bottom", color="#6b7280", fontsize=8)
+                f"{v:.2f}", ha="center", va="bottom", color="#5A5D65", fontsize=8)
     plt.tight_layout(); return fig
 
 
@@ -723,11 +651,11 @@ def chart_strategy_comparison(ticker, ms_results: dict):
                     alpha=alpha, label=label)
 
         ax.set_title(f"{ticker} — Strategy Comparison")
-        ax.legend(fontsize=7, facecolor="#fff", edgecolor="#e5e7eb",
+        ax.legend(fontsize=7, facecolor="#111318", edgecolor="#1C1E24", labelcolor="#7A7D85",
                   loc="upper left", framealpha=0.9)
         ax.text(0.5, 0.5, "Strategy comparison\n(equity curves in Analysis tab)",
                 ha="center", va="center", transform=ax.transAxes,
-                color="#9ca3af", fontsize=10)
+                color="#5A5D65", fontsize=10)
         plt.tight_layout()
         return fig
     except Exception:
@@ -744,10 +672,10 @@ def chart_feature_importance(fi_df: pd.DataFrame, ticker: str):
         bars = ax.barh(top["feature"], top["importance"],
                        color=CP[0], alpha=0.85, height=0.6)
         ax.set_title(f"{ticker} — Top Feature Importances (Random Forest)")
-        ax.set_xlabel("Importance", fontsize=8, color="#6b7280")
+        ax.set_xlabel("Importance", fontsize=8, color="#5A5D65")
         for bar, val in zip(bars, top["importance"]):
             ax.text(val + 0.001, bar.get_y() + bar.get_height()/2,
-                    f"{val:.3f}", va="center", fontsize=7, color="#6b7280")
+                    f"{val:.3f}", va="center", fontsize=7, color="#5A5D65")
         plt.tight_layout()
         return fig
     except Exception:
@@ -764,13 +692,13 @@ def chart_ml_comparison(ml_result: dict, ticker: str):
         _ls(ax, fig)
         colors = [CP[1] if v > 0 else CP[3] for v in df["sharpe"]]
         bars = ax.bar(df["model"], df["sharpe"], color=colors, width=0.5, zorder=3)
-        ax.axhline(0, color="#d1d5db", lw=0.7, ls="--")
+        ax.axhline(0, color="#1C1E24", lw=0.7, ls="--")
         ax.set_title(f"{ticker} — ML Models vs Buy-and-Hold (Test Sharpe)")
         ax.tick_params(axis="x", rotation=15, labelsize=8)
         for b, v in zip(bars, df["sharpe"]):
             ax.text(b.get_x() + b.get_width()/2,
                     b.get_height() + (0.02 if v >= 0 else -0.08),
-                    f"{v:.2f}", ha="center", fontsize=8, color="#6b7280")
+                    f"{v:.2f}", ha="center", fontsize=8, color="#5A5D65")
         plt.tight_layout()
         return fig
     except Exception:
@@ -809,9 +737,9 @@ def chart_factor_scores(results):
         ax.bar([i + w for i in x], df["volume"],   width=w,
                label="Volume",   color=CP[2], alpha=0.85)
         ax.set_xticks(list(x)); ax.set_xticklabels(df["ticker"], fontsize=9)
-        ax.axhline(0, color="#d1d5db", lw=0.7, ls="--")
+        ax.axhline(0, color="#1C1E24", lw=0.7, ls="--")
         ax.set_title("Factor Scores by Ticker (latest)")
-        ax.legend(fontsize=7, facecolor="#fff", edgecolor="#e5e7eb")
+        ax.legend(fontsize=7, facecolor="#111318", edgecolor="#1C1E24", labelcolor="#7A7D85")
         plt.tight_layout()
         return fig
     except Exception:
@@ -832,7 +760,7 @@ def market_mood(results):
 
 
 def mood_color(m):
-    return {"Constructive": "#15803d", "Cautious": "#b45309"}.get(m, "#b91c1c")
+    return {"Constructive": "#4A6741", "Cautious": "#C9A84C"}.get(m, "#8B3A3A")
 
 
 def alabel(action):
@@ -909,7 +837,7 @@ with st.sidebar:
 
     page = st.radio(
         "NAV",
-        ["Home", "Today", "Memory", "Analysis", "Settings"],
+        ["Home", "Today", "Memory", "Analysis"],
         label_visibility="collapsed",
         key="sb_page")
     st.divider()
@@ -1700,8 +1628,8 @@ if page == "Home":
             _agg = _insights.get("aggressiveness", 0.5)
             _agg_lbl   = ("Aggressive" if _agg > 0.7
                           else "Conservative" if _agg < 0.35 else "Balanced")
-            _agg_color = ("#b91c1c" if _agg > 0.7
-                          else "#15803d" if _agg < 0.35 else "#92400e")
+            _agg_color = ("#8B3A3A" if _agg > 0.7
+                          else "#4A6741" if _agg < 0.35 else "#C9A84C")
 
             _agg_color_dark = {"Aggressive": "#8B3A3A", "Conservative": "#4A6741"}.get(_agg_lbl, "#6B7280")
             _wr = _insights.get("win_rate_overall", 0)
@@ -1794,6 +1722,16 @@ if page == "Home":
             pass
 
     # ── fire coach ──
+    _coach_col, _send_col = st.columns([5, 1])
+    with _coach_col:
+        typed = st.text_input(
+            "Ask your coach",
+            key="coach_text_input",
+            placeholder="What would you like to know?",
+            label_visibility="collapsed",
+        )
+    with _send_col:
+        send_btn = st.button("Ask", key="coach_send_btn", use_container_width=True)
     auto_ask  = st.session_state.get("pending_auto_ask", "")
     effective = ((typed.strip() if send_btn else None) or
                  (auto_ask if auto_ask else None))
@@ -1880,7 +1818,12 @@ elif page == "Today":
         unsafe_allow_html=True)
 
     if not results:
-        st.info("Run Orallexa first (sidebar → ▶ Run Orallexa).")
+        st.markdown(
+            '<div class="empty-state">'
+            '<div class="empty-state-title">Ready to brief</div>'
+            '<div class="empty-state-desc">Your daily trading brief will appear here after running analysis. '
+            'Enter tickers in the sidebar and click Run Orallexa.</div>'
+            '</div>', unsafe_allow_html=True)
     else:
         if valid:
             rnk  = ranked
@@ -1901,13 +1844,13 @@ elif page == "Today":
                 with pcols[i]:
                     rt = fetch_realtime_price(tk)
                     if rt:
-                        color = "#15803d" if rt["pct_change"] >= 0 else "#b91c1c"
+                        color = "#4A6741" if rt["pct_change"] >= 0 else "#8B3A3A"
                         arrow = "▲" if rt["pct_change"] >= 0 else "▼"
                         st.markdown(
-                            f'<div style="background:#fff;border:1px solid #e5e7eb;'
-                            f'border-radius:10px;padding:0.7rem 0.9rem;text-align:center">'
-                            f'<div style="font-size:0.72rem;color:#9ca3af;font-weight:600">{tk}</div>'
-                            f'<div style="font-size:1.2rem;font-weight:700;color:#111827">'
+                            f'<div style="background:#111318;border:1px solid #1C1E24;'
+                            f'border-radius:3px;padding:0.7rem 0.9rem;text-align:center">'
+                            f'<div style="font-size:0.72rem;color:#5A5D65;font-weight:600">{tk}</div>'
+                            f'<div style="font-size:1.2rem;font-weight:700;color:#E8DCC8">'
                             f'${rt["price"]}</div>'
                             f'<div style="font-size:0.82rem;color:{color};font-weight:600">'
                             f'{arrow} {rt["pct_change"]:+.2f}%</div>'
@@ -1915,10 +1858,10 @@ elif page == "Today":
                             unsafe_allow_html=True)
                     else:
                         st.markdown(
-                            f'<div style="background:#fff;border:1px solid #e5e7eb;'
-                            f'border-radius:10px;padding:0.7rem 0.9rem;text-align:center">'
-                            f'<div style="font-size:0.72rem;color:#9ca3af">{tk}</div>'
-                            f'<div style="font-size:0.88rem;color:#9ca3af">—</div>'
+                            f'<div style="background:#111318;border:1px solid #1C1E24;'
+                            f'border-radius:3px;padding:0.7rem 0.9rem;text-align:center">'
+                            f'<div style="font-size:0.72rem;color:#5A5D65">{tk}</div>'
+                            f'<div style="font-size:0.88rem;color:#5A5D65">—</div>'
                             f'</div>',
                             unsafe_allow_html=True)
 
@@ -1939,14 +1882,14 @@ elif page == "Today":
                 st.markdown('<div class="sec-h">Portfolio Correlation</div>', unsafe_allow_html=True)
                 div_label = corr_rpt.get("diversification", "—")
                 avg_c     = corr_rpt.get("avg_correlation", 0)
-                color_div = {"good": "#15803d", "moderate": "#b45309", "poor": "#b91c1c"}.get(div_label, "#6b7280")
+                color_div = {"good": "#4A6741", "moderate": "#C9A84C", "poor": "#8B3A3A"}.get(div_label, "#6b7280")
                 st.markdown(
-                    f'<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;'
+                    f'<div style="background:#111318;border:1px solid #1C1E24;border-radius:3px;'
                     f'padding:0.8rem 1rem;margin-bottom:0.6rem">'
-                    f'<span style="font-size:0.72rem;color:#9ca3af;text-transform:uppercase">Diversification</span><br>'
+                    f'<span style="font-size:0.72rem;color:#C9A84C;text-transform:uppercase">Diversification</span><br>'
                     f'<span style="font-size:1.1rem;font-weight:700;color:{color_div}">'
                     f'{div_label.title()}</span>'
-                    f'<span style="font-size:0.82rem;color:#6b7280;margin-left:0.8rem">'
+                    f'<span style="font-size:0.82rem;color:#7A7D85;margin-left:0.8rem">'
                     f'Avg correlation: {avg_c:.2f}</span>'
                     f'</div>',
                     unsafe_allow_html=True)
@@ -1972,7 +1915,7 @@ elif page == "Today":
                     f'</div>'
                     f'<div style="text-align:right">'
                     f'<div class="tk-label">WF Sharpe</div>'
-                    f'<div style="font-size:1.1rem;font-weight:700;color:{"#15803d" if wfs>0 else "#b91c1c"}">'
+                    f'<div style="font-size:1.1rem;font-weight:700;color:{"#4A6741" if wfs>0 else "#8B3A3A"}">'
                     f'{wfs:+.3f}</div>'
                     f'</div>'
                     f'</div>'
@@ -2024,7 +1967,12 @@ elif page == "Memory":
         unsafe_allow_html=True)
 
     if not mem_recs:
-        st.info("No memory yet. Run Orallexa and ask your coach some questions.")
+        st.markdown(
+            '<div class="empty-state">'
+            '<div class="empty-state-title">Your trading memory starts here</div>'
+            '<div class="empty-state-desc">Run Orallexa and ask your coach some questions. '
+            'Your market conversations, daily reflections, and behavior patterns will build up over time.</div>'
+            '</div>', unsafe_allow_html=True)
     else:
         today_mem = mem_recs[0]
 
@@ -2038,7 +1986,7 @@ elif page == "Memory":
                 f'<div class="mem-date">Daily Memory Card · {today_mem.get("date","")}</div>'
                 f'<div style="margin-bottom:0.5rem">'
                 f'<div class="tk-label">Top Ticker</div>'
-                f'<div style="font-size:1rem;font-weight:700;color:#111827">{today_mem.get("top_ticker","")}</div>'
+                f'<div style="font-size:1rem;font-weight:700;color:#E8DCC8">{today_mem.get("top_ticker","")}</div>'
                 f'</div>'
                 f'<div style="margin-bottom:0.5rem">'
                 f'<div class="tk-label">AI Summary</div>'
@@ -2208,7 +2156,7 @@ elif page == "Memory":
                             alpha=0.08, color=CP[0])
             ax.axhline(7, color=CP[1], lw=1, ls="--", alpha=0.6)
             ax.set_ylim(0, 11)
-            ax.set_ylabel("Score", fontsize=8, color="#6b7280")
+            ax.set_ylabel("Score", fontsize=8, color="#5A5D65")
             ax.set_title("Daily Discipline Score", fontsize=10)
             ax.tick_params(axis="x", rotation=30, labelsize=7)
             plt.tight_layout()
@@ -2229,7 +2177,12 @@ elif page == "Analysis":
         unsafe_allow_html=True)
 
     if not results:
-        st.info("Run Orallexa first.")
+        st.markdown(
+            '<div class="empty-state">'
+            '<div class="empty-state-title">Deep analysis awaits</div>'
+            '<div class="empty-state-desc">Run the engine first. This page shows advanced research: '
+            'watchlist ranking, portfolio allocation, strategy validation, and per-ticker detail.</div>'
+            '</div>', unsafe_allow_html=True)
     else:
         # Watchlist ranking
         st.markdown('<div class="sec-h">Watchlist Ranking</div>', unsafe_allow_html=True)
@@ -2360,15 +2313,15 @@ elif page == "Analysis":
                         lbl   = sent.get("sentiment_label", "neutral")
                         score = sent.get("avg_compound", 0.0)
                         sig   = sent.get("signal", "neutral")
-                        color = {"positive":"#15803d","negative":"#b91c1c"}.get(lbl,"#6b7280")
+                        color = {"positive":"#4A6741","negative":"#8B3A3A"}.get(lbl,"#7A7D85")
                         st.markdown("**📰 News Sentiment**")
                         st.markdown(
-                            f'<div style="background:#f9fafb;border:1px solid #e5e7eb;'
-                            f'border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem">'
-                            f'<span style="font-size:0.72rem;color:#9ca3af;text-transform:uppercase">Sentiment</span><br>'
+                            f'<div style="background:#111318;border:1px solid #1C1E24;'
+                            f'border-radius:3px;padding:0.8rem 1rem;margin-bottom:0.5rem">'
+                            f'<span style="font-size:0.72rem;color:#C9A84C;text-transform:uppercase">Sentiment</span><br>'
                             f'<span style="font-size:1.1rem;font-weight:700;color:{color}">'
                             f'{lbl.title()} ({score:+.3f})</span><br>'
-                            f'<span style="font-size:0.82rem;color:#6b7280">'
+                            f'<span style="font-size:0.82rem;color:#7A7D85">'
                             f'Signal: {sig} · {sent.get("summary","")}</span>'
                             f'</div>',
                             unsafe_allow_html=True)
@@ -2426,78 +2379,3 @@ elif page == "Analysis":
                     st.text(r["rag_context"])
 
 
-# ══════════════════════════════════════════════════════════
-# SETTINGS
-# ══════════════════════════════════════════════════════════
-elif page == "Settings":
-    st.markdown('<div class="pg-title">Settings</div>', unsafe_allow_html=True)
-    st.markdown('<div class="pg-sub">Personalise your coach, language, voice, and preferences.</div>',
-                unsafe_allow_html=True)
-
-    st.markdown('<div class="sec-h">Coach Identity</div>', unsafe_allow_html=True)
-    new_name = st.text_input("Coach name",
-        value=st.session_state.get("coach_name",""),
-        placeholder="Nova, Aria, Rex…",
-        key="set_cname")
-    if st.button("Save name", key="sv_name"):
-        st.session_state["coach_name"] = new_name.strip() or "Coach"
-        st.success(f"Coach name set to: {st.session_state['coach_name']}")
-
-    st.markdown('<div class="sec-h">Language</div>', unsafe_allow_html=True)
-    new_resp = st.selectbox("Response language",
-        ["English", "Follow User", "中文", "Bilingual"],
-        index=["English","Follow User","中文","Bilingual"].index(
-            st.session_state.get("resp_mode","English")),
-        key="set_resp")
-    if st.button("Save language", key="sv_resp"):
-        st.session_state["resp_mode"] = new_resp
-        st.success("Saved.")
-
-    st.markdown('<div class="sec-h">Voice</div>', unsafe_allow_html=True)
-    voice_opts = {
-        "Nova ✦ — warm female (recommended)": "nova",
-        "Shimmer — soft female": "shimmer",
-        "Alloy — neutral": "alloy",
-        "Onyx — deep male": "onyx",
-        "Echo — balanced": "echo",
-    }
-    cur_v = st.session_state.get("voice_key","nova")
-    cur_lbl = next((k for k,v in voice_opts.items() if v==cur_v), list(voice_opts.keys())[0])
-    new_v = st.selectbox("Voice profile", list(voice_opts.keys()),
-        index=list(voice_opts.keys()).index(cur_lbl), key="set_voice")
-    if st.button("Save voice", key="sv_voice"):
-        st.session_state["voice_key"] = voice_opts[new_v]
-        st.success("Saved.")
-
-    st.markdown('<div class="sec-h">Persona</div>', unsafe_allow_html=True)
-    new_persona = st.selectbox("Coach style",
-        ["Calm Coach", "Trader Mode", "Bilingual Mentor"],
-        index=["Calm Coach","Trader Mode","Bilingual Mentor"].index(
-            st.session_state.get("persona","Calm Coach")),
-        key="set_persona")
-    st.caption({
-        "Calm Coach":      "Measured, reassuring. Honest about risk. Good for steady decision-making.",
-        "Trader Mode":     "Direct, no fluff. Talks like a trader. Good for fast decisions.",
-        "Bilingual Mentor":"Warm and nuanced. Switches language based on what you use.",
-    }.get(new_persona,""))
-    if st.button("Save persona", key="sv_persona"):
-        st.session_state["persona"] = new_persona
-        st.success("Saved.")
-
-    st.markdown('<div class="sec-h">User Preference</div>', unsafe_allow_html=True)
-    new_pref = st.selectbox("Risk appetite",
-        ["Conservative","Balanced","Aggressive"],
-        index=["Conservative","Balanced","Aggressive"].index(
-            st.session_state.get("user_pref","Balanced")),
-        key="set_pref")
-    st.caption({
-        "Conservative": "Prioritise capital preservation. Low drawdown tolerance.",
-        "Balanced":      "Normal risk-reward. Suitable for most traders.",
-        "Aggressive":    "Higher risk tolerance. Willing to accept larger drawdowns.",
-    }.get(new_pref,""))
-    if st.button("Save preference", key="sv_pref"):
-        st.session_state["user_pref"] = new_pref
-        st.success("Saved.")
-
-    st.markdown('<div class="sec-h">Daily Routine (coming soon)</div>', unsafe_allow_html=True)
-    st.caption("Morning briefing and evening reflection reminders — coming in a future update.")
