@@ -57,11 +57,20 @@ Claude API calls use dual-tier routing:
 
 Full analysis of one ticker costs about $0.003. Running 50 tickers daily is under $0.15.
 
+## Evaluation harness
+
+Every strategy is tested with:
+- **Walk-forward validation** (expanding window, per-window indicator computation with warmup buffer to prevent leakage)
+- **Monte Carlo simulation** (1,000 iterations on trade returns only, not sparse daily returns)
+- **Statistical significance** (t-test, bootstrap CI, Deflated Sharpe Ratio)
+
+70 strategy-ticker pairs across 10 tickers. Auto-generated evaluation report with charts: https://github.com/alex-jb/orallexa-ai-trading-agent/blob/master/docs/evaluation_report.md
+
 ## Infrastructure
 
 - Next.js real-time dashboard with WebSocket live data
 - Alpaca paper trading integration for bracket orders
-- Docker deployment, 113 automated tests, CI/CD pipeline
+- Docker deployment, 127 automated tests, CI/CD pipeline
 - Voice input (Whisper) + TTS for hands-free operation
 - Desktop assistant with Art Deco theme (because why not)
 
