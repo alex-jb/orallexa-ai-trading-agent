@@ -46,13 +46,19 @@ Every stage is automated. Every stage is observable. The system runs continuousl
 <!-- EVAL_TABLE_START -->
 | Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
 |----------|--------|-----------|------------|--------|---------|---------|
-| alpha_combo | NVDA | 0.920 | -1.073 | 85.4% | 0.0163 | FAIL |
-| macd_crossover | NVDA | 0.909 | -1.007 | 75.2% | 0.0025 | FAIL |
-| trend_momentum | NVDA | 0.738 | -1.125 | 73.3% | 0.0046 | FAIL |
-| double_ma | NVDA | 0.625 | -1.532 | 100.0% | 0.0175 | FAIL |
-| bollinger_breakout | NVDA | 0.201 | -1.326 | 97.7% | 0.1579 | FAIL |
-| rsi_reversal | NVDA | -0.070 | -1.365 | 96.8% | 0.2523 | FAIL |
+| alpha_combo | NVDA | 0.920 | -1.073 | 100.0% | 0.0163 | FAIL |
+| macd_crossover | NVDA | 0.909 | -1.007 | 98.9% | 0.0025 | FAIL |
+| trend_momentum | NVDA | 0.738 | -1.125 | 96.2% | 0.0046 | FAIL |
+| macd_crossover | TSLA | 0.693 | -0.273 | 99.7% | 0.0205 | FAIL |
+| double_ma | NVDA | 0.625 | -1.532 | 99.9% | 0.0175 | FAIL |
+| double_ma | TSLA | 0.517 | -0.277 | 99.6% | 0.1873 | FAIL |
+| bollinger_breakout | TSLA | 0.437 | -0.151 | 99.5% | 0.0549 | FAIL |
+| bollinger_breakout | AAPL | 0.385 | -0.758 | 100.0% | 0.0834 | FAIL |
+| rsi_reversal | TSLA | 0.283 | -0.392 | 99.9% | 0.6003 | FAIL |
+| alpha_combo | TSLA | 0.249 | -0.437 | 88.1% | 0.1575 | FAIL |
 <!-- EVAL_TABLE_END -->
+
+> 18 strategy-ticker pairs evaluated across NVDA, AAPL, TSLA. Top 10 shown by OOS Sharpe.
 
 > Walk-forward validation with 50-bar warmup buffer, Monte Carlo (1,000 iterations), Deflated Sharpe Ratio. [Full report](docs/evaluation_report.md)
 

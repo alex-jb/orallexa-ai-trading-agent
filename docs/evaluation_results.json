@@ -1,7 +1,9 @@
 {
-  "generated": "2026-04-02T15:10:55.311519",
+  "generated": "2026-04-02T15:56:41.582269",
   "tickers": [
-    "NVDA"
+    "NVDA",
+    "AAPL",
+    "TSLA"
   ],
   "strategies": [
     "double_ma",
@@ -13,7 +15,7 @@
   ],
   "num_strategies_tested": 6,
   "skipped_tickers": [],
-  "total_evaluated": 6,
+  "total_evaluated": 18,
   "total_passed": 0,
   "evaluations": [
     {
@@ -32,7 +34,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 782,
         "original_sharpe": 1.1999,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 99.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -67,7 +69,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 535,
         "original_sharpe": 1.9371,
-        "sharpe_percentile_rank": 75.2,
+        "sharpe_percentile_rank": 98.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -102,7 +104,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 226,
         "original_sharpe": 1.0639,
-        "sharpe_percentile_rank": 97.7,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -113,7 +115,7 @@
         "p_value": 0.1579,
         "sharpe_point": 1.0639,
         "sharpe_ci": [
-          -1.1433,
+          -1.1432,
           2.8659
         ],
         "dsr": 0.0755,
@@ -137,7 +139,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 38,
         "original_sharpe": 1.7588,
-        "sharpe_percentile_rank": 96.8,
+        "sharpe_percentile_rank": 99.8,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -172,7 +174,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 545,
         "original_sharpe": 1.7781,
-        "sharpe_percentile_rank": 73.3,
+        "sharpe_percentile_rank": 96.2,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -207,7 +209,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 920,
         "original_sharpe": 1.1213,
-        "sharpe_percentile_rank": 85.4,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -224,6 +226,426 @@
         "dsr": 1.0,
         "returns_significant": true,
         "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "double_ma",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.2352,
+        "pct_positive_sharpe": 0.467,
+        "avg_oos_return": 0.0158,
+        "avg_information_ratio": -0.8218,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 709,
+        "original_sharpe": 0.4157,
+        "sharpe_percentile_rank": 99.8,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 709,
+        "sufficient_data": true,
+        "t_statistic": 0.6967,
+        "p_value": 0.2431,
+        "sharpe_point": 0.4157,
+        "sharpe_ci": [
+          -0.8259,
+          1.5433
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "macd_crossover",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": -0.3781,
+        "pct_positive_sharpe": 0.4,
+        "avg_oos_return": -0.0011,
+        "avg_information_ratio": -1.0478,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 487,
+        "original_sharpe": 0.5643,
+        "sharpe_percentile_rank": 100.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 487,
+        "sufficient_data": true,
+        "t_statistic": 0.7837,
+        "p_value": 0.2168,
+        "sharpe_point": 0.5643,
+        "sharpe_ci": [
+          -0.8884,
+          1.9694
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "bollinger_breakout",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.3849,
+        "pct_positive_sharpe": 0.4,
+        "avg_oos_return": 0.0156,
+        "avg_information_ratio": -0.7577,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 329,
+        "original_sharpe": 1.2144,
+        "sharpe_percentile_rank": 100.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 329,
+        "sufficient_data": true,
+        "t_statistic": 1.3855,
+        "p_value": 0.0834,
+        "sharpe_point": 1.2144,
+        "sharpe_ci": [
+          -0.5422,
+          2.8866
+        ],
+        "dsr": 0.8439,
+        "returns_significant": false,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "rsi_reversal",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": -0.2941,
+        "pct_positive_sharpe": 0.067,
+        "avg_oos_return": -0.0056,
+        "avg_information_ratio": -0.8451,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 78,
+        "original_sharpe": 0.4806,
+        "sharpe_percentile_rank": 20.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 78,
+        "sufficient_data": true,
+        "t_statistic": 0.2657,
+        "p_value": 0.3956,
+        "sharpe_point": 0.4806,
+        "sharpe_ci": [
+          -3.1034,
+          4.3841
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "trend_momentum",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.124,
+        "pct_positive_sharpe": 0.533,
+        "avg_oos_return": 0.0251,
+        "avg_information_ratio": -0.5708,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 532,
+        "original_sharpe": 0.9536,
+        "sharpe_percentile_rank": 88.4,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 532,
+        "sufficient_data": true,
+        "t_statistic": 1.3842,
+        "p_value": 0.0834,
+        "sharpe_point": 0.9536,
+        "sharpe_ci": [
+          -0.3958,
+          2.3321
+        ],
+        "dsr": 0.8089,
+        "returns_significant": false,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "alpha_combo",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": -0.0567,
+        "pct_positive_sharpe": 0.533,
+        "avg_oos_return": 0.0015,
+        "avg_information_ratio": -1.1629,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 863,
+        "original_sharpe": 0.5333,
+        "sharpe_percentile_rank": 100.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 863,
+        "sufficient_data": true,
+        "t_statistic": 0.9863,
+        "p_value": 0.1621,
+        "sharpe_point": 0.5333,
+        "sharpe_ci": [
+          -0.5133,
+          1.5967
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "double_ma",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.5174,
+        "pct_positive_sharpe": 0.467,
+        "avg_oos_return": 0.0807,
+        "avg_information_ratio": -0.2774,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 649,
+        "original_sharpe": 0.5541,
+        "sharpe_percentile_rank": 99.6,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 649,
+        "sufficient_data": true,
+        "t_statistic": 0.8886,
+        "p_value": 0.1873,
+        "sharpe_point": 0.5541,
+        "sharpe_ci": [
+          -0.7168,
+          1.7846
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "macd_crossover",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.6928,
+        "pct_positive_sharpe": 0.467,
+        "avg_oos_return": 0.08,
+        "avg_information_ratio": -0.2732,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 441,
+        "original_sharpe": 1.5504,
+        "sharpe_percentile_rank": 99.7,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 441,
+        "sufficient_data": true,
+        "t_statistic": 2.0486,
+        "p_value": 0.0205,
+        "sharpe_point": 1.5504,
+        "sharpe_ci": [
+          0.1187,
+          3.0291
+        ],
+        "dsr": 1.0,
+        "returns_significant": true,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "bollinger_breakout",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.4372,
+        "pct_positive_sharpe": 0.267,
+        "avg_oos_return": 0.0593,
+        "avg_information_ratio": -0.1515,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 206,
+        "original_sharpe": 1.7803,
+        "sharpe_percentile_rank": 99.5,
+        "probability_of_ruin": 0.0,
+        "passed": true
+      },
+      "statistical": {
+        "n_observations": 206,
+        "sufficient_data": true,
+        "t_statistic": 1.6058,
+        "p_value": 0.0549,
+        "sharpe_point": 1.7803,
+        "sharpe_ci": [
+          -0.4013,
+          4.0509
+        ],
+        "dsr": 0.9823,
+        "returns_significant": false,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "rsi_reversal",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.283,
+        "pct_positive_sharpe": 0.2,
+        "avg_oos_return": -0.0107,
+        "avg_information_ratio": -0.3919,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 100,
+        "original_sharpe": -0.4065,
+        "sharpe_percentile_rank": 99.9,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 100,
+        "sufficient_data": true,
+        "t_statistic": -0.2548,
+        "p_value": 0.6003,
+        "sharpe_point": -0.4065,
+        "sharpe_ci": [
+          -3.5214,
+          2.8668
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "trend_momentum",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.1438,
+        "pct_positive_sharpe": 0.4,
+        "avg_oos_return": 0.0627,
+        "avg_information_ratio": -0.3956,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 422,
+        "original_sharpe": 1.0341,
+        "sharpe_percentile_rank": 98.6,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 422,
+        "sufficient_data": true,
+        "t_statistic": 1.3366,
+        "p_value": 0.091,
+        "sharpe_point": 1.0341,
+        "sharpe_ci": [
+          -0.4964,
+          2.506
+        ],
+        "dsr": 0.6567,
+        "returns_significant": false,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "alpha_combo",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.2493,
+        "pct_positive_sharpe": 0.467,
+        "avg_oos_return": 0.0597,
+        "avg_information_ratio": -0.437,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 864,
+        "original_sharpe": 0.5434,
+        "sharpe_percentile_rank": 88.1,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 864,
+        "sufficient_data": true,
+        "t_statistic": 1.0056,
+        "p_value": 0.1575,
+        "sharpe_point": 0.5434,
+        "sharpe_ci": [
+          -0.5358,
+          1.5973
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
       }
     }
   ]
