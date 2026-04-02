@@ -12,7 +12,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
 [![Tests](https://img.shields.io/badge/Tests-113_passing-22c55e?style=flat-square)](tests/)
-[![Walk-Forward](https://img.shields.io/badge/Walk--Forward_Sharpe-0.92_(OOS)-green?style=flat-square)](docs/evaluation_report.md)
+[![Walk-Forward](https://img.shields.io/badge/Walk--Forward_Sharpe-0.96_(OOS)-green?style=flat-square)](docs/evaluation_report.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
@@ -46,19 +46,19 @@ Every stage is automated. Every stage is observable. The system runs continuousl
 <!-- EVAL_TABLE_START -->
 | Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
 |----------|--------|-----------|------------|--------|---------|---------|
-| alpha_combo | NVDA | 0.920 | -1.073 | 100.0% | 0.0163 | FAIL |
-| macd_crossover | NVDA | 0.909 | -1.007 | 98.9% | 0.0025 | FAIL |
-| trend_momentum | NVDA | 0.738 | -1.125 | 96.2% | 0.0046 | FAIL |
+| dual_thrust | NVDA | 0.960 | -0.931 | 90.3% | 0.0006 | FAIL |
+| alpha_combo | NVDA | 0.920 | -1.073 | 79.8% | 0.0163 | FAIL |
+| macd_crossover | NVDA | 0.909 | -1.007 | 26.4% | 0.0025 | FAIL |
+| trend_momentum | NVDA | 0.738 | -1.125 | 23.3% | 0.0046 | FAIL |
 | macd_crossover | TSLA | 0.693 | -0.273 | 99.7% | 0.0205 | FAIL |
-| double_ma | NVDA | 0.625 | -1.532 | 99.9% | 0.0175 | FAIL |
+| double_ma | NVDA | 0.625 | -1.532 | 23.9% | 0.0175 | FAIL |
+| dual_thrust | AAPL | 0.561 | -0.501 | 34.0% | 0.0830 | FAIL |
 | double_ma | TSLA | 0.517 | -0.277 | 99.6% | 0.1873 | FAIL |
 | bollinger_breakout | TSLA | 0.437 | -0.151 | 99.5% | 0.0549 | FAIL |
 | bollinger_breakout | AAPL | 0.385 | -0.758 | 100.0% | 0.0834 | FAIL |
-| rsi_reversal | TSLA | 0.283 | -0.392 | 99.9% | 0.6003 | FAIL |
-| alpha_combo | TSLA | 0.249 | -0.437 | 88.1% | 0.1575 | FAIL |
 <!-- EVAL_TABLE_END -->
 
-> 18 strategy-ticker pairs evaluated across NVDA, AAPL, TSLA. Top 10 shown by OOS Sharpe.
+> 21 strategy-ticker pairs (7 strategies x 3 tickers). Top 10 by OOS Sharpe. [Full report](docs/evaluation_report.md)
 
 > Walk-forward validation with 50-bar warmup buffer, Monte Carlo (1,000 iterations), Deflated Sharpe Ratio. [Full report](docs/evaluation_report.md)
 

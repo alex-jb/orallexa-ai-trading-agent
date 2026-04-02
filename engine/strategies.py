@@ -361,6 +361,59 @@ def alpha_combo(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# STRATEGY 7 — Dual Thrust (Opening Range Breakout)
+# ══════════════════════════════════════════════════════════════════════════
+
+def dual_thrust(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    """
+    Opening range breakout strategy (high-frequency classic).
+
+    Computes an upper/lower trigger from the previous N days' range,
+    then enters long when price breaks above the upper trigger.
+
+    params:
+        lookback (int): days to compute range, default 4
+        k_up (float): upper trigger multiplier, default 0.5
+        k_down (float): lower trigger multiplier, default 0.5
+    """
+    lookback = params.get("lookback", 4)
+    k_up = params.get("k_up", 0.5)
+    k_down = params.get("k_down", 0.5)
+
+    high = df["High"]
+    low = df["Low"]
+    close = df["Close"]
+    open_price = df["Open"] if "Open" in df.columns else close
+
+    # Rolling range components
+    hh = high.rolling(window=lookback, min_periods=1).max()   # Highest high
+    lc = close.rolling(window=lookback, min_periods=1).min()   # Lowest close
+    hc = close.rolling(window=lookback, min_periods=1).max()   # Highest close
+    ll = low.rolling(window=lookback, min_periods=1).min()     # Lowest low
+
+    range_val = np.maximum(hh - lc, hc - ll)
+
+    upper_trigger = open_price + k_up * range_val.shift(1)
+    lower_trigger = open_price - k_down * range_val.shift(1)
+
+    in_position = False
+    signals_list = []
+    for i in range(len(df)):
+        if pd.isna(upper_trigger.iloc[i]) or pd.isna(lower_trigger.iloc[i]):
+            signals_list.append(0)
+            continue
+
+        if close.iloc[i] > upper_trigger.iloc[i] and not in_position:
+            in_position = True
+        elif close.iloc[i] < lower_trigger.iloc[i] and in_position:
+            in_position = False
+
+        signals_list.append(1 if in_position else 0)
+
+    return pd.Series(signals_list, index=df.index)
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # STRATEGY REGISTRY
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -371,6 +424,7 @@ STRATEGY_REGISTRY = {
     "rsi_reversal":       rsi_reversal,
     "trend_momentum":     trend_momentum,
     "alpha_combo":        alpha_combo,
+    "dual_thrust":        dual_thrust,
 }
 
 STRATEGY_DEFAULT_PARAMS = {
@@ -393,6 +447,9 @@ STRATEGY_DEFAULT_PARAMS = {
     "alpha_combo": {
         "score_threshold": 3.0, "momentum_period": 10
     },
+    "dual_thrust": {
+        "lookback": 4, "k_up": 0.5, "k_down": 0.5
+    },
 }
 
 STRATEGY_DESCRIPTIONS = {
@@ -402,6 +459,7 @@ STRATEGY_DESCRIPTIONS = {
     "rsi_reversal":       "RSI oversold/overbought — mean reversion in range markets",
     "trend_momentum":     "MA trend + MACD momentum + Volume — Orallexa enhanced strategy",
     "alpha_combo":        "Multi-factor alpha composite — 6 independent signals combined",
+    "dual_thrust":        "Opening range breakout — high-frequency classic using N-day range triggers",
 }
 
 

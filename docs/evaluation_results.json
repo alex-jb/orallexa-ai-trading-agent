@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-02T15:56:41.582269",
+  "generated": "2026-04-02T16:00:42.006107",
   "tickers": [
     "NVDA",
     "AAPL",
@@ -11,11 +11,12 @@
     "bollinger_breakout",
     "rsi_reversal",
     "trend_momentum",
-    "alpha_combo"
+    "alpha_combo",
+    "dual_thrust"
   ],
-  "num_strategies_tested": 6,
+  "num_strategies_tested": 7,
   "skipped_tickers": [],
-  "total_evaluated": 18,
+  "total_evaluated": 21,
   "total_passed": 0,
   "evaluations": [
     {
@@ -34,7 +35,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 782,
         "original_sharpe": 1.1999,
-        "sharpe_percentile_rank": 99.9,
+        "sharpe_percentile_rank": 23.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -69,7 +70,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 535,
         "original_sharpe": 1.9371,
-        "sharpe_percentile_rank": 98.9,
+        "sharpe_percentile_rank": 26.4,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -104,7 +105,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 226,
         "original_sharpe": 1.0639,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 99.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -118,7 +119,7 @@
           -1.1432,
           2.8659
         ],
-        "dsr": 0.0755,
+        "dsr": 0.0234,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -139,7 +140,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 38,
         "original_sharpe": 1.7588,
-        "sharpe_percentile_rank": 99.8,
+        "sharpe_percentile_rank": 58.8,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -174,7 +175,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 545,
         "original_sharpe": 1.7781,
-        "sharpe_percentile_rank": 96.2,
+        "sharpe_percentile_rank": 23.3,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -209,7 +210,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 920,
         "original_sharpe": 1.1213,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 79.8,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -222,6 +223,41 @@
         "sharpe_ci": [
           0.1337,
           2.1624
+        ],
+        "dsr": 1.0,
+        "returns_significant": true,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "dual_thrust",
+      "ticker": "NVDA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.9601,
+        "pct_positive_sharpe": 0.6,
+        "avg_oos_return": 0.1345,
+        "avg_information_ratio": -0.9313,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 628,
+        "original_sharpe": 2.0709,
+        "sharpe_percentile_rank": 90.3,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 628,
+        "sufficient_data": true,
+        "t_statistic": 3.2666,
+        "p_value": 0.0006,
+        "sharpe_point": 2.0709,
+        "sharpe_ci": [
+          0.881,
+          3.2057
         ],
         "dsr": 1.0,
         "returns_significant": true,
@@ -244,7 +280,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 709,
         "original_sharpe": 0.4157,
-        "sharpe_percentile_rank": 99.8,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -278,7 +314,7 @@
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 487,
-        "original_sharpe": 0.5643,
+        "original_sharpe": 0.5644,
         "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
@@ -288,9 +324,9 @@
         "sufficient_data": true,
         "t_statistic": 0.7837,
         "p_value": 0.2168,
-        "sharpe_point": 0.5643,
+        "sharpe_point": 0.5644,
         "sharpe_ci": [
-          -0.8884,
+          -0.8883,
           1.9694
         ],
         "dsr": 0.0,
@@ -328,7 +364,7 @@
           -0.5422,
           2.8866
         ],
-        "dsr": 0.8439,
+        "dsr": 0.5368,
         "returns_significant": false,
         "dsr_passed": true
       }
@@ -349,7 +385,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 78,
         "original_sharpe": 0.4806,
-        "sharpe_percentile_rank": 20.0,
+        "sharpe_percentile_rank": 80.3,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -360,7 +396,7 @@
         "p_value": 0.3956,
         "sharpe_point": 0.4806,
         "sharpe_ci": [
-          -3.1034,
+          -3.1035,
           4.3841
         ],
         "dsr": 0.0,
@@ -377,14 +413,14 @@
         "avg_oos_sharpe": 0.124,
         "pct_positive_sharpe": 0.533,
         "avg_oos_return": 0.0251,
-        "avg_information_ratio": -0.5708,
+        "avg_information_ratio": -0.5707,
         "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 532,
         "original_sharpe": 0.9536,
-        "sharpe_percentile_rank": 88.4,
+        "sharpe_percentile_rank": 95.8,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -398,9 +434,9 @@
           -0.3958,
           2.3321
         ],
-        "dsr": 0.8089,
+        "dsr": 0.4331,
         "returns_significant": false,
-        "dsr_passed": true
+        "dsr_passed": false
       }
     },
     {
@@ -418,7 +454,7 @@
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 863,
-        "original_sharpe": 0.5333,
+        "original_sharpe": 0.5325,
         "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
@@ -426,16 +462,51 @@
       "statistical": {
         "n_observations": 863,
         "sufficient_data": true,
-        "t_statistic": 0.9863,
-        "p_value": 0.1621,
-        "sharpe_point": 0.5333,
+        "t_statistic": 0.9848,
+        "p_value": 0.1625,
+        "sharpe_point": 0.5325,
         "sharpe_ci": [
-          -0.5133,
+          -0.5141,
           1.5967
         ],
         "dsr": 0.0,
         "returns_significant": false,
         "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "dual_thrust",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.5609,
+        "pct_positive_sharpe": 0.533,
+        "avg_oos_return": 0.019,
+        "avg_information_ratio": -0.501,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 697,
+        "original_sharpe": 0.8343,
+        "sharpe_percentile_rank": 34.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 697,
+        "sufficient_data": true,
+        "t_statistic": 1.3865,
+        "p_value": 0.083,
+        "sharpe_point": 0.8343,
+        "sharpe_ci": [
+          -0.3533,
+          1.971
+        ],
+        "dsr": 0.5778,
+        "returns_significant": false,
+        "dsr_passed": true
       }
     },
     {
@@ -538,7 +609,7 @@
           -0.4013,
           4.0509
         ],
-        "dsr": 0.9823,
+        "dsr": 0.9201,
         "returns_significant": false,
         "dsr_passed": true
       }
@@ -608,9 +679,9 @@
           -0.4964,
           2.506
         ],
-        "dsr": 0.6567,
+        "dsr": 0.2704,
         "returns_significant": false,
-        "dsr_passed": true
+        "dsr_passed": false
       }
     },
     {
@@ -644,6 +715,41 @@
           1.5973
         ],
         "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "dual_thrust",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.2382,
+        "pct_positive_sharpe": 0.467,
+        "avg_oos_return": 0.0588,
+        "avg_information_ratio": -0.1422,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 573,
+        "original_sharpe": 0.7912,
+        "sharpe_percentile_rank": 92.9,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 573,
+        "sufficient_data": true,
+        "t_statistic": 1.1921,
+        "p_value": 0.1169,
+        "sharpe_point": 0.7912,
+        "sharpe_ci": [
+          -0.5006,
+          2.061
+        ],
+        "dsr": 0.0158,
         "returns_significant": false,
         "dsr_passed": false
       }

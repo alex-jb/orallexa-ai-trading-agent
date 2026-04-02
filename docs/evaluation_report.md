@@ -1,30 +1,33 @@
 # Orallexa Evaluation Report
 
-Generated: 2026-04-02 15:56 | Tickers: NVDA, AAPL, TSLA | Strategies: 6 | Skipped: None
+Generated: 2026-04-02 16:00 | Tickers: NVDA, AAPL, TSLA | Strategies: 7 | Skipped: None
 
 ## Executive Summary
 
-**0/18** strategy-ticker pairs passed all evaluation gates.
+**0/21** strategy-ticker pairs passed all evaluation gates.
 
 | Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
 |----------|--------|-----------|------------|--------|---------|---------|
-| alpha_combo | NVDA | 0.920 | -1.073 | 100.0% | 0.0163 | FAIL |
-| macd_crossover | NVDA | 0.909 | -1.007 | 98.9% | 0.0025 | FAIL |
-| trend_momentum | NVDA | 0.738 | -1.125 | 96.2% | 0.0046 | FAIL |
+| dual_thrust | NVDA | 0.960 | -0.931 | 90.3% | 0.0006 | FAIL |
+| alpha_combo | NVDA | 0.920 | -1.073 | 79.8% | 0.0163 | FAIL |
+| macd_crossover | NVDA | 0.909 | -1.007 | 26.4% | 0.0025 | FAIL |
+| trend_momentum | NVDA | 0.738 | -1.125 | 23.3% | 0.0046 | FAIL |
 | macd_crossover | TSLA | 0.693 | -0.273 | 99.7% | 0.0205 | FAIL |
-| double_ma | NVDA | 0.625 | -1.532 | 99.9% | 0.0175 | FAIL |
+| double_ma | NVDA | 0.625 | -1.532 | 23.9% | 0.0175 | FAIL |
+| dual_thrust | AAPL | 0.561 | -0.501 | 34.0% | 0.0830 | FAIL |
 | double_ma | TSLA | 0.517 | -0.277 | 99.6% | 0.1873 | FAIL |
 | bollinger_breakout | TSLA | 0.437 | -0.152 | 99.5% | 0.0549 | FAIL |
 | bollinger_breakout | AAPL | 0.385 | -0.758 | 100.0% | 0.0834 | FAIL |
 | rsi_reversal | TSLA | 0.283 | -0.392 | 99.9% | 0.6003 | FAIL |
 | alpha_combo | TSLA | 0.249 | -0.437 | 88.1% | 0.1575 | FAIL |
-| double_ma | AAPL | 0.235 | -0.822 | 99.8% | 0.2431 | FAIL |
-| bollinger_breakout | NVDA | 0.201 | -1.326 | 100.0% | 0.1579 | FAIL |
+| dual_thrust | TSLA | 0.238 | -0.142 | 92.9% | 0.1169 | FAIL |
+| double_ma | AAPL | 0.235 | -0.822 | 100.0% | 0.2431 | FAIL |
+| bollinger_breakout | NVDA | 0.201 | -1.326 | 99.9% | 0.1579 | FAIL |
 | trend_momentum | TSLA | 0.144 | -0.396 | 98.6% | 0.0910 | FAIL |
-| trend_momentum | AAPL | 0.124 | -0.571 | 88.4% | 0.0834 | FAIL |
-| alpha_combo | AAPL | -0.057 | -1.163 | 100.0% | 0.1621 | FAIL |
-| rsi_reversal | NVDA | -0.070 | -1.365 | 99.8% | 0.2523 | FAIL |
-| rsi_reversal | AAPL | -0.294 | -0.845 | 20.0% | 0.3956 | FAIL |
+| trend_momentum | AAPL | 0.124 | -0.571 | 95.8% | 0.0834 | FAIL |
+| alpha_combo | AAPL | -0.057 | -1.163 | 100.0% | 0.1625 | FAIL |
+| rsi_reversal | NVDA | -0.070 | -1.365 | 58.8% | 0.2523 | FAIL |
+| rsi_reversal | AAPL | -0.294 | -0.845 | 80.3% | 0.3956 | FAIL |
 | macd_crossover | AAPL | -0.378 | -1.048 | 100.0% | 0.2168 | FAIL |
 
 
@@ -45,6 +48,7 @@ Expanding-window walk-forward: each strategy is evaluated on sequential out-of-s
 | rsi_reversal | 15 | -0.070 | 7% | -0.35% | FAIL |
 | trend_momentum | 15 | 0.738 | 53% | 8.44% | PASS |
 | alpha_combo | 15 | 0.920 | 60% | 14.66% | PASS |
+| dual_thrust | 15 | 0.960 | 60% | 13.45% | PASS |
 
 
 ### AAPL
@@ -59,6 +63,7 @@ Expanding-window walk-forward: each strategy is evaluated on sequential out-of-s
 | rsi_reversal | 15 | -0.294 | 7% | -0.56% | FAIL |
 | trend_momentum | 15 | 0.124 | 53% | 2.51% | PASS |
 | alpha_combo | 15 | -0.057 | 53% | 0.15% | PASS |
+| dual_thrust | 15 | 0.561 | 53% | 1.90% | PASS |
 
 
 ### TSLA
@@ -73,6 +78,7 @@ Expanding-window walk-forward: each strategy is evaluated on sequential out-of-s
 | rsi_reversal | 15 | 0.283 | 20% | -1.07% | FAIL |
 | trend_momentum | 15 | 0.144 | 40% | 6.27% | FAIL |
 | alpha_combo | 15 | 0.249 | 47% | 5.97% | FAIL |
+| dual_thrust | 15 | 0.238 | 47% | 5.88% | FAIL |
 
 
 ## Monte Carlo Simulation
@@ -86,12 +92,13 @@ Trade returns are extracted from bars with active positions (non-zero signal), s
 
 | Strategy | Trades | Original Sharpe | MC 75th Pct | Percentile Rank | P(Ruin) | Pass |
 |----------|--------|-----------------|-------------|-----------------|---------|------|
-| double_ma | 782 | 1.200 | 1.200 | 99.9% | 0.0% | FAIL |
-| macd_crossover | 535 | 1.937 | 1.937 | 98.9% | 0.0% | FAIL |
-| bollinger_breakout | 226 | 1.064 | 1.064 | 100.0% | 0.0% | FAIL |
-| rsi_reversal | 38 | 1.759 | 1.759 | 99.8% | 0.0% | FAIL |
-| trend_momentum | 545 | 1.778 | 1.778 | 96.2% | 0.0% | FAIL |
-| alpha_combo | 920 | 1.121 | 1.121 | 100.0% | 0.0% | FAIL |
+| double_ma | 782 | 1.200 | 1.200 | 23.9% | 0.0% | FAIL |
+| macd_crossover | 535 | 1.937 | 1.937 | 26.4% | 0.0% | FAIL |
+| bollinger_breakout | 226 | 1.064 | 1.064 | 99.9% | 0.0% | FAIL |
+| rsi_reversal | 38 | 1.759 | 1.759 | 58.8% | 0.0% | FAIL |
+| trend_momentum | 545 | 1.778 | 1.778 | 23.3% | 0.0% | FAIL |
+| alpha_combo | 920 | 1.121 | 1.121 | 79.8% | 0.0% | FAIL |
+| dual_thrust | 628 | 2.071 | 2.071 | 90.3% | 0.0% | FAIL |
 
 
 ### AAPL
@@ -100,12 +107,13 @@ Trade returns are extracted from bars with active positions (non-zero signal), s
 
 | Strategy | Trades | Original Sharpe | MC 75th Pct | Percentile Rank | P(Ruin) | Pass |
 |----------|--------|-----------------|-------------|-----------------|---------|------|
-| double_ma | 709 | 0.416 | 0.416 | 99.8% | 0.0% | FAIL |
+| double_ma | 709 | 0.416 | 0.416 | 100.0% | 0.0% | FAIL |
 | macd_crossover | 487 | 0.564 | 0.564 | 100.0% | 0.0% | FAIL |
 | bollinger_breakout | 329 | 1.214 | 1.214 | 100.0% | 0.0% | FAIL |
-| rsi_reversal | 78 | 0.481 | 0.481 | 20.0% | 0.0% | FAIL |
-| trend_momentum | 532 | 0.954 | 0.954 | 88.4% | 0.0% | FAIL |
-| alpha_combo | 863 | 0.533 | 0.533 | 100.0% | 0.0% | FAIL |
+| rsi_reversal | 78 | 0.481 | 0.481 | 80.3% | 0.0% | FAIL |
+| trend_momentum | 532 | 0.954 | 0.954 | 95.8% | 0.0% | FAIL |
+| alpha_combo | 863 | 0.532 | 0.532 | 100.0% | 0.0% | FAIL |
+| dual_thrust | 697 | 0.834 | 0.834 | 34.0% | 0.0% | FAIL |
 
 
 ### TSLA
@@ -120,11 +128,12 @@ Trade returns are extracted from bars with active positions (non-zero signal), s
 | rsi_reversal | 100 | -0.407 | -0.407 | 99.9% | 0.0% | FAIL |
 | trend_momentum | 422 | 1.034 | 1.034 | 98.6% | 0.0% | FAIL |
 | alpha_combo | 864 | 0.543 | 0.543 | 88.1% | 0.0% | FAIL |
+| dual_thrust | 573 | 0.791 | 0.791 | 92.9% | 0.0% | FAIL |
 
 
 ## Statistical Significance
 
-One-sided t-test on trade returns (H0: mean return = 0). Bootstrap 95% CI on Sharpe ratio (5,000 resamples). Deflated Sharpe Ratio corrects for multiple testing (Bailey & Lopez de Prado 2014). Minimum 6 strategies tested per run.
+One-sided t-test on trade returns (H0: mean return = 0). Bootstrap 95% CI on Sharpe ratio (5,000 resamples). Deflated Sharpe Ratio corrects for multiple testing (Bailey & Lopez de Prado 2014). Minimum 7 strategies tested per run.
 
 Tests require a minimum of 20 trades. Strategies with fewer trades are marked 'Insufficient data.'
 
@@ -135,10 +144,11 @@ Tests require a minimum of 20 trades. Strategies with fewer trades are marked 'I
 |----------|---|--------|---------|-----------------|-----|------|
 | double_ma | 782 | 2.11 | 0.0175 | 1.20 [0.09, 2.26] | 1.000 | Yes |
 | macd_crossover | 535 | 2.82 | 0.0025 | 1.94 [0.64, 3.25] | 1.000 | Yes |
-| bollinger_breakout | 226 | 1.01 | 0.1579 | 1.06 [-1.14, 2.87] | 0.076 | No |
+| bollinger_breakout | 226 | 1.01 | 0.1579 | 1.06 [-1.14, 2.87] | 0.023 | No |
 | rsi_reversal | 38 | 0.67 | 0.2523 | 1.76 [-3.33, 7.29] | 0.000 | No |
 | trend_momentum | 545 | 2.61 | 0.0046 | 1.78 [0.45, 3.02] | 1.000 | Yes |
 | alpha_combo | 920 | 2.14 | 0.0163 | 1.12 [0.13, 2.16] | 1.000 | Yes |
+| dual_thrust | 628 | 3.27 | 0.0006 | 2.07 [0.88, 3.21] | 1.000 | Yes |
 
 
 ### AAPL
@@ -147,10 +157,11 @@ Tests require a minimum of 20 trades. Strategies with fewer trades are marked 'I
 |----------|---|--------|---------|-----------------|-----|------|
 | double_ma | 709 | 0.70 | 0.2431 | 0.42 [-0.83, 1.54] | 0.000 | No |
 | macd_crossover | 487 | 0.78 | 0.2168 | 0.56 [-0.89, 1.97] | 0.000 | No |
-| bollinger_breakout | 329 | 1.39 | 0.0834 | 1.21 [-0.54, 2.89] | 0.844 | No |
+| bollinger_breakout | 329 | 1.39 | 0.0834 | 1.21 [-0.54, 2.89] | 0.537 | No |
 | rsi_reversal | 78 | 0.27 | 0.3956 | 0.48 [-3.10, 4.38] | 0.000 | No |
-| trend_momentum | 532 | 1.38 | 0.0834 | 0.95 [-0.40, 2.33] | 0.809 | No |
-| alpha_combo | 863 | 0.99 | 0.1621 | 0.53 [-0.51, 1.60] | 0.000 | No |
+| trend_momentum | 532 | 1.38 | 0.0834 | 0.95 [-0.40, 2.33] | 0.433 | No |
+| alpha_combo | 863 | 0.98 | 0.1625 | 0.53 [-0.51, 1.60] | 0.000 | No |
+| dual_thrust | 697 | 1.39 | 0.0830 | 0.83 [-0.35, 1.97] | 0.578 | No |
 
 
 ### TSLA
@@ -159,10 +170,11 @@ Tests require a minimum of 20 trades. Strategies with fewer trades are marked 'I
 |----------|---|--------|---------|-----------------|-----|------|
 | double_ma | 649 | 0.89 | 0.1873 | 0.55 [-0.72, 1.78] | 0.000 | No |
 | macd_crossover | 441 | 2.05 | 0.0205 | 1.55 [0.12, 3.03] | 1.000 | Yes |
-| bollinger_breakout | 206 | 1.61 | 0.0549 | 1.78 [-0.40, 4.05] | 0.982 | No |
+| bollinger_breakout | 206 | 1.61 | 0.0549 | 1.78 [-0.40, 4.05] | 0.920 | No |
 | rsi_reversal | 100 | -0.25 | 0.6003 | -0.41 [-3.52, 2.87] | 0.000 | No |
-| trend_momentum | 422 | 1.34 | 0.0910 | 1.03 [-0.50, 2.51] | 0.657 | No |
+| trend_momentum | 422 | 1.34 | 0.0910 | 1.03 [-0.50, 2.51] | 0.270 | No |
 | alpha_combo | 864 | 1.01 | 0.1575 | 0.54 [-0.54, 1.60] | 0.000 | No |
+| dual_thrust | 573 | 1.19 | 0.1169 | 0.79 [-0.50, 2.06] | 0.016 | No |
 
 
 ## Strategy Comparison
@@ -176,6 +188,6 @@ Tests require a minimum of 20 trades. Strategies with fewer trades are marked 'I
 - **Indicators:** Computed per-window with 50-bar warmup buffer (prevents lookahead bias from rolling indicators)
 - **Monte Carlo:** 1000 iterations, shuffling non-zero trade returns only
 - **Statistical tests:** One-sided t-test (p < 0.05), bootstrap 95% CI (5,000 resamples)
-- **DSR:** Deflated Sharpe Ratio with 6 strategies tested. DSR > 0.5 = pass. Results are not comparable across separate invocations
+- **DSR:** Deflated Sharpe Ratio with 7 strategies tested. DSR > 0.5 = pass. Results are not comparable across separate invocations
 - **Minimum trades:** 20 required for statistical tests
 - **Pass/fail gates:** Walk-forward OOS Sharpe > 0 in >50% of windows; Monte Carlo strategy Sharpe > 75th percentile; t-test p < 0.05
