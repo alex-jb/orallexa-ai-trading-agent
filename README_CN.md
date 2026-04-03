@@ -15,7 +15,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-1A1A2E?style=for-the-badge&logo=python&logoColor=D4AF37)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/252_测试-全部通过-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/277_测试-全部通过-22c55e?style=for-the-badge)](tests/)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -244,10 +244,10 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 ## 测试
 
-252 个自动化测试。0 个失败。每次推送 CI。
+277 个自动化测试。0 个失败。每次推送 CI。
 
 ```bash
-python -m pytest tests/ -v           # 后端（113 个测试）
+python -m pytest tests/ -v           # 后端（138 个测试）
 cd orallexa-ui && npm test           # 前端（139 个测试）
 ```
 
@@ -321,7 +321,7 @@ orallexa/
 ├── orallexa-ui/                # 仪表盘（Next.js 16）
 ├── desktop_agent/              # 桌面 AI 教练
 ├── bot/                        # 执行层（Alpaca）
-├── tests/                      # 113 个后端测试
+├── tests/                      # 138 个后端测试
 └── .github/workflows/          # CI/CD
 ```
 

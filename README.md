@@ -15,7 +15,7 @@ Don't guess the market. Let AI argue about it first.
 [![Python](https://img.shields.io/badge/Python-3.11+-1A1A2E?style=for-the-badge&logo=python&logoColor=D4AF37)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/252_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/277_Tests-Passing-22c55e?style=for-the-badge)](tests/)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -244,7 +244,7 @@ Not every task needs the expensive model:
 
 ## Testing
 
-252 automated tests. 0 failures. CI on every push.
+277 automated tests. 0 failures. CI on every push.
 
 ```bash
 python -m pytest tests/ -v           # Backend (113 tests)
@@ -321,7 +321,7 @@ orallexa/
 ├── orallexa-ui/                # Dashboard (Next.js 16)
 ├── desktop_agent/              # Desktop AI coach
 ├── bot/                        # Execution layer (Alpaca)
-├── tests/                      # 113 backend tests
+├── tests/                      # 138 backend tests
 └── .github/workflows/          # CI/CD
 ```
 
