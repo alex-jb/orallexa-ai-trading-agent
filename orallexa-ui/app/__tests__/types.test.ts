@@ -58,7 +58,7 @@ describe("riskColor", () => {
 describe("sentCls", () => {
   it("returns emerald class for bullish", () => expect(sentCls("bullish")).toContain("#006B3F"));
   it("returns ruby class for bearish", () => expect(sentCls("bearish")).toContain("#8B0000"));
-  it("returns muted class for neutral", () => expect(sentCls("neutral")).toContain("#6B6E76"));
+  it("returns muted class for neutral", () => expect(sentCls("neutral")).toContain("#8B8E96"));
 });
 
 describe("recBg", () => {
@@ -96,7 +96,7 @@ describe("nsSummary", () => {
     ];
     const result = nsSummary(items);
     expect(result.label).toBe("neutral");
-    expect(result.color).toBe("#6B6E76");
+    expect(result.color).toBe("#8B8E96");
   });
 
   it("handles empty array", () => {

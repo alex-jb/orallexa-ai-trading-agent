@@ -16,7 +16,7 @@ function ProbBar({ probs, decision, zh }: { probs: { up: number; neutral: number
     <div className="px-8 pb-5">
       <div className="flex items-center gap-4 mb-3">
         <div className="text-[36px] font-[DM_Mono] font-bold leading-none" style={{ color: heroColor }}>{hero}%</div>
-        <div className="text-[10px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] leading-relaxed">
+        <div className="text-[10px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.14em] leading-relaxed">
           {decision === "SELL" ? (zh ? "下跌" : "Downside") : (zh ? "上涨" : "Upside")}<br/>{zh ? "概率" : "Probability"}
         </div>
       </div>
@@ -91,14 +91,14 @@ function InvestmentPlanCard({ plan, t }: { plan: InvestmentPlan; t: Record<strin
           ["R:R", plan.risk_reward],
         ].map(([l, v]) => (
           <div key={l} className="text-center py-2" style={{ background: "rgba(212,175,55,0.03)" }}>
-            <div className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] mb-1">{l}</div>
+            <div className="text-[8px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.14em] mb-1">{l}</div>
             <div className="text-[13px] font-[DM_Mono] font-medium text-[#F5E6CA]">{v}</div>
           </div>
         ))}
       </div>
       {plan.key_risks.length > 0 && (
         <div className="px-7 pb-4">
-          <div className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] mb-1.5">Key Risks</div>
+          <div className="text-[8px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.14em] mb-1.5">Key Risks</div>
           {plan.key_risks.map((r, i) => (
             <div key={i} className="text-[10px] font-[Lato] text-[#8B0000]/70 leading-relaxed font-light">• {r}</div>
           ))}
@@ -154,7 +154,7 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
           </div>
 
           <div className="text-center text-[12px] font-[Josefin_Sans] tracking-[0.12em] mb-2 font-light" style={{ color: "#C5A255" }}>{t.runToBegin}</div>
-          <div className="text-center text-[9px] font-[Josefin_Sans] text-[#6B6E76]/70 tracking-[0.08em] mb-1">
+          <div className="text-center text-[9px] font-[Josefin_Sans] text-[#8B8E96]/70 tracking-[0.08em] mb-1">
             {zh ? "试试 NVDA · TSLA · QQQ — 左侧快速按钮" : "Try NVDA · TSLA · QQQ — quick buttons on the left"}
           </div>
           <div className="flex items-center justify-center gap-2 mt-3 mb-2">
@@ -184,14 +184,14 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
       <div className="relative px-8 pt-4 pb-5 flex justify-between items-start">
         <div>
           <div className="text-[50px] font-[Poiret_One] leading-none tracking-[0.08em]" style={{ color: decColor(d.decision), textShadow: `0 0 40px ${decColor(d.decision)}20, 0 0 80px ${decColor(d.decision)}08` }}>{displayDec(d.decision)}</div>
-          <div className="text-[12px] font-[Josefin_Sans] text-[#6B6E76] mt-2 font-light tracking-[0.06em]">{subtitleDec(d.decision, zh)}</div>
+          <div className="text-[12px] font-[Josefin_Sans] text-[#8B8E96] mt-2 font-light tracking-[0.06em]">{subtitleDec(d.decision, zh)}</div>
         </div>
         <div className="text-[10px] font-[Josefin_Sans] text-[#4A4D55] text-right pt-2 uppercase tracking-[0.16em] leading-relaxed font-light">{asset}<br />{strategy} ({horizon})</div>
       </div>
       <div className="relative px-8 pb-5">
         <div className="text-[13px] font-[Lato] text-[#F5E6CA] leading-relaxed py-3 px-5 font-light border-l-[2px]" style={{ borderColor: "#D4AF37", background: recBg(d.decision) }}>{d.recommendation}</div>
       </div>
-      {news.length > 0 && <div className="relative px-8 pb-3 text-[10px] font-[Lato] text-[#6B6E76]">News: <span className="font-semibold" style={{ color: ns.color }}>{ns.label}</span> sentiment ({news.length} headlines)</div>}
+      {news.length > 0 && <div className="relative px-8 pb-3 text-[10px] font-[Lato] text-[#8B8E96]">News: <span className="font-semibold" style={{ color: ns.color }}>{ns.label}</span> sentiment ({news.length} headlines)</div>}
       {d.probabilities && <ProbBar probs={d.probabilities} decision={d.decision} zh={zh} />}
       <GoldRule strength={22} />
       <div className="relative grid grid-cols-3 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
@@ -200,7 +200,7 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
           { h: t.risk, v: riskLabel(d.risk_level), s: d.risk_level, c: riskColor(d.risk_level) },
         ].map((m, i) => (
           <div key={m.h} className={`py-6 px-5 text-center ${i < 2 ? "border-r" : ""}`} style={{ borderColor: "rgba(212,175,55,0.08)" }}>
-            <div className="text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.22em] mb-2 text-[#6B6E76]">{m.h}</div>
+            <div className="text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.22em] mb-2 text-[#8B8E96]">{m.h}</div>
             <div className="text-[18px] font-[DM_Mono] font-medium" style={{ color: m.c ?? "#F5E6CA" }}>{m.v}</div>
             <div className="text-[10px] font-[DM_Mono] text-[#4A4D55] mt-1">{m.s}</div>
           </div>
@@ -210,14 +210,14 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
       {investmentPlan && <InvestmentPlanCard plan={investmentPlan} t={t} />}
       <Toggle label={t.techDetails} open={showTech} onToggle={() => setShowTech(!showTech)}>
         {d.reasoning.filter(r => !r.startsWith("Bull:") && !r.startsWith("Bear:") && !r.startsWith("Judge:")).map((r, i) =>
-          <div key={i} className="text-[10px] font-[DM_Mono] text-[#6B6E76] py-0.5">{r}</div>
+          <div key={i} className="text-[10px] font-[DM_Mono] text-[#8B8E96] py-0.5">{r}</div>
         )}
       </Toggle>
       {risk && <Toggle label={t.riskMgmt} open={showRisk} onToggle={() => setShowRisk(!showRisk)}>
         <div className="grid grid-cols-4 gap-3">
           {([[t.entry, `$${risk.entry.toFixed(2)}`], [t.stop, `$${risk.stop.toFixed(2)}`], [t.target, `$${risk.target.toFixed(2)}`], [t.size, `${risk.size}`]] as const).map(([l, v]) => (
             <div key={l as string} className="text-center">
-              <div className="text-[9px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] mb-1">{l}</div>
+              <div className="text-[9px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.14em] mb-1">{l}</div>
               <div className="text-[14px] font-[DM_Mono] font-medium text-[#F5E6CA]">{v}</div>
             </div>
           ))}

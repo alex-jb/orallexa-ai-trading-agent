@@ -77,7 +77,7 @@ export function Mod({ title, children }: { title: React.ReactNode; children: Rea
 export function Row({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="flex justify-between items-center py-[7px] border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
-      <span className="text-[11px] font-[Lato] text-[#6B6E76]">{label}</span>
+      <span className="text-[11px] font-[Lato] text-[#8B8E96]">{label}</span>
       <span className="text-[13px] font-[DM_Mono] font-medium" style={{ color: color ?? "#F5E6CA" }}>{value}</span>
     </div>
   );

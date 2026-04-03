@@ -32,7 +32,7 @@ export function MarketStrip({ summary, decision, livePrice, priceFlash }: {
         <div key={i} className={`flex-1 py-2.5 px-3 text-center ${i < items.length - 1 ? "border-r" : ""}`}
           style={{ borderColor: "rgba(212,175,55,0.06)", transition: "background 0.3s",
             background: (item as { flash?: boolean }).flash ? (priceFlash === "up" ? "rgba(0,107,63,0.15)" : "rgba(139,0,0,0.15)") : "transparent" }}>
-          <div className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em]">{item.label}</div>
+          <div className="text-[8px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.14em]">{item.label}</div>
           <div className="text-[13px] font-[DM_Mono] font-medium mt-0.5 transition-colors" style={{ color: item.color }}>{item.value}</div>
         </div>
       ))}

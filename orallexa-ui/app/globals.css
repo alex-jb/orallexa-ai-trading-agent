@@ -16,9 +16,9 @@
   --bronze: #CD7F32;
   --border: #2A2A3E;
   --border-gold: rgba(212,175,55,0.25);
-  --text-muted: #6B6E76;
-  --text-dim: #4A4D55;
-  /* Accessibility-safe variants */
+  --text-muted: #8B8E96;
+  --text-dim: #6A6D75;
+  /* Legacy aliases */
   --text-muted-safe: #8B8E96;
   --text-dim-safe: #6A6D75;
 }

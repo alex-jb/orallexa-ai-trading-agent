@@ -23,11 +23,11 @@ export function WatchlistGrid({ items, onSelect }: { items: WatchlistItem[]; onS
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <div className="text-[13px] font-[DM_Mono] font-bold text-[#F5E6CA]">{item.ticker}</div>
-                    {item.price && <div className="text-[10px] font-[DM_Mono] text-[#6B6E76]">${item.price.toFixed(2)}</div>}
+                    {item.price && <div className="text-[10px] font-[DM_Mono] text-[#8B8E96]">${item.price.toFixed(2)}</div>}
                   </div>
                   <div className="text-right">
                     <div className="text-[18px] font-[DM_Mono] font-bold leading-none" style={{ color: dc }}>{heroProb}%</div>
-                    <div className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.1em]">{item.decision === "SELL" ? "Down" : "Up"}</div>
+                    <div className="text-[8px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.1em]">{item.decision === "SELL" ? "Down" : "Up"}</div>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
@@ -51,7 +51,7 @@ export function WatchlistGrid({ items, onSelect }: { items: WatchlistItem[]; onS
                   <div className="flex-1 h-[2px]" style={{ background: "#2A2A3E" }}>
                     <div className="h-full" style={{ width: `${item.confidence}%`, background: "#D4AF37" }} />
                   </div>
-                  <span className="text-[8px] font-[DM_Mono] text-[#6B6E76]">{item.confidence.toFixed(0)}%</span>
+                  <span className="text-[8px] font-[DM_Mono] text-[#8B8E96]">{item.confidence.toFixed(0)}%</span>
                 </div>
               </div>
               {item.error && <div className="px-3 pb-2 text-[8px] text-[#8B0000]/60 truncate">{item.error}</div>}

@@ -81,7 +81,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
                 <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{g.ticker}</span>
                 <div className="text-right">
                   <span className="text-[11px] font-[DM_Mono] font-bold" style={{ color: "#006B3F" }}>+{g.change_pct.toFixed(1)}%</span>
-                  <span className="text-[9px] font-[DM_Mono] text-[#6B6E76] ml-2">${g.price}</span>
+                  <span className="text-[9px] font-[DM_Mono] text-[#8B8E96] ml-2">${g.price}</span>
                 </div>
               </button>
             ))}
@@ -93,7 +93,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
                 <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{l.ticker}</span>
                 <div className="text-right">
                   <span className="text-[11px] font-[DM_Mono] font-bold" style={{ color: "#8B0000" }}>{l.change_pct.toFixed(1)}%</span>
-                  <span className="text-[9px] font-[DM_Mono] text-[#6B6E76] ml-2">${l.price}</span>
+                  <span className="text-[9px] font-[DM_Mono] text-[#8B8E96] ml-2">${l.price}</span>
                 </div>
               </button>
             ))}
@@ -110,7 +110,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
             const barColor = pct >= 0 ? "#006B3F" : "#8B0000";
             return (
               <div key={i} className="flex items-center gap-2 py-[3px]">
-                <span className="text-[9px] font-[Lato] text-[#6B6E76] w-[90px] shrink-0 truncate">{s.sector}</span>
+                <span className="text-[9px] font-[Lato] text-[#8B8E96] w-[90px] shrink-0 truncate">{s.sector}</span>
                 <div className="flex-1 h-[6px] relative" style={{ background: "#2A2A3E" }}>
                   <div className="absolute top-0 h-full" style={{ width: `${barWidth}%`, background: barColor, left: pct >= 0 ? "50%" : `${50 - barWidth}%`, ...(pct >= 0 ? {} : { right: "50%" }) }} />
                   <div className="absolute top-0 left-1/2 w-px h-full" style={{ background: "rgba(212,175,55,0.15)" }} />
@@ -184,12 +184,12 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
                   <span className="text-[10px] font-[Lato] text-[#F5E6CA]/60 group-hover:text-[#F5E6CA] transition-colors leading-snug block font-light">{h.title}</span>
                   <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">{h.ticker} · {h.provider}</span>
                 </div>
-                <span className={`text-[8px] font-[Josefin_Sans] font-bold uppercase shrink-0 ${h.sentiment === "bullish" ? "text-[#006B3F]" : h.sentiment === "bearish" ? "text-[#8B0000]" : "text-[#6B6E76]"}`}>{h.sentiment}</span>
+                <span className={`text-[8px] font-[Josefin_Sans] font-bold uppercase shrink-0 ${h.sentiment === "bullish" ? "text-[#006B3F]" : h.sentiment === "bearish" ? "text-[#8B0000]" : "text-[#8B8E96]"}`}>{h.sentiment}</span>
               </a>
             ) : (
               <div className="flex justify-between items-start gap-2">
                 <span className="text-[10px] font-[Lato] text-[#F5E6CA]/60 font-light leading-snug">{h.title}</span>
-                <span className={`text-[8px] font-[Josefin_Sans] font-bold uppercase shrink-0 ${h.sentiment === "bullish" ? "text-[#006B3F]" : h.sentiment === "bearish" ? "text-[#8B0000]" : "text-[#6B6E76]"}`}>{h.sentiment}</span>
+                <span className={`text-[8px] font-[Josefin_Sans] font-bold uppercase shrink-0 ${h.sentiment === "bullish" ? "text-[#006B3F]" : h.sentiment === "bearish" ? "text-[#8B0000]" : "text-[#8B8E96]"}`}>{h.sentiment}</span>
               </div>
             )}
           </div>

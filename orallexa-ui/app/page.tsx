@@ -447,7 +447,7 @@ export default function Home() {
             <span className="text-[8px] font-[Josefin_Sans] text-[#4A4D55] uppercase tracking-[0.1em]">{zh ? "快速试用" : "Try"}</span>
             {[["NVDA", "AI"], ["TSLA", "EV"], ["QQQ", "Index"]].map(([tk, tag]) => (
               <button key={tk} onClick={() => { setAsset(tk); setTimeout(runSignal, 100); }}
-                className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium text-[#6B6E76] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all"
+                className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium text-[#8B8E96] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all"
                 style={{ border: "1px solid rgba(212,175,55,0.1)", borderRadius: 3 }}>
                 {tk}<span className="text-[7px] text-[#4A4D55] ml-0.5">{tag}</span>
               </button>
@@ -458,7 +458,7 @@ export default function Home() {
         <Mod title={t.engineStatus}>
           <Row label={t.engine} value={t.active} color="#006B3F" />
           <div className="flex items-center justify-between py-[5px]">
-            <span className="text-[10px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.12em] shrink-0">{t.strategy}</span>
+            <span className="text-[10px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.12em] shrink-0">{t.strategy}</span>
             <div className="flex gap-1 flex-wrap justify-end">
               {(["SCALP", "INTRADAY", "SWING"] as const).map((s) => (
                 <button key={s} onClick={() => { setStrategy(s); setHorizon(s === "SCALP" ? "5M" : s === "INTRADAY" ? "15M" : "1D"); }}
@@ -469,7 +469,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center justify-between py-[5px]">
-            <span className="text-[10px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.12em]">{t.horizon}</span>
+            <span className="text-[10px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.12em]">{t.horizon}</span>
             <div className="flex gap-1">
               {(["5M", "15M", "1H", "1D"] as const).map((h) => (
                 <button key={h} onClick={() => setHorizon(h)}
@@ -537,7 +537,7 @@ export default function Home() {
         <div className="flex-1" />
 
         <Mod title={t.journal}>
-          <div className="text-[10px] font-[Lato] text-[#6B6E76]">{journal.length} {t.recentLog}</div>
+          <div className="text-[10px] font-[Lato] text-[#8B8E96]">{journal.length} {t.recentLog}</div>
           <div onClick={() => setShowFullLog(!showFullLog)} className="mt-1.5 text-[9px] font-[Josefin_Sans] text-[#C5A255]/50 uppercase tracking-[0.12em] cursor-pointer hover:text-[#FFD700] transition-colors">{showFullLog ? (zh ? "收起日志" : "Hide Log") : t.viewLog}</div>
           {showFullLog && journal.length > 0 && (
             <div className="mt-2 space-y-1 max-h-[200px] overflow-y-auto">
@@ -556,7 +556,7 @@ export default function Home() {
 
         <Mod title={t.snapshot}>
           <input type="file" accept="image/png,image/jpeg" onChange={(e) => setChartFile(e.target.files?.[0] ?? null)}
-            className="w-full text-[10px] text-[#6B6E76] file:mr-2 file:py-1.5 file:px-3 file:border file:text-[#C5A255] file:text-[10px] file:font-semibold file:uppercase file:cursor-pointer"
+            className="w-full text-[10px] text-[#8B8E96] file:mr-2 file:py-1.5 file:px-3 file:border file:text-[#C5A255] file:text-[10px] file:font-semibold file:uppercase file:cursor-pointer"
             style={{ }} />
           {chartFile && <button onClick={analyzeChart} disabled={loading}
             className="w-full mt-2 py-2 text-[#0A0A0F] text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] disabled:opacity-40"
@@ -585,7 +585,7 @@ export default function Home() {
             }}
             onMouseUp={() => { (window as any).__recognition?.stop(); setIsRecording(false); }}
             onMouseLeave={() => { (window as any).__recognition?.stop(); setIsRecording(false); }}
-            className={`w-full py-2 text-[10px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.12em] transition-colors ${isRecording ? "text-[#D4AF37]" : "text-[#6B6E76] hover:text-[#C5A255]"}`}
+            className={`w-full py-2 text-[10px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.12em] transition-colors ${isRecording ? "text-[#D4AF37]" : "text-[#8B8E96] hover:text-[#C5A255]"}`}
             style={{ background: isRecording ? "rgba(212,175,55,0.08)" : "#2A2A3E", border: `1px solid ${isRecording ? "rgba(212,175,55,0.4)" : "rgba(212,175,55,0.1)"}` }}>
             {isRecording ? t.listening : t.holdSpeak}
           </button>
@@ -603,7 +603,7 @@ export default function Home() {
             <div className="h-4 w-px" style={{ background: "rgba(212,175,55,0.15)" }} />
             <div className="flex gap-5">
               {([[t.asset, asset], [t.strategy, strategy], [t.horizon, horizon]] as const).map(([l, v]) => (
-                <span key={l} className="text-[9px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.16em] font-light">{l}<span className="text-[#F5E6CA] font-medium ml-1.5">{v}</span></span>
+                <span key={l} className="text-[9px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.16em] font-light">{l}<span className="text-[#F5E6CA] font-medium ml-1.5">{v}</span></span>
               ))}
             </div>
           </div>
@@ -746,7 +746,7 @@ export default function Home() {
               </div>
             )
           )) : <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="flex justify-between py-[7px]"><div className="skeleton h-3 w-3/4" /><div className="skeleton h-3 w-12" /></div>)}</div>}
-          {news.length > 0 && <div className="mt-2 pt-2 border-t text-[10px] font-[Lato] text-[#6B6E76]" style={{ borderColor: "rgba(212,175,55,0.1)" }}>{t.overall}: <span className="font-semibold" style={{ color: ns.color }}>{ns.label}</span> ({ns.avg.toFixed(2)})</div>}
+          {news.length > 0 && <div className="mt-2 pt-2 border-t text-[10px] font-[Lato] text-[#8B8E96]" style={{ borderColor: "rgba(212,175,55,0.1)" }}>{t.overall}: <span className="font-semibold" style={{ color: ns.color }}>{ns.label}</span> ({ns.avg.toFixed(2)})</div>}
         </Mod>
 
         {mlModels.length > 0 && <MLScoreboard models={mlModels} />}
@@ -802,7 +802,7 @@ export default function Home() {
             <Row label={zh ? "购买力" : "Buying Power"} value={`$${alpacaAccount.buying_power.toLocaleString()}`} />
             {alpacaPositions.length > 0 && (
               <div className="mt-2 pt-2 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
-                <div className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] mb-1">{zh ? "持仓" : "Positions"}</div>
+                <div className="text-[8px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.14em] mb-1">{zh ? "持仓" : "Positions"}</div>
                 {alpacaPositions.map((p, i) => (
                   <div key={i} className="flex justify-between items-center py-[5px] border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
                     <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{p.ticker}</span>
@@ -829,7 +829,7 @@ export default function Home() {
         <Mod title={t.executionLog}>
           {journal.length > 0 ? journal.map((e, i) => (
             <div key={i} className="flex justify-between items-center py-[6px] border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
-              <span className="text-[11px] font-[Lato] text-[#6B6E76]">{e.ticker} · {e.mode}</span>
+              <span className="text-[11px] font-[Lato] text-[#8B8E96]">{e.ticker} · {e.mode}</span>
               <span className="text-[11px] font-[DM_Mono] font-medium" style={{ color: decColorJournal(e.decision) }}>{e.decision}</span>
             </div>
           )) : <div className="text-[10px] font-[Lato] text-[#4A4D55]">No executions yet</div>}

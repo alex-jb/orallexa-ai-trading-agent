@@ -8,7 +8,7 @@ export function MLScoreboard({ models }: { models: MLModel[] }) {
   const best = models.reduce((a, b) => a.sharpe > b.sharpe ? a : b);
   return (
     <Mod title="ML Models">
-      <div className="grid grid-cols-4 gap-0 text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.1em] pb-1.5 border-b mb-1" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
+      <div className="grid grid-cols-4 gap-0 text-[8px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.1em] pb-1.5 border-b mb-1" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
         <span>Model</span><span className="text-right">Sharpe</span><span className="text-right">Return</span><span className="text-right">Win%</span>
       </div>
       {models.map((m, i) => {

@@ -81,8 +81,8 @@ export const confLabel = (c: number) => c >= 70 ? "High" : c >= 50 ? "Moderate" 
 export const riskLabel = (r: string) => ({ LOW: "Low", MEDIUM: "Moderate", HIGH: "Elevated" }[r] ?? r);
 export const decColor = (d: string) => d === "BUY" ? "#006B3F" : d === "SELL" ? "#8B0000" : "#D4AF37";
 export const riskColor = (r: string) => r === "LOW" ? "#006B3F" : r === "HIGH" ? "#8B0000" : "#D4AF37";
-export const sentCls = (s: string) => s === "bullish" ? "text-[#006B3F]" : s === "bearish" ? "text-[#8B0000]" : "text-[#6B6E76]";
+export const sentCls = (s: string) => s === "bullish" ? "text-[#006B3F]" : s === "bearish" ? "text-[#8B0000]" : "text-[#8B8E96]";
 export const recBg = (d: string) => d === "BUY" ? "rgba(0,107,63,0.08)" : d === "SELL" ? "rgba(139,0,0,0.08)" : "rgba(212,175,55,0.06)";
 export const decColorJournal = (d: string) => d === "BUY" ? "#006B3F" : d === "SELL" ? "#8B0000" : "#D4AF37";
-export function nsSummary(items: NewsItem[]) { const avg = items.reduce((s, n) => s + n.score, 0) / (items.length || 1); if (avg > 0.1) return { label: "bullish", color: "#006B3F", avg }; if (avg < -0.1) return { label: "bearish", color: "#8B0000", avg }; return { label: "neutral", color: "#6B6E76", avg }; }
+export function nsSummary(items: NewsItem[]) { const avg = items.reduce((s, n) => s + n.score, 0) / (items.length || 1); if (avg > 0.1) return { label: "bullish", color: "#006B3F", avg }; if (avg < -0.1) return { label: "bearish", color: "#8B0000", avg }; return { label: "neutral", color: "#8B8E96", avg }; }
 export function copyWithAttribution(text: string) { navigator.clipboard.writeText(`${text}\n\n${TWITTER_HANDLE}`); }
