@@ -53,13 +53,50 @@ jobs:
           cache: npm
           cache-dependency-path: orallexa-ui/package-lock.json
 
-      - name: Install & Type Check & Test & Build
+      - name: Install & Lint & Type Check & Test & Build
         working-directory: orallexa-ui
         run: |
           npm ci
+          npm run lint
           npx tsc --noEmit
           npx vitest run
           npx next build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-ui
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: orallexa-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: orallexa-ui
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: orallexa-ui
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        working-directory: orallexa-ui
+        run: npx playwright test --reporter=list
+
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            orallexa-ui/test-results/
+            orallexa-ui/playwright-report/
 
   python-lint:
     runs-on: ubuntu-latest
