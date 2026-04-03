@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/Tests-127_passing-22c55e?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-139+113_passing-22c55e?style=flat-square)](tests/)
 [![Walk-Forward](https://img.shields.io/badge/Walk--Forward_Sharpe-0.96_(OOS)-green?style=flat-square)](docs/evaluation_report.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
@@ -138,7 +138,7 @@ We don't publish synthetic benchmarks. Here's what the architecture delivers:
 - **Cost efficiency** — Dual-model routing (Haiku for 80% of calls, Sonnet for reasoning) reduces LLM cost to ~$0.003 per analysis versus $0.03+ with a single expensive model
 - **Structured reasoning** — Adversarial debate produces more stable outputs than single-model prediction. The Bull/Bear format catches blind spots that one-shot prompts miss
 - **Pipeline speed** — Full analysis (9 models + debate + risk plan) completes in ~15 seconds. Daily intel for 50+ tickers in ~10 seconds
-- **Test coverage** — 113 automated tests with 0 failures, CI/CD on every push
+- **Test coverage** — 252 automated tests (139 frontend + 113 backend) with 0 failures, CI/CD on every push
 
 ---
 
@@ -214,7 +214,7 @@ One full analysis: **~$0.003**. One daily intel report: **~$0.05**. Same quality
 | **Deep Learning** | EMAformer, DDPM Diffusion, GAT — all pure PyTorch, no heavy frameworks |
 | **Strategy Evolution** | LLM generates Python strategy code → sandbox tests → evolves winners |
 | **LangGraph** | Debate pipeline as a typed StateGraph with conditional routing |
-| **Testing** | 113 automated tests — integration, ML regression, API E2E |
+| **Testing** | 252 automated tests — 139 frontend (vitest) + 113 backend (pytest) |
 | **CI/CD** | GitHub Actions: lint + test + build on every push |
 | **Deployment** | Docker Compose one-click, PWA mobile support |
 | **Real-time** | WebSocket price stream + signal change detection |
@@ -315,16 +315,31 @@ curl -X POST http://localhost:8002/api/analyze \
 ## Testing
 
 ```bash
+# Backend (Python)
 python -m pytest tests/ -v              # All tests (~3 min)
 python -m pytest tests/ -k "not ml"     # Fast tests (~20s)
+
+# Frontend (Next.js)
+cd orallexa-ui && npm test              # Vitest + Testing Library
 ```
 
 | Suite | Tests | What It Covers |
 |-------|-------|----------------|
+| **Backend** | | |
 | Engine Integration | 34 | TA indicators, 6 strategies, backtest, brain routing, alerts |
 | ML Regression | 13 | All 9 models — ensures upgrades don't degrade performance |
 | API E2E | 19 | Every endpoint via FastAPI TestClient |
 | Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk management, scalping |
+| **Frontend** | | |
+| Types & Helpers | 28 | Display functions, color mapping, news summary, i18n |
+| Atoms | 12 | Heading, Row, Toggle, CopyBtn render + behavior |
+| Mock Data | 31 | All mock generators — probabilities, profiles, journal |
+| DecisionCard | 17 | Empty/BUY/SELL states, investment plan, toggles |
+| BreakingBanner | 11 | All signal types, EN/ZH explanations, severity styles |
+| MarketStrip | 10 | Live price, RSI, H/L, flash animation, live indicator |
+| MLScoreboard | 7 | Headers, best model highlight, sharpe/return/win% |
+| WatchlistGrid | 9 | Click handler, error display, probability display |
+| DailyIntelView | 14 | Mood, movers, sectors, AI picks, volume spikes, thread |
 
 ---
 
@@ -378,8 +393,9 @@ orallexa/
 │   ├── paper_trading.py        # Trade journal
 │   └── alerts.py               # Price alerts
 │
-├── tests/                      # 113 automated tests
-└── .github/workflows/          # CI/CD pipelines
+├── tests/                      # 113 backend tests (pytest)
+├── orallexa-ui/app/__tests__/  # 139 frontend tests (vitest)
+└── .github/workflows/          # CI/CD pipelines (lint + test + build)
 ```
 
 ---
