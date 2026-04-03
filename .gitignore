@@ -13,12 +13,34 @@ venv/
 # Node
 orallexa-ui/node_modules/
 orallexa-ui/.next/
-orallexxa-ui/node_modules/
-orallexxa-ui/.next/
 
-# Internal logs (keep local only)
+# Claude Code local config
+.claude/settings.local.json
+orallexa-ui/.claude/
+
+# Runtime data (generated at runtime, not source code)
+memory_data/
+bot/memory.json
+bot/config.json
+eval_results/
+results/
+
+# Marketing drafts (internal only)
+linkedin_content.md
+docs/post_*.md
+docs/tweets_thread.md
+docs/eval_badge_url.txt
+
+# Font archives (TTFs are tracked, zips are not)
+assets/fonts/*.zip
+
+# Misc internal files
 UPGRADE_LOG.txt
 UPGRADE_LOG_internal.txt
+project_summary.txt
+SYSTEM_OVERVIEW.md
+screenshot/
+assets/create_showcase.py
 
 # IDE
 .vscode/
@@ -32,8 +54,5 @@ Thumbs.db
 logs/
 *.log
 
-# Data (optional — uncomment to exclude large data files)
-# results/
-# memory_data/
-# eval_results/
+# Tools
 .gstack/

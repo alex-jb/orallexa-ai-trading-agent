@@ -1,9 +1,0 @@
-{
-  "ticker": "NVDA",
-  "mode": "scalp",
-  "account_size": 10000,
-  "risk_pct": 1.0,
-  "language": "en",
-  "voice_on": true,
-  "timeframe": "15m"
-}
