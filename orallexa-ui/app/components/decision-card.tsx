@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { Decision, NewsItem, RiskMgmt, InvestmentPlan } from "../types";
 import { displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, riskColor, recBg, nsSummary } from "../types";
-import { DecoFan, GoldRule, Heading, Toggle, CopyBtn } from "./atoms";
+import { GoldRule, Heading, Toggle, CopyBtn } from "./atoms";
 
 /* ── Probability Bar (Polymarket-inspired) ────────────────────────────── */
 function ProbBar({ probs, decision, zh }: { probs: { up: number; neutral: number; down: number }; decision: string; zh: boolean }) {
@@ -149,7 +150,7 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
 
           {/* Pixel bull pet — NFT style mascot */}
           <div className="mt-8 mb-6 flex flex-col items-center anim-fade-in">
-            <img src="/pixel_bull.png" alt="Orallexa Bull" width={96} height={104} className="mb-4 image-rendering-pixelated" style={{ imageRendering: "pixelated" }} />
+            <Image src="/pixel_bull.png" alt="Orallexa Bull" width={96} height={104} className="mb-4" style={{ imageRendering: "pixelated" }} />
             <div className="text-[48px] font-[Poiret_One] leading-none tracking-[0.2em]" style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(255,215,0,0.18), rgba(197,162,85,0.12))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t.standby}</div>
           </div>
 

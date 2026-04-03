@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow } from "../types";
-import { copyWithAttribution, TWITTER_HANDLE } from "../types";
+import { copyWithAttribution } from "../types";
 import { Mod, CopyBtn } from "./atoms";
 
 /* ── Macro Pulse Strip ─────────────────────────────────────────────── */

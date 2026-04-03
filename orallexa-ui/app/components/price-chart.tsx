@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Mod } from "./atoms";
 
 interface CandleData {
@@ -83,13 +83,13 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
   const toggleIndicator = (ind: Indicator) => {
     setIndicators(prev => {
       const next = new Set(prev);
-      next.has(ind) ? next.delete(ind) : next.add(ind);
+      if (next.has(ind)) { next.delete(ind); } else { next.add(ind); }
       return next;
     });
   };
 
   // Generate mock OHLCV data
-  const generateMock = (days: number): CandleData[] => {
+  const generateMock = useCallback((days: number): CandleData[] => {
     const TICKER_PRICES: Record<string, number> = {
       NVDA: 142.5, AAPL: 218.3, TSLA: 275.8, MSFT: 432.15, GOOG: 178.9,
       AMZN: 205.4, META: 615.2, AMD: 128.6, PLTR: 98.3, COIN: 265.7,
@@ -113,7 +113,7 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
       });
     }
     return result;
-  };
+  }, [ticker]);
 
   useEffect(() => {
     if (!ticker) return;
@@ -124,7 +124,7 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
       setLoading(false);
     }, 200);
     return () => clearTimeout(timeout);
-  }, [ticker, period]);
+  }, [ticker, period, generateMock]);
 
   // Render chart with indicators
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { copyWithAttribution } from "../types";
 
 /* ── Sunburst / fan SVG decoration ───────────────────────────────────── */
@@ -122,11 +123,13 @@ export function BullIcon({ size = 20 }: { size?: number }) {
 /* Brand mark using the official logo.svg from /public */
 export function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <img
+    <Image
       src="/logo.svg"
       alt="Orallexa Capital Intelligence"
-      className={compact ? "h-[28px]" : "h-[36px]"}
-      style={{ width: "auto" }}
+      width={compact ? 28 : 36}
+      height={compact ? 28 : 36}
+      className={compact ? "h-[28px] w-auto" : "h-[36px] w-auto"}
+      priority
     />
   );
 }

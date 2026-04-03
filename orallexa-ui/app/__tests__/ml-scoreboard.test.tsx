@@ -49,7 +49,7 @@ describe("MLScoreboard", () => {
   });
 
   it("highlights best sharpe model (not Buy & Hold)", () => {
-    const { container } = render(<MLScoreboard models={mockModels} />);
+    render(<MLScoreboard models={mockModels} />);
     const rfRow = screen.getByText("Random Forest").closest("div[class*='grid']");
     expect(rfRow?.className).toContain("bg-[#D4AF37]/5");
   });
