@@ -95,15 +95,30 @@ class TTSHandler:
         """Play raw MP3 bytes using pygame or playsound fallback."""
         try:
             import pygame
-            pygame.mixer.init()
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
             buf = io.BytesIO(data)
-            pygame.mixer.music.load(buf, "mp3")
+            tmp = None
+            try:
+                pygame.mixer.music.load(buf, "mp3")
+            except TypeError:
+                # Older pygame: write to temp file instead
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+                    f.write(data)
+                    tmp = f.name
+                pygame.mixer.music.load(tmp)
             pygame.mixer.music.play()
             while pygame.mixer.music.get_busy():
                 if self._stop_event.is_set():
                     pygame.mixer.music.stop()
                     break
                 pygame.time.wait(50)
+            if tmp:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
         except ImportError:
             self._play_bytes_playsound(data)
         except Exception as exc:

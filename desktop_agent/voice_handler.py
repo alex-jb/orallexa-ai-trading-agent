@@ -52,6 +52,7 @@ class VoiceHandler:
         self._thread: Optional[threading.Thread] = None
         self._stop_event   = threading.Event()
         self._client       = self._make_client()
+        self._actual_rate  = SAMPLE_RATE
 
     # ── Public ────────────────────────────────────────────────────────────────
 
@@ -108,17 +109,25 @@ class VoiceHandler:
             self._recording = False
             return
 
+        # Use device's native sample rate to avoid MME/WASAPI errors on Windows
+        try:
+            dev_info = sd.query_devices(sd.default.device[0])
+            native_rate = int(dev_info["default_samplerate"])
+        except Exception:
+            native_rate = SAMPLE_RATE
+        self._actual_rate = native_rate
+
         silence_frames = 0
-        silence_limit  = int(SILENCE_SECS * SAMPLE_RATE / 1024)   # chunks
-        max_chunks     = int(MAX_SECONDS * SAMPLE_RATE / 1024)
+        silence_limit  = int(SILENCE_SECS * native_rate / 1024)
+        max_chunks     = int(MAX_SECONDS * native_rate / 1024)
         total_chunks   = 0
         peak_db        = -999.0
 
         logger.info("Recording started (rate=%d, silence_db=%d, silence_secs=%.1f)",
-                     SAMPLE_RATE, SILENCE_DB, SILENCE_SECS)
+                     native_rate, SILENCE_DB, SILENCE_SECS)
 
         try:
-            with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS,
+            with sd.InputStream(samplerate=native_rate, channels=CHANNELS,
                                 dtype=DTYPE, blocksize=1024) as stream:
                 while not self._stop_event.is_set():
                     chunk, _ = stream.read(1024)
@@ -148,7 +157,7 @@ class VoiceHandler:
         except Exception as exc:
             logger.error("Recording error: %s", exc)
 
-        duration = total_chunks * 1024 / SAMPLE_RATE
+        duration = total_chunks * 1024 / native_rate
         logger.info("Recording stopped: %.1fs, %d chunks, peak=%.1f dB, frames=%d",
                      duration, total_chunks, peak_db, len(self._frames))
 
@@ -156,14 +165,13 @@ class VoiceHandler:
 
     # ── WAV conversion ────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _frames_to_wav(frames: list[np.ndarray]) -> bytes:
+    def _frames_to_wav(self, frames: list[np.ndarray]) -> bytes:
         buf = io.BytesIO()
         audio = np.concatenate(frames, axis=0).flatten()
         with wave.open(buf, "wb") as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(2)           # int16 = 2 bytes
-            wf.setframerate(SAMPLE_RATE)
+            wf.setframerate(self._actual_rate)
             wf.writeframes(audio.tobytes())
         return buf.getvalue()
 
@@ -172,20 +180,31 @@ class VoiceHandler:
     def _transcribe(self, wav_bytes: bytes) -> tuple[str, str]:
         if self._client is None:
             return "[OpenAI API key not set]", "en"
+        import tempfile
+        tmp_path = None
         try:
-            buf = io.BytesIO(wav_bytes)
-            buf.name = "audio.wav"
-            result = self._client.audio.transcriptions.create(
-                model="whisper-1",
-                file=buf,
-                response_format="verbose_json",
-            )
+            # Write to temp file to avoid BytesIO encoding issues on Windows
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                f.write(wav_bytes)
+                tmp_path = f.name
+            with open(tmp_path, "rb") as f:
+                result = self._client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=f,
+                    response_format="verbose_json",
+                )
             text = (result.text or "").strip()
             lang = getattr(result, "language", "en") or "en"
             return text, lang
         except Exception as exc:
             logger.warning("Whisper transcription error: %s", exc)
             return "", "en"
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     @staticmethod
     def _make_client():
