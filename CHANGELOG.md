@@ -2,6 +2,45 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-03] — Quality, Testing, CI/CD, Performance & Deployment
+
+### Code Quality
+- **Lint zero warnings** — Resolved all 7 ESLint warnings: unused imports, `<img>` → `next/image`, ternary expressions, exhaustive-deps
+- **React hooks fixes** — `useState` → `useRef` for seen-set in signal-toast, `useSyncExternalStore` for localStorage in offline page, missing `useCallback` dependencies
+- **ErrorBoundary** — Global error boundary wrapping app in layout.tsx with Art Deco-styled error page and reload button
+
+### Testing — 230 Frontend + 14 E2E + ~180 Backend = 424 Total
+- **New unit tests** — price-chart (11 tests: chart rendering, period switching, indicator toggles, mock data), signal-toast (12 tests: auto-dismiss timeout, dismiss stopPropagation, badge types), service-worker-registrar (8 tests: SW registration, sendLocalNotification, SW_UPDATED event dispatch)
+- **Expanded coverage** — atoms (BrandMark, Mod, GoldRule, DecoFan), signal-toast timeout behavior, ServiceWorkerRegistrar granted permission path
+- **Coverage 73% → 86%** — Installed `@vitest/coverage-v8`, overall line coverage 86.4%
+- **Playwright E2E** — 14 tests: page load, ticker input, strategy/horizon buttons, language toggle, Claude overlay, responsive mobile menu, offline page retry/navigation
+
+### CI/CD Pipeline
+- **ESLint added to CI** — `npm run lint` step in build-ui job
+- **E2E job added** — Playwright Chromium in GitHub Actions, depends on build-ui, uploads artifacts on failure
+- **CI badge** — Added to README
+
+### Performance
+- **Lazy-load heavy components** — `PriceChart` (lightweight-charts ~414KB) and `DailyIntelView` dynamically imported with `ssr: false`
+- **Lighthouse audit** — Accessibility 96, Best Practices 96, SEO 100, FCP 0.9s, CLS 0.058
+
+### Backend API Fix
+- **Backtest endpoint** — Fixed `MarketDataSkill` constructor (missing `ticker` arg), added 70/30 train/test split for walk-forward analysis, corrected result parsing from `all_results` dict
+
+### Deployment
+- **Vercel production** — Deployed to [orallexa-ui.vercel.app](https://orallexa-ui.vercel.app) with latest build
+- **.env.example** — Added `orallexa-ui/.env.example` with `NEXT_PUBLIC_API_URL`
+- **.gitignore** — Added Playwright artifacts (test-results/, playwright-report/)
+
+### Files Changed
+- Tests: 3 new test files + 4 expanded, playwright.config.ts, e2e/dashboard.spec.ts
+- Components: error-boundary.tsx, atoms.tsx (next/image), signal-toast.tsx (useRef), offline/page.tsx (useSyncExternalStore + Link), page.tsx (lazy imports + deps)
+- CI: .github/workflows/ci.yml (+ESLint +E2E)
+- Backend: api_server.py (backtest endpoint fix)
+- Docs: README.md (test counts, CI badge, structure), .env.example
+
+---
+
 ## [2026-04-02] — Design System, Component Architecture & Full Test Coverage
 
 ### Design System & Branding

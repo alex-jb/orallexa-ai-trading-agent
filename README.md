@@ -16,7 +16,7 @@ Don't guess the market. Let AI argue about it first.
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
 [![CI](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/394_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/424_Tests-Passing-22c55e?style=for-the-badge)](tests/)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -246,7 +246,7 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 | Desktop Assistant | No | Pixel bull with voice (Whisper + TTS) |
 | Social Content | No | One-click "Copy for X" on every section |
 | Walk-Forward Eval | No | 70 strategy-ticker pairs, OOS Sharpe |
-| Tests | Limited | 394 automated (214 frontend + 180 backend) |
+| Tests | Limited | 424 automated (244 frontend + 180 backend) |
 | Bilingual | No | EN/ZH |
 
 ---
@@ -269,7 +269,7 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 
 ## Testing
 
-394 automated tests. 0 failures. CI on every push.
+424 automated tests. 0 failures. CI on every push.
 
 ```bash
 python -m pytest tests/ -v           # Backend (~180 tests)
@@ -288,9 +288,10 @@ cd orallexa-ui && npx playwright test # E2E (14 tests)
 | Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk, scalping |
 | Backend Other | 67 | Monte Carlo, walk-forward, regime, ensemble, statistics |
 | Types & Helpers | 28 | Display functions, color mapping, i18n |
-| UI Components | 111 | All 11 components + hooks + mock data |
+| UI Components | 141 | All 11 components + hooks + mock data (86% coverage) |
 | UI Mock Data | 31 | All mock generators |
 | Playwright E2E | 14 | Dashboard flows, responsive, offline page |
+| Frontend Total | 230 unit + 14 E2E | vitest + Playwright Chromium |
 
 </details>
 

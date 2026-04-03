@@ -4,6 +4,38 @@ Orallexa AI 交易操作系统的所有重要升级记录。
 
 ---
 
+## [2026-04-03] — 质量、测试、CI/CD、性能 & 部署
+
+### 代码质量
+- **Lint 零警告** — 修复全部 7 个 ESLint 警告：未使用导入、`<img>` → `next/image`、三元表达式、exhaustive-deps
+- **React hooks 修复** — signal-toast 中 `useState` → `useRef`，offline 页面用 `useSyncExternalStore`，补齐 `useCallback` 依赖
+- **ErrorBoundary** — 全局错误边界，Art Deco 风格错误页面 + 重新加载按钮
+
+### 测试 — 230 前端 + 14 E2E + ~180 后端 = 424 总计
+- **新增单元测试** — price-chart (11)、signal-toast (12)、service-worker-registrar (8)
+- **覆盖率扩展** — atoms、signal-toast 超时行为、SW registrar 授权路径
+- **覆盖率 73% → 86%** — 安装 `@vitest/coverage-v8`
+- **Playwright E2E** — 14 个测试：页面加载、输入、策略/时间按钮、语言切换、响应式、离线页面
+
+### CI/CD 管道
+- **ESLint 加入 CI** — build-ui job 中增加 `npm run lint`
+- **E2E job** — GitHub Actions 中 Playwright Chromium，失败时上传截图
+- **CI badge** — 添加到 README
+
+### 性能优化
+- **懒加载重组件** — `PriceChart` 和 `DailyIntelView` 动态导入 `ssr: false`
+- **Lighthouse 审计** — 无障碍 96、最佳实践 96、SEO 100
+
+### 后端 API 修复
+- **Backtest 端点** — 修复 `MarketDataSkill` 构造函数、70/30 训练/测试分割、结果解析
+
+### 部署
+- **Vercel 生产环境** — 部署到 [orallexa-ui.vercel.app](https://orallexa-ui.vercel.app)
+- **.env.example** — 前端环境变量模板
+- **.gitignore** — Playwright 产物
+
+---
+
 ## [2026-04-02] — 设计系统、组件架构 & 全覆盖测试
 
 ### 设计系统 & 品牌
