@@ -48,6 +48,10 @@ export default function Home() {
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
   const [lastAnalyzedAt, setLastAnalyzedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [tradeLoading, setTradeLoading] = useState(false);
+  const [tradeResult, setTradeResult] = useState<{ status: string; order_id?: string; error?: string } | null>(null);
+  const [alpacaAccount, setAlpacaAccount] = useState<{ equity: number; cash: number; buying_power: number } | null>(null);
+  const [alpacaPositions, setAlpacaPositions] = useState<{ ticker: string; qty: number; unrealized_pnl: number; unrealized_pnl_pct: number; current_price: number }[]>([]);
 
   const fetchContext = useCallback(async () => {
     if (apiDead.current) {
@@ -69,6 +73,43 @@ export default function Home() {
   }, [asset]);
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
+
+  // Fetch Alpaca account + positions (non-blocking)
+  const fetchAlpaca = useCallback(async () => {
+    if (apiDead.current) return;
+    try {
+      const [aRes, pRes] = await Promise.all([
+        fetch(`${API}/api/alpaca/account`),
+        fetch(`${API}/api/alpaca/positions`),
+      ]);
+      if (aRes.ok) { const d = await aRes.json(); if (d.equity) setAlpacaAccount(d); }
+      if (pRes.ok) { const d = await pRes.json(); if (Array.isArray(d)) setAlpacaPositions(d); }
+    } catch { /* Alpaca optional */ }
+  }, []);
+  useEffect(() => { fetchAlpaca(); }, [fetchAlpaca]);
+
+  const executePaperTrade = async () => {
+    if (!decision || decision.decision === "WAIT") return;
+    setTradeLoading(true);
+    setTradeResult(null);
+    try {
+      const form = new FormData();
+      form.append("ticker", asset);
+      form.append("decision", decision.decision);
+      form.append("confidence", String(decision.confidence));
+      if (investmentPlan) {
+        form.append("entry_price", String(investmentPlan.entry));
+        form.append("stop_loss", String(investmentPlan.stop_loss));
+        form.append("take_profit", String(investmentPlan.take_profit));
+        form.append("position_pct", String(investmentPlan.position_pct));
+      }
+      const res = await fetch(`${API}/api/alpaca/execute`, { method: "POST", body: form });
+      const data = await res.json();
+      setTradeResult(data);
+      fetchAlpaca(); // refresh positions
+    } catch { setTradeResult({ status: "error", error: "Failed to connect to trading API" }); }
+    setTradeLoading(false);
+  };
 
   // PWA service worker registration
   useEffect(() => {
@@ -643,6 +684,23 @@ export default function Home() {
           <WatchlistGrid items={watchlistItems} onSelect={(tk) => { setAsset(tk); setWatchlistItems([]); }} />
           <MarketStrip summary={marketSummary} decision={decision} livePrice={livePrice} priceFlash={priceFlash} />
           <DecisionCard d={decision} asset={asset} strategy={strategy} horizon={horizon} news={news} risk={risk} investmentPlan={investmentPlan} t={t} zh={zh} />
+          {decision && decision.decision !== "WAIT" && (
+            <div className="mt-3 flex items-center gap-3">
+              <button onClick={executePaperTrade} disabled={tradeLoading}
+                className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] transition-all disabled:opacity-40"
+                style={{ color: decision.decision === "BUY" ? "#006B3F" : "#8B0000",
+                  background: decision.decision === "BUY" ? "rgba(0,107,63,0.08)" : "rgba(139,0,0,0.08)",
+                  border: `1px solid ${decision.decision === "BUY" ? "rgba(0,107,63,0.3)" : "rgba(139,0,0,0.3)"}` }}>
+                {tradeLoading && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full anim-spin" />}
+                {zh ? "执行模拟交易" : `Paper ${decision.decision}`}
+              </button>
+              {tradeResult && (
+                <span className={`text-[10px] font-[DM_Mono] ${tradeResult.status === "filled" || tradeResult.status === "submitted" ? "text-[#006B3F]" : "text-[#8B0000]"}`}>
+                  {tradeResult.error || `${tradeResult.status}${tradeResult.order_id ? ` #${tradeResult.order_id.slice(0, 8)}` : ""}`}
+                </span>
+              )}
+            </div>
+          )}
         </>) : (<>
           {/* Intel View */}
           {intelLoading && <div className="border px-4 py-4 mb-4 text-center" role="status" style={{ background: "rgba(212,175,55,0.04)", borderColor: "rgba(212,175,55,0.15)" }}>
@@ -732,6 +790,27 @@ export default function Home() {
             <Row label={t.today} value={profile.today} />
           </> : <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="flex justify-between py-[5px]"><div className="skeleton h-3 w-16" /><div className="skeleton h-3 w-20" /></div>)}</div>}
         </Mod>
+
+        {alpacaAccount && (
+          <Mod title={zh ? "模拟交易" : "Paper Trading"}>
+            <Row label={zh ? "账户净值" : "Equity"} value={`$${alpacaAccount.equity.toLocaleString()}`} />
+            <Row label={zh ? "可用资金" : "Cash"} value={`$${alpacaAccount.cash.toLocaleString()}`} />
+            <Row label={zh ? "购买力" : "Buying Power"} value={`$${alpacaAccount.buying_power.toLocaleString()}`} />
+            {alpacaPositions.length > 0 && (
+              <div className="mt-2 pt-2 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
+                <div className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] mb-1">{zh ? "持仓" : "Positions"}</div>
+                {alpacaPositions.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center py-[5px] border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
+                    <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{p.ticker}</span>
+                    <span className="text-[10px] font-[DM_Mono]" style={{ color: p.unrealized_pnl >= 0 ? "#006B3F" : "#8B0000" }}>
+                      {p.unrealized_pnl >= 0 ? "+" : ""}{p.unrealized_pnl_pct.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Mod>
+        )}
 
         <Mod title={t.executionLog}>
           {journal.length > 0 ? journal.map((e, i) => (

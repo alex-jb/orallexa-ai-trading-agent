@@ -1,48 +1,74 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="Orallexa — AI Trading Operating System" width="480">
+<img src="assets/logo.svg" alt="Orallexa" width="420">
 
-# Orallexa
+<br>
 
 ### AI Trading Operating System
 
-<img src="assets/showcase_demo.png" alt="Market Scan → AI Analysis → Decision" width="640">
+**9 ML models. Adversarial debate. One-click execution.**<br>
+Don't guess the market. Let AI argue about it first.
 
-[![CI](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
-[![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/Tests-139+113_passing-22c55e?style=flat-square)](tests/)
-[![Walk-Forward](https://img.shields.io/badge/Walk--Forward_Sharpe-0.96_(OOS)-green?style=flat-square)](docs/evaluation_report.md)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+<br>
 
-An end-to-end trading intelligence system that goes from raw market data
-to executed paper trades — with 9 ML models, LLM reasoning, real-time dashboard,
-and one-click social content along the way.
+[![Stars](https://img.shields.io/github/stars/alex-jb/orallexa-ai-trading-agent?style=for-the-badge&logo=github&color=D4AF37&logoColor=white)](https://github.com/alex-jb/orallexa-ai-trading-agent)
+[![Python](https://img.shields.io/badge/Python-3.11+-1A1A2E?style=for-the-badge&logo=python&logoColor=D4AF37)](https://python.org)
+[![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
+[![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
+[![Tests](https://img.shields.io/badge/252_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
-[Live Demo](https://orallexa-ui.vercel.app) | [Presentation](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) | [中文](README_CN.md)
+<br>
+
+[**Live Demo**](https://orallexa-ui.vercel.app) · [**Presentation**](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) · [**Evaluation Report**](docs/evaluation_report.md) · [**中文**](README_CN.md)
+
+<br>
+
+<img src="assets/showcase_demo.png" alt="Market Scan → AI Analysis → Decision" width="720">
 
 </div>
 
----
+<br>
 
-## This Is Not Just a Trading Bot
+## What makes this different
 
-Most AI trading projects do one thing: feed data into a model, get a signal, done.
+Most AI trading projects: feed data into a model, get a signal, done.
 
-Orallexa is a **full operating system for trading intelligence**. It handles the entire pipeline:
+Orallexa runs a **full adversarial pipeline**. A Bull AI argues for the trade. A Bear AI argues against it. A Judge AI makes the final call with evidence from both sides. Then it executes.
 
 ```
-Market Data → 9 ML Models → LLM Reasoning → Adversarial Debate
-    → Risk Plan → Paper Execution → Real-time Dashboard → Social Content
+Market Data → 9 ML Models → Bull/Bear Debate → Judge Verdict
+    → Risk Plan → Paper Execution → Dashboard → Social Content
 ```
 
-Every stage is automated. Every stage is observable. The system runs continuously — scanning markets, generating intelligence, pushing signals, and producing ready-to-post content.
+Every stage automated. Every stage observable. The system runs continuously.
 
 ---
 
-## Strategy Evaluation (Walk-Forward OOS)
+## Try it instantly
+
+**[Open Live Demo](https://orallexa-ui.vercel.app)** — demo mode, no API key needed. Click **NVDA**, **TSLA**, or **QQQ** to see a full analysis.
+
+Or run locally:
+
+```bash
+git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
+cd orallexa-ai-trading-agent
+pip install -r requirements.txt
+echo "ANTHROPIC_API_KEY=your_key" > .env
+
+# Terminal 1: API
+python api_server.py
+
+# Terminal 2: UI
+cd orallexa-ui && npm install && npm run dev
+```
+
+Docker: `docker compose up --build` — that's it.
+
+---
+
+## Walk-Forward Evaluation (Out-of-Sample)
 
 <!-- EVAL_TABLE_START -->
 | Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value |
@@ -54,33 +80,50 @@ Every stage is automated. Every stage is observable. The system runs continuousl
 | dual_thrust | NVDA | **0.96** | -0.93 | 89.4% | 0.001 |
 <!-- EVAL_TABLE_END -->
 
-> 70 strategy-ticker pairs evaluated (7 strategies x 10 tickers). Top 5 by OOS Sharpe shown. None pass the strict Monte Carlo percentile test, which is expected for simple rule-based strategies on efficient markets. The value is in the ML ensemble + LLM synthesis layer above. [Full report](docs/evaluation_report.md)
+> 70 strategy-ticker pairs evaluated. Top 5 by OOS Sharpe shown. The value is in the ML ensemble + LLM synthesis layer above rule-based strategies. [Full report →](docs/evaluation_report.md)
 
 ---
 
-## The System
+## Architecture
 
 <p align="center">
   <img src="assets/architecture.svg" alt="System Architecture" width="100%">
 </p>
 
-| Layer | What It Does | Technology |
-|-------|-------------|------------|
-| **Data** | 50+ tickers, sector ETFs, news, volume detection | yfinance, parallel fetch |
-| **Models** | 9 ML models scored and ranked automatically | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
-| **Reasoning** | Bull/Bear adversarial debate on every signal | Claude Sonnet + Haiku (dual-tier) |
-| **Decision** | Structured output: decision, confidence, probabilities, risk plan | LangGraph pipeline |
-| **Execution** | Bracket orders with auto stop-loss and take-profit | Alpaca paper trading |
-| **Intelligence** | Daily morning brief, AI picks, sector rotation, volume alerts | Cached per day, 3 LLM calls |
-| **Dashboard** | Real-time UI with live prices, WebSocket stream, EN/ZH bilingual | Next.js 16, Art Deco theme |
-| **Social** | Per-section "Copy for X" — one click to post on Twitter | LLM-generated, plain language |
-| **Desktop** | Floating AI coach with voice input, chart screenshot analysis | Tkinter, Whisper, TTS |
+<table>
+<tr>
+<td width="50%">
+
+### Intelligence Layer
+
+| Component | Detail |
+|-----------|--------|
+| **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
+| **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
+| **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
+| **Daily Intel** | 50+ tickers, sector rotation, volume spikes, AI morning brief |
+
+</td>
+<td width="50%">
+
+### Execution Layer
+
+| Component | Detail |
+|-----------|--------|
+| **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
+| **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
+| **Dashboard** | Next.js 16, Art Deco theme, EN/ZH bilingual |
+| **Desktop Coach** | Floating AI pet with voice input (Whisper) + TTS |
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Example Output — NVDA Analysis
+## Example Output
 
-This is what one analysis produces. It's one output of a much larger system:
+What one NVDA analysis produces:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -92,143 +135,53 @@ This is what one analysis produces. It's one output of a much larger system:
 │  • Price above MA20 > MA50 — full bullish alignment             │
 │  • RSI at 62 — strong momentum, not yet overbought              │
 │  • Volume 1.8x average — institutional participation likely     │
-│  • MACD histogram rising — momentum accelerating                │
 │                                                                 │
 │  BEAR CASE:                                                     │
 │  • ADX at 32 but declining — trend may be exhausting            │
 │  • Bollinger %B at 0.85 — extended near upper band              │
-│  • Sector (XLK) up 3 days straight — mean reversion risk        │
 │  • Earnings in 12 days — vol crush after event                  │
 │                                                                 │
 │  JUDGE VERDICT:                                                 │
-│  "Bull case is stronger — momentum and volume confirm the       │
-│   trend. But the Bear's earnings risk is valid. Position         │
-│   size should be reduced. BUY with tight stop at MA20."         │
+│  "Bull case is stronger. BUY with tight stop at MA20."          │
 │                                                                 │
 │  PROBABILITIES: Up 58% | Neutral 24% | Down 18%                │
-│                                                                 │
 │  RISK PLAN:                                                     │
 │  Entry: $132.50 | Stop: $128.40 | Target: $141.00 | R:R 2.1:1  │
-│  Position: 5% of portfolio | Key risk: Earnings vol event       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Not just a number. A structured argument with transparent reasoning, probability breakdown, and an actionable risk plan.
-
-Want to share this? Every analysis has a built-in "Copy for X" button that formats the output into a social-ready post.
-
----
-
-## Try It Instantly
-
-**[Open Live Demo](https://orallexa-ui.vercel.app)** — runs in demo mode, no API key needed.
-
-Click **NVDA**, **TSLA**, or **QQQ** quick-start buttons to see a full analysis in seconds.
-
----
-
-## Early Results
-
-We don't publish synthetic benchmarks. Here's what the architecture delivers:
-
-- **Cost efficiency** — Dual-model routing (Haiku for 80% of calls, Sonnet for reasoning) reduces LLM cost to ~$0.003 per analysis versus $0.03+ with a single expensive model
-- **Structured reasoning** — Adversarial debate produces more stable outputs than single-model prediction. The Bull/Bear format catches blind spots that one-shot prompts miss
-- **Pipeline speed** — Full analysis (9 models + debate + risk plan) completes in ~15 seconds. Daily intel for 50+ tickers in ~10 seconds
-- **Test coverage** — 252 automated tests (139 frontend + 113 backend) with 0 failures, CI/CD on every push
-
----
-
-## Why This Matters
-
-| Problem | Typical Approach | Orallexa |
-|---------|-----------------|----------|
-| **Isolated signals** | One model, one prediction | 9 models ranked by Sharpe ratio + LLM synthesis |
-| **No reasoning** | "BUY 73%" — why? | Bull argues for, Bear argues against, Judge decides with evidence |
-| **Expensive AI** | Every call hits GPT-4 | Haiku for 80% of calls, Sonnet only where reasoning quality matters |
-| **Manual workflow** | Run notebook → read output → decide → execute | Automated pipeline: signal → debate → risk plan → paper order |
-| **No context** | Each stock analyzed alone | GNN propagates signals across 17 related stocks |
-| **Stale data** | Run once, check later | WebSocket pushes prices every 5s, signal change alerts |
-| **Not shareable** | Screenshot your terminal | "Copy for X" on every section — post to Twitter in one click |
+Not just a number. A structured argument with transparent reasoning and an actionable risk plan.
 
 ---
 
 ## 9 ML Models — Scored and Ranked
 
-Every analysis runs all available models and ranks them by Sharpe ratio:
+Every analysis runs all available models. The ML Scoreboard shows Sharpe, return, win rate side by side.
 
 | Model | Type | What It Does |
 |-------|------|-------------|
-| **Random Forest** | Classification | 28 technical features → 5-day direction |
-| **XGBoost** | Gradient Boosting | Same features, different optimization |
-| **Logistic Regression** | Linear | Regularized baseline |
-| **EMAformer** | Transformer | iTransformer + Embedding Armor (AAAI 2026 architecture) |
+| Random Forest | Classification | 28 technical features → 5-day direction |
+| XGBoost | Gradient Boosting | Same features, different optimization |
+| Logistic Regression | Linear | Regularized baseline |
+| **EMAformer** | Transformer | iTransformer + Embedding Armor (AAAI 2026) |
 | **MOIRAI-2** | Foundation | Salesforce zero-shot time series forecaster |
 | **Chronos-2** | Foundation | Amazon T5-based probabilistic forecaster |
 | **DDPM Diffusion** | Generative | 50 possible price paths → VaR and confidence intervals |
-| **PPO RL Agent** | Reinforcement | Gymnasium env, Sharpe-based reward, auto stop-loss |
+| **PPO RL Agent** | Reinforcement | Gymnasium env, Sharpe-based reward |
 | **GNN (GAT)** | Graph | 17-stock relationship graph, inter-stock signal propagation |
 
-All models run on CPU. The ML Scoreboard shows every model's Sharpe, return, win rate, and trade count side by side.
-
----
-
-## Continuous Intelligence
-
-Orallexa doesn't just analyze on demand. It runs a daily intelligence pipeline:
-
-1. **Market Scan** — 50+ tickers, parallel fetch, top gainers/losers/volume spikes
-2. **Sector Heatmap** — 13 sector ETFs, rotation detection
-3. **News + Sentiment** — FinBERT scoring on live headlines
-4. **AI Morning Brief** — 300-400 word summary with conviction
-5. **AI Picks** — 3-5 tickers worth watching, with catalysts
-6. **Social Thread** — 6-7 posts ready to copy-paste to Twitter/X
-
-Every section has a **"Copy for X"** button. Plain language, not Wall Street jargon. Written like a sharp trader, not a Bloomberg terminal.
-
----
-
-## Cost-Aware AI Architecture
-
-Not every task needs the most expensive model:
-
-| Task | Model | Cost | Why |
-|------|-------|------|-----|
-| Bull/Bear arguments | **Haiku 4.5** | ~$0.001 | Argumentation from data |
-| Quick signal overlay | **Haiku 4.5** | ~$0.001 | Sanity check, not deep synthesis |
-| Judge verdict | **Sonnet 4.6** | ~$0.005 | Final decision needs maximum reasoning |
-| Deep market report | **Sonnet 4.6** | ~$0.005 | Nuanced analysis |
-
-One full analysis: **~$0.003**. One daily intel report: **~$0.05**. Same quality, fraction of the cost.
-
----
-
-## Engineering Depth
-
-| Dimension | Detail |
-|-----------|--------|
-| **Models** | 9 ML models (classical + deep learning + RL + graph) |
-| **Deep Learning** | EMAformer, DDPM Diffusion, GAT — all pure PyTorch, no heavy frameworks |
-| **Strategy Evolution** | LLM generates Python strategy code → sandbox tests → evolves winners |
-| **LangGraph** | Debate pipeline as a typed StateGraph with conditional routing |
-| **Testing** | 252 automated tests — 139 frontend (vitest) + 113 backend (pytest) |
-| **CI/CD** | GitHub Actions: lint + test + build on every push |
-| **Deployment** | Docker Compose one-click, PWA mobile support |
-| **Real-time** | WebSocket price stream + signal change detection |
-| **Execution** | Alpaca paper trading with bracket orders (stop-loss + take-profit) |
-| **Observability** | LLM call logging (model, latency, tokens, cost per call) |
+All models run on CPU.
 
 ---
 
 ## Dashboard
 
 <p align="center">
-  <img src="assets/screenshots/dashboard_preview.png" alt="Dashboard — Signal View" width="90%">
+  <img src="assets/screenshots/dashboard_preview.png" alt="Dashboard" width="90%">
 </p>
 
-Two views:
-
-- **Signal View** — Run analysis on any ticker. Decision card, probability bars, Bull/Bear debate, investment plan, ML scoreboard, risk management.
-- **Intel View** — Daily market intelligence. Morning brief, gainers/losers, sector heatmap, volume spikes, AI picks, social thread with copy buttons.
+**Signal View** — Decision card, probability bars, Bull/Bear debate, ML scoreboard, risk plan.<br>
+**Intel View** — Morning brief, gainers/losers, sector heatmap, volume spikes, AI picks, social thread.
 
 Art Deco theme. Polymarket-inspired probability display. Mobile responsive. EN/ZH bilingual.
 
@@ -236,110 +189,89 @@ Art Deco theme. Polymarket-inspired probability display. Mobile responsive. EN/Z
 
 ## Desktop AI Coach
 
-A floating assistant for hands-free trading analysis:
+A floating pixel bull that lives on your desktop:
 
-- Natural language chat with Claude AI
-- Voice input (Whisper) + voice output (TTS)
-- Screenshot any chart → Claude Vision analysis (Ctrl+Shift+S)
-- Decision card with entry, stop, target, risk/reward
-- System tray for quick ticker/mode switching
+- **Voice chat** — Hold K to talk, Whisper transcribes, Claude responds
+- **Chart analysis** — Ctrl+Shift+S screenshots any chart for Claude Vision analysis
+- **Decision cards** — Entry, stop, target, risk/reward overlaid on screen
+- **Market-aware avatar** — Bull changes color based on market conditions
 
 ---
 
-## Quick Start
+## Cost-Aware AI
 
-### Try It Now (No Install)
+Not every task needs the expensive model:
 
-**[Live Demo](https://orallexa-ui.vercel.app)** — runs in demo mode with simulated data, no API key needed.
+| Task | Model | Cost |
+|------|-------|------|
+| Bull/Bear arguments | Haiku 4.5 | ~$0.001 |
+| Signal overlay | Haiku 4.5 | ~$0.001 |
+| Judge verdict | Sonnet 4.6 | ~$0.005 |
+| Deep market report | Sonnet 4.6 | ~$0.005 |
 
-### Option 1: Manual
+**One full analysis: ~$0.003.** One daily intel report: ~$0.05.
 
-```bash
-git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
-cd orallexa-ai-trading-agent
-pip install -r requirements.txt
+---
 
-# Set API keys
-echo "ANTHROPIC_API_KEY=your_key" > .env
+## Why this architecture
 
-# Optional: Alpaca paper trading (free, no real money)
-# Get keys at https://app.alpaca.markets → Settings → API Keys
-echo "ALPACA_API_KEY=your_key" >> .env
-echo "ALPACA_SECRET_KEY=your_secret" >> .env
-
-# Terminal 1: API server
-python api_server.py
-
-# Terminal 2: Dashboard
-cd orallexa-ui && npm install && npm run dev
-```
-
-Open http://localhost:3000
-
-### Option 2: Docker
-
-```bash
-docker compose up --build
-# API → localhost:8002 | UI → localhost:3000
-```
-
-### Quick Test
-
-```bash
-curl -X POST http://localhost:8002/api/analyze \
-  -F "ticker=NVDA" -F "mode=intraday" -F "timeframe=15m"
-```
+| Problem | Typical Approach | Orallexa |
+|---------|-----------------|----------|
+| Isolated signals | One model, one prediction | 9 models ranked by Sharpe + LLM synthesis |
+| No reasoning | "BUY 73%" — why? | Bull argues, Bear argues, Judge decides with evidence |
+| Expensive AI | Every call hits GPT-4 | Haiku for 80%, Sonnet only where reasoning matters |
+| Manual workflow | Notebook → read → decide → execute | Automated: signal → debate → risk plan → paper order |
+| No context | Each stock analyzed alone | GNN propagates signals across 17 related stocks |
+| Not shareable | Screenshot your terminal | "Copy for X" on every section |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 16, React 19, Tailwind CSS 4, PWA |
-| **Backend** | FastAPI, Python 3.11, WebSocket |
-| **AI** | Claude Sonnet 4.6 + Haiku 4.5 (dual-tier routing) |
-| **ML** | scikit-learn, XGBoost, PyTorch (EMAformer, DDPM, GAT, PPO) |
-| **Data** | yfinance (real-time + historical) |
-| **NLP** | FinBERT, VADER, TextBlob |
-| **Trading** | Alpaca paper trading (bracket orders) |
-| **Orchestration** | LangGraph (stateful debate pipeline) |
-| **Deployment** | Docker, GitHub Actions CI/CD |
+<table>
+<tr><td><b>Frontend</b></td><td>Next.js 16, React 19, Tailwind CSS 4, PWA</td></tr>
+<tr><td><b>Backend</b></td><td>FastAPI, Python 3.11, WebSocket</td></tr>
+<tr><td><b>AI</b></td><td>Claude Sonnet 4.6 + Haiku 4.5 (dual-tier routing)</td></tr>
+<tr><td><b>ML</b></td><td>scikit-learn, XGBoost, PyTorch (EMAformer, DDPM, GAT, PPO)</td></tr>
+<tr><td><b>Data</b></td><td>yfinance (real-time + historical)</td></tr>
+<tr><td><b>NLP</b></td><td>FinBERT, VADER, TextBlob</td></tr>
+<tr><td><b>Trading</b></td><td>Alpaca paper trading (bracket orders)</td></tr>
+<tr><td><b>Orchestration</b></td><td>LangGraph (stateful debate pipeline)</td></tr>
+<tr><td><b>Deploy</b></td><td>Docker, GitHub Actions CI/CD, Vercel</td></tr>
+</table>
 
 ---
 
 ## Testing
 
-```bash
-# Backend (Python)
-python -m pytest tests/ -v              # All tests (~3 min)
-python -m pytest tests/ -k "not ml"     # Fast tests (~20s)
+252 automated tests. 0 failures. CI on every push.
 
-# Frontend (Next.js)
-cd orallexa-ui && npm test              # Vitest + Testing Library
+```bash
+python -m pytest tests/ -v           # Backend (113 tests)
+cd orallexa-ui && npm test           # Frontend (139 tests)
 ```
 
-| Suite | Tests | What It Covers |
-|-------|-------|----------------|
-| **Backend** | | |
-| Engine Integration | 34 | TA indicators, 6 strategies, backtest, brain routing, alerts |
-| ML Regression | 13 | All 9 models — ensures upgrades don't degrade performance |
+<details>
+<summary><b>Full test breakdown</b></summary>
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| Engine Integration | 34 | TA indicators, strategies, backtest, brain routing |
+| ML Regression | 13 | All 9 models — ensures upgrades don't degrade |
 | API E2E | 19 | Every endpoint via FastAPI TestClient |
-| Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk management, scalping |
-| **Frontend** | | |
-| Types & Helpers | 28 | Display functions, color mapping, news summary, i18n |
-| Atoms | 12 | Heading, Row, Toggle, CopyBtn render + behavior |
-| Mock Data | 31 | All mock generators — probabilities, profiles, journal |
-| DecisionCard | 17 | Empty/BUY/SELL states, investment plan, toggles |
-| BreakingBanner | 11 | All signal types, EN/ZH explanations, severity styles |
-| MarketStrip | 10 | Live price, RSI, H/L, flash animation, live indicator |
-| MLScoreboard | 7 | Headers, best model highlight, sharpe/return/win% |
-| WatchlistGrid | 9 | Click handler, error display, probability display |
-| DailyIntelView | 14 | Mood, movers, sectors, AI picks, volume spikes, thread |
+| Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk, scalping |
+| Types & Helpers | 28 | Display functions, color mapping, i18n |
+| Components | 67 | DecisionCard, Breaking, MarketStrip, ML Scoreboard, Watchlist, DailyIntel |
+| Mock Data | 31 | All mock generators |
+
+</details>
 
 ---
 
-## API Reference
+## API
+
+<details>
+<summary><b>Endpoints</b></summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -356,9 +288,14 @@ cd orallexa-ui && npm test              # Vitest + Testing Library
 | `POST` | `/api/alpaca/execute` | Execute signal as paper order |
 | `WS` | `/ws/live` | Real-time price + signal stream |
 
+</details>
+
 ---
 
 ## Project Structure
+
+<details>
+<summary><b>Directory layout</b></summary>
 
 ```
 orallexa/
@@ -366,7 +303,7 @@ orallexa/
 ├── docker-compose.yml          # One-click deployment
 │
 ├── engine/                     # Trading engine (9 models)
-│   ├── multi_agent_analysis.py # Multi-agent pipeline
+│   ├── multi_agent_analysis.py # LangGraph debate pipeline
 │   ├── ml_signal.py            # Model comparison framework
 │   ├── strategies.py           # 7 rule-based strategies
 │   ├── emaformer.py            # EMAformer Transformer
@@ -381,46 +318,30 @@ orallexa/
 │   ├── debate.py               # Bull/Bear debate
 │   └── debate_graph.py         # LangGraph pipeline
 │
-├── orallexa-ui/                # Dashboard (Next.js 16 + React 19)
-│   └── app/__tests__/          # 139 frontend tests (vitest)
+├── orallexa-ui/                # Dashboard (Next.js 16)
 ├── desktop_agent/              # Desktop AI coach
-│
-├── bot/                        # Execution layer
-│   ├── alpaca_executor.py      # Alpaca paper trading
-│   ├── paper_trading.py        # Trade journal
-│   └── alerts.py               # Price alerts
-│
-├── tests/                      # 113 backend tests (pytest)
-└── .github/workflows/          # CI/CD pipelines (lint + test + build)
+├── bot/                        # Execution layer (Alpaca)
+├── tests/                      # 113 backend tests
+└── .github/workflows/          # CI/CD
 ```
 
----
-
-## Presentation
-
-Interactive 21-slide presentation covering the full system:
-
-[View Presentation](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) | Arrow keys to navigate | ~15 min talk
+</details>
 
 ---
 
 ## Acknowledgments
 
-- [Anthropic Claude](https://anthropic.com) — AI reasoning engine
-- [yfinance](https://github.com/ranaroussi/yfinance) — Market data
-- [Polymarket](https://polymarket.com) — Probability-first UI inspiration
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE).
-
-> **Disclaimer**: Orallexa is a research and educational project. Not financial advice. Always do your own research.
+[Anthropic Claude](https://anthropic.com) · [yfinance](https://github.com/ranaroussi/yfinance) · [Polymarket](https://polymarket.com) · [Alpaca](https://alpaca.markets)
 
 ---
 
 <div align="center">
+
+**MIT License** — see [LICENSE](LICENSE)
+
+> **Disclaimer**: Research and educational project. Not financial advice.
+
+<br>
 
 **Built with conviction, not hype.**
 
