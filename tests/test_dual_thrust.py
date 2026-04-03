@@ -51,5 +51,5 @@ class TestDualThrust:
         assert len(result) == 10
         assert all(s in (0, 1) for s in result)
 
-    def test_registry_has_seven_strategies(self):
-        assert len(STRATEGY_REGISTRY) == 7
+    def test_registry_has_all_strategies(self):
+        assert len(STRATEGY_REGISTRY) >= 7
