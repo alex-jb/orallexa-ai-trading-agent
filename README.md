@@ -225,10 +225,6 @@ One full analysis: **~$0.003**. One daily intel report: **~$0.05**. Same quality
 
 ## Dashboard
 
-<p align="center">
-  <img src="assets/screenshots/dashboard_preview.png" alt="Dashboard" width="90%">
-</p>
-
 Two views:
 
 - **Signal View** — Run analysis on any ticker. Decision card, probability bars, Bull/Bear debate, investment plan, ML scoreboard, risk management.
@@ -385,7 +381,8 @@ orallexa/
 │   ├── debate.py               # Bull/Bear debate
 │   └── debate_graph.py         # LangGraph pipeline
 │
-├── orallexa-ui/                # Dashboard (Next.js)
+├── orallexa-ui/                # Dashboard (Next.js 16 + React 19)
+│   └── app/__tests__/          # 139 frontend tests (vitest)
 ├── desktop_agent/              # Desktop AI coach
 │
 ├── bot/                        # Execution layer
@@ -394,7 +391,6 @@ orallexa/
 │   └── alerts.py               # Price alerts
 │
 ├── tests/                      # 113 backend tests (pytest)
-├── orallexa-ui/app/__tests__/  # 139 frontend tests (vitest)
 └── .github/workflows/          # CI/CD pipelines (lint + test + build)
 ```
 

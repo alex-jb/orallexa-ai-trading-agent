@@ -162,10 +162,6 @@ Orallexa 对每次分析运行 **5 Agent 管道**：
 
 ## 仪表盘
 
-<p align="center">
-  <img src="assets/screenshots/dashboard_preview.png" alt="仪表盘" width="90%">
-</p>
-
 两个视图：**Signal**（实时分析）和 **Intel**（每日情报）。Art Deco 金色主题，Polymarket 概率展示，移动端适配，中英双语。
 
 ---
@@ -173,8 +169,8 @@ Orallexa 对每次分析运行 **5 Agent 管道**：
 ## 快速开始
 
 ```bash
-git clone https://github.com/alex-jb09/orallexa.git
-cd orallexa
+git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
+cd orallexa-ai-trading-agent
 pip install -r requirements.txt
 cp .env.example .env
 ```
@@ -213,11 +209,11 @@ Orallexa 受多智能体交易研究启发，特别是 [TradingAgents](https://g
 ## Star History
 
 <div align="center">
-<a href="https://www.star-history.com/#alex-jb09/orallexa&Date">
+<a href="https://www.star-history.com/#alex-jb/orallexa-ai-trading-agent&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alex-jb09/orallexa&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alex-jb09/orallexa&type=Date" />
-   <img alt="Star History" src="https://api.star-history.com/svg?repos=alex-jb09/orallexa&type=Date" style="width: 80%; height: auto;" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date" />
+   <img alt="Star History" src="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date" style="width: 80%; height: auto;" />
  </picture>
 </a>
 </div>
