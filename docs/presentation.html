@@ -1252,15 +1252,15 @@
 
       <div class="grid-3" style="align-items:start; gap:20px;">
         <div class="anim-up d1" style="background:var(--bg-card); padding:24px; border-radius:var(--radius); border:1px solid rgba(201,168,76,0.1);">
-          <div style="font-size:2rem; font-weight:800; background:linear-gradient(135deg, var(--accent-green), #7ACA8E); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">108</div>
+          <div style="font-size:2rem; font-weight:800; background:linear-gradient(135deg, var(--accent-green), #7ACA8E); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">252</div>
           <div class="small gold" style="font-weight:600; margin-top:4px;">Tests Passing</div>
-          <div class="small dim" style="margin-top:8px;">Integration + ML regression + API E2E + unit tests</div>
+          <div class="small dim" style="margin-top:8px;">139 frontend (vitest) + 113 backend (pytest)</div>
         </div>
 
         <div class="anim-up d2" style="background:var(--bg-card); padding:24px; border-radius:var(--radius); border:1px solid rgba(201,168,76,0.1);">
-          <div style="font-size:2rem; font-weight:800; background:linear-gradient(135deg, var(--accent-blue), #6AADD4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">8</div>
+          <div style="font-size:2rem; font-weight:800; background:linear-gradient(135deg, var(--accent-blue), #6AADD4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">25</div>
           <div class="small gold" style="font-weight:600; margin-top:4px;">Test Files</div>
-          <div class="small dim" style="margin-top:8px;">Strategies, brain routing, alerts, API endpoints, all ML models</div>
+          <div class="small dim" style="margin-top:8px;">16 backend + 9 frontend (components, types, mock data)</div>
         </div>
 
         <div class="anim-up d3" style="background:var(--bg-card); padding:24px; border-radius:var(--radius); border:1px solid rgba(201,168,76,0.1);">
@@ -1285,8 +1285,20 @@
           <tr style="border-bottom:1px solid rgba(201,168,76,0.08);">
             <td style="padding:6px 0; color:var(--text);">API E2E</td><td style="color:var(--text-dim);">19</td><td style="color:var(--text-dim);">All endpoints via FastAPI TestClient &mdash; response structure, values, modes</td>
           </tr>
+          <tr style="border-bottom:1px solid rgba(201,168,76,0.08);">
+            <td style="padding:6px 0; color:var(--text);">Unit Tests</td><td style="color:var(--text-dim);">47</td><td style="color:var(--text-dim);">DecisionOutput, BehaviorMemory, RiskManagement, ScalpingSkill</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(201,168,76,0.2); color:var(--gold); font-weight:600;">
+            <td style="padding:8px 0;" colspan="3">Frontend (vitest + @testing-library/react)</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(201,168,76,0.08);">
+            <td style="padding:6px 0; color:var(--text);">Components</td><td style="color:var(--text-dim);">68</td><td style="color:var(--text-dim);">DecisionCard, Breaking, MarketStrip, Watchlist, DailyIntel, MLScoreboard</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(201,168,76,0.08);">
+            <td style="padding:6px 0; color:var(--text);">Types &amp; Atoms</td><td style="color:var(--text-dim);">40</td><td style="color:var(--text-dim);">Display helpers, color mapping, Heading, Row, Toggle, CopyBtn</td>
+          </tr>
           <tr>
-            <td style="padding:6px 0; color:var(--text);">Unit Tests</td><td style="color:var(--text-dim);">42</td><td style="color:var(--text-dim);">DecisionOutput, BehaviorMemory, RiskManagement, ScalpingSkill</td>
+            <td style="padding:6px 0; color:var(--text);">Mock Data</td><td style="color:var(--text-dim);">31</td><td style="color:var(--text-dim);">All mock generators &mdash; analyze, deep, news, profile, journal, watchlist</td>
           </tr>
         </table>
       </div>
@@ -1547,7 +1559,7 @@
               "ML gives the signal,<br>LLM explains the WHY"
             </div>
             <div class="gold-line" style="margin: 16px auto;"></div>
-            <div class="small dim">Model: claude-sonnet-4-5</div>
+            <div class="small dim">Model: claude-sonnet-4-6 + haiku-4-5 (dual-tier)</div>
           </div>
         </div>
       </div>
@@ -1887,14 +1899,14 @@
           <div class="stat-num" style="font-size:1.6rem; min-width:40px; text-align:center;">1</div>
           <div>
             <h3>Full ML Pipeline</h3>
-            <div class="small dim">252 days NVDA data &rarr; 28 features &rarr; 3 models &rarr; <span class="gold">+13.77% return (Sharpe 2.94)</span></div>
+            <div class="small dim">50+ tickers &rarr; 28 features &rarr; 9 ML models &rarr; <span class="gold">Bull/Bear debate &rarr; Judge verdict</span></div>
           </div>
         </div>
         <div class="card anim-up d2" style="display:flex; align-items:center; gap:20px;">
           <div class="stat-num" style="font-size:1.6rem; min-width:40px; text-align:center;">2</div>
           <div>
             <h3>Hybrid Intelligence</h3>
-            <div class="small dim">Classical ML + LLM reasoning + rule-based strategies = <span class="gold">+21.16% excess vs Buy & Hold</span></div>
+            <div class="small dim">9 ML models + adversarial LLM debate + 7 rule-based strategies = <span class="gold">structured decisions with transparent reasoning</span></div>
           </div>
         </div>
         <div class="card anim-up d3" style="display:flex; align-items:center; gap:20px;">
@@ -1915,7 +1927,7 @@
           <div class="stat-num" style="font-size:1.6rem; min-width:40px; text-align:center;">5</div>
           <div>
             <h3>Multi-Platform Deployment</h3>
-            <div class="small dim">3 deployment contexts: Streamlit web dashboard, React SPA, desktop agent with voice.</div>
+            <div class="small dim">Next.js dashboard (PWA), desktop pixel bull agent, Alpaca paper trading, Docker one-click deploy.</div>
           </div>
         </div>
       </div>
