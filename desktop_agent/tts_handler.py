@@ -141,7 +141,7 @@ class TTSHandler:
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
                 f.write(data)
                 tmp = f.name
-            subprocess.Popen(["start", "", tmp], shell=True)
+            subprocess.Popen(["cmd", "/c", "start", "", tmp])
         except Exception as exc:
             logger.warning("playsound error: %s", exc)
 

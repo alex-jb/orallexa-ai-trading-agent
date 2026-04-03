@@ -24,8 +24,9 @@ from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect, Depends, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 
 # Make project root importable
 _ROOT = Path(__file__).resolve().parent
@@ -55,9 +56,32 @@ _cors_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+# ── API Key Authentication ────────────────────────────────────────────────────
+_API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+_API_KEY = os.environ.get("ORALLEXA_API_KEY", "")
+
+
+def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
+    """Protect sensitive endpoints. Skipped in demo mode or when no key is configured."""
+    if DEMO_MODE or not _API_KEY:
+        return
+    if not key or key != _API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+# ── Input Validation ─────────────────────────────────────────────────────────
+MAX_CONTEXT_LEN = 500
+
+
+def _sanitize_context(context: str) -> str:
+    """Cap user context length to prevent prompt injection via volume."""
+    if len(context) > MAX_CONTEXT_LEN:
+        return context[:MAX_CONTEXT_LEN]
+    return context
 
 
 @app.get("/api/status")
@@ -148,6 +172,7 @@ async def analyze(
     context: str = Form(""),
 ):
     """Fast analysis — scalp / intraday / swing. Optional Claude overlay + debate."""
+    context = _sanitize_context(context)
     if DEMO_MODE:
         from engine.demo_data import mock_analyze
         return mock_analyze(ticker, mode, timeframe, context)
@@ -929,7 +954,7 @@ async def ws_live(websocket: WebSocket):
 # ALPACA PAPER TRADING
 # ═══════════════════════════════════════════════════════════════════════════
 
-@app.get("/api/alpaca/account")
+@app.get("/api/alpaca/account", dependencies=[Depends(_require_api_key)])
 async def alpaca_account():
     """Get Alpaca paper trading account info."""
     from bot.alpaca_executor import AlpacaExecutor
@@ -939,21 +964,21 @@ async def alpaca_account():
     return executor.get_account()
 
 
-@app.get("/api/alpaca/positions")
+@app.get("/api/alpaca/positions", dependencies=[Depends(_require_api_key)])
 async def alpaca_positions():
     """Get all open Alpaca positions."""
     from bot.alpaca_executor import AlpacaExecutor
     return AlpacaExecutor().get_positions()
 
 
-@app.get("/api/alpaca/orders")
+@app.get("/api/alpaca/orders", dependencies=[Depends(_require_api_key)])
 async def alpaca_orders(limit: int = 10):
     """Get recent Alpaca orders."""
     from bot.alpaca_executor import AlpacaExecutor
     return AlpacaExecutor().get_recent_orders(limit)
 
 
-@app.post("/api/alpaca/execute")
+@app.post("/api/alpaca/execute", dependencies=[Depends(_require_api_key)])
 async def alpaca_execute(
     ticker: str = Form("NVDA"),
     decision: str = Form("BUY"),
@@ -977,14 +1002,14 @@ async def alpaca_execute(
     )
 
 
-@app.post("/api/alpaca/close/{ticker}")
+@app.post("/api/alpaca/close/{ticker}", dependencies=[Depends(_require_api_key)])
 async def alpaca_close(ticker: str):
     """Close an open position."""
     from bot.alpaca_executor import AlpacaExecutor
     return AlpacaExecutor().close_position(ticker.upper())
 
 
-@app.post("/api/alpaca/close-all")
+@app.post("/api/alpaca/close-all", dependencies=[Depends(_require_api_key)])
 async def alpaca_close_all():
     """Close all open positions."""
     from bot.alpaca_executor import AlpacaExecutor
@@ -1007,7 +1032,7 @@ async def x_status():
         return {"connected": False, "error": str(exc)[:200]}
 
 
-@app.post("/api/x/tweet")
+@app.post("/api/x/tweet", dependencies=[Depends(_require_api_key)])
 async def x_post_tweet(text: str = Form(...)):
     """Post a single tweet to X."""
     from bot.x_publisher import XPublisher
@@ -1018,7 +1043,7 @@ async def x_post_tweet(text: str = Form(...)):
     return {"success": False, "errors": result.errors}
 
 
-@app.post("/api/x/thread")
+@app.post("/api/x/thread", dependencies=[Depends(_require_api_key)])
 async def x_post_thread(tweets: str = Form(...)):
     """Post a thread to X. Tweets separated by ||| delimiter."""
     import asyncio
@@ -1039,7 +1064,7 @@ async def x_post_thread(tweets: str = Form(...)):
     }
 
 
-@app.post("/api/x/post-signal")
+@app.post("/api/x/post-signal", dependencies=[Depends(_require_api_key)])
 async def x_post_signal(
     ticker: str = Form("NVDA"),
     decision: str = Form("BUY"),
@@ -1055,7 +1080,7 @@ async def x_post_signal(
     return {"success": False, "errors": result.errors}
 
 
-@app.post("/api/x/post-daily-intel")
+@app.post("/api/x/post-daily-intel", dependencies=[Depends(_require_api_key)])
 async def x_post_daily_intel():
     """Post today's daily intel morning brief to X."""
     import asyncio
