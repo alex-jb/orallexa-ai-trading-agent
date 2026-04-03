@@ -43,7 +43,7 @@ export function SignalToast({ signals, onSelect }: {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" style={{ maxWidth: 340 }}>
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" role="region" aria-label="Signal notifications" aria-live="polite" style={{ maxWidth: 340 }}>
       {toasts.map(toast => {
         const s = toast.signal;
         const isBullish = s.direction === "bullish";
@@ -52,8 +52,11 @@ export function SignalToast({ signals, onSelect }: {
 
         return (
           <div key={toast.id}
-            className={`pointer-events-auto cursor-pointer ${toast.exiting ? "anim-slide-left" : "anim-slide-right"}`}
+            role="alert"
+            tabIndex={0}
+            className={`pointer-events-auto cursor-pointer ${toast.exiting ? "anim-slide-left" : "anim-slide-right"} focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700]`}
             onClick={() => { onSelect(s.ticker); dismiss(toast.id); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(s.ticker); dismiss(toast.id); } }}
             style={{
               background: "#1A1A2E",
               border: `1px solid ${color}40`,
@@ -79,9 +82,9 @@ export function SignalToast({ signals, onSelect }: {
                 <div className="text-[9px] font-[Lato] text-[#F5E6CA]/60 font-light mt-0.5 truncate">{s.message}</div>
               </div>
               {/* Dismiss */}
-              <button onClick={(e) => { e.stopPropagation(); dismiss(toast.id); }}
-                className="text-[#4A4D55] hover:text-[#8B8E96] transition-colors shrink-0 mt-0.5"
-                aria-label="Dismiss">
+              <button type="button" onClick={(e) => { e.stopPropagation(); dismiss(toast.id); }}
+                className="text-[#4A4D55] hover:text-[#8B8E96] transition-colors shrink-0 mt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700]"
+                aria-label="Dismiss signal alert">
                 <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1.5" /></svg>
               </button>
             </div>

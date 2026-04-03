@@ -56,12 +56,8 @@ export function ServiceWorkerRegistrar() {
         // Check for updates every 60 minutes
         setInterval(() => reg.update(), 60 * 60 * 1000);
 
-        // Request notification permission after SW is ready
-        if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission().then((perm) => {
-            notificationPermission = perm;
-          });
-        } else if ("Notification" in window) {
+        // Sync current permission state (do NOT request on load — Lighthouse penalty)
+        if ("Notification" in window) {
           notificationPermission = Notification.permission;
         }
       })

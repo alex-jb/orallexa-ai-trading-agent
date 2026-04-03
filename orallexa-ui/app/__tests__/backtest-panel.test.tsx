@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { BacktestPanel } from "../components/backtest-panel";
 import type { BacktestSummary } from "../types";
 import { T } from "../types";
@@ -115,5 +115,38 @@ describe("BacktestPanel", () => {
     render(<BacktestPanel data={mockData} t={zhT} />);
     expect(screen.getByText(zhT.backtestResults)).toBeInTheDocument();
     expect(screen.getByText("NVDA")).toBeInTheDocument();
+  });
+
+  it("renders period selector buttons", () => {
+    render(<BacktestPanel data={mockData} t={t} />);
+    expect(screen.getByText("1Y")).toBeInTheDocument();
+    expect(screen.getByText("2Y")).toBeInTheDocument();
+    expect(screen.getByText("5Y")).toBeInTheDocument();
+    expect(screen.getByText("Max")).toBeInTheDocument();
+  });
+
+  it("calls onPeriodChange when period button clicked", () => {
+    const onChange = vi.fn();
+    render(<BacktestPanel data={mockData} t={t} onPeriodChange={onChange} />);
+    fireEvent.click(screen.getByText("5Y"));
+    expect(onChange).toHaveBeenCalledWith("5y");
+  });
+
+  it("shows loading spinner when loading", () => {
+    render(<BacktestPanel data={null} t={t} loading={true} />);
+    expect(screen.getByText(/Running backtest/)).toBeInTheDocument();
+  });
+
+  it("shows updating state with data", () => {
+    render(<BacktestPanel data={mockData} t={t} loading={true} />);
+    expect(screen.getByText(/Updating/)).toBeInTheDocument();
+    expect(screen.getByText("NVDA")).toBeInTheDocument();
+  });
+
+  it("renders ZH period labels", () => {
+    const zhT = T["ZH"];
+    render(<BacktestPanel data={mockData} t={zhT} />);
+    expect(screen.getByText("1年")).toBeInTheDocument();
+    expect(screen.getByText("5年")).toBeInTheDocument();
   });
 });

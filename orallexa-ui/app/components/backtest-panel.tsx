@@ -88,7 +88,7 @@ export function BacktestPanel({
 
   /* ── Period selector (always shown) ──────────────────────────────── */
   const periodSelector = (
-    <div className="flex items-center gap-1 mb-3">
+    <div className="flex items-center gap-1 mb-3" role="group" aria-label="Backtest period">
       <span
         className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.12em] mr-1"
         style={{ color: "#8B8E96" }}
@@ -98,8 +98,10 @@ export function BacktestPanel({
       {PERIOD_OPTIONS.map((opt) => (
         <button
           key={opt.value}
+          type="button"
+          aria-pressed={selectedPeriod === opt.value}
           onClick={() => handlePeriodChange(opt.value)}
-          className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium transition-colors"
+          className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700] focus-visible:outline-offset-1"
           style={{
             color: selectedPeriod === opt.value ? "#0A0A0F" : "#8B8E96",
             background:

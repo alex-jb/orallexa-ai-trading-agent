@@ -179,9 +179,10 @@ export default function OfflinePage() {
 
         {/* Retry button */}
         <button
+          type="button"
           onClick={handleRetry}
           disabled={checking}
-          className="px-8 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] transition-colors duration-[120ms] cursor-pointer disabled:opacity-50"
+          className="px-8 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] transition-colors duration-[120ms] cursor-pointer disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700] focus-visible:outline-offset-2"
           style={{
             fontFamily: "var(--font-josefin, 'Josefin Sans', sans-serif)",
             background: "var(--gold, #D4AF37)",

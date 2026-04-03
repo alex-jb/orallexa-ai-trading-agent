@@ -258,10 +258,11 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
       <span>{t.priceChart} — {ticker}</span>
       <div className="flex gap-1 overflow-x-auto">
         {PERIODS.map(p => (
-          <button key={p.label} onClick={() => setPeriod(p)}
-            className="px-2 py-0.5 text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] transition-colors shrink-0"
+          <button key={p.label} type="button" aria-pressed={period.label === p.label}
+            onClick={() => setPeriod(p)}
+            className="px-2 py-0.5 text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700]"
             style={{
-              color: period.label === p.label ? "#D4AF37" : "#4A4D55",
+              color: period.label === p.label ? "#D4AF37" : "#6B6E76",
               background: period.label === p.label ? "rgba(212,175,55,0.1)" : "transparent",
               border: `1px solid ${period.label === p.label ? "rgba(212,175,55,0.3)" : "transparent"}`,
             }}>
@@ -271,12 +272,13 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
       </div>
     </div>}>
       {/* Indicator toggles */}
-      <div className="flex gap-1 mb-2 flex-wrap">
+      <div className="flex gap-1 mb-2 flex-wrap" role="group" aria-label="Chart indicators">
         {INDICATOR_OPTS.map(ind => (
-          <button key={ind.key} onClick={() => toggleIndicator(ind.key)}
-            className="px-2 py-0.5 text-[7px] font-[DM_Mono] font-medium uppercase transition-colors"
+          <button key={ind.key} type="button" aria-pressed={indicators.has(ind.key)}
+            onClick={() => toggleIndicator(ind.key)}
+            className="px-2 py-0.5 text-[7px] font-[DM_Mono] font-medium uppercase transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700]"
             style={{
-              color: indicators.has(ind.key) ? ind.color : "#4A4D55",
+              color: indicators.has(ind.key) ? ind.color : "#6B6E76",
               background: indicators.has(ind.key) ? `${ind.color}15` : "transparent",
               border: `1px solid ${indicators.has(ind.key) ? `${ind.color}40` : "rgba(42,42,62,0.5)"}`,
             }}>
@@ -285,11 +287,12 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
         ))}
       </div>
       {loading ? (
-        <div className="h-[280px] flex items-center justify-center">
-          <span className="inline-block w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full anim-spin" />
+        <div className="h-[280px] flex items-center justify-center" role="status" aria-label="Loading chart">
+          <span className="inline-block w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full anim-spin" aria-hidden="true" />
+          <span className="sr-only">Loading price chart...</span>
         </div>
       ) : (
-        <div ref={containerRef} className="w-full" style={{ minHeight: 280 }} />
+        <div ref={containerRef} className="w-full" role="img" aria-label={`${ticker} price chart — ${period.label} period`} style={{ minHeight: 280 }} />
       )}
     </Mod>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import * as Mock from "./mock-data";
 import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData, BacktestSummary } from "./types";
 import { T, API, displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, riskColor, sentCls, recBg, decColorJournal, nsSummary, copyWithAttribution } from "./types";
@@ -45,7 +46,12 @@ export default function Home() {
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [useClaude, setUseClaude] = useState(false);
-  const [viewMode, setViewMode] = useState<"signal" | "intel">("signal");
+  const searchParams = useSearchParams();
+  const initialView = useMemo(() => {
+    const v = searchParams.get("view");
+    return v === "intel" ? "intel" : "signal";
+  }, [searchParams]);
+  const [viewMode, setViewMode] = useState<"signal" | "intel">(initialView);
   const [dailyIntel, setDailyIntel] = useState<DailyIntelData | null>(null);
   const [intelLoading, setIntelLoading] = useState(false);
   const [livePrice, setLivePrice] = useState<{ price: number; change_pct: number; prev_close: number; high: number; low: number; timestamp: string } | null>(null);
@@ -244,7 +250,7 @@ export default function Home() {
         await new Promise(r => setTimeout(r, 600));
         const mockDec = Mock.mockAnalyze(asset);
         setDecision(mockDec as never);
-        setBacktestData(Mock.mockBacktest(asset) as never);
+        fetchBacktest(asset);
         notify(`${asset} Signal`, `${(mockDec as Decision).decision} — ${(mockDec as Decision).recommendation}`);
         fetchContext();
         return;
@@ -259,8 +265,7 @@ export default function Home() {
       setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
       if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
       notify(`${asset} Signal`, `${data.decision} — ${data.recommendation}`);
-      // Fetch backtest in background
-      fetch(`${API}/api/backtest/${asset}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setBacktestData(d); }).catch(() => setBacktestData(Mock.mockBacktest(asset) as never));
+      fetchBacktest(asset);
       fetchContext();
     } catch (e) { setError(e instanceof Error ? e.message : "Analysis unavailable. Is the API server running?"); }
     finally { setLoading(false); }
@@ -471,12 +476,12 @@ export default function Home() {
             style={{ background: "#2A2A3E", border: "1px solid rgba(212,175,55,0.15)" }}
             onKeyDown={(e) => { if (e.key === "Enter") runSignal(); }} />
           <div className="flex items-center gap-1.5 mt-2">
-            <span className="text-[8px] font-[Josefin_Sans] text-[#4A4D55] uppercase tracking-[0.1em]">{zh ? "快速试用" : "Try"}</span>
+            <span className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.1em]">{zh ? "快速试用" : "Try"}</span>
             {[["NVDA", "AI"], ["TSLA", "EV"], ["QQQ", "Index"]].map(([tk, tag]) => (
               <button key={tk} onClick={() => { setAsset(tk); setTimeout(runSignal, 100); }}
                 className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium text-[#8B8E96] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all"
                 style={{ border: "1px solid rgba(212,175,55,0.1)", borderRadius: 3 }}>
-                {tk}<span className="text-[7px] text-[#4A4D55] ml-0.5">{tag}</span>
+                {tk}<span className="text-[7px] text-[#6B6E76] ml-0.5">{tag}</span>
               </button>
             ))}
           </div>
@@ -490,7 +495,7 @@ export default function Home() {
               {(["SCALP", "INTRADAY", "SWING"] as const).map((s) => (
                 <button key={s} onClick={() => { setStrategy(s); setHorizon(s === "SCALP" ? "5M" : s === "INTRADAY" ? "15M" : "1D"); }}
                   aria-label={`Strategy: ${s}`} aria-pressed={strategy === s}
-                  className={`px-2 py-1 text-[8px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.06em] transition-colors ${strategy === s ? "text-[#D4AF37] bg-[#D4AF37]/10" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
+                  className={`px-2 py-1 text-[8px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.06em] transition-colors ${strategy === s ? "text-[#D4AF37] bg-[#D4AF37]/10" : "text-[#6B6E76] hover:text-[#C5A255]"}`}
                   style={{ border: `1px solid ${strategy === s ? "rgba(212,175,55,0.3)" : "rgba(212,175,55,0.08)"}` }}>{t[s.toLowerCase() as keyof typeof t] || s}</button>
               ))}
             </div>
@@ -501,7 +506,7 @@ export default function Home() {
               {(["5M", "15M", "1H", "1D"] as const).map((h) => (
                 <button key={h} onClick={() => setHorizon(h)}
                   aria-label={`Horizon: ${h}`} aria-pressed={horizon === h}
-                  className={`px-2.5 py-1 text-[9px] font-[DM_Mono] font-medium transition-colors ${horizon === h ? "text-[#D4AF37] bg-[#D4AF37]/10" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
+                  className={`px-2.5 py-1 text-[9px] font-[DM_Mono] font-medium transition-colors ${horizon === h ? "text-[#D4AF37] bg-[#D4AF37]/10" : "text-[#6B6E76] hover:text-[#C5A255]"}`}
                   style={{ border: `1px solid ${horizon === h ? "rgba(212,175,55,0.3)" : "rgba(212,175,55,0.08)"}` }}>{h}</button>
               ))}
             </div>
@@ -518,7 +523,7 @@ export default function Home() {
         {/* Claude AI overlay toggle */}
         <button onClick={() => setUseClaude(!useClaude)} role="checkbox" aria-checked={useClaude}
           aria-label={zh ? "Claude AI 信号优化" : "Claude AI Overlay"}
-          className={`w-full flex items-center justify-center gap-2 py-2 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.12em] transition-all ${useClaude ? "text-[#D4AF37]" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
+          className={`w-full flex items-center justify-center gap-2 py-2 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.12em] transition-all ${useClaude ? "text-[#D4AF37]" : "text-[#6B6E76] hover:text-[#C5A255]"}`}
           style={{ background: useClaude ? "rgba(212,175,55,0.06)" : "transparent", border: `1px solid ${useClaude ? "rgba(212,175,55,0.25)" : "rgba(212,175,55,0.08)"}` }}>
           <span className={`inline-block w-2 h-2 rounded-sm ${useClaude ? "bg-[#D4AF37]" : "border border-[#4A4D55]"}`} aria-hidden="true" />
           {zh ? "Claude AI 信号优化" : "Claude AI Overlay"}
@@ -544,7 +549,7 @@ export default function Home() {
 
         {/* Auto-refresh toggle */}
         <button onClick={() => setAutoRefresh(!autoRefresh)}
-          className={`w-full py-2 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.14em] transition-all ${autoRefresh ? "text-[#006B3F]" : "text-[#4A4D55] hover:text-[#C5A255]"}`}
+          className={`w-full py-2 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.14em] transition-all ${autoRefresh ? "text-[#006B3F]" : "text-[#6B6E76] hover:text-[#C5A255]"}`}
           style={{ background: autoRefresh ? "rgba(0,107,63,0.08)" : "transparent", border: `1px solid ${autoRefresh ? "rgba(0,107,63,0.3)" : "rgba(212,175,55,0.08)"}` }}>
           <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${autoRefresh ? "bg-[#006B3F] animate-pulse" : "bg-[#4A4D55]"}`} />
           {autoRefresh ? (zh ? "实时刷新 ON (30s)" : "Live Refresh ON (30s)") : (zh ? "实时刷新 OFF" : "Live Refresh OFF")}
@@ -572,7 +577,7 @@ export default function Home() {
                 <div key={i} className="flex justify-between items-center py-1 border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-[Lato] text-[#F5E6CA]/70">{e.ticker} · {e.mode}</span>
-                    <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">{e.timestamp}</span>
+                    <span className="text-[8px] font-[DM_Mono] text-[#6B6E76]">{e.timestamp}</span>
                   </div>
                   <span className="text-[10px] font-[DM_Mono] font-medium" style={{ color: e.decision === "BUY" ? "#006B3F" : e.decision === "SELL" ? "#8B0000" : "#D4AF37" }}>{e.decision}</span>
                 </div>
@@ -637,17 +642,17 @@ export default function Home() {
           {/* View toggle: Signal | Intel */}
           <div className="flex items-center mr-3" style={{ border: "1px solid rgba(212,175,55,0.15)" }}>
             <button onClick={() => setViewMode("signal")} aria-pressed={viewMode === "signal"}
-              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "signal" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>{t.signalTab}<span className="hidden lg:inline text-[7px] font-[DM_Mono] ml-1 opacity-40">1</span></button>
+              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "signal" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#6B6E76] hover:text-[#C5A255]"}`}>{t.signalTab}<span className="hidden lg:inline text-[7px] font-[DM_Mono] ml-1 opacity-40">1</span></button>
             <div className="w-px h-4" style={{ background: "rgba(212,175,55,0.15)" }} />
             <button onClick={() => setViewMode("intel")} aria-pressed={viewMode === "intel"}
-              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "intel" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>{t.intelTab}<span className="hidden lg:inline text-[7px] font-[DM_Mono] ml-1 opacity-40">2</span></button>
+              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${viewMode === "intel" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#6B6E76] hover:text-[#C5A255]"}`}>{t.intelTab}<span className="hidden lg:inline text-[7px] font-[DM_Mono] ml-1 opacity-40">2</span></button>
           </div>
           <div className="flex items-center" role="radiogroup" aria-label="Language" style={{ border: "1px solid rgba(212,175,55,0.15)" }}>
             <button onClick={() => setLang("EN")} role="radio" aria-checked={lang === "EN"} aria-label="English"
-              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${lang === "EN" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>EN</button>
+              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-semibold transition-colors ${lang === "EN" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#6B6E76] hover:text-[#C5A255]"}`}>EN</button>
             <div className="w-px h-4" style={{ background: "rgba(212,175,55,0.15)" }} />
             <button onClick={() => setLang("ZH")} role="radio" aria-checked={lang === "ZH"} aria-label="中文"
-              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] font-semibold transition-colors ${lang === "ZH" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#4A4D55] hover:text-[#C5A255]"}`}>中文</button>
+              className={`px-3 py-2 text-[10px] font-[Josefin_Sans] font-semibold transition-colors ${lang === "ZH" ? "text-[#D4AF37] bg-[#D4AF37]/8" : "text-[#6B6E76] hover:text-[#C5A255]"}`}>中文</button>
           </div>
         </div>
 
@@ -661,7 +666,7 @@ export default function Home() {
             </span>
           </div>
           {lastAnalyzedAt && (
-            <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+            <span className="text-[8px] font-[DM_Mono] text-[#6B6E76]">
               {zh ? "最近分析" : "Last signal"}: {lastAnalyzedAt}
             </span>
           )}
@@ -761,7 +766,7 @@ export default function Home() {
                 style={{ borderColor: "rgba(212,175,55,0.06)" }} title={n.title}>
                 <div className="pr-2 min-w-0">
                   <span className="text-[11px] font-[Lato] text-[#F5E6CA]/60 leading-snug group-hover:text-[#F5E6CA] transition-colors block truncate font-light">{n.title}</span>
-                  {n.provider && <span className="text-[8px] font-[Josefin_Sans] text-[#4A4D55] mt-0.5 block">{n.provider}</span>}
+                  {n.provider && <span className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] mt-0.5 block">{n.provider}</span>}
                 </div>
                 <span className={`text-[9px] font-[Josefin_Sans] font-bold whitespace-nowrap uppercase shrink-0 ${sentCls(n.sentiment)}`}>{n.sentiment}</span>
               </a>
@@ -779,7 +784,7 @@ export default function Home() {
 
         {mlModels.length > 0 && <MLScoreboard models={mlModels} />}
 
-        <BacktestPanel data={backtestData} t={t} />
+        <BacktestPanel data={backtestData} t={t} loading={backtestLoading} onPeriodChange={(p) => fetchBacktest(asset, p)} />
 
         {deepReport && (<>
           <Mod title={t.marketReport}>
@@ -847,9 +852,9 @@ export default function Home() {
             <div className="text-center py-3">
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#4A4D55]" />
-                <span className="text-[8px] font-[Josefin_Sans] text-[#4A4D55] uppercase tracking-[0.14em] font-bold">{zh ? "未连接" : "Not Connected"}</span>
+                <span className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] font-bold">{zh ? "未连接" : "Not Connected"}</span>
               </div>
-              <div className="text-[9px] font-[Lato] text-[#4A4D55] leading-relaxed">
+              <div className="text-[9px] font-[Lato] text-[#6B6E76] leading-relaxed">
                 {zh ? "设置 ALPACA_API_KEY 和 ALPACA_SECRET_KEY 启用模拟交易" : "Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env to enable paper trading"}
               </div>
             </div>
@@ -862,7 +867,7 @@ export default function Home() {
               <span className="text-[11px] font-[Lato] text-[#8B8E96]">{e.ticker} · {e.mode}</span>
               <span className="text-[11px] font-[DM_Mono] font-medium" style={{ color: decColorJournal(e.decision) }}>{e.decision}</span>
             </div>
-          )) : <div className="text-[10px] font-[Lato] text-[#4A4D55]">No executions yet</div>}
+          )) : <div className="text-[10px] font-[Lato] text-[#6B6E76]">No executions yet</div>}
           {profile && profile.patterns.length > 0 && (
             <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
               <Heading>{t.behaviorSignals}</Heading>
