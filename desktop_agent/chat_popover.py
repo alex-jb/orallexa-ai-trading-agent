@@ -72,10 +72,15 @@ class ChatPopover:
         self._lang = "en"
         self._busy = False
         self._last_result = None
+        self._analysis_history: list[dict] = []  # [{ticker, decision, confidence, ts}]
 
         # Voice & language controls
         self._voice_on = True                         # TTS toggle
         self._lang_mode = "auto"                      # "auto" | "en" | "zh"
+
+        # Typing indicator
+        self._typing_dots = 0
+        self._typing_active = False
 
         self._win: Optional[tk.Toplevel] = None
         self._root: Optional[tk.Tk]      = None

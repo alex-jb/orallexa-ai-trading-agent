@@ -146,6 +146,50 @@ _STRINGS: dict[str, dict[str, str]] = {
     "startup_ready":            {"en": "Ready",                     "zh": "就绪"},
     "startup_api_missing":      {"en": "API key missing — limited mode",
                                  "zh": "API密钥缺失 — 有限模式"},
+
+    # ── Sleep mode ───────────────────────────────────────────────
+    "sleeping":                 {"en": "zzZ...",                    "zh": "zzZ..."},
+    "waking_up":                {"en": "yawn~ good morning!",       "zh": "哈欠~ 早安!"},
+    "sleepy":                   {"en": "getting sleepy...",         "zh": "有点困了..."},
+
+    # ── Time-aware greetings ─────────────────────────────────────
+    "greeting_morning":         {"en": "Good morning, Master! Pre-market prep time.",
+                                 "zh": "早安Master! 盘前准备时间。"},
+    "greeting_market_open":     {"en": "Market is OPEN! Let's find setups.",
+                                 "zh": "开盘了! 找信号吧。"},
+    "greeting_lunch":           {"en": "Lunch time. Market slows here.",
+                                 "zh": "午间休息，行情通常放缓。"},
+    "greeting_afternoon":       {"en": "Afternoon session. Stay focused.",
+                                 "zh": "下午盘，保持专注。"},
+    "greeting_market_close":    {"en": "Market closing soon! Review your P&L.",
+                                 "zh": "快收盘了! 检查一下盈亏。"},
+    "greeting_evening":         {"en": "Markets closed. Time to review & plan.",
+                                 "zh": "收盘了，复盘时间。"},
+    "greeting_night":           {"en": "Late night trading? Be careful with futures.",
+                                 "zh": "夜盘交易? 期货小心操作。"},
+    "greeting_weekend":         {"en": "Weekend! Rest up for Monday.",
+                                 "zh": "周末啦! 休息一下准备周一。"},
+
+    # ── Expression reactions ─────────────────────────────────────
+    "happy_reaction":           {"en": "Yay! Great trade!",         "zh": "耶! 好交易!"},
+    "surprised_reaction":       {"en": "Whoa! Big move!",           "zh": "哇! 大行情!"},
+    "angry_reaction":           {"en": "Ugh, stop loss hit...",     "zh": "唉，止损了..."},
+
+    # ── Follow cursor ────────────────────────────────────────────
+    "follow_on":                {"en": "Following you~",            "zh": "跟着你~"},
+    "follow_off":               {"en": "Free roaming~",             "zh": "自由漫步~"},
+
+    # ── Auto market check ────────────────────────────────────────
+    "market_alert":             {"en": "Alert: {ticker} moved {pct}%!",
+                                 "zh": "提醒: {ticker} 变动 {pct}%!"},
+    "market_check_ok":          {"en": "{ticker} is quiet. No action needed.",
+                                 "zh": "{ticker} 平稳，无需操作。"},
+
+    # ── Particle effects ─────────────────────────────────────────
+    "confetti":                 {"en": "Bullish!",                  "zh": "看涨!"},
+
+    # ── Jump animation ───────────────────────────────────────────
+    "jump_excited":             {"en": "Let's go!",                 "zh": "冲!"},
 }
 
 # Global language default — updated by ChatPopover when user switches language

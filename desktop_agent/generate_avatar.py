@@ -79,6 +79,83 @@ PALETTES = {
     },
 }
 
+# New expression palettes
+PALETTES["sleeping"] = {
+    "B": (140, 130, 120),   # muted grey-brown — sleepy
+    "E": (100, 90, 80),     # nearly closed eyes
+    "N": (120, 110, 100),
+    "G": (180, 160, 80),    # dim gold
+}
+PALETTES["happy"] = {
+    "B": (255, 180, 60),    # bright orange-gold — excited
+    "E": (60, 30, 10),
+    "N": (220, 150, 40),
+    "G": (255, 235, 100),
+}
+PALETTES["surprised"] = {
+    "B": (255, 200, 100),   # bright yellow — surprised
+    "E": (20, 20, 20),      # wide eyes (dark)
+    "N": (220, 170, 70),
+    "G": (255, 255, 150),
+}
+PALETTES["angry"] = {
+    "B": (180, 50, 50),     # dark red — angry
+    "E": (255, 60, 60),     # red glowing eyes
+    "N": (140, 30, 30),
+    "G": (255, 150, 0),     # fiery gold
+}
+
+# Sleeping bull grid — closed eyes (E replaced with B), Zzz above
+SLEEPING_GRID = [
+    "____BBBB____",  # 0 horns
+    "___B____B___",  # 1 horn tips
+    "__GBBBBBBBG_",  # 2 head top
+    "_BBBBBBBBBB_",  # 3 head
+    "_BB_BBBB_BB_",  # 4 closed eyes (lines)
+    "_BBBBBBBBBB_",  # 5 face
+    "_BBBNNNNBBB_",  # 6 nostrils
+    "_BBBBBBBBBB_",  # 7 chin
+    "__BBBBBBBB__",  # 8 body (slightly lower — slouching)
+    "__BGBBBBGB__",  # 9 body + gold
+    "__BBBBBBBB__",  # 10 body lower
+    "__BB____BB__",  # 11 legs
+    "__BB____BB__",  # 12 feet
+]
+
+# Happy bull grid — ^ ^ eyes (smiling)
+HAPPY_GRID = [
+    "____BBBB____",
+    "___B____B___",
+    "__GBBBBBBBG_",
+    "_BBBBBBBBBB_",
+    "_BB_BBB_BBB_",  # ^ ^ happy eyes (small lines)
+    "_BBBBBBBBBB_",
+    "_BBBNNNBBBB_",  # smaller nose — smile
+    "_BBBBBBBBBB_",
+    "__BBBBBBBB__",
+    "__BGBBBBGB__",
+    "__BBBBBBBB__",
+    "__BB____BB__",
+    "__BB____BB__",
+]
+
+# Surprised bull grid — O O eyes
+SURPRISED_GRID = [
+    "____BBBB____",
+    "___B____B___",
+    "__GBBBBBBBG_",
+    "_BBBBBBBBBB_",
+    "_BEEBBBBEEB_",  # O O big eyes
+    "_BEEBBBBEEB_",
+    "_BBBNNNNBBB_",
+    "_BBBBBBBBBB_",
+    "__BBBBBBBB__",
+    "__BGBBBBGB__",
+    "__BBBBBBBB__",
+    "__BB____BB__",
+    "__BB____BB__",
+]
+
 # Map old state names to palette names
 STATE_MAP = {
     "idle": "neutral",
@@ -87,6 +164,17 @@ STATE_MAP = {
     "confident": "bullish",
     "warning": "bearish",
     "wait": "neutral",
+    "sleeping": "sleeping",
+    "happy": "happy",
+    "surprised": "surprised",
+    "angry": "angry",
+}
+
+# Expression states use custom grids
+EXPRESSION_GRIDS = {
+    "sleeping": SLEEPING_GRID,
+    "happy": HAPPY_GRID,
+    "surprised": SURPRISED_GRID,
 }
 
 GRID_W = len(BULL_GRID[0])
@@ -95,10 +183,12 @@ SPRITE_W = GRID_W * PX
 SPRITE_H = GRID_H * PX
 
 
-def draw_pixel_bull(palette: dict, offset_y: int = 0) -> Image.Image:
-    """Draw a pixel bull with the given color palette."""
+def draw_pixel_bull(palette: dict, offset_y: int = 0,
+                    grid: list[str] | None = None) -> Image.Image:
+    """Draw a pixel bull with the given color palette and optional custom grid."""
+    use_grid = grid or BULL_GRID
     img = Image.new("RGBA", (SPRITE_W, SPRITE_H + abs(offset_y)), (0, 0, 0, 0))
-    for y, row in enumerate(BULL_GRID):
+    for y, row in enumerate(use_grid):
         for x, ch in enumerate(row):
             if ch == "_":
                 continue
@@ -168,7 +258,8 @@ def main() -> None:
     neutral.save(OUT_DIR / "bull_idle.png")
 
     for state, pal_name in STATE_MAP.items():
-        img = draw_pixel_bull(PALETTES[pal_name])
+        grid = EXPRESSION_GRIDS.get(state)
+        img = draw_pixel_bull(PALETTES[pal_name], grid=grid)
         img.save(OUT_DIR / f"bull_state_{state}.png")
 
     # Walk frames (using neutral palette)

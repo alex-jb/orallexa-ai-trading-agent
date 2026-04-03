@@ -11,6 +11,10 @@ States:
     confident  — strong signal, green glow
     warning    — risk alert, red glow
     wait       — no action, amber glow
+    sleeping   — long idle, Zzz animation
+    happy      — good trade, bounce + sparkles
+    surprised  — big market move, jump
+    angry      — stop loss hit, smoke particles
 
 Usage (standalone test):
     python desktop_agent/character_window.py
@@ -72,13 +76,37 @@ IDLE_TIPS_ZH = [
 ]
 IDLE_TIP_INTERVAL = (30, 90)  # seconds between random tips
 
+# ── Sleep mode ───────────────────────────────────────────────────────────────
+SLEEP_IDLE_SECS  = 180   # 3 minutes idle → start sleeping
+SLEEP_ZZZ_MS     = 1200  # Zzz animation tick
+ZZZ_SEQUENCE     = ["z", "zZ", "zZZ", "zZz", "Zzz", "ZzZ", "ZZZ", "  ·"]
+
+# ── Jump / bounce animation ──────────────────────────────────────────────────
+JUMP_HEIGHT      = 30    # pixels
+JUMP_FRAMES      = 12    # total frames for one bounce
+JUMP_TICK_MS     = 40    # ms per frame
+
+# ── Particle effects ────────────────────────────────────────────────────────
+PARTICLE_LIFE    = 20    # ticks before particle dies
+PARTICLE_TICK_MS = 80    # ms per particle tick
+MAX_PARTICLES    = 15
+
+# ── Follow cursor ───────────────────────────────────────────────────────────
+FOLLOW_SPEED     = 3     # pixels per tick
+FOLLOW_DISTANCE  = 120   # start following when cursor > this far
+
+# ── Auto market check ───────────────────────────────────────────────────────
+MARKET_CHECK_INTERVAL_MS = 300_000  # 5 minutes
+MARKET_ALERT_THRESHOLD   = 2.0     # % change to trigger alert
+
 # ── Edge snapping ─────────────────────────────────────────────────────────────
 SNAP_DISTANCE = 20   # pixels — snap to edge when within this distance
 EDGE_MARGIN   = 4    # pixels — gap from screen edge when snapped
 
 # ── State definitions ─────────────────────────────────────────────────────────
 
-StateName = Literal["idle", "listening", "thinking", "confident", "warning", "wait"]
+StateName = Literal["idle", "listening", "thinking", "confident", "warning", "wait",
+                    "sleeping", "happy", "surprised", "angry"]
 
 def _state_bubbles(lang: str | None = None) -> dict[str, list[str]]:
     """Return state bubble texts in the current language."""
@@ -90,6 +118,10 @@ def _state_bubbles(lang: str | None = None) -> dict[str, list[str]]:
         "confident": [t("strong_signal", lang), t("looking_good", lang), t("setup_confirmed", lang)],
         "warning":   [t("careful_here", lang), t("risk_is_high", lang), t("watch_out", lang)],
         "wait":      [t("not_yet", lang), t("stand_aside", lang), t("no_setup", lang)],
+        "sleeping":  [t("sleeping", lang)],
+        "happy":     [t("happy_reaction", lang), t("jump_excited", lang)],
+        "surprised": [t("surprised_reaction", lang)],
+        "angry":     [t("angry_reaction", lang)],
     }
 
 STATE_COLORS: dict[str, str] = {
@@ -99,6 +131,10 @@ STATE_COLORS: dict[str, str] = {
     "confident": "#DC3C3C",   # red — bullish/buy (中国红=涨)
     "warning":   "#32AA5A",   # green — bearish/sell (绿=跌)
     "wait":      "#D4AF37",   # gold — neutral
+    "sleeping":  "#8C8278",   # muted grey — sleepy
+    "happy":     "#FFB43C",   # bright orange-gold — excited
+    "surprised": "#FFC864",   # bright yellow — surprised
+    "angry":     "#B43232",   # dark red — angry
 }
 
 
@@ -240,6 +276,26 @@ class BullCharacter:
         self._pet_active = False
         self._pet_tick = 0
 
+        # Sleep mode
+        self._last_interaction_time = time.time()
+        self._zzz_idx = 0
+        self._is_sleeping = False
+
+        # Jump / bounce animation
+        self._jumping = False
+        self._jump_frame = 0
+        self._jump_base_y = 0
+
+        # Particle effects
+        self._particles: list[dict] = []  # {x, y, vx, vy, life, char, color}
+
+        # Follow cursor mode
+        self._follow_cursor = False
+
+        # Auto market check
+        self._market_check_ticker = "NVDA"
+        self._last_price: float | None = None
+
         # ── Main window (must exist before loading sprites) ───────
         self._win = tk.Tk()
 
@@ -294,6 +350,9 @@ class BullCharacter:
         self._context_menu.add_command(label="Voice (K)", command=lambda: self._quick_action("voice"))
         self._context_menu.add_command(label="Screenshot", command=lambda: self._quick_action("screenshot"))
         self._context_menu.add_separator()
+        self._context_menu.add_command(label="Follow Cursor", command=self._toggle_follow)
+        self._context_menu.add_command(label="Wake Up!", command=self._wake_up)
+        self._context_menu.add_separator()
         self._context_menu.add_command(label="Hide Bull", command=self._toggle_visibility)
 
         # ── Bubble window ─────────────────────────────────────────
@@ -325,6 +384,9 @@ class BullCharacter:
         self._idle_tick_loop()
         self._bubble_tick_loop()
         self._idle_tip_loop()
+        self._sleep_check_loop()
+        self._particle_loop()
+        self._follow_cursor_loop()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -339,11 +401,31 @@ class BullCharacter:
         If no bubble_text is provided, a random phrase for the state is shown.
         If the state is 'idle', the bubble is hidden.
         """
+        # Wake up from sleep on any non-sleep state change
+        if self._is_sleeping and state != "sleeping":
+            self._is_sleeping = False
+
+        # Record interaction time for sleep tracking
+        if state != "sleeping":
+            self._last_interaction_time = time.time()
+
         self._state = state
 
         if state == "idle":
             self._hide_bubble()
             return
+
+        # Trigger special animations for expression states
+        if state == "happy":
+            self._start_jump()
+            self._spawn_particles("sparkle")
+        elif state == "surprised":
+            self._start_jump()
+            self._spawn_particles("star")
+        elif state == "angry":
+            self._spawn_particles("smoke")
+        elif state == "confident":
+            self._spawn_particles("sparkle")
 
         bubbles = _state_bubbles(get_lang())
         text = bubble_text or (
@@ -432,7 +514,10 @@ class BullCharacter:
         self._win.after(1000 // FPS_MOVE, self._move_loop)
 
     def _sprite_loop(self) -> None:
-        if self._state != "idle" and self._paused:
+        if self._state == "sleeping":
+            # Always show sleeping sprite
+            photo = self._get_state_sprite("sleeping")
+        elif self._state != "idle" and self._paused:
             # Show state sprite when paused and in a non-idle state
             photo = self._get_state_sprite(self._state)
         elif self._paused:
@@ -660,6 +745,271 @@ class BullCharacter:
 
     # ── Sound feedback ────────────────────────────────────────────────────
 
+    # ── Sleep mode ────────────────────────────────────────────────────────
+
+    def _sleep_check_loop(self) -> None:
+        """Check if bull should fall asleep after SLEEP_IDLE_SECS of no interaction."""
+        if (self._state == "idle"
+                and not self._is_sleeping
+                and not self._bubble_visible
+                and time.time() - self._last_interaction_time > SLEEP_IDLE_SECS):
+            self._enter_sleep()
+        # Zzz animation while sleeping
+        if self._is_sleeping and self._state == "sleeping":
+            zzz = ZZZ_SEQUENCE[self._zzz_idx % len(ZZZ_SEQUENCE)]
+            self._show_bubble(zzz, accent="#8C8278")
+            self._zzz_idx += 1
+        self._win.after(SLEEP_ZZZ_MS, self._sleep_check_loop)
+
+    def _enter_sleep(self) -> None:
+        """Bull falls asleep — show sleepy bubble, then transition to sleeping."""
+        self._is_sleeping = True
+        self._zzz_idx = 0
+        self._paused = True
+        self._pause_until = time.time() + 9999
+        self._state = "sleeping"
+
+    def _wake_up(self) -> None:
+        """Wake bull from sleep (called from context menu or click)."""
+        if self._is_sleeping:
+            self._is_sleeping = False
+            self._last_interaction_time = time.time()
+            self._pause_until = time.time() + random.uniform(PAUSE_MIN, PAUSE_MAX)
+            lang = get_lang()
+            self.flash_state("happy", t("waking_up", lang), 3000)
+
+    # ── Jump / bounce animation ──────────────────────────────────────────
+
+    def _start_jump(self) -> None:
+        """Start a bounce animation."""
+        if self._jumping:
+            return
+        self._jumping = True
+        self._jump_frame = 0
+        self._jump_base_y = self._y
+        self._jump_loop()
+
+    def _jump_loop(self) -> None:
+        """Animate a parabolic jump."""
+        if not self._jumping:
+            return
+        self._jump_frame += 1
+        if self._jump_frame >= JUMP_FRAMES:
+            self._jumping = False
+            self._y = self._jump_base_y
+            self._win.geometry(f"{CHAR_W}x{CHAR_H}+{self._x}+{self._y}")
+            self._update_bubble_pos()
+            return
+
+        # Parabolic curve: sin(pi * t) for smooth up-and-down
+        import math
+        progress = self._jump_frame / JUMP_FRAMES
+        offset = int(JUMP_HEIGHT * math.sin(math.pi * progress))
+        self._y = self._jump_base_y - offset
+        self._win.geometry(f"{CHAR_W}x{CHAR_H}+{self._x}+{self._y}")
+        self._update_bubble_pos()
+        self._win.after(JUMP_TICK_MS, self._jump_loop)
+
+    # ── Particle effects ─────────────────────────────────────────────────
+
+    def _spawn_particles(self, kind: str = "sparkle") -> None:
+        """Spawn particles above the bull.
+
+        Kinds:
+          sparkle — gold stars/diamonds (bullish)
+          star    — bright yellow stars (surprised)
+          smoke   — grey puffs (angry/warning)
+          coin    — gold coins (profit)
+        """
+        import math
+        configs = {
+            "sparkle": {"chars": ["✦", "✧", "◆", "·"], "colors": ["#FFD700", "#D4AF37", "#E8C35A"],
+                        "count": 8, "vy_range": (-3, -1), "vx_range": (-2, 2)},
+            "star":    {"chars": ["★", "☆", "✦", "!"], "colors": ["#FFC864", "#FFE0A0", "#FFFFFF"],
+                        "count": 10, "vy_range": (-4, -1), "vx_range": (-3, 3)},
+            "smoke":   {"chars": ["●", "○", "◦", "·"], "colors": ["#888888", "#666666", "#AAAAAA"],
+                        "count": 6, "vy_range": (-2, 0), "vx_range": (-1, 1)},
+            "coin":    {"chars": ["$", "¢", "◆"], "colors": ["#FFD700", "#FFA500", "#D4AF37"],
+                        "count": 5, "vy_range": (-3, -1), "vx_range": (-2, 2)},
+        }
+        cfg = configs.get(kind, configs["sparkle"])
+        for _ in range(min(cfg["count"], MAX_PARTICLES - len(self._particles))):
+            self._particles.append({
+                "x": CHAR_W // 2 + random.randint(-20, 20),
+                "y": random.randint(5, 25),
+                "vx": random.uniform(*cfg["vx_range"]),
+                "vy": random.uniform(*cfg["vy_range"]),
+                "life": PARTICLE_LIFE + random.randint(-3, 3),
+                "char": random.choice(cfg["chars"]),
+                "color": random.choice(cfg["colors"]),
+            })
+
+    def _particle_loop(self) -> None:
+        """Update and render particles on the canvas."""
+        # Remove dead particles
+        self._particles = [p for p in self._particles if p["life"] > 0]
+
+        # Clear old particle items
+        self._canvas.delete("particle")
+
+        for p in self._particles:
+            p["x"] += p["vx"]
+            p["y"] += p["vy"]
+            p["vy"] += 0.15  # gravity
+            p["life"] -= 1
+
+            # Fade based on remaining life
+            alpha = min(1.0, p["life"] / (PARTICLE_LIFE * 0.5))
+            if alpha > 0.3:
+                self._canvas.create_text(
+                    int(p["x"]), int(p["y"]),
+                    text=p["char"], fill=p["color"],
+                    font=("Segoe UI", 9), tags="particle")
+
+        self._win.after(PARTICLE_TICK_MS, self._particle_loop)
+
+    # ── Follow cursor mode ───────────────────────────────────────────────
+
+    def _toggle_follow(self) -> None:
+        """Toggle follow-cursor mode."""
+        self._follow_cursor = not self._follow_cursor
+        lang = get_lang()
+        if self._follow_cursor:
+            self.flash_state("happy", t("follow_on", lang), 2000)
+        else:
+            self.flash_state("idle", t("follow_off", lang), 2000)
+
+    def _follow_cursor_loop(self) -> None:
+        """Move toward cursor position when follow mode is active."""
+        if self._follow_cursor and not self._jumping:
+            try:
+                mx = self._win.winfo_pointerx()
+                my = self._win.winfo_pointery()
+                dx = mx - (self._x + CHAR_W // 2)
+                dy = my - (self._y + CHAR_H // 2)
+                dist = (dx ** 2 + dy ** 2) ** 0.5
+
+                if dist > FOLLOW_DISTANCE:
+                    # Move toward cursor
+                    import math
+                    angle = math.atan2(dy, dx)
+                    step = min(FOLLOW_SPEED, dist * 0.05)
+                    self._x += int(step * math.cos(angle))
+                    self._y += int(step * math.sin(angle))
+                    self._x = max(0, min(self._sw - CHAR_W, self._x))
+                    self._y = max(0, min(self._sh - CHAR_H, self._y))
+                    self._direction = 1 if dx > 0 else -1
+                    self._paused = False
+                    self._win.geometry(f"{CHAR_W}x{CHAR_H}+{self._x}+{self._y}")
+                    self._update_bubble_pos()
+                elif not self._paused and dist < FOLLOW_DISTANCE // 2:
+                    self._paused = True
+                    self._pause_until = time.time() + 1.0
+            except tk.TclError:
+                pass
+
+        self._win.after(1000 // FPS_MOVE, self._follow_cursor_loop)
+
+    # ── Time-aware greetings ─────────────────────────────────────────────
+
+    def get_time_greeting(self) -> str:
+        """Return a context-aware greeting based on current time and day."""
+        from datetime import datetime
+        now = datetime.now()
+        lang = get_lang()
+        hour = now.hour
+        weekday = now.weekday()  # 0=Monday, 6=Sunday
+
+        if weekday >= 5:  # Saturday/Sunday
+            return t("greeting_weekend", lang)
+        if hour < 7:
+            return t("greeting_night", lang)
+        if hour < 9:
+            return t("greeting_morning", lang)
+        if 9 <= hour < 10:
+            return t("greeting_market_open", lang)
+        if 12 <= hour < 13:
+            return t("greeting_lunch", lang)
+        if 13 <= hour < 15:
+            return t("greeting_afternoon", lang)
+        if 15 <= hour < 16:
+            return t("greeting_market_close", lang)
+        if 16 <= hour < 20:
+            return t("greeting_evening", lang)
+        return t("greeting_night", lang)
+
+    # ── Auto market check ────────────────────────────────────────────────
+
+    def start_market_check(self, ticker: str = "NVDA") -> None:
+        """Start periodic market price checks. Call from main.py."""
+        self._market_check_ticker = ticker
+        self._market_check_loop()
+
+    def _market_check_loop(self) -> None:
+        """Check market price and alert on significant moves."""
+        import threading
+
+        def _check():
+            try:
+                import yfinance as yf
+                tick = yf.Ticker(self._market_check_ticker)
+                hist = tick.history(period="1d", interval="5m")
+                if hist.empty:
+                    return
+                current = hist["Close"].iloc[-1]
+                open_price = hist["Open"].iloc[0]
+                pct = ((current - open_price) / open_price) * 100
+
+                if self._last_price is not None:
+                    delta = abs(current - self._last_price) / self._last_price * 100
+                else:
+                    delta = 0
+
+                self._last_price = current
+
+                # Alert on significant intraday move
+                if abs(pct) >= MARKET_ALERT_THRESHOLD or delta >= 1.0:
+                    lang = get_lang()
+                    sign = "+" if pct > 0 else ""
+                    msg = t("market_alert", lang).format(
+                        ticker=self._market_check_ticker,
+                        pct=f"{sign}{pct:.1f}")
+                    state = "surprised" if abs(pct) >= 3.0 else (
+                        "happy" if pct > 0 else "angry")
+
+                    def _show():
+                        self.set_state(state, msg)
+                        self.play_notification("alert" if abs(pct) >= 3.0 else "complete")
+                        self._win.after(8000, lambda: self.set_state("idle"))
+                    self._win.after(0, _show)
+            except Exception:
+                pass  # silent fail — market data is best-effort
+
+        threading.Thread(target=_check, daemon=True).start()
+        self._win.after(MARKET_CHECK_INTERVAL_MS, self._market_check_loop)
+
+    # ── Expression reactions (public API for main.py) ────────────────────
+
+    def react_to_trade(self, decision: str, pnl: float | None = None) -> None:
+        """React with appropriate expression based on trade outcome.
+
+        decision: BUY/SELL/WAIT
+        pnl: profit/loss amount (positive = profit, negative = loss)
+        """
+        if pnl is not None:
+            if pnl > 0:
+                self.set_state("happy", t("happy_reaction", get_lang()))
+            elif pnl < 0:
+                self.set_state("angry", t("angry_reaction", get_lang()))
+            return
+
+        if decision == "BUY":
+            self.set_state("happy")
+        elif decision == "SELL":
+            self.set_state("surprised")
+        else:
+            self.set_state("wait")
+
     @staticmethod
     def play_notification(kind: str = "complete") -> None:
         """Play a short notification sound. Non-blocking, best-effort.
@@ -689,6 +1039,12 @@ class BullCharacter:
     # ── Click ─────────────────────────────────────────────────────────────
 
     def _handle_click(self, _event) -> None:
+        # Wake from sleep on click
+        if self._is_sleeping:
+            self._wake_up()
+            return
+        # Record interaction for sleep timer
+        self._last_interaction_time = time.time()
         # Pet interaction: show floating hearts
         if self._state == "idle" and not self._pet_active:
             self._start_pet_burst()

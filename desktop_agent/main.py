@@ -96,10 +96,18 @@ def main() -> None:
             bull.set_state("listening")
         elif upper == "BUY":
             bull.set_state_from_decision("BUY", risk)
+            bull.react_to_trade("BUY")
         elif upper == "SELL":
             bull.set_state_from_decision("SELL", risk)
+            bull.react_to_trade("SELL")
         elif upper == "WAIT":
             bull.set_state("wait")
+        elif upper == "HAPPY":
+            bull.set_state("happy")
+        elif upper == "SURPRISED":
+            bull.set_state("surprised")
+        elif upper == "ANGRY":
+            bull.set_state("angry")
         else:
             bull.set_state("idle")
 
@@ -289,7 +297,16 @@ def main() -> None:
     )
     tray.start()
 
-    bull._win.after(1500, bull.show_done)
+    # ── Time-aware greeting on startup ──────────────────────────
+    def _show_greeting():
+        greeting = bull.get_time_greeting()
+        bull.flash_state("confident", greeting, 4000)
+
+    bull._win.after(1500, _show_greeting)
+
+    # ── Auto market check ────────────────────────────────────────
+    bull._win.after(5000, lambda: bull.start_market_check(ticker))
+
     bull.run()
 
 
