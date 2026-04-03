@@ -72,6 +72,10 @@ IDLE_TIPS_ZH = [
 ]
 IDLE_TIP_INTERVAL = (30, 90)  # seconds between random tips
 
+# ── Edge snapping ─────────────────────────────────────────────────────────────
+SNAP_DISTANCE = 20   # pixels — snap to edge when within this distance
+EDGE_MARGIN   = 4    # pixels — gap from screen edge when snapped
+
 # ── State definitions ─────────────────────────────────────────────────────────
 
 StateName = Literal["idle", "listening", "thinking", "confident", "warning", "wait"]
@@ -396,7 +400,7 @@ class BullCharacter:
     # ── Walk logic ────────────────────────────────────────────────────────────
 
     def _pick_target(self) -> None:
-        margin = CHAR_W + 20
+        margin = CHAR_W + EDGE_MARGIN
         lo = margin
         hi = max(lo + 10, self._sw - CHAR_W - margin)
         self._target_x  = random.randint(lo, hi)
@@ -553,7 +557,31 @@ class BullCharacter:
 
     def _drag_end(self, _event) -> None:
         self._drag_data["dragging"] = False
+        self._snap_to_edge()
         self._pause_until = time.time() + random.uniform(PAUSE_MIN, PAUSE_MAX)
+
+    def _snap_to_edge(self) -> None:
+        """Snap bull to nearest screen edge if within SNAP_DISTANCE."""
+        snapped = False
+        # Left edge
+        if self._x < SNAP_DISTANCE:
+            self._x = EDGE_MARGIN
+            snapped = True
+        # Right edge
+        if self._x > self._sw - CHAR_W - SNAP_DISTANCE:
+            self._x = self._sw - CHAR_W - EDGE_MARGIN
+            snapped = True
+        # Top edge
+        if self._y < SNAP_DISTANCE:
+            self._y = EDGE_MARGIN
+            snapped = True
+        # Bottom edge (above taskbar)
+        if self._y > self._sh - CHAR_H - TASKBAR_H - SNAP_DISTANCE:
+            self._y = self._sh - CHAR_H - TASKBAR_H
+            snapped = True
+        if snapped:
+            self._win.geometry(f"{CHAR_W}x{CHAR_H}+{self._x}+{self._y}")
+            self._update_bubble_pos()
 
     # ── Context menu ─────────────────────────────────────────────────────
 
@@ -629,6 +657,34 @@ class BullCharacter:
         elif sells > buys:
             return f"Bearish mood ({sells}/{len(recent)} sells)"
         return f"Mixed signals ({len(recent)} recent)"
+
+    # ── Sound feedback ────────────────────────────────────────────────────
+
+    @staticmethod
+    def play_notification(kind: str = "complete") -> None:
+        """Play a short notification sound. Non-blocking, best-effort.
+
+        Kinds: complete (ding), alert (warning beep), error (low beep)
+        Uses Windows system sounds via winsound, falls back to bell char.
+        """
+        import threading
+
+        def _play():
+            try:
+                import winsound
+                if kind == "complete":
+                    winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                elif kind == "alert":
+                    winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                elif kind == "error":
+                    winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                else:
+                    winsound.MessageBeep()
+            except Exception:
+                # Fallback: terminal bell
+                print("\a", end="", flush=True)
+
+        threading.Thread(target=_play, daemon=True).start()
 
     # ── Click ─────────────────────────────────────────────────────────────
 
