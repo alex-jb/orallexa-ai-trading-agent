@@ -15,7 +15,8 @@ Don't guess the market. Let AI argue about it first.
 [![Python](https://img.shields.io/badge/Python-3.11+-1A1A2E?style=for-the-badge&logo=python&logoColor=D4AF37)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/277_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![CI](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/394_Tests-Passing-22c55e?style=for-the-badge)](tests/)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -245,7 +246,7 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 | Desktop Assistant | No | Pixel bull with voice (Whisper + TTS) |
 | Social Content | No | One-click "Copy for X" on every section |
 | Walk-Forward Eval | No | 70 strategy-ticker pairs, OOS Sharpe |
-| Tests | Limited | 277 automated (139 frontend + 138 backend) |
+| Tests | Limited | 394 automated (214 frontend + 180 backend) |
 | Bilingual | No | EN/ZH |
 
 ---
@@ -268,11 +269,12 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 
 ## Testing
 
-277 automated tests. 0 failures. CI on every push.
+394 automated tests. 0 failures. CI on every push.
 
 ```bash
-python -m pytest tests/ -v           # Backend (113 tests)
-cd orallexa-ui && npm test           # Frontend (139 tests)
+python -m pytest tests/ -v           # Backend (~180 tests)
+cd orallexa-ui && npm test           # Frontend (200 unit tests)
+cd orallexa-ui && npx playwright test # E2E (14 tests)
 ```
 
 <details>
@@ -284,9 +286,11 @@ cd orallexa-ui && npm test           # Frontend (139 tests)
 | ML Regression | 13 | All 9 models — ensures upgrades don't degrade |
 | API E2E | 19 | Every endpoint via FastAPI TestClient |
 | Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk, scalping |
+| Backend Other | 67 | Monte Carlo, walk-forward, regime, ensemble, statistics |
 | Types & Helpers | 28 | Display functions, color mapping, i18n |
-| Components | 67 | DecisionCard, Breaking, MarketStrip, ML Scoreboard, Watchlist, DailyIntel |
-| Mock Data | 31 | All mock generators |
+| UI Components | 111 | All 11 components + hooks + mock data |
+| UI Mock Data | 31 | All mock generators |
+| Playwright E2E | 14 | Dashboard flows, responsive, offline page |
 
 </details>
 
@@ -343,10 +347,13 @@ orallexa/
 │   └── debate_graph.py         # LangGraph pipeline
 │
 ├── orallexa-ui/                # Dashboard (Next.js 16)
+│   ├── app/components/         # 11 UI components
+│   ├── app/__tests__/          # 200 unit tests (vitest)
+│   └── e2e/                    # 14 E2E tests (Playwright)
 ├── desktop_agent/              # Desktop AI coach
 ├── bot/                        # Execution layer (Alpaca)
-├── tests/                      # 138 backend tests
-└── .github/workflows/          # CI/CD
+├── tests/                      # ~180 backend tests
+└── .github/workflows/          # CI/CD (lint, test, build, E2E)
 ```
 
 </details>

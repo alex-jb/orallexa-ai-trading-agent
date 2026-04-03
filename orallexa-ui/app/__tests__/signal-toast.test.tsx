@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { SignalToast } from "../components/signal-toast";
 import type { BreakingSignal } from "../types";
 
@@ -66,5 +66,98 @@ describe("SignalToast", () => {
   it("has accessible region wrapper", () => {
     render(<SignalToast signals={[mockSignal]} onSelect={vi.fn()} />);
     expect(screen.getByRole("region", { name: /signal notifications/i })).toBeInTheDocument();
+  });
+});
+
+describe("SignalToast — auto-dismiss timeout", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("toast is visible immediately after signal arrives", () => {
+    render(<SignalToast signals={[mockSignal]} onSelect={vi.fn()} />);
+    expect(screen.getByText("NVDA")).toBeInTheDocument();
+  });
+
+  it("marks toast as exiting (opacity 0) after 8 seconds", () => {
+    render(<SignalToast signals={[mockSignal]} onSelect={vi.fn()} />);
+    const alert = screen.getByRole("alert");
+    // Before 8 s the toast is fully visible (opacity: 1)
+    expect(alert).toHaveStyle({ opacity: 1 });
+
+    act(() => {
+      vi.advanceTimersByTime(8000);
+    });
+
+    // After 8 s the exiting flag is set → opacity becomes 0
+    expect(alert).toHaveStyle({ opacity: 0 });
+  });
+
+  it("removes toast from DOM after 8300ms (8s + 300ms exit animation)", () => {
+    render(<SignalToast signals={[mockSignal]} onSelect={vi.fn()} />);
+    expect(screen.getByText("NVDA")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(8300);
+    });
+
+    expect(screen.queryByText("NVDA")).not.toBeInTheDocument();
+  });
+});
+
+describe("SignalToast — dismiss button stopPropagation", () => {
+  it("clicking dismiss does not call onSelect", () => {
+    const onSelect = vi.fn();
+    render(<SignalToast signals={[mockSignal]} onSelect={onSelect} />);
+    const dismissBtn = screen.getByLabelText("Dismiss signal alert");
+    fireEvent.click(dismissBtn);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("dismiss button click stops propagation to parent alert", () => {
+    const onSelect = vi.fn();
+    render(<SignalToast signals={[mockSignal]} onSelect={onSelect} />);
+    const dismissBtn = screen.getByLabelText("Dismiss signal alert");
+    // Attach a click listener on the alert to verify no bubbling
+    const alert = screen.getByRole("alert");
+    const alertClickSpy = vi.fn();
+    alert.addEventListener("click", alertClickSpy);
+    fireEvent.click(dismissBtn);
+    // The synthetic fireEvent does not naturally bubble in RTL when stopPropagation
+    // is called because the component uses e.stopPropagation() — verify onSelect
+    // (which is called by the alert's onClick) was not invoked.
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("dismiss removes the toast with 300ms delay", async () => {
+    vi.useFakeTimers();
+    render(<SignalToast signals={[mockSignal]} onSelect={vi.fn()} />);
+    expect(screen.getByText("NVDA")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Dismiss signal alert"));
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(screen.queryByText("NVDA")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("dismiss sets exiting state (opacity: 0) before removal", () => {
+    vi.useFakeTimers();
+    render(<SignalToast signals={[mockSignal]} onSelect={vi.fn()} />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveStyle({ opacity: 1 });
+
+    fireEvent.click(screen.getByLabelText("Dismiss signal alert"));
+    // Immediately after click, exiting=true → opacity 0, but not yet removed
+    expect(alert).toHaveStyle({ opacity: 0 });
+
+    vi.useRealTimers();
   });
 });

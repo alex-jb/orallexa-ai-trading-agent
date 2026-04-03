@@ -8,3 +8,4 @@ export { DailyIntelView } from "./daily-intel";
 export { PriceChart } from "./price-chart";
 export { SignalToast } from "./signal-toast";
 export { BacktestPanel } from "./backtest-panel";
+export { ErrorBoundary } from "./error-boundary";
