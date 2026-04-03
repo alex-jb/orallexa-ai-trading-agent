@@ -1,41 +1,129 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="Orallexa — AI Trading Operating System" width="480">
+<img src="assets/logo.svg" alt="Orallexa" width="420">
 
-# Orallexa
+<br>
 
 ### AI 交易操作系统
 
-<img src="assets/showcase_demo.png" alt="Market Scan → AI Analysis → Decision" width="640">
+**9 个 ML 模型，对抗辩论，一键执行。**<br>
+别猜市场。让 AI 先吵一架。
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
-[![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
-[![Tests](https://img.shields.io/badge/Tests-252_passing-22c55e?style=flat-square)](tests/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+<br>
 
-大多数 AI 交易工具让一个模型预测市场。
-**Orallexa 让它们先辩论。**
+[![Stars](https://img.shields.io/github/stars/alex-jb/orallexa-ai-trading-agent?style=for-the-badge&logo=github&color=D4AF37&logoColor=white)](https://github.com/alex-jb/orallexa-ai-trading-agent)
+[![Python](https://img.shields.io/badge/Python-3.11+-1A1A2E?style=for-the-badge&logo=python&logoColor=D4AF37)](https://python.org)
+[![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
+[![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
+[![Tests](https://img.shields.io/badge/252_测试-全部通过-22c55e?style=for-the-badge)](tests/)
+[![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
-一个 Bull 分析师构建看多论据。一个 Bear 分析师逐条反驳。
-一个 Judge 裁判权衡双方，做出最终决策。
-结果：每个决策在资金入场前都经过了质疑。
+<br>
 
-[English](README.md) | [中文](#示例--nvda-分析)
+[**在线演示**](https://orallexa-ui.vercel.app) · [**演示文稿**](https://alex-jb.github.io/orallexa-ai-trading-agent/presentation.html) · [**评估报告**](docs/evaluation_report.md) · [**English**](README.md)
 
----
+<br>
 
-🚀 [工作原理](#工作原理) | 📊 [示例输出](#示例--nvda-分析) | ⚡ [快速开始](#快速开始) | 🔍 [为什么选 Orallexa](#为什么-orallexa-不同) | 📡 [API](#api-接口) | 🤝 [贡献](#参与贡献)
+<img src="assets/showcase_demo.png" alt="Market Scan → AI Analysis → Decision" width="720">
 
 </div>
 
+<br>
+
+## 这个项目有什么不同
+
+大多数 AI 交易项目：把数据喂给模型，得到信号，结束。
+
+Orallexa 跑一条**完整的对抗管道**。一个 Bull AI 论证买入，一个 Bear AI 论证不买，一个 Judge AI 根据双方证据做出最终裁决。然后执行。
+
+```
+市场数据 → 9 个 ML 模型 → 多空辩论 → 裁判判决
+    → 风控计划 → 模拟执行 → 实时仪表盘 → 社交内容
+```
+
+每个阶段自动化。每个阶段可观测。系统持续运行。
+
 ---
 
-## 示例 — NVDA 分析
+## 立即体验
 
-以下是 Orallexa 对单只股票的真实输出结构：
+**[打开在线演示](https://orallexa-ui.vercel.app)** — 演示模式，无需 API Key。点击 **NVDA**、**TSLA** 或 **QQQ** 查看完整分析。
+
+或本地运行：
+
+```bash
+git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
+cd orallexa-ai-trading-agent
+pip install -r requirements.txt
+echo "ANTHROPIC_API_KEY=your_key" > .env
+
+# 终端 1：API 服务
+python api_server.py
+
+# 终端 2：仪表盘
+cd orallexa-ui && npm install && npm run dev
+```
+
+Docker 一键启动：`docker compose up --build`
+
+---
+
+## Walk-Forward 评估（样本外）
+
+<!-- EVAL_TABLE_START -->
+| 策略 | 标的 | 样本外 Sharpe | 信息比率 | MC 百分位 | p 值 |
+|------|------|-------------|----------|----------|------|
+| rsi_reversal | INTC | **1.41** | 0.45 | 43.4% | 0.002 |
+| alpha_combo | JPM | **1.11** | -1.26 | 97.4% | 0.135 |
+| trend_momentum | JPM | **1.09** | -0.80 | 90.2% | 0.104 |
+| macd_crossover | JPM | **0.99** | -1.02 | 100% | 0.236 |
+| dual_thrust | NVDA | **0.96** | -0.93 | 89.4% | 0.001 |
+<!-- EVAL_TABLE_END -->
+
+> 评估了 70 个策略-标的组合。按样本外 Sharpe 排序取前 5。价值在于 ML 集成 + LLM 合成层。[完整报告 →](docs/evaluation_report.md)
+
+---
+
+## 架构
+
+<p align="center">
+  <img src="assets/architecture.svg" alt="系统架构" width="100%">
+</p>
+
+<table>
+<tr>
+<td width="50%">
+
+### 智能层
+
+| 组件 | 详情 |
+|------|------|
+| **9 个 ML 模型** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
+| **对抗辩论** | 多空裁判制，Claude Sonnet + Haiku 双层路由 |
+| **策略进化** | LLM 生成 Python 策略 → 沙盒测试 → 进化赢家 |
+| **每日情报** | 50+ 标的扫描，板块轮动，成交量异动，AI 晨间简报 |
+
+</td>
+<td width="50%">
+
+### 执行层
+
+| 组件 | 详情 |
+|------|------|
+| **模拟交易** | Alpaca 括号单，自动止损/止盈 |
+| **实时推送** | WebSocket 每 5 秒更新 + 信号变化警报 |
+| **仪表盘** | Next.js 16，Art Deco 主题，中英双语 |
+| **桌面教练** | 像素牛宠物，语音输入 (Whisper) + TTS |
+
+</td>
+</tr>
+</table>
+
+---
+
+## 示例输出
+
+NVDA 单次分析的结果：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -47,201 +135,214 @@
 │  • 价格位于 MA20 > MA50 上方 — 完全看多排列                       │
 │  • RSI 62 — 强劲动量，尚未超买                                    │
 │  • 成交量 1.8 倍均值 — 可能有机构参与                              │
-│  • MACD 柱状图上升 — 动量加速                                     │
 │                                                                 │
 │  空方论据 (BEAR):                                                │
 │  • ADX 32 但下降 — 趋势可能衰竭                                   │
 │  • 布林带 %B 0.85 — 接近上轨，过度延伸                            │
-│  • 板块 (XLK) 连涨 3 天 — 均值回归风险                            │
 │  • 12 天后财报 — 事件后波动率压缩                                  │
 │                                                                 │
 │  裁判判决 (JUDGE):                                               │
-│  "多方论据更强 — 动量和成交量确认了趋势。但空方的财报风险           │
-│   有效。应减小仓位。建议买入，止损设在 MA20。"                      │
+│  "多方更强。建议买入，止损设在 MA20。"                              │
 │                                                                 │
 │  概率: 上涨 58% | 震荡 24% | 下跌 18%                            │
-│                                                                 │
 │  风控计划:                                                       │
 │  入场: $132.50 | 止损: $128.40 | 目标: $141.00 | 风险收益比 2.1:1 │
-│  仓位: 5% | 主要风险: 财报波动事件                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-每个决策都包含多方论据、空方反驳、理性裁决、概率分布和具体风控计划。不是一个数字 — 是一套结构化论证。
+不只是一个数字。结构化论证 + 透明推理 + 可执行风控计划。
 
 ---
 
-## 为什么 Orallexa 不同
+## 9 个 ML 模型 — 评分排名
 
-| 方式 | 传统 AI 交易 | Orallexa |
-|------|-------------|----------|
-| 决策方式 | ❌ 单模型预测方向 | ✅ 多空辩论，裁判决策 |
-| 推理过程 | ❌ 黑盒置信度分数 | ✅ 透明论证链，可阅读 |
-| 模型使用 | ❌ 一个昂贵模型处理一切 | ✅ 双层路由 — 快速模型做结构，深度模型做推理 |
-| 成本控制 | ❌ 每次调用都烧 token | ✅ Token 优化 + 重试处理 |
-| 输出 | ❌ "买入 73% 置信度" | ✅ 多方论据 + 空方反驳 + 裁判判决 + 风控计划 |
-| 产品层 | ❌ 脚本和笔记本 | ✅ 仪表盘、桌面助手、每日情报、语音分析 |
+每次分析运行所有可用模型。ML 记分板并排展示 Sharpe、收益、胜率。
 
----
+| 模型 | 类型 | 功能 |
+|------|------|------|
+| Random Forest | 分类 | 28 个技术特征 → 5 日方向 |
+| XGBoost | 梯度提升 | 相同特征，不同优化 |
+| Logistic Regression | 线性 | 正则化基准线 |
+| **EMAformer** | Transformer | iTransformer + Embedding Armor (AAAI 2026) |
+| **MOIRAI-2** | 基础模型 | Salesforce 零样本时序预测 |
+| **Chronos-2** | 基础模型 | Amazon T5 概率预测 |
+| **DDPM Diffusion** | 生成模型 | 50 条价格路径 → VaR 和置信区间 |
+| **PPO RL Agent** | 强化学习 | Gymnasium 环境，Sharpe 奖励 |
+| **GNN (GAT)** | 图网络 | 17 只股票关系图，跨股票信号传播 |
 
-## Orallexa vs TradingAgents
-
-我们受到 [TradingAgents](https://github.com/TauricResearch/TradingAgents) 多智能体交易研究的启发。Orallexa 将这一思想扩展为产品化、成本优化、可部署的系统：
-
-| 功能 | TradingAgents | Orallexa |
-|------|:------------:|:--------:|
-| 多智能体架构 | ✅ | ✅ |
-| 对抗性多空辩论 | ✅ | ✅ 增强版 (300-400 字结构化论证) |
-| 双模型路由 (Fast/Deep) | ❌ | ✅ Haiku 做结构，Sonnet 做推理 |
-| Token + 成本优化 | ❌ | ✅ 预算控制、重试、缓存 |
-| 实时仪表盘 | ❌ | ✅ Next.js + 实时价格 + 警报 + 自选股 |
-| 每日市场情报 | ❌ | ✅ 50+ 标的扫描 + AI 晨间简报 |
-| 社交媒体推文生成 | ❌ | ✅ 一键复制的 Orallexa Thread |
-| 桌面语音助手 | ❌ | ✅ Bull Coach + Whisper + TTS |
-| 截图图表分析 | ❌ | ✅ Claude Vision 集成 |
-| 成交量异动检测 | ❌ | ✅ 机构活动扫描 |
-| 移动端适配 | ❌ | ✅ Art Deco 主题，中英双语 |
-| Docker 部署 | ❌ | ✅ `docker compose up` 一键启动 |
-| 生产级 API | ❌ | ✅ 11 个 REST 端点 + CORS |
-
----
-
-## 工作原理
-
-<p align="center">
-  <img src="assets/architecture.svg" alt="架构" width="100%">
-</p>
-
-Orallexa 对每次分析运行 **5 Agent 管道**：
-
-| Agent | 职责 | 模型 |
-|-------|------|------|
-| **技术分析师** | 7 种策略 + 指标 (RSI, MACD, 布林带, ADX, 均线排列) | 本地 |
-| **ML 引擎** | 随机森林、XGBoost、逻辑回归 + 滚动验证 | 本地 |
-| **情绪分析师** | FinBERT/VADER 对实时新闻评分 | 本地 |
-| **Bull + Bear 辩论** | 对抗论证 — Bull 看多，Bear 看空 | Claude Haiku (快速) |
-| **Judge 裁判** | 综合双方 → 最终决策 + 概率 + 投资计划 | Claude Sonnet (深度) |
-
-前三个 Agent 在本地运行，零 API 成本。只有辩论和裁决需要 LLM 调用 — 并且使用双层路由最小化开支。
-
-### 对抗辩论管道
-
-<p align="center">
-  <img src="assets/multi_agent_debate.svg" alt="多空辩论" width="85%">
-</p>
-
-### 每日市场情报
-
-<p align="center">
-  <img src="assets/daily_intel_pipeline.svg" alt="每日情报" width="90%">
-</p>
-
-每天早上自动：扫描 50+ 标的 → 检测成交量异动 → 板块轮动分析 → AI 晨间简报 → AI 推荐 → 社交推文串。
-
----
-
-## 核心创新
-
-### 1. 对抗辩论推理
-不是问一个模型"该不该买"，而是创建结构化辩论。Bull 必须找到最强看多论据，Bear 必须用具体风险反驳，Judge 不能偷懒 — 双方都摆了证据。
-
-### 2. 双层模型路由
-不是每个任务都需要最贵的模型。JSON 解析用 Haiku (~0.5s)，论证用 Haiku (~1s)，最终裁决用 Sonnet (~3s)。同等质量，成本大幅降低。
-
-### 3. 系统优化
-
-| 优化 | 作用 |
-|------|------|
-| **max_tokens 控制** | 每次调用精确 token 预算 |
-| **双模型路由** | 80% 调用用 Haiku，Sonnet 仅用于推理 |
-| **响应缓存** | 每日情报按天缓存 |
-| **重试处理** | API 过载时优雅降级为纯技术信号 |
-| **置信度护栏** | 硬上限 82% — 没有模型可以宣称确定 |
+所有模型在 CPU 上运行。
 
 ---
 
 ## 仪表盘
 
-两个视图：**Signal**（实时分析）和 **Intel**（每日情报）。Art Deco 金色主题，Polymarket 概率展示，移动端适配，中英双语。
+<p align="center">
+  <img src="assets/screenshots/dashboard_preview.png" alt="仪表盘" width="90%">
+</p>
+
+**信号视图** — 决策卡片、概率条、多空辩论、ML 记分板、风控计划。<br>
+**情报视图** — 晨间简报、涨跌榜、板块热力图、成交量异动、AI 推荐、社交推文串。
+
+Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 ---
 
-## 快速开始
+## 桌面 AI 教练
+
+一只浮动的像素牛，住在你的桌面上：
+
+- **语音对话** — 按住 K 说话，Whisper 转写，Claude 回复
+- **图表分析** — Ctrl+Shift+S 截图任意图表，Claude Vision 分析
+- **决策卡片** — 入场价、止损、目标、风险收益比覆盖在屏幕上
+- **市场感知头像** — 牛的颜色随市场状态变化
+
+---
+
+## 成本优化 AI
+
+不是每个任务都需要最贵的模型：
+
+| 任务 | 模型 | 成本 |
+|------|------|------|
+| 多空论证 | Haiku 4.5 | ~$0.001 |
+| 信号覆盖 | Haiku 4.5 | ~$0.001 |
+| 裁判判决 | Sonnet 4.6 | ~$0.005 |
+| 深度报告 | Sonnet 4.6 | ~$0.005 |
+
+**单次完整分析：~$0.003。** 每日情报报告：~$0.05。
+
+---
+
+## 为什么选这个架构
+
+| 痛点 | 传统方案 | Orallexa |
+|------|---------|----------|
+| 孤立信号 | 一个模型，一个预测 | 9 个模型按 Sharpe 排名 + LLM 合成 |
+| 没有推理 | "买入 73%" — 为什么？ | Bull 论证，Bear 反驳，Judge 用证据裁决 |
+| AI 太贵 | 每次都调 GPT-4 | 80% 用 Haiku，Sonnet 只在推理处用 |
+| 手动流程 | Notebook → 看结果 → 决策 → 执行 | 自动化：信号 → 辩论 → 风控 → 模拟下单 |
+| 没有上下文 | 每只股票独立分析 | GNN 在 17 只相关股票间传播信号 |
+| 不能分享 | 截图你的终端 | 每个板块都有"复制到 X"按钮 |
+
+---
+
+## 技术栈
+
+<table>
+<tr><td><b>前端</b></td><td>Next.js 16, React 19, Tailwind CSS 4, PWA</td></tr>
+<tr><td><b>后端</b></td><td>FastAPI, Python 3.11, WebSocket</td></tr>
+<tr><td><b>AI</b></td><td>Claude Sonnet 4.6 + Haiku 4.5（双层路由）</td></tr>
+<tr><td><b>ML</b></td><td>scikit-learn, XGBoost, PyTorch (EMAformer, DDPM, GAT, PPO)</td></tr>
+<tr><td><b>数据</b></td><td>yfinance（实时 + 历史）</td></tr>
+<tr><td><b>NLP</b></td><td>FinBERT, VADER, TextBlob</td></tr>
+<tr><td><b>交易</b></td><td>Alpaca 模拟交易（括号单）</td></tr>
+<tr><td><b>编排</b></td><td>LangGraph（有状态辩论管道）</td></tr>
+<tr><td><b>部署</b></td><td>Docker, GitHub Actions CI/CD, Vercel</td></tr>
+</table>
+
+---
+
+## 测试
+
+252 个自动化测试。0 个失败。每次推送 CI。
 
 ```bash
-git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
-cd orallexa-ai-trading-agent
-pip install -r requirements.txt
-cp .env.example .env
+python -m pytest tests/ -v           # 后端（113 个测试）
+cd orallexa-ui && npm test           # 前端（139 个测试）
 ```
 
-```bash
-export ANTHROPIC_API_KEY=...       # 必需
-export OPENAI_API_KEY=...          # 可选，仅桌面语音
-```
+<details>
+<summary><b>完整测试分布</b></summary>
 
-```bash
-python api_server.py               # API 服务
-cd orallexa-ui && npm install && npm run dev  # 仪表盘
-```
+| 套件 | 数量 | 覆盖范围 |
+|------|------|---------|
+| 引擎集成 | 34 | 技术指标、策略、回测、大脑路由 |
+| ML 回归 | 13 | 所有 9 个模型 — 确保升级不降质 |
+| API E2E | 19 | 所有端点，FastAPI TestClient |
+| 单元测试 | 47 | DecisionOutput, BehaviorMemory, 风控, 剥头皮 |
+| 类型与工具 | 28 | 显示函数、颜色映射、i18n |
+| 组件测试 | 67 | DecisionCard, Breaking, MarketStrip, ML Scoreboard, Watchlist, DailyIntel |
+| Mock 数据 | 31 | 所有 mock 生成器 |
 
-Docker 一键：`docker compose up --build`
+</details>
 
 ---
 
-## 灵感来源
+## API
 
-Orallexa 受多智能体交易研究启发，特别是 [TradingAgents](https://github.com/TauricResearch/TradingAgents)。我们共享核心理念：**多个专业 Agent 比单一模型做出更好的交易决策。**
+<details>
+<summary><b>接口列表</b></summary>
 
-我们的不同之处：Orallexa 将研究框架扩展为**可部署的产品** — 实时仪表盘、成本优化模型路由、每日情报自动化、语音桌面助手、Docker 部署。目标不只是跑实验，而是构建交易者每天都能使用的工具。
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| `POST` | `/api/analyze` | 快速信号分析（剥头皮/日内/波段） |
+| `POST` | `/api/deep-analysis` | 多智能体深度分析 + 辩论 |
+| `POST` | `/api/chart-analysis` | 截图图表分析（Claude Vision） |
+| `POST` | `/api/watchlist-scan` | 并行多标的扫描 |
+| `GET` | `/api/daily-intel` | 每日市场情报（缓存） |
+| `GET` | `/api/news/{ticker}` | 新闻 + 情绪评分 |
+| `GET` | `/api/profile` | 交易者行为画像 |
+| `GET` | `/api/journal` | 决策执行日志 |
+| `POST` | `/api/evolve-strategies` | LLM 策略进化 |
+| `GET` | `/api/alpaca/account` | 模拟交易账户 |
+| `POST` | `/api/alpaca/execute` | 执行信号为模拟订单 |
+| `WS` | `/ws/live` | 实时价格 + 信号流 |
+
+</details>
 
 ---
 
-## 关注项目
+## 项目结构
 
-我们每天发布 AI 生成的市场情报和开发动态：
+<details>
+<summary><b>目录布局</b></summary>
 
-- **X/Twitter**: [@orallexa](https://x.com/orallexa) *(即将上线)*
-- **每日情报**: 每天早上自动生成 — 异动股、成交量异动、AI 推荐
+```
+orallexa/
+├── api_server.py               # FastAPI + WebSocket 服务
+├── docker-compose.yml          # 一键部署
+│
+├── engine/                     # 交易引擎（9 个模型）
+│   ├── multi_agent_analysis.py # LangGraph 辩论管道
+│   ├── ml_signal.py            # 模型对比框架
+│   ├── strategies.py           # 7 个规则策略
+│   ├── emaformer.py            # EMAformer Transformer
+│   ├── diffusion_signal.py     # DDPM 概率预测
+│   ├── gnn_signal.py           # 图注意力网络
+│   ├── rl_agent.py             # PPO 强化学习
+│   ├── strategy_evolver.py     # LLM 策略进化
+│   └── sentiment.py            # FinBERT / VADER
+│
+├── llm/                        # AI 推理
+│   ├── claude_client.py        # 双层模型路由
+│   ├── debate.py               # 多空辩论
+│   └── debate_graph.py         # LangGraph 管道
+│
+├── orallexa-ui/                # 仪表盘（Next.js 16）
+├── desktop_agent/              # 桌面 AI 教练
+├── bot/                        # 执行层（Alpaca）
+├── tests/                      # 113 个后端测试
+└── .github/workflows/          # CI/CD
+```
+
+</details>
 
 ---
 
-## Star History
+## 致谢
+
+[Anthropic Claude](https://anthropic.com) · [yfinance](https://github.com/ranaroussi/yfinance) · [Polymarket](https://polymarket.com) · [Alpaca](https://alpaca.markets)
+
+---
 
 <div align="center">
-<a href="https://www.star-history.com/#alex-jb/orallexa-ai-trading-agent&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date" />
-   <img alt="Star History" src="https://api.star-history.com/svg?repos=alex-jb/orallexa-ai-trading-agent&type=Date" style="width: 80%; height: auto;" />
- </picture>
-</a>
-</div>
 
----
+**MIT License** — 详见 [LICENSE](LICENSE)
 
-## 参与贡献
+> **免责声明**: 研究和教育项目，不构成投资建议。
 
-1. Fork 仓库
-2. 创建功能分支 (`git checkout -b feat/amazing-feature`)
-3. 提交更改 (`git commit -m 'feat: add amazing feature'`)
-4. 推送 (`git push origin feat/amazing-feature`)
-5. 提交 Pull Request
+<br>
 
-开发历史详见 [CHANGELOG.md](CHANGELOG.md)。
-
----
-
-## 开源协议
-
-MIT License — 详见 [LICENSE](LICENSE)。
-
-> **免责声明**: Orallexa 是研究和教育项目，不构成投资建议。投资决策请自行研究。
-
----
-
-<div align="center">
-
-**如果 Orallexa 对你的研究有帮助，请给个 ⭐**
+**用信念构建，不靠炒作。**
 
 </div>
