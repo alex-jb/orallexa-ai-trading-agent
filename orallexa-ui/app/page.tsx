@@ -70,6 +70,13 @@ export default function Home() {
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
 
+  // PWA service worker registration
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
   // Online/offline detection
   useEffect(() => {
     const goOnline = () => setIsOnline(true);

@@ -8,6 +8,7 @@
 
 <img src="assets/showcase_demo.png" alt="Market Scan → AI Analysis → Decision" width="640">
 
+[![CI](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-cc785c?style=flat-square)](https://anthropic.com)
@@ -44,21 +45,16 @@ Every stage is automated. Every stage is observable. The system runs continuousl
 ## Strategy Evaluation (Walk-Forward OOS)
 
 <!-- EVAL_TABLE_START -->
-| Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
-|----------|--------|-----------|------------|--------|---------|---------|
-| rsi_reversal | INTC | 1.409 | 0.445 | 43.4% | 0.0018 | FAIL |
-| alpha_combo | JPM | 1.111 | -1.259 | 97.4% | 0.1354 | FAIL |
-| trend_momentum | JPM | 1.092 | -0.804 | 90.2% | 0.1037 | FAIL |
-| macd_crossover | JPM | 0.987 | -1.016 | 100.0% | 0.2360 | FAIL |
-| dual_thrust | NVDA | 0.960 | -0.931 | 89.4% | 0.0006 | FAIL |
-| alpha_combo | NVDA | 0.920 | -1.073 | 99.8% | 0.0163 | FAIL |
-| macd_crossover | NVDA | 0.909 | -1.007 | 100.0% | 0.0025 | FAIL |
-| double_ma | JPM | 0.796 | -1.030 | 93.2% | 0.1291 | FAIL |
-| dual_thrust | JPM | 0.742 | -1.416 | 100.0% | 0.1810 | FAIL |
-| trend_momentum | NVDA | 0.738 | -1.125 | 83.1% | 0.0046 | FAIL |
+| Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value |
+|----------|--------|-----------|------------|--------|---------|
+| rsi_reversal | INTC | **1.41** | 0.45 | 43.4% | 0.002 |
+| alpha_combo | JPM | **1.11** | -1.26 | 97.4% | 0.135 |
+| trend_momentum | JPM | **1.09** | -0.80 | 90.2% | 0.104 |
+| macd_crossover | JPM | **0.99** | -1.02 | 100% | 0.236 |
+| dual_thrust | NVDA | **0.96** | -0.93 | 89.4% | 0.001 |
 <!-- EVAL_TABLE_END -->
 
-> 70 strategy-ticker pairs (7 strategies x 10 tickers). Top 10 by OOS Sharpe. [Full report](docs/evaluation_report.md)
+> 70 strategy-ticker pairs evaluated (7 strategies x 10 tickers). Top 5 by OOS Sharpe shown. None pass the strict Monte Carlo percentile test, which is expected for simple rule-based strategies on efficient markets. The value is in the ML ensemble + LLM synthesis layer above. [Full report](docs/evaluation_report.md)
 
 ---
 
@@ -224,6 +220,10 @@ One full analysis: **~$0.003**. One daily intel report: **~$0.05**. Same quality
 ---
 
 ## Dashboard
+
+<p align="center">
+  <img src="assets/screenshots/dashboard_preview.png" alt="Dashboard — Signal View" width="90%">
+</p>
 
 Two views:
 
