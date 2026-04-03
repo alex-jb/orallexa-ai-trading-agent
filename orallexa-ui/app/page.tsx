@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import * as Mock from "./mock-data";
-import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData } from "./types";
+import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData, BacktestSummary } from "./types";
 import { T, API, displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, riskColor, sentCls, recBg, decColorJournal, nsSummary, copyWithAttribution } from "./types";
-import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, BrandMark, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView, PriceChart, SignalToast } from "./components";
+import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, BrandMark, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView, PriceChart, SignalToast, BacktestPanel } from "./components";
+import { useNotifications } from "./hooks/use-notifications";
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -35,7 +36,12 @@ export default function Home() {
   const [marketSummary, setMarketSummary] = useState<MarketSummary | null>(null);
   const [breakingSignals, setBreakingSignals] = useState<BreakingSignal[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [watchlistInput, setWatchlistInput] = useState("NVDA,AAPL,TSLA,MSFT,GOOG");
+  const [watchlistInput, setWatchlistInput] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("orallexa_watchlist") || "NVDA,AAPL,TSLA,MSFT,GOOG";
+    }
+    return "NVDA,AAPL,TSLA,MSFT,GOOG";
+  });
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [useClaude, setUseClaude] = useState(false);
@@ -48,6 +54,8 @@ export default function Home() {
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
   const [lastAnalyzedAt, setLastAnalyzedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [backtestData, setBacktestData] = useState<BacktestSummary | null>(null);
+  const { notify } = useNotifications();
   const [tradeLoading, setTradeLoading] = useState(false);
   const [tradeResult, setTradeResult] = useState<{ status: string; order_id?: string; error?: string } | null>(null);
   const [alpacaAccount, setAlpacaAccount] = useState<{ equity: number; cash: number; buying_power: number } | null>(null);
@@ -219,7 +227,10 @@ export default function Home() {
     try {
       if (apiDead.current) {
         await new Promise(r => setTimeout(r, 600));
-        setDecision(Mock.mockAnalyze(asset) as never);
+        const mockDec = Mock.mockAnalyze(asset);
+        setDecision(mockDec as never);
+        setBacktestData(Mock.mockBacktest(asset) as never);
+        notify(`${asset} Signal`, `${(mockDec as Decision).decision} — ${(mockDec as Decision).recommendation}`);
         fetchContext();
         return;
       }
@@ -232,6 +243,9 @@ export default function Home() {
       const data = await res.json();
       setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
       if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
+      notify(`${asset} Signal`, `${data.decision} — ${data.recommendation}`);
+      // Fetch backtest in background
+      fetch(`${API}/api/backtest/${asset}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setBacktestData(d); }).catch(() => setBacktestData(Mock.mockBacktest(asset) as never));
       fetchContext();
     } catch (e) { setError(e instanceof Error ? e.message : "Analysis unavailable. Is the API server running?"); }
     finally { setLoading(false); }
@@ -522,7 +536,7 @@ export default function Home() {
         </button>
 
         <Mod title={t.watchlist}>
-          <input value={watchlistInput} onChange={(e) => setWatchlistInput(e.target.value.toUpperCase())} placeholder={t.watchlistPh}
+          <input value={watchlistInput} onChange={(e) => { const v = e.target.value.toUpperCase(); setWatchlistInput(v); localStorage.setItem("orallexa_watchlist", v); }} placeholder={t.watchlistPh}
             className="w-full px-3 py-2 text-[10px] font-[DM_Mono] text-[#F5E6CA] placeholder:text-[#4A4D55] outline-none mb-2"
             style={{ background: "#2A2A3E", border: "1px solid rgba(212,175,55,0.15)" }} />
           <button onClick={scanWatchlist} disabled={watchlistLoading}
@@ -749,6 +763,8 @@ export default function Home() {
         </Mod>
 
         {mlModels.length > 0 && <MLScoreboard models={mlModels} />}
+
+        <BacktestPanel data={backtestData} t={t} />
 
         {deepReport && (<>
           <Mod title={t.marketReport}>

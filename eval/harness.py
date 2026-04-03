@@ -34,6 +34,13 @@ class StrategyEvaluation:
     overall_pass: bool = False
     verdict: str = "FAIL"
     gates_passed: int = 0
+    # Enriched data for advanced report
+    backtest_df: pd.DataFrame | None = None
+    signals: pd.Series | None = None
+    regime_performance: dict | None = None
+    sortino: float = 0.0
+    calmar: float = 0.0
+    omega: float = 0.0
 
 
 @dataclass
@@ -48,6 +55,13 @@ class HarnessResult:
     # Summary
     total_passed: int = 0
     total_evaluated: int = 0
+
+    # ML model evaluation
+    ml_results: dict = field(default_factory=dict)  # ticker -> {model_name -> metrics}
+
+    # Advanced report data
+    benchmark_df: pd.DataFrame | None = None  # SPY OHLCV for comparison
+    raw_data: Dict[str, pd.DataFrame] = field(default_factory=dict)  # ticker -> raw DataFrame
 
 
 class EvaluationHarness:
@@ -130,6 +144,7 @@ class EvaluationHarness:
         try:
             from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2
             from engine.backtest import simple_backtest
+            from eval.regime import detect_regimes, segment_performance
 
             ta = TechnicalAnalysisSkillV2(df)
             ta.add_indicators()
@@ -137,6 +152,24 @@ class EvaluationHarness:
             signals = strategy_fn(full_df, params)
             full_df["signal"] = signals.values
             bt_result = simple_backtest(full_df, params=params, signal_col="signal")
+
+            # Store enriched data for advanced charts
+            evaluation.backtest_df = bt_result
+            evaluation.signals = signals
+
+            # Extract extended metrics
+            from engine.evaluation import evaluate as eval_metrics
+            full_metrics = eval_metrics(bt_result)
+            evaluation.sortino = full_metrics.get("net", full_metrics).get("sortino", 0.0)
+            evaluation.calmar = full_metrics.get("net", full_metrics).get("calmar", 0.0)
+            evaluation.omega = full_metrics.get("net", full_metrics).get("omega", 0.0)
+
+            # Regime analysis
+            try:
+                regimes = detect_regimes(df)
+                evaluation.regime_performance = segment_performance(bt_result, regimes)
+            except Exception:
+                pass
 
             # 2a. Monte Carlo
             mc = run_monte_carlo(
@@ -214,11 +247,22 @@ class EvaluationHarness:
             num_strategies_tested=self.num_strategies,
         )
 
+        # Fetch SPY benchmark for comparison charts
+        try:
+            spy_df = yf.download("SPY", period=f"{self.data_years}y", progress=False)
+            if spy_df is not None and len(spy_df) > 0:
+                if isinstance(spy_df.columns, pd.MultiIndex):
+                    spy_df.columns = spy_df.columns.get_level_values(0)
+                result.benchmark_df = spy_df
+        except Exception as exc:
+            logger.warning("Failed to fetch SPY benchmark: %s", exc)
+
         for ticker in self.tickers:
             df = self._fetch_data(ticker)
             if df is None:
                 result.skipped_tickers.append(ticker)
                 continue
+            result.raw_data[ticker] = df
 
             for strategy_name in self.strategies:
                 evaluation = self._evaluate_strategy(
@@ -232,4 +276,45 @@ class EvaluationHarness:
                 if evaluation.overall_pass:
                     result.total_passed += 1
 
+            # ML model evaluation (RF, XGB, LR on walk-forward split)
+            ml = self._evaluate_ml_models(df, ticker)
+            if ml:
+                result.ml_results[ticker] = ml
+
         return result
+
+    def _evaluate_ml_models(self, df: pd.DataFrame, ticker: str) -> dict | None:
+        """Run classical ML models with train/test split and return metrics."""
+        try:
+            from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2
+            from engine.ml_signal import MLSignalGenerator
+
+            ta = TechnicalAnalysisSkillV2(df)
+            ta.add_indicators()
+            enriched = ta.copy()
+
+            # 80/20 split
+            split = int(len(enriched) * 0.8)
+            train_df = enriched.iloc[:split]
+            test_df = enriched.iloc[split:]
+
+            if len(test_df) < 50:
+                return None
+
+            gen = MLSignalGenerator(train_df, test_df, ticker=ticker)
+            results = gen.run_all()
+
+            # Extract metrics only (drop signal series for serialization)
+            ml_metrics = {}
+            for model_name, data in results.items():
+                if isinstance(data, dict) and "metrics" in data:
+                    ml_metrics[model_name] = data["metrics"]
+
+            if ml_metrics:
+                logger.info("ML models for %s: %s", ticker,
+                    ", ".join(f"{m}={d['sharpe']:.2f}" for m, d in ml_metrics.items()))
+
+            return ml_metrics
+        except Exception as exc:
+            logger.warning("ML evaluation failed for %s: %s", ticker, exc)
+            return None

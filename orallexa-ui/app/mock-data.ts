@@ -74,6 +74,38 @@ export function mockDeepAnalysis(ticker: string) {
 
 export { DEEP_STEPS };
 
+// ── Backtest ────────────────────────────────────────────────────────
+export function mockBacktest(ticker: string) {
+  const strategies = [
+    { strategy: "double_ma",          base: { ret: [8, 22],  sharpe: [0.6, 1.4],  dd: [8, 18],  wr: [48, 58], trades: [40, 90],  pf: [1.0, 1.6] } },
+    { strategy: "macd_crossover",     base: { ret: [5, 18],  sharpe: [0.5, 1.2],  dd: [10, 22], wr: [45, 55], trades: [50, 110], pf: [0.9, 1.4] } },
+    { strategy: "bollinger_breakout", base: { ret: [10, 28], sharpe: [0.8, 1.8],  dd: [6, 15],  wr: [50, 62], trades: [25, 60],  pf: [1.1, 1.8] } },
+    { strategy: "rsi_reversal",       base: { ret: [3, 15],  sharpe: [0.3, 1.0],  dd: [12, 25], wr: [42, 54], trades: [30, 80],  pf: [0.8, 1.3] } },
+    { strategy: "trend_momentum",     base: { ret: [12, 32], sharpe: [1.0, 2.2],  dd: [5, 14],  wr: [52, 66], trades: [35, 75],  pf: [1.2, 2.0] } },
+    { strategy: "alpha_combo",        base: { ret: [7, 20],  sharpe: [0.7, 1.5],  dd: [7, 16],  wr: [50, 60], trades: [30, 70],  pf: [1.0, 1.7] } },
+    { strategy: "regime_ensemble",    base: { ret: [15, 35], sharpe: [1.2, 2.5],  dd: [4, 12],  wr: [55, 68], trades: [20, 55],  pf: [1.3, 2.2] } },
+  ];
+
+  const results = strategies.map(({ strategy, base: b }) => ({
+    strategy,
+    total_return: rand(b.ret[0], b.ret[1]),
+    sharpe: rand(b.sharpe[0], b.sharpe[1]),
+    max_drawdown: rand(b.dd[0], b.dd[1]),
+    win_rate: rand(b.wr[0], b.wr[1]),
+    trades: Math.round(rand(b.trades[0], b.trades[1])),
+    profit_factor: rand(b.pf[0], b.pf[1]),
+  }));
+
+  const best = [...results].sort((a, b) => b.sharpe - a.sharpe)[0];
+
+  return {
+    ticker: ticker.toUpperCase(),
+    period: "2024-01-01 to 2025-12-31",
+    results,
+    best_strategy: best.strategy,
+  };
+}
+
 // ── News ─────────────────────────────────────────────────────────────
 const HEADLINES = [
   ["{t} Beats Q4 Estimates, Raises Full-Year Guidance", "bullish", 0.72],

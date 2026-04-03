@@ -49,7 +49,8 @@ function FearGreedGauge({ data, t }: { data: FearGreedData; t: Record<string, st
     <Mod title={t.fearGreed}>
       <div className="flex flex-col items-center py-2">
         {/* Gauge SVG */}
-        <svg width="200" height="110" viewBox="0 0 200 110">
+        <div className="w-full max-w-[220px] mx-auto">
+        <svg width="100%" height="auto" viewBox="0 0 200 110">
           {/* Background arc segments */}
           {[
             { start: -90, end: -54, color: "#8B0000" },
@@ -97,6 +98,7 @@ function FearGreedGauge({ data, t }: { data: FearGreedData; t: Record<string, st
           <text x="182" y="100" textAnchor="middle" fill="#006B3F"
             style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t.greedLabel}</text>
         </svg>
+        </div>
         <div className="text-[16px] font-[Josefin_Sans] font-bold uppercase tracking-[0.12em] -mt-2" style={{ color: scoreColor }}>{data.label}</div>
       </div>
       {/* Component breakdown */}
@@ -217,12 +219,12 @@ function BreadthPanel({ data, t }: { data: MarketBreadth; t: Record<string, stri
       </div>
 
       {/* 52-week highs/lows */}
-      <div className="flex gap-4">
-        <div className="flex-1 text-center py-2" style={{ background: "rgba(0,107,63,0.06)", border: "1px solid rgba(0,107,63,0.15)" }}>
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 min-[360px]:gap-4">
+        <div className="text-center py-2" style={{ background: "rgba(0,107,63,0.06)", border: "1px solid rgba(0,107,63,0.15)" }}>
           <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{t.newHighs}</div>
           <div className="text-[18px] font-[DM_Mono] font-bold" style={{ color: "#006B3F" }}>{data.new_highs}</div>
         </div>
-        <div className="flex-1 text-center py-2" style={{ background: "rgba(139,0,0,0.06)", border: "1px solid rgba(139,0,0,0.15)" }}>
+        <div className="text-center py-2" style={{ background: "rgba(139,0,0,0.06)", border: "1px solid rgba(139,0,0,0.15)" }}>
           <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{t.newLows}</div>
           <div className="text-[18px] font-[DM_Mono] font-bold" style={{ color: "#8B0000" }}>{data.new_lows}</div>
         </div>

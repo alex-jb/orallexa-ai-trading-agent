@@ -951,6 +951,51 @@ async def ws_live(websocket: WebSocket):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# BACKTEST API
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/backtest/{ticker}")
+async def run_backtest(ticker: str, period: str = "2y"):
+    """Run multi-strategy backtest and return summary."""
+    try:
+        from engine.multi_strategy import run_multi_strategy_analysis
+        from skills.market_data import MarketDataSkill
+
+        mds = MarketDataSkill()
+        df = mds.fetch(ticker, period=period)
+        if df is None or df.empty:
+            return {"error": f"No data for {ticker}"}
+
+        results = run_multi_strategy_analysis(df, ticker)
+        strategy_results = []
+        for name, metrics in results.items():
+            strategy_results.append({
+                "strategy": name,
+                "total_return": round(metrics.get("total_return", 0) * 100, 2),
+                "sharpe": round(metrics.get("sharpe_ratio", 0), 2),
+                "max_drawdown": round(abs(metrics.get("max_drawdown", 0)) * 100, 2),
+                "win_rate": round(metrics.get("win_rate", 0) * 100, 1),
+                "trades": metrics.get("total_trades", 0),
+                "profit_factor": round(metrics.get("profit_factor", 0), 2),
+            })
+
+        best = max(strategy_results, key=lambda x: x["sharpe"]) if strategy_results else None
+        start = df.index[0].strftime("%Y-%m-%d") if hasattr(df.index[0], "strftime") else str(df.index[0])
+        end = df.index[-1].strftime("%Y-%m-%d") if hasattr(df.index[-1], "strftime") else str(df.index[-1])
+
+        return {
+            "ticker": ticker.upper(),
+            "period": f"{start} to {end}",
+            "results": strategy_results,
+            "best_strategy": best["strategy"] if best else "",
+        }
+    except Exception as exc:
+        from core.logger import get_logger
+        get_logger("api").warning("Backtest failed for %s: %s", ticker, exc)
+        return {"error": str(exc)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # ALPACA PAPER TRADING
 # ═══════════════════════════════════════════════════════════════════════════
 

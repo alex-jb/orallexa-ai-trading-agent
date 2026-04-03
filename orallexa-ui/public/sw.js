@@ -113,6 +113,47 @@ function networkFirstWithOfflineFallback(request) {
     );
 }
 
+// --------------- Push Notifications ---------------
+self.addEventListener("push", (event) => {
+  let data = { title: "Orallexa Capital", body: "New trading signal" };
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: "/logo.svg",
+    badge: "/icon-192.png",
+    tag: data.tag || "orallexa-signal",
+    renotify: true,
+    data: { url: data.url || "/" },
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // Focus existing window if one is open
+      for (const client of clients) {
+        if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+
 // --------------- Helpers ---------------
 
 function isStaticAsset(pathname) {

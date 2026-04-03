@@ -203,6 +203,236 @@ def _plot_strategy_comparison(result: HarnessResult) -> str | None:
     return "charts/strategy_comparison.png"
 
 
+def _plot_drawdown_underwater(evals: List[StrategyEvaluation], ticker: str) -> str | None:
+    """Generate drawdown underwater chart showing recovery periods."""
+    if not HAS_MATPLOTLIB:
+        return None
+    _setup_academic_style()
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    has_data = False
+
+    for ev in evals:
+        bt = ev.backtest_df
+        if bt is None:
+            continue
+        ret_col = "net_strategy_return" if "net_strategy_return" in bt.columns else "strategy_return" if "strategy_return" in bt.columns else None
+        if ret_col is None:
+            continue
+        has_data = True
+        cumulative = (1 + bt[ret_col].fillna(0)).cumprod()
+        rolling_max = cumulative.cummax()
+        drawdown = (cumulative - rolling_max) / rolling_max.replace(0, 1) * 100
+        ax.fill_between(drawdown.index, drawdown.values, 0, alpha=0.3, label=ev.strategy_name)
+        ax.plot(drawdown.index, drawdown.values, linewidth=0.8)
+
+    if not has_data:
+        plt.close(fig)
+        return None
+
+    ax.set_ylabel("Drawdown (%)")
+    ax.set_title(f"Underwater Chart — {ticker}")
+    ax.legend(fontsize=8, ncol=2)
+    ax.axhline(y=0, color="black", linewidth=0.5)
+    plt.tight_layout()
+    path = _CHARTS / f"{ticker}_drawdown.png"
+    fig.savefig(path)
+    plt.close(fig)
+    return f"charts/{ticker}_drawdown.png"
+
+
+def _plot_rolling_sharpe(evals: List[StrategyEvaluation], ticker: str, window: int = 63) -> str | None:
+    """Generate rolling Sharpe ratio chart."""
+    if not HAS_MATPLOTLIB:
+        return None
+    _setup_academic_style()
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    has_data = False
+
+    for ev in evals:
+        bt = ev.backtest_df
+        if bt is None:
+            continue
+        ret_col = "net_strategy_return" if "net_strategy_return" in bt.columns else "strategy_return" if "strategy_return" in bt.columns else None
+        if ret_col is None:
+            continue
+        returns = bt[ret_col].fillna(0)
+        if len(returns) < window:
+            continue
+        has_data = True
+        rolling_mean = returns.rolling(window).mean()
+        rolling_std = returns.rolling(window).std()
+        rolling_sharpe = (rolling_mean / rolling_std.replace(0, np.nan)) * np.sqrt(252)
+        ax.plot(rolling_sharpe.index, rolling_sharpe.values, linewidth=1.2, label=ev.strategy_name)
+
+    if not has_data:
+        plt.close(fig)
+        return None
+
+    ax.set_ylabel(f"Rolling {window}-Day Sharpe")
+    ax.set_title(f"Rolling Sharpe Ratio — {ticker}")
+    ax.axhline(y=0, color="red", linestyle="--", linewidth=0.8, alpha=0.5)
+    ax.axhline(y=1, color="green", linestyle=":", linewidth=0.6, alpha=0.4)
+    ax.legend(fontsize=8, ncol=2)
+    plt.tight_layout()
+    path = _CHARTS / f"{ticker}_rolling_sharpe.png"
+    fig.savefig(path)
+    plt.close(fig)
+    return f"charts/{ticker}_rolling_sharpe.png"
+
+
+def _plot_signal_correlation(evals: List[StrategyEvaluation], ticker: str) -> str | None:
+    """Generate strategy signal correlation matrix heatmap."""
+    if not HAS_MATPLOTLIB:
+        return None
+    _setup_academic_style()
+
+    signal_dict = {}
+    for ev in evals:
+        if ev.signals is not None and len(ev.signals) > 0:
+            signal_dict[ev.strategy_name[:12]] = ev.signals
+
+    if len(signal_dict) < 2:
+        return None
+
+    sig_df = pd.DataFrame(signal_dict)
+    corr = sig_df.corr()
+
+    fig, ax = plt.subplots(figsize=(max(6, len(corr) * 0.9), max(5, len(corr) * 0.7)))
+    im = ax.imshow(corr.values, cmap="coolwarm", vmin=-1, vmax=1, aspect="auto")
+
+    ax.set_xticks(range(len(corr.columns)))
+    ax.set_xticklabels(corr.columns, rotation=45, ha="right", fontsize=8)
+    ax.set_yticks(range(len(corr.columns)))
+    ax.set_yticklabels(corr.columns, fontsize=8)
+    ax.set_title(f"Signal Correlation Matrix — {ticker}")
+
+    for i in range(len(corr)):
+        for j in range(len(corr)):
+            val = corr.values[i, j]
+            color = "white" if abs(val) > 0.5 else "black"
+            ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=8, color=color)
+
+    fig.colorbar(im, ax=ax, shrink=0.8)
+    plt.tight_layout()
+    path = _CHARTS / f"{ticker}_signal_corr.png"
+    fig.savefig(path)
+    plt.close(fig)
+    return f"charts/{ticker}_signal_corr.png"
+
+
+def _plot_return_distribution(evals: List[StrategyEvaluation], ticker: str) -> str | None:
+    """Generate return distribution histogram with normal overlay and tail analysis."""
+    if not HAS_MATPLOTLIB:
+        return None
+    _setup_academic_style()
+
+    from scipy import stats as sp_stats
+
+    # Use the strategy with the highest Sharpe
+    best_ev = max(
+        (e for e in evals if e.backtest_df is not None),
+        key=lambda e: e.walk_forward.avg_oos_sharpe if e.walk_forward else 0,
+        default=None,
+    )
+    if best_ev is None or best_ev.backtest_df is None:
+        return None
+
+    bt = best_ev.backtest_df
+    ret_col = "net_strategy_return" if "net_strategy_return" in bt.columns else "strategy_return" if "strategy_return" in bt.columns else None
+    if ret_col is None:
+        return None
+
+    returns = bt[ret_col].dropna().values
+    if len(returns) < 20:
+        return None
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    ax.hist(returns * 100, bins=50, density=True, alpha=0.7, color="steelblue", edgecolor="white", linewidth=0.5)
+
+    # Normal overlay
+    mu, sigma = returns.mean() * 100, returns.std() * 100
+    x = np.linspace(mu - 4 * sigma, mu + 4 * sigma, 200)
+    ax.plot(x, sp_stats.norm.pdf(x, mu, sigma), "r-", linewidth=1.5, label="Normal fit")
+
+    # Percentile lines
+    p5, p95 = np.percentile(returns * 100, [5, 95])
+    ax.axvline(p5, color="orange", linestyle="--", linewidth=1, alpha=0.7, label=f"5th pct: {p5:.2f}%")
+    ax.axvline(p95, color="green", linestyle="--", linewidth=1, alpha=0.7, label=f"95th pct: {p95:.2f}%")
+
+    # Tail analysis annotation
+    skew = float(sp_stats.skew(returns))
+    kurt = float(sp_stats.kurtosis(returns, fisher=True))
+    bottom_5 = returns[returns <= np.percentile(returns, 5)]
+    top_5 = returns[returns >= np.percentile(returns, 95)]
+    tail_ratio = abs(top_5.mean() / bottom_5.mean()) if bottom_5.mean() != 0 else 0
+
+    ax.text(0.02, 0.95, f"Skew: {skew:.2f}\nKurtosis: {kurt:.2f}\nTail Ratio: {tail_ratio:.2f}",
+            transform=ax.transAxes, fontsize=9, verticalalignment="top",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.5))
+
+    ax.set_xlabel("Daily Return (%)")
+    ax.set_ylabel("Density")
+    ax.set_title(f"Return Distribution — {ticker} ({best_ev.strategy_name})")
+    ax.legend(fontsize=8)
+    plt.tight_layout()
+    path = _CHARTS / f"{ticker}_return_dist.png"
+    fig.savefig(path)
+    plt.close(fig)
+    return f"charts/{ticker}_return_dist.png"
+
+
+def _plot_benchmark_comparison(
+    evals: List[StrategyEvaluation],
+    ticker: str,
+    benchmark_df: "pd.DataFrame | None" = None,
+) -> str | None:
+    """Generate cumulative return comparison: strategies vs SPY buy & hold."""
+    if not HAS_MATPLOTLIB:
+        return None
+    _setup_academic_style()
+
+    import pandas as pd
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    has_data = False
+
+    for ev in evals:
+        bt = ev.backtest_df
+        if bt is None:
+            continue
+        ret_col = "net_strategy_return" if "net_strategy_return" in bt.columns else "strategy_return" if "strategy_return" in bt.columns else None
+        if ret_col is None:
+            continue
+        has_data = True
+        cumulative = (1 + bt[ret_col].fillna(0)).cumprod()
+        ax.plot(cumulative.index, cumulative.values, linewidth=1.2, label=ev.strategy_name)
+
+    # Add SPY benchmark
+    if benchmark_df is not None and "Close" in benchmark_df.columns:
+        spy_close = benchmark_df["Close"].dropna()
+        spy_return = spy_close.pct_change().fillna(0)
+        spy_cumulative = (1 + spy_return).cumprod()
+        ax.plot(spy_cumulative.index, spy_cumulative.values, linewidth=2, color="gray",
+                linestyle="--", alpha=0.7, label="SPY (Buy & Hold)")
+
+    if not has_data:
+        plt.close(fig)
+        return None
+
+    ax.axhline(y=1.0, color="red", linestyle=":", linewidth=0.5, alpha=0.4)
+    ax.set_ylabel("Cumulative Return (starting at 1.0)")
+    ax.set_title(f"Strategy vs Benchmark — {ticker}")
+    ax.legend(fontsize=8, ncol=2)
+    plt.tight_layout()
+    path = _CHARTS / f"{ticker}_benchmark.png"
+    fig.savefig(path)
+    plt.close(fig)
+    return f"charts/{ticker}_benchmark.png"
+
+
 def _generate_badge_url(result: HarnessResult) -> str:
     """Generate shields.io badge URL for README."""
     # Find best OOS Sharpe across all evaluations
@@ -423,6 +653,56 @@ def generate_report(
         lines.append("\n## Strategy Comparison\n")
         lines.append(f"![Strategy Comparison]({chart_paths['comparison']})\n")
 
+    # ML Model Evaluation
+    if result.ml_results:
+        lines.append("\n## ML Model Evaluation\n")
+        lines.append("Classical ML models trained on 80% of data, tested on 20% out-of-sample. "
+                     "Each model uses 28 technical features from TechnicalAnalysisSkillV2.\n")
+
+        # Aggregate table across all tickers
+        lines.append("| Model | Ticker | OOS Sharpe | Total Return | Max Drawdown | Win Rate | Trades | vs Buy&Hold |")
+        lines.append("|-------|--------|-----------|-------------|-------------|---------|--------|-------------|")
+
+        all_ml_rows = []
+        for ticker in tickers_with_data:
+            ml = result.ml_results.get(ticker, {})
+            for model_name, metrics in ml.items():
+                excess = metrics.get("excess_return", 0)
+                excess_str = f"{excess:+.1%}" if excess != 0 else "—"
+                all_ml_rows.append({
+                    "model": model_name, "ticker": ticker,
+                    "sharpe": metrics.get("sharpe", 0),
+                    "total_return": metrics.get("total_return", 0),
+                    "max_drawdown": metrics.get("max_drawdown", 0),
+                    "win_rate": metrics.get("win_rate", 0),
+                    "n_trades": metrics.get("n_trades", 0),
+                    "excess": excess_str,
+                })
+
+        all_ml_rows.sort(key=lambda r: r["sharpe"], reverse=True)
+        for r in all_ml_rows:
+            lines.append(
+                f"| {r['model']} | {r['ticker']} | **{r['sharpe']:.3f}** | "
+                f"{r['total_return']:.1%} | {r['max_drawdown']:.1%} | "
+                f"{r['win_rate']:.0%} | {r['n_trades']} | {r['excess']} |"
+            )
+        lines.append("")
+
+        # Summary: best ML model vs best rule strategy
+        if all_ml_rows:
+            best_ml = all_ml_rows[0]
+            best_rule = max(
+                (e for e in result.evaluations if e.walk_forward),
+                key=lambda e: e.walk_forward.avg_oos_sharpe,
+                default=None,
+            )
+            if best_rule and best_rule.walk_forward:
+                lines.append(f"> **Best ML model:** {best_ml['model']} on {best_ml['ticker']} "
+                             f"(Sharpe {best_ml['sharpe']:.3f}). "
+                             f"**Best rule strategy:** {best_rule.strategy_name} on {best_rule.ticker} "
+                             f"(OOS Sharpe {best_rule.walk_forward.avg_oos_sharpe:.3f}). "
+                             f"The ML ensemble combines all models for stronger composite signals.\n")
+
     # Methodology Notes
     lines.append("\n## Methodology Notes\n")
     lines.append("- **Walk-forward:** Expanding window, 252-day initial training, "
@@ -526,4 +806,5 @@ def _result_to_dict(result: HarnessResult) -> dict:
         "total_evaluated": result.total_evaluated,
         "total_passed": result.total_passed,
         "evaluations": evaluations,
+        "ml_results": result.ml_results,
     }

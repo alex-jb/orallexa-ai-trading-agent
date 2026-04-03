@@ -51,12 +51,18 @@ def _calc_metrics_from_returns(returns: pd.Series, signal_series: pd.Series | No
     if max_drawdown != 0:
         calmar = float(annualized_return / abs(max_drawdown))
 
+    # Omega ratio (sum of gains / sum of losses, threshold = 0)
+    gains = returns[returns > 0].sum()
+    losses = abs(returns[returns < 0].sum())
+    omega = float(gains / losses) if losses > 0 else (float("inf") if gains > 0 else 0.0)
+
     return {
         "total_return": total_return,
         "annualized_return": annualized_return,
         "sharpe": sharpe,
         "sortino": sortino,
         "calmar": calmar,
+        "omega": omega,
         "max_drawdown": max_drawdown,
         "win_rate": win_rate,
         "num_trades": num_trades,

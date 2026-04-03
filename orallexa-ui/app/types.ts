@@ -17,6 +17,8 @@ export interface EconEvent { date: string; time: string; event: string; impact: 
 export interface FearGreedData { score: number; label: string; components: { name: string; value: number; signal: "extreme_fear" | "fear" | "neutral" | "greed" | "extreme_greed" }[]; }
 export interface MarketBreadth { advancers: number; decliners: number; unchanged: number; new_highs: number; new_lows: number; adv_vol: number; dec_vol: number; }
 export interface OptionsFlow { ticker: string; type: "call" | "put"; premium: string; strike: string; expiry: string; sentiment: "bullish" | "bearish"; unusual: boolean; }
+export interface BacktestResult { strategy: string; total_return: number; sharpe: number; max_drawdown: number; win_rate: number; trades: number; profit_factor: number; }
+export interface BacktestSummary { ticker: string; period: string; results: BacktestResult[]; best_strategy: string; }
 export interface DailyIntelData { date: string; generated_at: string; market_mood: string; summary: string; gainers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; losers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; volume_spikes?: { ticker: string; price: number; change_pct: number; volume_ratio: number }[]; sectors: { sector: string; etf: string; change_pct: number }[]; headlines: { title: string; ticker: string; sentiment: string; score: number; url: string; provider: string }[]; ai_picks: { ticker: string; direction: string; reason: string; catalyst: string }[]; orallexa_thread?: string[]; social_posts?: SocialPosts; macro?: MacroIndicator[]; econ_calendar?: EconEvent[]; fear_greed?: FearGreedData; breadth?: MarketBreadth; options_flow?: OptionsFlow[]; }
 
 /* ── i18n ──────────────────────────────────────────────────────────────── */
@@ -57,6 +59,10 @@ export const T: Record<string, Record<string, string>> = {
     demoMode: "Demo Mode — Simulated data for demonstration",
     networkOffline: "Network offline — data may be stale",
     priceChart: "Price Chart",
+    backtestResults: "Backtest Results", strategyName: "Strategy", totalReturn: "Total Return",
+    sharpeRatio: "Sharpe Ratio", maxDrawdown: "Max Drawdown", winRateCol: "Win Rate",
+    tradesCol: "Trades", profitFactor: "Profit Factor", bestStrategy: "Best Strategy",
+    backtestPeriod: "Period", noBacktestData: "No backtest data available",
   },
   ZH: {
     brand: "ORALLEXA", subtitle: "资本智能系统", active: "运行中",
@@ -94,6 +100,10 @@ export const T: Record<string, Record<string, string>> = {
     demoMode: "演示模式 — 展示数据非实时行情",
     networkOffline: "网络已断开 — 数据可能不是最新的",
     priceChart: "价格走势",
+    backtestResults: "回测结果", strategyName: "策略", totalReturn: "总收益",
+    sharpeRatio: "夏普比率", maxDrawdown: "最大回撤", winRateCol: "胜率",
+    tradesCol: "交易次数", profitFactor: "盈利因子", bestStrategy: "最优策略",
+    backtestPeriod: "区间", noBacktestData: "暂无回测数据",
   },
 };
 
