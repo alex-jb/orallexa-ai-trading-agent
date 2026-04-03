@@ -59,6 +59,7 @@ class TrayIcon:
         on_ticker_change: Optional[Callable[[str], None]]      = None,
         on_mode_change:   Optional[Callable[[str, str], None]] = None,
         on_screenshot:    Optional[Callable]           = None,
+        quick_tickers:    Optional[list[str]]           = None,
     ) -> None:
         self._on_quit          = on_quit
         self._on_show          = on_show
@@ -66,6 +67,7 @@ class TrayIcon:
         self._on_ticker_change = on_ticker_change
         self._on_mode_change   = on_mode_change
         self._on_screenshot    = on_screenshot
+        self._quick_tickers    = quick_tickers or _QUICK_TICKERS
         self._icon: Optional["pystray.Icon"] = None
         self._visible = True
 
@@ -128,7 +130,7 @@ class TrayIcon:
                 self._on_quit()
 
         ticker_submenu = Menu(
-            *[MenuItem(tk, _set_ticker(tk)) for tk in _QUICK_TICKERS]
+            *[MenuItem(tk, _set_ticker(tk)) for tk in self._quick_tickers]
         )
 
         menu = Menu(

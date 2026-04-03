@@ -144,9 +144,21 @@ def _load_frames(prefix: str) -> list[ImageTk.PhotoImage]:
     out = []
     for i in range(N_FRAMES):
         path = ASSETS / f"{prefix}_{i:02d}.png"
-        img  = Image.open(path).convert("RGBA")
+        try:
+            img = Image.open(path).convert("RGBA")
+        except (FileNotFoundError, OSError):
+            from core.logger import get_logger
+            get_logger("character").warning("Sprite missing: %s — using placeholder", path)
+            img = Image.new("RGBA", (CHAR_W, CHAR_H), (212, 175, 55, 180))
         out.append(_rgba_to_photo(img))
     return out
+
+
+def _is_cjk(ch: str) -> bool:
+    """Check if a character is CJK (Chinese/Japanese/Korean)."""
+    cp = ord(ch)
+    return (0x4E00 <= cp <= 0x9FFF or 0x3400 <= cp <= 0x4DBF
+            or 0xF900 <= cp <= 0xFAFF or 0x20000 <= cp <= 0x2A6DF)
 
 
 def _rgba_to_photo(img: Image.Image) -> ImageTk.PhotoImage:
@@ -186,22 +198,37 @@ def _make_bubble(text: str, accent: str = "#D4AF37",
         except OSError:
             font = ImageFont.load_default()
 
-    # Wrap text if wider than max_width
+    # Wrap text if wider than max_width (supports CJK character-level wrapping)
     lines = text.split("\n")
     wrapped: list[str] = []
     for line in lines:
-        words = line.split()
-        current = ""
-        for word in words:
-            test = f"{current} {word}".strip()
-            bbox = td.textbbox((0, 0), test, font=font)
-            if bbox[2] - bbox[0] > max_width - pad * 2 and current:
+        if any(_is_cjk(ch) for ch in line):
+            # CJK: wrap character-by-character
+            current = ""
+            for ch in line:
+                test = current + ch
+                bbox = td.textbbox((0, 0), test, font=font)
+                if bbox[2] - bbox[0] > max_width - pad * 2 and current:
+                    wrapped.append(current)
+                    current = ch
+                else:
+                    current = test
+            if current:
                 wrapped.append(current)
-                current = word
-            else:
-                current = test
-        if current:
-            wrapped.append(current)
+        else:
+            # Latin: wrap by word
+            words = line.split()
+            current = ""
+            for word in words:
+                test = f"{current} {word}".strip()
+                bbox = td.textbbox((0, 0), test, font=font)
+                if bbox[2] - bbox[0] > max_width - pad * 2 and current:
+                    wrapped.append(current)
+                    current = word
+                else:
+                    current = test
+            if current:
+                wrapped.append(current)
     display = "\n".join(wrapped) if wrapped else text
 
     bbox = td.multiline_textbbox((0, 0), display, font=font)
@@ -302,8 +329,12 @@ class BullCharacter:
         # Walk sprites
         self._frames_r = _load_frames("bull_r")
         self._frames_l = _load_frames("bull_l")
-        self._idle     = _rgba_to_photo(
-            Image.open(ASSETS / "bull_idle.png").convert("RGBA"))
+        try:
+            self._idle = _rgba_to_photo(
+                Image.open(ASSETS / "bull_idle.png").convert("RGBA"))
+        except (FileNotFoundError, OSError):
+            self._idle = _rgba_to_photo(
+                Image.new("RGBA", (CHAR_W, CHAR_H), (212, 175, 55, 180)))
 
         # State sprites (loaded lazily, cached)
         self._state_sprites: dict[str, ImageTk.PhotoImage] = {}
@@ -604,7 +635,7 @@ class BullCharacter:
         self._bwin.withdraw()
 
     def _update_bubble_pos(self) -> None:
-        """Phase 3: Clamp bubble fully on-screen (no clipping)."""
+        """Clamp bubble fully on-screen — flip below bull if needed."""
         if not self._bubble_visible:
             return
         if self._bubble_photo is None:
@@ -615,8 +646,11 @@ class BullCharacter:
         by = self._y - bh - 4
         # Clamp horizontal
         bx = max(4, min(self._sw - bw - 4, bx))
-        # Clamp vertical (don't go above screen top)
-        by = max(4, by)
+        # If bubble would go above screen top, flip below bull
+        if by < 4:
+            by = self._y + CHAR_H + 4
+        # Don't go below screen bottom (above taskbar)
+        by = min(by, self._sh - bh - TASKBAR_H - 4)
         self._bwin.geometry(f"+{bx}+{by}")
 
     # ── Click ─────────────────────────────────────────────────────────────────
@@ -700,11 +734,13 @@ class BullCharacter:
         if self._state == "idle" and self._paused and not self._bubble_visible:
             lang = get_lang()
             tips = IDLE_TIPS_ZH if lang == "zh" else IDLE_TIPS_EN
-            # Mood-aware tips
+            # Mood-aware tips (properly separated by language)
             if self._mood_streak >= 3:
-                tip = random.choice(["On a roll! 🐂", "连胜中！保持冷静"] if lang == "zh" else ["On a roll! 🐂", "Stay disciplined on streaks"])
+                tip = random.choice([t("streak_positive_1", lang),
+                                     t("streak_positive_2", lang)])
             elif self._mood_streak <= -3:
-                tip = random.choice(["别气馁，回顾策略", "Tough streak. Review your plan."])
+                tip = random.choice([t("streak_negative_1", lang),
+                                     t("streak_negative_2", lang)])
             else:
                 tip = random.choice(tips)
             self._show_bubble(tip, accent="#C5A255")
@@ -845,26 +881,29 @@ class BullCharacter:
             })
 
     def _particle_loop(self) -> None:
-        """Update and render particles on the canvas."""
-        # Remove dead particles
-        self._particles = [p for p in self._particles if p["life"] > 0]
-
-        # Clear old particle items
-        self._canvas.delete("particle")
-
+        """Update and render particles on the canvas (optimized: move items, don't recreate)."""
+        alive = []
         for p in self._particles:
             p["x"] += p["vx"]
             p["y"] += p["vy"]
             p["vy"] += 0.15  # gravity
             p["life"] -= 1
 
-            # Fade based on remaining life
             alpha = min(1.0, p["life"] / (PARTICLE_LIFE * 0.5))
-            if alpha > 0.3:
-                self._canvas.create_text(
+            if p["life"] <= 0 or alpha <= 0.3:
+                if "item_id" in p:
+                    self._canvas.delete(p["item_id"])
+                continue
+
+            if "item_id" not in p:
+                p["item_id"] = self._canvas.create_text(
                     int(p["x"]), int(p["y"]),
                     text=p["char"], fill=p["color"],
                     font=("Segoe UI", 9), tags="particle")
+            else:
+                self._canvas.coords(p["item_id"], int(p["x"]), int(p["y"]))
+            alive.append(p)
+        self._particles = alive
 
         self._win.after(PARTICLE_TICK_MS, self._particle_loop)
 
@@ -952,6 +991,16 @@ class BullCharacter:
         def _check():
             try:
                 import yfinance as yf
+            except ImportError:
+                # Show one-time warning for missing dependency
+                if not getattr(self, "_yf_warned", False):
+                    self._yf_warned = True
+                    lang = get_lang()
+                    self._win.after(0, lambda: self.flash_state(
+                        "warning", t("yfinance_missing", lang), 5000))
+                return
+
+            try:
                 tick = yf.Ticker(self._market_check_ticker)
                 hist = tick.history(period="1d", interval="5m")
                 if hist.empty:
@@ -982,8 +1031,9 @@ class BullCharacter:
                         self.play_notification("alert" if abs(pct) >= 3.0 else "complete")
                         self._win.after(8000, lambda: self.set_state("idle"))
                     self._win.after(0, _show)
-            except Exception:
-                pass  # silent fail — market data is best-effort
+            except Exception as exc:
+                from core.logger import get_logger
+                get_logger("character").debug("Market check error: %s", exc)
 
         threading.Thread(target=_check, daemon=True).start()
         self._win.after(MARKET_CHECK_INTERVAL_MS, self._market_check_loop)
@@ -1055,9 +1105,10 @@ class BullCharacter:
         """Show floating hearts above the bull (Claude Buddy pet interaction)."""
         self._pet_active = True
         self._pet_tick = 0
-        # Show a happy bubble
-        self._show_bubble(random.choice(["Moo~ ♥", "嘿嘿~", "Bull happy!", "摸摸~"]),
-                          accent="#DC3C3C")
+        # Show a happy bubble (language-aware)
+        lang = get_lang()
+        phrases = [t("pet_1", lang), t("pet_2", lang), t("pet_3", lang)]
+        self._show_bubble(random.choice(phrases), accent="#DC3C3C")
         self._pet_hearts_loop()
 
     def _pet_hearts_loop(self) -> None:

@@ -24,9 +24,25 @@ logger = get_logger("tts")
 # Voice options per language
 _VOICE_BY_LANG: dict[str, str] = {
     "zh":      "nova",    # works well for Chinese
+    "ja":      "nova",
+    "ko":      "nova",
     "en":      "echo",
+    "es":      "nova",
+    "fr":      "nova",
+    "de":      "nova",
     "default": "nova",
 }
+
+
+def _select_voice(lang: str) -> str:
+    """Select TTS voice with language family fallback."""
+    if lang in _VOICE_BY_LANG:
+        return _VOICE_BY_LANG[lang]
+    # CJK family fallback
+    base = lang.split("-")[0] if "-" in lang else lang
+    if base in ("zh", "ja", "ko"):
+        return _VOICE_BY_LANG.get(base, _VOICE_BY_LANG["default"])
+    return _VOICE_BY_LANG["default"]
 
 # Available voices (for UI selector)
 VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
@@ -59,7 +75,7 @@ class TTSHandler:
             return
         self.stop()   # stop any current playback
         self._stop_event = threading.Event()
-        v = voice or _VOICE_BY_LANG.get(lang, _VOICE_BY_LANG["default"])
+        v = voice or _select_voice(lang)
         self._thread = threading.Thread(
             target=self._play, args=(text, v), daemon=True)
         self._thread.start()

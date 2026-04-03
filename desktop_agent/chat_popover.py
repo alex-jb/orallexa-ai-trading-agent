@@ -10,10 +10,12 @@ UX upgrades applied:
 """
 from __future__ import annotations
 
+import json
 import threading
 import time
 import tkinter as tk
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from desktop_agent.i18n import t, set_lang, get_lang
@@ -64,6 +66,9 @@ PX_DOT = 3
 W, H = 340, 580
 
 
+_CHAT_HISTORY_PATH = Path(__file__).parent.parent / "memory_data" / "chat_history.json"
+
+
 class ChatPopover:
     def __init__(self, brain_bridge, voice_handler, tts_handler) -> None:
         self._bb   = brain_bridge
@@ -73,6 +78,7 @@ class ChatPopover:
         self._busy = False
         self._last_result = None
         self._analysis_history: list[dict] = []  # [{ticker, decision, confidence, ts}]
+        self._chat_log: list[dict] = []          # persistent chat history
 
         # Voice & language controls
         self._voice_on = True                         # TTS toggle
@@ -97,6 +103,7 @@ class ChatPopover:
         self._win.configure(bg=BG)
         self._win.withdraw()
         self._build_ui()
+        self._load_chat_history()
 
     def show(self, anchor_x: int, anchor_y: int) -> None:
         if self._win is None:
@@ -111,6 +118,7 @@ class ChatPopover:
 
     def hide(self) -> None:
         if self._win:
+            self._save_chat_history()
             self._win.withdraw()
 
     def is_visible(self) -> bool:
@@ -137,9 +145,9 @@ class ChatPopover:
             font=(FONT_HEAD, 10, "bold"), anchor="w", padx=10)
         self._title_lbl.pack(side="left", fill="y")
 
-        # Green online dot
+        # Green online dot (decorative, 8pt minimum)
         tk.Label(title_bar, text="\u25CF", bg=BG_CARD, fg="#32AA5A",
-                 font=(FONT, 6), padx=2).pack(side="left")
+                 font=(FONT, 8), padx=2).pack(side="left")
 
         close_btn = tk.Button(
             title_bar, text="\u2715", bg=BG_CARD, fg=FG_MUTED,
@@ -165,12 +173,12 @@ class ChatPopover:
         # ── Welcome section ──────────────────────────────────────
         welcome_frame = tk.Frame(win, bg=BG, pady=10)
         welcome_frame.pack(fill="x")
-        tk.Label(welcome_frame, text="Welcome back, Master!",
+        tk.Label(welcome_frame, text=t("welcome_back"),
                  bg=BG, fg=ACCENT_BRIGHT,
                  font=(FONT, 12, "bold")).pack()
 
         self._market_status = tk.Label(welcome_frame, text="",
-                 bg=BG, fg=FG_MUTED, font=(FONT, MIN_PT - 1))
+                 bg=BG, fg=FG_MUTED, font=(FONT, MIN_PT))
         self._market_status.pack(pady=(2, 0))
 
         # Pixel dot divider
@@ -404,12 +412,12 @@ class ChatPopover:
         self._entry.bind("<Return>", lambda _: self._send_text())
 
         # Send button
-        send_btn = tk.Button(
+        self._send_btn = tk.Button(
             input_frame, text="\u2192", bg=BTN_SEND, fg="white",
             font=(FONT, 11, "bold"), bd=0, padx=10, pady=3,
             activebackground=BTN_ACTIVE, relief="flat", cursor="hand2",
             command=self._send_text)
-        send_btn.pack(side="right")
+        self._send_btn.pack(side="right")
 
         # Drag
         title_bar.bind("<ButtonPress-1>",   self._drag_start)
@@ -638,6 +646,31 @@ class ChatPopover:
             tw.insert("end", text + "\n", "bot_msg")
         tw.config(state="disabled")
         tw.see("end")
+        # Track for persistence (skip if restoring from disk)
+        if not init:
+            self._chat_log.append({"role": role, "text": text, "ts": ts})
+            if len(self._chat_log) > 50:
+                self._chat_log = self._chat_log[-50:]
+
+    def _save_chat_history(self) -> None:
+        """Save recent chat messages to disk."""
+        try:
+            _CHAT_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(_CHAT_HISTORY_PATH, "w", encoding="utf-8") as f:
+                json.dump(self._chat_log[-50:], f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def _load_chat_history(self) -> None:
+        """Restore chat messages from last session."""
+        try:
+            if _CHAT_HISTORY_PATH.exists():
+                with open(_CHAT_HISTORY_PATH, "r", encoding="utf-8") as f:
+                    self._chat_log = json.load(f)
+                for msg in self._chat_log[-20:]:
+                    self._add_message(msg["role"], msg["text"], init=True)
+        except Exception:
+            self._chat_log = []
 
     def _add_status(self, text: str) -> None:
         tw = self._msg_text
@@ -688,6 +721,9 @@ class ChatPopover:
         self._lang = lang
         self._add_message("user", text)
         self._busy = True
+        # Disable input while processing
+        self._send_btn.config(state="disabled")
+        self._entry.config(state="disabled")
         self._add_status(t("thinking"))
 
         if self._on_state_change:
@@ -762,6 +798,10 @@ class ChatPopover:
             get_logger("chat_popover").error("_show_reply error: %s", exc)
         finally:
             self._busy = False
+            # Re-enable input
+            self._send_btn.config(state="normal")
+            self._entry.config(state="normal")
+            self._entry.focus_set()
 
     # ── Voice ─────────────────────────────────────────────────────────────────
 

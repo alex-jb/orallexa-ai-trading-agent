@@ -24,7 +24,12 @@ def capture_screen() -> Optional[bytes]:
     """
     try:
         from PIL import ImageGrab
-        img = ImageGrab.grab()
+        img = ImageGrab.grab(all_screens=True)
+        # Resize if too large (multi-monitor can produce huge images)
+        max_w = 2560
+        if img.width > max_w:
+            ratio = max_w / img.width
+            img = img.resize((max_w, int(img.height * ratio)))
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return buf.getvalue()

@@ -38,7 +38,9 @@ _STRINGS: dict[str, dict[str, str]] = {
     "confidence":               {"en": "CONFIDENCE",              "zh": "置信度"},
     "risk":                     {"en": "RISK",                    "zh": "风险"},
 
-    # ── Chat popover: empty-state hint ───────────────────────────
+    # ── Chat popover: welcome & empty-state hint ───────────────────
+    "welcome_back":             {"en": "Welcome back, Master!",
+                                 "zh": "欢迎回来, Master!"},
     "hint": {
         "en": (
             "Welcome back, Master!\n"
@@ -49,7 +51,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "  or press Ctrl+Shift+S"
         ),
         "zh": (
-            "Welcome back, Master!\n"
+            "欢迎回来, Master!\n"
             "试试:\n"
             "  \"分析 NVDA\"\n"
             "  \"TSLA 波段\"\n"
@@ -190,6 +192,21 @@ _STRINGS: dict[str, dict[str, str]] = {
 
     # ── Jump animation ───────────────────────────────────────────
     "jump_excited":             {"en": "Let's go!",                 "zh": "冲!"},
+
+    # ── Mood-aware idle tips ─────────────────────────────────────
+    "streak_positive_1":        {"en": "On a roll!",                "zh": "连胜中!"},
+    "streak_positive_2":        {"en": "Stay disciplined on streaks", "zh": "保持冷静，别大意"},
+    "streak_negative_1":        {"en": "Tough streak. Review your plan.", "zh": "别气馁，回顾策略"},
+    "streak_negative_2":        {"en": "Take a break, reset.",      "zh": "连亏了，休息一下"},
+
+    # ── Pet interaction ──────────────────────────────────────────
+    "pet_1":                    {"en": "Moo~ ♥",                    "zh": "哞~ ♥"},
+    "pet_2":                    {"en": "Bull happy!",               "zh": "嘿嘿~"},
+    "pet_3":                    {"en": "Hey~",                      "zh": "摸摸~"},
+
+    # ── Missing dependency warnings ──────────────────────────────
+    "yfinance_missing":         {"en": "pip install yfinance for market alerts",
+                                 "zh": "请安装 yfinance 以启用市场提醒"},
 }
 
 # Global language default — updated by ChatPopover when user switches language

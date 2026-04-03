@@ -88,7 +88,18 @@ def main() -> None:
 
     bull = BullCharacter(on_click=on_bull_click)
 
+    _auto_idle_timer: str | None = None
+
     def on_state_change(decision: str, risk: str) -> None:
+        nonlocal _auto_idle_timer
+        # Cancel any pending auto-idle timer
+        if _auto_idle_timer is not None:
+            try:
+                bull._win.after_cancel(_auto_idle_timer)
+            except (ValueError, tk.TclError):
+                pass
+            _auto_idle_timer = None
+
         upper = decision.upper()
         if upper == "THINKING":
             bull.set_state("thinking")
@@ -111,8 +122,13 @@ def main() -> None:
         else:
             bull.set_state("idle")
 
-        if upper not in ("THINKING", "LISTENING"):
-            bull._win.after(AUTO_IDLE_MS, lambda: bull.set_state("idle"))
+        # Schedule auto-idle (THINKING gets longer timeout for slow API)
+        if upper == "THINKING":
+            _auto_idle_timer = bull._win.after(
+                AUTO_IDLE_MS * 3, lambda: bull.set_state("idle"))
+        elif upper != "LISTENING":
+            _auto_idle_timer = bull._win.after(
+                AUTO_IDLE_MS, lambda: bull.set_state("idle"))
 
     popover = ChatPopover(brain, voice, tts)
     popover.build(bull._win, on_state_change=on_state_change)
@@ -294,6 +310,7 @@ def main() -> None:
         on_ticker_change=_ticker_change,
         on_mode_change=_mode_change,
         on_screenshot=_screenshot,
+        quick_tickers=settings.get("quick_tickers", None),
     )
     tray.start()
 

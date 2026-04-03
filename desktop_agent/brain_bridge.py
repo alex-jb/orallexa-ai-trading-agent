@@ -30,6 +30,25 @@ from typing import Optional
 
 from desktop_agent.i18n import t as _t, get_lang
 
+
+def _classify_error(exc: Exception, lang: str) -> str:
+    """Classify an exception and return a user-friendly i18n error message."""
+    exc_str = str(exc).lower()
+    if "api_key" in exc_str or "authentication" in exc_str or "unauthorized" in exc_str:
+        return _t("error_api_key_missing", lang)
+    if "timeout" in exc_str or "timed out" in exc_str:
+        return _t("error_timeout", lang)
+    if "connection" in exc_str or "network" in exc_str or "resolve" in exc_str:
+        return _t("error_network", lang)
+    if "not found" in exc_str or "invalid" in exc_str:
+        return _t("error_invalid_ticker", lang)
+    if "rate" in exc_str or "429" in exc_str or "overloaded" in exc_str:
+        return _t("error_service_unavailable", lang)
+    from core.logger import get_logger
+    get_logger("brain_bridge").error("Unclassified error: %s: %s", type(exc).__name__, exc)
+    return _t("error_generic", lang)
+
+
 # ── Intent keywords ───────────────────────────────────────────────────────────
 
 _DASHBOARD_KW = {
@@ -409,9 +428,7 @@ class BrainBridge:
             return summary
 
         except Exception as exc:
-            if lang == "zh":
-                return "分析暂时不可用，请检查网络连接和API密钥。"
-            return "Analysis is temporarily unavailable. Check your connection and API key."
+            return _classify_error(exc, lang)
 
     def _handle_coach(self, text: str, lang: str) -> str:
         """Send to Claude as a conversational trading coach."""
@@ -432,7 +449,8 @@ class BrainBridge:
             )
 
             self._history.append({"role": "user", "content": text})
-            self._history = self._history[-10:]   # keep last 10 messages (5 turns)
+            if len(self._history) > 20:
+                self._history = self._history[-20:]  # keep last 20 messages (10 turns)
 
             client = anthropic.Anthropic(api_key=api_key)
             resp = client.messages.create(
@@ -446,9 +464,7 @@ class BrainBridge:
             return reply
 
         except Exception as exc:
-            return ("AI教练暂时不可用，请稍后重试。"
-                    if lang == "zh" else
-                    "AI coach is temporarily unavailable. Please try again.")
+            return _classify_error(exc, lang)
 
     # ── Dashboard launcher ────────────────────────────────────────────────────
 
