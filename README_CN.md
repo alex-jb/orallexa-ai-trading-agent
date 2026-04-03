@@ -83,7 +83,7 @@ Docker 一键启动：`docker compose up --build`
 | ensemble_vote | META | **0.31** | MARGINAL | 0.324 |
 <!-- EVAL_TABLE_END -->
 
-> 80 个策略-标的组合，10 个标的，8 个策略。8 个 PASS，25 个 MARGINAL。组合投票策略要求 3+ 策略同时看多才入场，过滤噪音。[完整报告 →](docs/evaluation_report.md)
+> 90 个策略-标的组合，10 个标的，9 个策略（含组合投票和 regime 感知集成）。1 个 STRONG PASS，7 个 PASS，33 个 MARGINAL。[完整报告 →](docs/evaluation_report.md)
 
 ---
 

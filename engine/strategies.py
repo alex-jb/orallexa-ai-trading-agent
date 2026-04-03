@@ -21,6 +21,7 @@ Strategies included:
     6. dual_thrust        — Opening range breakout (high-frequency classic)
     7. alpha_combo        — Multi-factor composite signal
     8. ensemble_vote      — Majority vote across all strategies (noise filter)
+    9. regime_ensemble    — Ensemble vote + regime filter (only trade in trending markets)
 """
 
 import numpy as np
@@ -452,6 +453,93 @@ def ensemble_vote(df: pd.DataFrame, params: Dict[str, Any] = None) -> pd.Series:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 9. REGIME ENSEMBLE — ensemble vote filtered by market regime
+# ══════════════════════════════════════════════════════════════════════════
+
+def _detect_regime(df: pd.DataFrame, adx_trend: float = 20, vol_lookback: int = 20) -> pd.Series:
+    """
+    Classify market regime per bar.
+    Returns Series of 'trending' / 'ranging' / 'volatile'.
+
+    - ADX > adx_trend → trending (good for trend-following strategies)
+    - ADX <= adx_trend and ATR/Close < median → ranging (good for mean-reversion)
+    - ATR/Close > 1.5x median → volatile (reduce exposure)
+    """
+    regime = pd.Series("ranging", index=df.index)
+
+    # ADX-based trend detection
+    if "ADX" in df.columns:
+        adx = df["ADX"]
+        regime[adx > adx_trend] = "trending"
+    else:
+        # Fallback: use MA slope as trend proxy
+        ma50 = df["Close"].rolling(50, min_periods=1).mean()
+        ma_slope = ma50.pct_change(10)
+        regime[ma_slope.abs() > 0.02] = "trending"
+
+    # Volatility spike detection via ATR
+    if "ATR" in df.columns:
+        atr_pct = df["ATR"] / df["Close"]
+    else:
+        tr = pd.concat([
+            df["High"] - df["Low"],
+            (df["High"] - df["Close"].shift(1)).abs(),
+            (df["Low"] - df["Close"].shift(1)).abs(),
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(14, min_periods=1).mean()
+        atr_pct = atr / df["Close"]
+
+    atr_median = atr_pct.rolling(vol_lookback * 5, min_periods=vol_lookback).median()
+    regime[atr_pct > atr_median * 1.5] = "volatile"
+
+    return regime
+
+
+def regime_ensemble(df: pd.DataFrame, params: Dict[str, Any] = None) -> pd.Series:
+    """
+    Ensemble vote + regime filter.
+    - In 'trending' regime: require only 2 strategies to agree (easier entry)
+    - In 'ranging' regime: require 4 strategies to agree (stricter, avoid chop)
+    - In 'volatile' regime: no entry (sit out)
+    """
+    params = params or {}
+    trend_min = params.get("trend_min_agree", 2)
+    range_min = params.get("range_min_agree", 4)
+    adx_trend = params.get("adx_trend", 20)
+
+    regime = _detect_regime(df, adx_trend=adx_trend)
+
+    base_strategies = [
+        (double_ma, STRATEGY_DEFAULT_PARAMS.get("double_ma", {})),
+        (macd_crossover, STRATEGY_DEFAULT_PARAMS.get("macd_crossover", {})),
+        (bollinger_breakout, STRATEGY_DEFAULT_PARAMS.get("bollinger_breakout", {})),
+        (rsi_reversal, STRATEGY_DEFAULT_PARAMS.get("rsi_reversal", {})),
+        (trend_momentum, STRATEGY_DEFAULT_PARAMS.get("trend_momentum", {})),
+        (dual_thrust, STRATEGY_DEFAULT_PARAMS.get("dual_thrust", {})),
+    ]
+
+    votes = pd.DataFrame(index=df.index)
+    for i, (fn, default_params) in enumerate(base_strategies):
+        try:
+            votes[f"s{i}"] = fn(df, default_params)
+        except Exception:
+            votes[f"s{i}"] = 0
+
+    long_votes = (votes == 1).sum(axis=1)
+
+    signal = pd.Series(0, index=df.index)
+
+    trending_mask = regime == "trending"
+    ranging_mask = regime == "ranging"
+    # volatile = no entry
+
+    signal[trending_mask & (long_votes >= trend_min)] = 1
+    signal[ranging_mask & (long_votes >= range_min)] = 1
+
+    return signal
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # STRATEGY REGISTRY
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -464,6 +552,7 @@ STRATEGY_REGISTRY = {
     "alpha_combo":        alpha_combo,
     "dual_thrust":        dual_thrust,
     "ensemble_vote":      ensemble_vote,
+    "regime_ensemble":    regime_ensemble,
 }
 
 STRATEGY_DEFAULT_PARAMS = {
@@ -492,6 +581,9 @@ STRATEGY_DEFAULT_PARAMS = {
     "ensemble_vote": {
         "min_agree": 3
     },
+    "regime_ensemble": {
+        "trend_min_agree": 2, "range_min_agree": 4, "adx_trend": 20
+    },
 }
 
 STRATEGY_DESCRIPTIONS = {
@@ -503,6 +595,7 @@ STRATEGY_DESCRIPTIONS = {
     "alpha_combo":        "Multi-factor alpha composite — 6 independent signals combined",
     "dual_thrust":        "Opening range breakout — high-frequency classic using N-day range triggers",
     "ensemble_vote":      "Majority vote across 6 base strategies — noise filter, only trades when 3+ agree",
+    "regime_ensemble":    "Regime-aware ensemble — easier entry in trends, stricter in ranges, sits out volatile markets",
 }
 
 

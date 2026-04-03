@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-03T10:32:41.534845",
+  "generated": "2026-04-03T10:46:02.897126",
   "tickers": [
     "NVDA",
     "AAPL",
@@ -20,12 +20,13 @@
     "trend_momentum",
     "alpha_combo",
     "dual_thrust",
-    "ensemble_vote"
+    "ensemble_vote",
+    "regime_ensemble"
   ],
-  "num_strategies_tested": 8,
+  "num_strategies_tested": 9,
   "skipped_tickers": [],
-  "total_evaluated": 80,
-  "total_passed": 0,
+  "total_evaluated": 90,
+  "total_passed": 1,
   "evaluations": [
     {
       "strategy": "double_ma",
@@ -45,7 +46,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 782,
         "original_sharpe": 1.1999,
-        "sharpe_percentile_rank": 19.6,
+        "sharpe_percentile_rank": 93.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -82,7 +83,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 535,
         "original_sharpe": 1.9371,
-        "sharpe_percentile_rank": 94.1,
+        "sharpe_percentile_rank": 99.2,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -130,10 +131,10 @@
         "p_value": 0.1579,
         "sharpe_point": 1.0639,
         "sharpe_ci": [
-          -1.1433,
+          -1.1432,
           2.8659
         ],
-        "dsr": 0.0072,
+        "dsr": 0.0022,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -156,7 +157,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 38,
         "original_sharpe": 1.7588,
-        "sharpe_percentile_rank": 87.1,
+        "sharpe_percentile_rank": 89.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -178,9 +179,9 @@
     {
       "strategy": "trend_momentum",
       "ticker": "NVDA",
-      "overall_pass": false,
-      "verdict": "PASS",
-      "gates_passed": 2,
+      "overall_pass": true,
+      "verdict": "STRONG PASS",
+      "gates_passed": 3,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.7379,
@@ -193,9 +194,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 545,
         "original_sharpe": 1.7781,
-        "sharpe_percentile_rank": 79.8,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 545,
@@ -230,7 +231,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 920,
         "original_sharpe": 1.1213,
-        "sharpe_percentile_rank": 99.9,
+        "sharpe_percentile_rank": 99.5,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -267,7 +268,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 628,
         "original_sharpe": 2.0709,
-        "sharpe_percentile_rank": 99.7,
+        "sharpe_percentile_rank": 95.7,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -304,7 +305,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 543,
         "original_sharpe": 2.26,
-        "sharpe_percentile_rank": 71.4,
+        "sharpe_percentile_rank": 99.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -317,6 +318,43 @@
         "sharpe_ci": [
           0.9988,
           3.4946
+        ],
+        "dsr": 1.0,
+        "returns_significant": true,
+        "dsr_passed": true
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "NVDA",
+      "overall_pass": false,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.3064,
+        "pct_positive_sharpe": 0.4,
+        "avg_oos_return": 0.0812,
+        "avg_information_ratio": -1.3637,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 583,
+        "original_sharpe": 1.8502,
+        "sharpe_percentile_rank": 95.2,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 583,
+        "sufficient_data": true,
+        "t_statistic": 2.8118,
+        "p_value": 0.0025,
+        "sharpe_point": 1.8502,
+        "sharpe_ci": [
+          0.6109,
+          3.0096
         ],
         "dsr": 1.0,
         "returns_significant": true,
@@ -341,7 +379,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 709,
         "original_sharpe": 0.4157,
-        "sharpe_percentile_rank": 99.7,
+        "sharpe_percentile_rank": 93.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -377,7 +415,7 @@
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 487,
-        "original_sharpe": 0.5644,
+        "original_sharpe": 0.5643,
         "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
@@ -387,9 +425,9 @@
         "sufficient_data": true,
         "t_statistic": 0.7837,
         "p_value": 0.2168,
-        "sharpe_point": 0.5644,
+        "sharpe_point": 0.5643,
         "sharpe_ci": [
-          -0.8883,
+          -0.8884,
           1.9694
         ],
         "dsr": 0.0,
@@ -401,8 +439,8 @@
       "strategy": "bollinger_breakout",
       "ticker": "AAPL",
       "overall_pass": false,
-      "verdict": "FAIL",
-      "gates_passed": 0,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.3849,
@@ -417,7 +455,7 @@
         "original_sharpe": 1.2144,
         "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 329,
@@ -427,9 +465,9 @@
         "sharpe_point": 1.2144,
         "sharpe_ci": [
           -0.5423,
-          2.8866
+          2.8867
         ],
-        "dsr": 0.2504,
+        "dsr": 0.0921,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -452,7 +490,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 78,
         "original_sharpe": 0.4806,
-        "sharpe_percentile_rank": 90.0,
+        "sharpe_percentile_rank": 67.3,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -482,14 +520,14 @@
         "avg_oos_sharpe": 0.124,
         "pct_positive_sharpe": 0.533,
         "avg_oos_return": 0.0251,
-        "avg_information_ratio": -0.5708,
+        "avg_information_ratio": -0.5707,
         "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 532,
         "original_sharpe": 0.9536,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 78.2,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -503,7 +541,7 @@
           -0.3958,
           2.3321
         ],
-        "dsr": 0.1497,
+        "dsr": 0.0375,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -526,7 +564,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 863,
         "original_sharpe": 0.5325,
-        "sharpe_percentile_rank": 15.7,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -553,17 +591,17 @@
       "gates_passed": 1,
       "walk_forward": {
         "num_windows": 15,
-        "avg_oos_sharpe": 0.5407,
+        "avg_oos_sharpe": 0.5609,
         "pct_positive_sharpe": 0.533,
-        "avg_oos_return": 0.0179,
-        "avg_information_ratio": -0.5243,
+        "avg_oos_return": 0.019,
+        "avg_information_ratio": -0.501,
         "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 697,
         "original_sharpe": 0.8343,
-        "sharpe_percentile_rank": 55.1,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -577,7 +615,7 @@
           -0.3533,
           1.971
         ],
-        "dsr": 0.3091,
+        "dsr": 0.1374,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -587,7 +625,7 @@
       "ticker": "AAPL",
       "overall_pass": false,
       "verdict": "MARGINAL",
-      "gates_passed": 1,
+      "gates_passed": 2,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.1994,
@@ -600,9 +638,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 530,
         "original_sharpe": 0.8328,
-        "sharpe_percentile_rank": 97.9,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 530,
@@ -614,7 +652,44 @@
           -0.5499,
           2.1469
         ],
-        "dsr": 0.0021,
+        "dsr": 0.0001,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "AAPL",
+      "overall_pass": false,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.2385,
+        "pct_positive_sharpe": 0.533,
+        "avg_oos_return": 0.0175,
+        "avg_information_ratio": -0.87,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 623,
+        "original_sharpe": 0.656,
+        "sharpe_percentile_rank": 98.9,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 623,
+        "sufficient_data": true,
+        "t_statistic": 1.0306,
+        "p_value": 0.1516,
+        "sharpe_point": 0.656,
+        "sharpe_ci": [
+          -0.5871,
+          1.8975
+        ],
+        "dsr": 0.0,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -725,7 +800,7 @@
           -0.4013,
           4.0509
         ],
-        "dsr": 0.7948,
+        "dsr": 0.6275,
         "returns_significant": false,
         "dsr_passed": true
       }
@@ -799,7 +874,7 @@
           -0.4964,
           2.506
         ],
-        "dsr": 0.0724,
+        "dsr": 0.0146,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -873,7 +948,7 @@
           -0.5006,
           2.061
         ],
-        "dsr": 0.001,
+        "dsr": 0.0,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -910,7 +985,44 @@
           -0.622,
           2.3991
         ],
-        "dsr": 0.0001,
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "TSLA",
+      "overall_pass": false,
+      "verdict": "FAIL",
+      "gates_passed": 0,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.0882,
+        "pct_positive_sharpe": 0.467,
+        "avg_oos_return": 0.0655,
+        "avg_information_ratio": -0.4122,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 538,
+        "original_sharpe": 0.9262,
+        "sharpe_percentile_rank": 92.3,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 538,
+        "sufficient_data": true,
+        "t_statistic": 1.3521,
+        "p_value": 0.0885,
+        "sharpe_point": 0.9262,
+        "sharpe_ci": [
+          -0.3983,
+          2.2894
+        ],
+        "dsr": 0.092,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -919,8 +1031,8 @@
       "strategy": "double_ma",
       "ticker": "MSFT",
       "overall_pass": false,
-      "verdict": "FAIL",
-      "gates_passed": 0,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.0855,
@@ -933,14 +1045,14 @@
         "n_iterations": 1000,
         "n_trade_returns": 680,
         "original_sharpe": 0.059,
-        "sharpe_percentile_rank": 92.0,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 680,
         "sufficient_data": true,
-        "t_statistic": 0.0969,
+        "t_statistic": 0.0968,
         "p_value": 0.4614,
         "sharpe_point": 0.059,
         "sharpe_ci": [
@@ -957,7 +1069,7 @@
       "ticker": "MSFT",
       "overall_pass": false,
       "verdict": "FAIL",
-      "gates_passed": 0,
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": -0.2315,
@@ -972,7 +1084,7 @@
         "original_sharpe": 0.4582,
         "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 467,
@@ -982,7 +1094,7 @@
         "sharpe_point": 0.4582,
         "sharpe_ci": [
           -0.935,
-          1.9563
+          1.9564
         ],
         "dsr": 0.0,
         "returns_significant": false,
@@ -1030,8 +1142,8 @@
       "strategy": "rsi_reversal",
       "ticker": "MSFT",
       "overall_pass": false,
-      "verdict": "MARGINAL",
-      "gates_passed": 1,
+      "verdict": "FAIL",
+      "gates_passed": 0,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.1321,
@@ -1044,9 +1156,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 106,
         "original_sharpe": -0.0654,
-        "sharpe_percentile_rank": 97.6,
+        "sharpe_percentile_rank": 95.6,
         "probability_of_ruin": 0.0,
-        "passed": true
+        "passed": false
       },
       "statistical": {
         "n_observations": 106,
@@ -1081,7 +1193,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 518,
         "original_sharpe": 0.715,
-        "sharpe_percentile_rank": 81.7,
+        "sharpe_percentile_rank": 99.2,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1118,7 +1230,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 881,
         "original_sharpe": -0.0507,
-        "sharpe_percentile_rank": 45.2,
+        "sharpe_percentile_rank": 99.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1192,7 +1304,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 496,
         "original_sharpe": 0.653,
-        "sharpe_percentile_rank": 99.8,
+        "sharpe_percentile_rank": 99.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1207,6 +1319,43 @@
           2.0734
         ],
         "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "MSFT",
+      "overall_pass": false,
+      "verdict": "FAIL",
+      "gates_passed": 0,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": -0.338,
+        "pct_positive_sharpe": 0.333,
+        "avg_oos_return": -0.0009,
+        "avg_information_ratio": -1.184,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 614,
+        "original_sharpe": 0.9558,
+        "sharpe_percentile_rank": 13.7,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 614,
+        "sufficient_data": true,
+        "t_statistic": 1.4907,
+        "p_value": 0.0683,
+        "sharpe_point": 0.9558,
+        "sharpe_ci": [
+          -0.2856,
+          2.2772
+        ],
+        "dsr": 0.1094,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -1229,7 +1378,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 812,
         "original_sharpe": 0.926,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 99.5,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1243,7 +1392,7 @@
           -0.1718,
           2.0198
         ],
-        "dsr": 0.9621,
+        "dsr": 0.8688,
         "returns_significant": true,
         "dsr_passed": true
       }
@@ -1266,7 +1415,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 524,
         "original_sharpe": 0.4255,
-        "sharpe_percentile_rank": 96.7,
+        "sharpe_percentile_rank": 99.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1303,7 +1452,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 225,
         "original_sharpe": 0.2434,
-        "sharpe_percentile_rank": 75.9,
+        "sharpe_percentile_rank": 71.7,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1326,8 +1475,8 @@
       "strategy": "rsi_reversal",
       "ticker": "GOOG",
       "overall_pass": false,
-      "verdict": "FAIL",
-      "gates_passed": 0,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.2623,
@@ -1340,9 +1489,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 50,
         "original_sharpe": 2.8732,
-        "sharpe_percentile_rank": 63.3,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 50,
@@ -1351,10 +1500,10 @@
         "p_value": 0.1056,
         "sharpe_point": 2.8732,
         "sharpe_ci": [
-          -1.5128,
+          -1.5129,
           7.26
         ],
-        "dsr": 0.0444,
+        "dsr": 0.0164,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -1377,7 +1526,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 507,
         "original_sharpe": 0.3451,
-        "sharpe_percentile_rank": 99.4,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1414,7 +1563,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 931,
         "original_sharpe": 0.514,
-        "sharpe_percentile_rank": 99.8,
+        "sharpe_percentile_rank": 88.4,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1488,7 +1637,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 513,
         "original_sharpe": 0.5201,
-        "sharpe_percentile_rank": 84.2,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1499,8 +1648,45 @@
         "p_value": 0.2294,
         "sharpe_point": 0.5201,
         "sharpe_ci": [
-          -0.8643,
+          -0.8642,
           1.9002
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "GOOG",
+      "overall_pass": false,
+      "verdict": "FAIL",
+      "gates_passed": 0,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": -0.6991,
+        "pct_positive_sharpe": 0.333,
+        "avg_oos_return": -0.0073,
+        "avg_information_ratio": -1.9361,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 668,
+        "original_sharpe": 0.0354,
+        "sharpe_percentile_rank": 99.9,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 668,
+        "sufficient_data": true,
+        "t_statistic": 0.0576,
+        "p_value": 0.477,
+        "sharpe_point": 0.0354,
+        "sharpe_ci": [
+          -1.1618,
+          1.2432
         ],
         "dsr": 0.0,
         "returns_significant": false,
@@ -1804,6 +1990,43 @@
       }
     },
     {
+      "strategy": "regime_ensemble",
+      "ticker": "AMZN",
+      "overall_pass": false,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.0589,
+        "pct_positive_sharpe": 0.667,
+        "avg_oos_return": 0.0107,
+        "avg_information_ratio": -1.2997,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 596,
+        "original_sharpe": 0.0962,
+        "sharpe_percentile_rank": 100.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 596,
+        "sufficient_data": true,
+        "t_statistic": 0.1479,
+        "p_value": 0.4412,
+        "sharpe_point": 0.0962,
+        "sharpe_ci": [
+          -1.1556,
+          1.3771
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
       "strategy": "double_ma",
       "ticker": "META",
       "overall_pass": false,
@@ -1821,7 +2044,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 780,
         "original_sharpe": 1.2782,
-        "sharpe_percentile_rank": 89.1,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1858,7 +2081,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 476,
         "original_sharpe": 0.067,
-        "sharpe_percentile_rank": 96.6,
+        "sharpe_percentile_rank": 78.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1906,10 +2129,10 @@
         "p_value": 0.0906,
         "sharpe_point": 1.2344,
         "sharpe_ci": [
-          -0.4917,
+          -0.4918,
           2.7206
         ],
-        "dsr": 0.4889,
+        "dsr": 0.378,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -1932,7 +2155,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 26,
         "original_sharpe": 7.0082,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 43.4,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -1946,7 +2169,7 @@
           0.9882,
           14.3085
         ],
-        "dsr": 0.9633,
+        "dsr": 0.9443,
         "returns_significant": true,
         "dsr_passed": true
       }
@@ -1969,7 +2192,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 510,
         "original_sharpe": 0.4178,
-        "sharpe_percentile_rank": 94.3,
+        "sharpe_percentile_rank": 81.5,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2006,7 +2229,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 890,
         "original_sharpe": 0.1545,
-        "sharpe_percentile_rank": 97.0,
+        "sharpe_percentile_rank": 94.9,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2043,7 +2266,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 696,
         "original_sharpe": -0.3492,
-        "sharpe_percentile_rank": 98.3,
+        "sharpe_percentile_rank": 41.6,
         "probability_of_ruin": 100.0,
         "passed": false
       },
@@ -2080,7 +2303,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 477,
         "original_sharpe": 0.3333,
-        "sharpe_percentile_rank": 99.8,
+        "sharpe_percentile_rank": 90.6,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2093,6 +2316,43 @@
         "sharpe_ci": [
           -1.1645,
           1.6181
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "META",
+      "overall_pass": false,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.2325,
+        "pct_positive_sharpe": 0.6,
+        "avg_oos_return": 0.0517,
+        "avg_information_ratio": -0.8455,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 600,
+        "original_sharpe": 0.3635,
+        "sharpe_percentile_rank": 93.0,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 600,
+        "sufficient_data": true,
+        "t_statistic": 0.5604,
+        "p_value": 0.2877,
+        "sharpe_point": 0.3635,
+        "sharpe_ci": [
+          -0.9599,
+          1.5338
         ],
         "dsr": 0.0,
         "returns_significant": false,
@@ -2117,7 +2377,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 788,
         "original_sharpe": 0.6403,
-        "sharpe_percentile_rank": 6.3,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2131,7 +2391,7 @@
           -0.4789,
           1.7669
         ],
-        "dsr": 0.0001,
+        "dsr": 0.0,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -2181,7 +2441,7 @@
       "gates_passed": 0,
       "walk_forward": {
         "num_windows": 15,
-        "avg_oos_sharpe": -0.0423,
+        "avg_oos_sharpe": -0.0424,
         "pct_positive_sharpe": 0.2,
         "avg_oos_return": 0.0006,
         "avg_information_ratio": -1.4645,
@@ -2191,7 +2451,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 264,
         "original_sharpe": 0.1131,
-        "sharpe_percentile_rank": 99.9,
+        "sharpe_percentile_rank": 97.5,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2202,7 +2462,7 @@
         "p_value": 0.4541,
         "sharpe_point": 0.1131,
         "sharpe_ci": [
-          -1.7211,
+          -1.721,
           2.0674
         ],
         "dsr": 0.0,
@@ -2227,8 +2487,8 @@
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 45,
-        "original_sharpe": 4.7267,
-        "sharpe_percentile_rank": 100.0,
+        "original_sharpe": 4.7266,
+        "sharpe_percentile_rank": 99.8,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2237,12 +2497,12 @@
         "sufficient_data": true,
         "t_statistic": 1.9751,
         "p_value": 0.0273,
-        "sharpe_point": 4.7267,
+        "sharpe_point": 4.7266,
         "sharpe_ci": [
-          0.172,
+          0.1719,
           10.0849
         ],
-        "dsr": 0.9395,
+        "dsr": 0.9038,
         "returns_significant": true,
         "dsr_passed": true
       }
@@ -2265,21 +2525,21 @@
         "n_iterations": 1000,
         "n_trade_returns": 547,
         "original_sharpe": 0.8575,
-        "sharpe_percentile_rank": 99.0,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
       "statistical": {
         "n_observations": 547,
         "sufficient_data": true,
-        "t_statistic": 1.2621,
+        "t_statistic": 1.2622,
         "p_value": 0.1037,
         "sharpe_point": 0.8575,
         "sharpe_ci": [
           -0.4981,
           2.271
         ],
-        "dsr": 0.0091,
+        "dsr": 0.0015,
         "returns_significant": false,
         "dsr_passed": false
       }
@@ -2314,7 +2574,7 @@
         "sharpe_point": 0.5801,
         "sharpe_ci": [
           -0.4617,
-          1.6278
+          1.6279
         ],
         "dsr": 0.0,
         "returns_significant": false,
@@ -2362,8 +2622,8 @@
       "strategy": "ensemble_vote",
       "ticker": "JPM",
       "overall_pass": false,
-      "verdict": "MARGINAL",
-      "gates_passed": 1,
+      "verdict": "FAIL",
+      "gates_passed": 0,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.5987,
@@ -2376,9 +2636,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 533,
         "original_sharpe": 0.748,
-        "sharpe_percentile_rank": 99.4,
+        "sharpe_percentile_rank": 72.0,
         "probability_of_ruin": 0.0,
-        "passed": true
+        "passed": false
       },
       "statistical": {
         "n_observations": 533,
@@ -2396,11 +2656,48 @@
       }
     },
     {
+      "strategy": "regime_ensemble",
+      "ticker": "JPM",
+      "overall_pass": false,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.6807,
+        "pct_positive_sharpe": 0.667,
+        "avg_oos_return": 0.0245,
+        "avg_information_ratio": -1.074,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 632,
+        "original_sharpe": 0.3912,
+        "sharpe_percentile_rank": 99.9,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 632,
+        "sufficient_data": true,
+        "t_statistic": 0.619,
+        "p_value": 0.2681,
+        "sharpe_point": 0.3912,
+        "sharpe_ci": [
+          -0.8533,
+          1.6869
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
       "strategy": "double_ma",
       "ticker": "INTC",
       "overall_pass": false,
-      "verdict": "FAIL",
-      "gates_passed": 0,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 15,
         "avg_oos_sharpe": 0.0121,
@@ -2413,9 +2710,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 588,
         "original_sharpe": -0.3988,
-        "sharpe_percentile_rank": 98.3,
+        "sharpe_percentile_rank": 99.4,
         "probability_of_ruin": 100.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 588,
@@ -2450,7 +2747,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 394,
         "original_sharpe": -0.178,
-        "sharpe_percentile_rank": 99.7,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2487,7 +2784,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 146,
         "original_sharpe": -2.6963,
-        "sharpe_percentile_rank": 100.0,
+        "sharpe_percentile_rank": 96.6,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2524,7 +2821,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 108,
         "original_sharpe": 4.5691,
-        "sharpe_percentile_rank": 6.9,
+        "sharpe_percentile_rank": 45.1,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2561,7 +2858,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 322,
         "original_sharpe": -0.8054,
-        "sharpe_percentile_rank": 99.2,
+        "sharpe_percentile_rank": 98.9,
         "probability_of_ruin": 100.0,
         "passed": false
       },
@@ -2598,7 +2895,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 793,
         "original_sharpe": -0.1029,
-        "sharpe_percentile_rank": 98.7,
+        "sharpe_percentile_rank": 99.1,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2635,7 +2932,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 597,
         "original_sharpe": 0.2097,
-        "sharpe_percentile_rank": 58.2,
+        "sharpe_percentile_rank": 64.3,
         "probability_of_ruin": 0.0,
         "passed": false
       },
@@ -2672,7 +2969,7 @@
         "n_iterations": 1000,
         "n_trade_returns": 339,
         "original_sharpe": -0.9465,
-        "sharpe_percentile_rank": 99.8,
+        "sharpe_percentile_rank": 99.6,
         "probability_of_ruin": 100.0,
         "passed": false
       },
@@ -2685,6 +2982,43 @@
         "sharpe_ci": [
           -2.6666,
           0.7437
+        ],
+        "dsr": 0.0,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "INTC",
+      "overall_pass": false,
+      "verdict": "FAIL",
+      "gates_passed": 0,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.0088,
+        "pct_positive_sharpe": 0.4,
+        "avg_oos_return": 0.0309,
+        "avg_information_ratio": -0.0569,
+        "passed": false
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 452,
+        "original_sharpe": 0.28,
+        "sharpe_percentile_rank": 98.7,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 452,
+        "sufficient_data": true,
+        "t_statistic": 0.3745,
+        "p_value": 0.3541,
+        "sharpe_point": 0.28,
+        "sharpe_ci": [
+          -1.1421,
+          1.7201
         ],
         "dsr": 0.0,
         "returns_significant": false,
@@ -2760,7 +3094,7 @@
           -0.1605,
           2.6882
         ],
-        "dsr": 0.9754,
+        "dsr": 0.9269,
         "returns_significant": true,
         "dsr_passed": true
       }
@@ -2797,7 +3131,7 @@
           -0.4188,
           3.1966
         ],
-        "dsr": 0.868,
+        "dsr": 0.7457,
         "returns_significant": false,
         "dsr_passed": true
       }
@@ -2908,7 +3242,7 @@
           -0.2473,
           1.9293
         ],
-        "dsr": 0.8857,
+        "dsr": 0.6847,
         "returns_significant": false,
         "dsr_passed": true
       }
@@ -2982,7 +3316,44 @@
           -0.5611,
           2.3028
         ],
-        "dsr": 0.0121,
+        "dsr": 0.0018,
+        "returns_significant": false,
+        "dsr_passed": false
+      }
+    },
+    {
+      "strategy": "regime_ensemble",
+      "ticker": "AMD",
+      "overall_pass": false,
+      "verdict": "MARGINAL",
+      "gates_passed": 1,
+      "walk_forward": {
+        "num_windows": 15,
+        "avg_oos_sharpe": 0.4141,
+        "pct_positive_sharpe": 0.533,
+        "avg_oos_return": 0.0512,
+        "avg_information_ratio": -0.1467,
+        "passed": true
+      },
+      "monte_carlo": {
+        "n_iterations": 1000,
+        "n_trade_returns": 545,
+        "original_sharpe": 0.8533,
+        "sharpe_percentile_rank": 94.7,
+        "probability_of_ruin": 0.0,
+        "passed": false
+      },
+      "statistical": {
+        "n_observations": 545,
+        "sufficient_data": true,
+        "t_statistic": 1.2537,
+        "p_value": 0.1052,
+        "sharpe_point": 0.8533,
+        "sharpe_ci": [
+          -0.4797,
+          2.2049
+        ],
+        "dsr": 0.0008,
         "returns_significant": false,
         "dsr_passed": false
       }

@@ -83,7 +83,7 @@ Docker: `docker compose up --build` — that's it.
 | ensemble_vote | META | **0.31** | MARGINAL | 0.324 |
 <!-- EVAL_TABLE_END -->
 
-> 80 strategy-ticker pairs across 10 tickers and 8 strategies. 8 PASS, 25 MARGINAL. The ensemble vote strategy filters noise by requiring 3+ strategies to agree before entering. [Full report →](docs/evaluation_report.md)
+> 90 strategy-ticker pairs across 10 tickers and 9 strategies (including ensemble vote and regime-aware ensemble). 1 STRONG PASS, 7 PASS, 33 MARGINAL. [Full report →](docs/evaluation_report.md)
 
 ---
 
