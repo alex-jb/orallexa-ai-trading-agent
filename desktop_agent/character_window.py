@@ -43,6 +43,20 @@ PAUSE_MIN    = 3.0
 PAUSE_MAX    = 9.0
 TASKBAR_H    = 48
 
+# ── Idle animation (Claude Buddy inspired) ───────────────────────────────────
+# Indices map to walk frames; -1 = blink (use idle sprite briefly)
+# Mostly resting (0), occasional fidget (1-2), rare blink (-1)
+IDLE_SEQUENCE  = [0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 2, 0, 0, 0, 0, 0, -1, 0]
+IDLE_TICK_MS   = 500  # ms per idle frame
+
+# ── Bubble animation ─────────────────────────────────────────────────────────
+BUBBLE_SHOW_TICKS = 16   # ~8s at 500ms tick
+BUBBLE_FADE_TICKS = 4    # last ~2s the bubble dims before hiding
+
+# ── Pet interaction (hearts on click) ─────────────────────────────────────────
+PET_HEARTS = ["♥", "♥ ♥", "♥  ♥  ♥", "♥   ♥", "·  ·"]
+PET_BURST_MS = 2500
+
 # ── State definitions ─────────────────────────────────────────────────────────
 
 StateName = Literal["idle", "listening", "thinking", "confident", "warning", "wait"]
@@ -195,6 +209,18 @@ class BullCharacter:
         self._pause_until = time.time() + 1.0
         self._state: StateName = "idle"
 
+        # Idle animation state (Claude Buddy inspired)
+        self._idle_seq_idx = 0
+        self._idle_tick_count = 0
+
+        # Bubble auto-hide timer
+        self._bubble_ticks_left = 0
+        self._bubble_fading = False
+
+        # Pet interaction
+        self._pet_active = False
+        self._pet_tick = 0
+
         # ── Main window (must exist before loading sprites) ───────
         self._win = tk.Tk()
 
@@ -244,10 +270,15 @@ class BullCharacter:
         self._bcanvas.pack()
         self._bimg_item: int | None = None
 
+        # ── Heart overlay (pet interaction) ───────────────────────
+        self._heart_item: int | None = None
+
         # ── Start loops ───────────────────────────────────────────
         self._pick_target()
         self._move_loop()
         self._sprite_loop()
+        self._idle_tick_loop()
+        self._bubble_tick_loop()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -359,7 +390,17 @@ class BullCharacter:
             # Show state sprite when paused and in a non-idle state
             photo = self._get_state_sprite(self._state)
         elif self._paused:
-            photo = self._idle
+            # Idle animation: use IDLE_SEQUENCE for subtle fidget/blink
+            frame_idx = IDLE_SEQUENCE[self._idle_seq_idx % len(IDLE_SEQUENCE)]
+            if frame_idx == -1:
+                # Blink: briefly show a walk frame then back to idle
+                photo = self._frames_r[0]
+            elif frame_idx > 0:
+                # Fidget: show a walk frame
+                frames = self._frames_r if self._direction == 1 else self._frames_l
+                photo = frames[min(frame_idx, len(frames) - 1)]
+            else:
+                photo = self._idle
         else:
             frames = self._frames_r if self._direction == 1 else self._frames_l
             self._sprite_idx = (self._sprite_idx + 1) % N_FRAMES
@@ -367,6 +408,27 @@ class BullCharacter:
 
         self._canvas.itemconfig(self._img_item, image=photo)
         self._win.after(1000 // FPS_SPRITE, self._sprite_loop)
+
+    def _idle_tick_loop(self) -> None:
+        """Advance idle animation sequence at IDLE_TICK_MS interval."""
+        if self._paused and self._state == "idle":
+            self._idle_seq_idx = (self._idle_seq_idx + 1) % len(IDLE_SEQUENCE)
+        self._win.after(IDLE_TICK_MS, self._idle_tick_loop)
+
+    def _bubble_tick_loop(self) -> None:
+        """Auto-hide bubble after BUBBLE_SHOW_TICKS. Fade in last BUBBLE_FADE_TICKS."""
+        if self._bubble_visible and self._bubble_ticks_left > 0:
+            self._bubble_ticks_left -= 1
+            if self._bubble_ticks_left <= BUBBLE_FADE_TICKS and not self._bubble_fading:
+                self._bubble_fading = True
+                # Start fading: reduce bubble window opacity
+                try:
+                    self._bwin.wm_attributes("-alpha", 0.5)
+                except tk.TclError:
+                    pass
+            if self._bubble_ticks_left <= 0:
+                self._hide_bubble()
+        self._win.after(IDLE_TICK_MS, self._bubble_tick_loop)
 
     def _get_state_sprite(self, state: str) -> ImageTk.PhotoImage:
         """Load and cache state sprite. Falls back to idle."""
@@ -381,6 +443,8 @@ class BullCharacter:
         photo = _make_bubble(text, accent=accent)
         self._bubble_photo = photo
         self._bubble_visible = True
+        self._bubble_ticks_left = BUBBLE_SHOW_TICKS
+        self._bubble_fading = False
 
         bw = photo.width()
         bh = photo.height()
@@ -392,10 +456,20 @@ class BullCharacter:
             self._bimg_item = self._bcanvas.create_image(0, 0, anchor="nw",
                                                          image=photo)
         self._update_bubble_pos()
+        try:
+            self._bwin.wm_attributes("-alpha", 1.0)
+        except tk.TclError:
+            pass
         self._bwin.deiconify()
 
     def _hide_bubble(self) -> None:
         self._bubble_visible = False
+        self._bubble_fading = False
+        self._bubble_ticks_left = 0
+        try:
+            self._bwin.wm_attributes("-alpha", 1.0)
+        except tk.TclError:
+            pass
         self._bwin.withdraw()
 
     def _update_bubble_pos(self) -> None:
@@ -417,8 +491,43 @@ class BullCharacter:
     # ── Click ─────────────────────────────────────────────────────────────────
 
     def _handle_click(self, _event) -> None:
+        # Pet interaction: show floating hearts
+        if self._state == "idle" and not self._pet_active:
+            self._start_pet_burst()
         if self._on_click:
             self._on_click(self._x + CHAR_W // 2, self._y)
+
+    def _start_pet_burst(self) -> None:
+        """Show floating hearts above the bull (Claude Buddy pet interaction)."""
+        self._pet_active = True
+        self._pet_tick = 0
+        # Show a happy bubble
+        self._show_bubble(random.choice(["Moo~ ♥", "嘿嘿~", "Bull happy!", "摸摸~"]),
+                          accent="#DC3C3C")
+        self._pet_hearts_loop()
+
+    def _pet_hearts_loop(self) -> None:
+        """Animate floating hearts above the character."""
+        if not self._pet_active:
+            return
+        if self._pet_tick >= len(PET_HEARTS):
+            self._pet_active = False
+            if self._heart_item is not None:
+                self._canvas.delete(self._heart_item)
+                self._heart_item = None
+            return
+
+        heart_text = PET_HEARTS[self._pet_tick]
+        if self._heart_item is not None:
+            self._canvas.delete(self._heart_item)
+        # Draw hearts above the bull, floating upward
+        y_offset = 20 - self._pet_tick * 4
+        self._heart_item = self._canvas.create_text(
+            CHAR_W // 2, max(2, y_offset),
+            text=heart_text, fill="#DC3C3C",
+            font=("Segoe UI", 10))
+        self._pet_tick += 1
+        self._win.after(PET_BURST_MS // len(PET_HEARTS), self._pet_hearts_loop)
 
 
 # ── Standalone test ───────────────────────────────────────────────────────────
