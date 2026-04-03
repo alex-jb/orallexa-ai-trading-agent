@@ -23,8 +23,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Sync presentation to docs
-        run: cp presentation.html docs/presentation.html
+      - name: Sync assets to docs
+        run: |
+          cp presentation.html docs/presentation.html 2>/dev/null || true
+          mkdir -p docs/assets
+          cp assets/logo.svg docs/assets/logo.svg
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

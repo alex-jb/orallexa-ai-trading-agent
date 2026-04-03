@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4AF37"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#C5A255"/>
+    </linearGradient>
+    <linearGradient id="goldLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="transparent"/>
+      <stop offset="20%" stop-color="#D4AF37"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="80%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>
+    <linearGradient id="goldVertical" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#C5A255"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="#0A0A0F"/>
+
+  <!-- Art Deco geometric bull icon -->
+  <g transform="translate(400, 120)">
+    <!-- Outer diamond frame -->
+    <polygon points="0,-70 70,0 0,70 -70,0" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <!-- Inner diamond -->
+    <polygon points="0,-50 50,0 0,50 -50,0" fill="none" stroke="url(#gold)" stroke-width="1.2" opacity="0.6"/>
+
+    <!-- Bull horns — geometric Art Deco style -->
+    <path d="M-18,-20 L-28,-55 L-42,-68 L-38,-62 L-26,-48 L-16,-18" fill="url(#gold)" opacity="0.95"/>
+    <path d="M18,-20 L28,-55 L42,-68 L38,-62 L26,-48 L16,-18" fill="url(#gold)" opacity="0.95"/>
+
+    <!-- Central orb/eye -->
+    <circle cx="0" cy="-5" r="18" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+    <circle cx="0" cy="-5" r="10" fill="url(#goldVertical)" opacity="0.3"/>
+    <circle cx="0" cy="-5" r="5" fill="#FFD700" opacity="0.8"/>
+
+    <!-- Stepped shoulders (Art Deco) -->
+    <path d="M-22,5 L-35,5 L-35,12 L-45,12 L-45,19 L-55,19" fill="none" stroke="url(#gold)" stroke-width="1.5" opacity="0.7"/>
+    <path d="M22,5 L35,5 L35,12 L45,12 L45,19 L55,19" fill="none" stroke="url(#gold)" stroke-width="1.5" opacity="0.7"/>
+
+    <!-- Nose/snout -->
+    <path d="M-8,12 L0,22 L8,12" fill="none" stroke="url(#gold)" stroke-width="1.5"/>
+  </g>
+
+  <!-- Decorative gold line -->
+  <rect x="200" y="195" width="400" height="1.5" fill="url(#goldLine)"/>
+
+  <!-- Diamond center accent on line -->
+  <g transform="translate(400, 196) rotate(45)">
+    <rect x="-4" y="-4" width="8" height="8" fill="#D4AF37"/>
+  </g>
+  <g transform="translate(380, 196) rotate(45)">
+    <rect x="-2.5" y="-2.5" width="5" height="5" fill="#C5A255"/>
+  </g>
+  <g transform="translate(420, 196) rotate(45)">
+    <rect x="-2.5" y="-2.5" width="5" height="5" fill="#C5A255"/>
+  </g>
+
+  <!-- Brand name — geometric Art Deco letterforms -->
+  <text x="400" y="260" text-anchor="middle"
+        font-family="'Poiret One', 'Josefin Sans', 'Futura', 'Century Gothic', sans-serif"
+        font-size="56" font-weight="400" letter-spacing="0.25em"
+        fill="url(#gold)">ORALLEXA</text>
+
+  <!-- Tagline -->
+  <text x="400" y="295" text-anchor="middle"
+        font-family="'Josefin Sans', 'Futura', 'Century Gothic', sans-serif"
+        font-size="13" font-weight="300" letter-spacing="0.35em"
+        fill="#C5A255" opacity="0.8">AI TRADING OPERATING SYSTEM</text>
+
+  <!-- Corner ornaments (Art Deco stepped corners) -->
+  <!-- Top-left -->
+  <path d="M30,30 L30,55 M30,30 L55,30" stroke="#D4AF37" stroke-width="1.5" opacity="0.4"/>
+  <path d="M35,35 L35,50 M35,35 L50,35" stroke="#D4AF37" stroke-width="1" opacity="0.25"/>
+  <!-- Top-right -->
+  <path d="M770,30 L770,55 M770,30 L745,30" stroke="#D4AF37" stroke-width="1.5" opacity="0.4"/>
+  <path d="M765,35 L765,50 M765,35 L750,35" stroke="#D4AF37" stroke-width="1" opacity="0.25"/>
+  <!-- Bottom-left -->
+  <path d="M30,370 L30,345 M30,370 L55,370" stroke="#D4AF37" stroke-width="1.5" opacity="0.4"/>
+  <path d="M35,365 L35,350 M35,365 L50,365" stroke="#D4AF37" stroke-width="1" opacity="0.25"/>
+  <!-- Bottom-right -->
+  <path d="M770,370 L770,345 M770,370 L745,370" stroke="#D4AF37" stroke-width="1.5" opacity="0.4"/>
+  <path d="M765,365 L765,350 M765,365 L750,365" stroke="#D4AF37" stroke-width="1" opacity="0.25"/>
+
+  <!-- Subtle border frame -->
+  <rect x="20" y="20" width="760" height="360" fill="none" stroke="#D4AF37" stroke-width="0.5" opacity="0.15"/>
+</svg>
