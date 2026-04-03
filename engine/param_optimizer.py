@@ -75,6 +75,14 @@ SEARCH_SPACES = {
         "k_up": ("float", 0.3, 1.0),
         "k_down": ("float", 0.3, 1.0),
     },
+    "ensemble_vote": {
+        "min_agree": ("int", 2, 5),
+    },
+    "regime_ensemble": {
+        "trend_min_agree": ("int", 1, 4),
+        "range_min_agree": ("int", 3, 6),
+        "adx_trend": ("int", 15, 30),
+    },
 }
 
 
