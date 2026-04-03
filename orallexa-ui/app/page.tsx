@@ -5,8 +5,12 @@ import { useSearchParams } from "next/navigation";
 import * as Mock from "./mock-data";
 import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData, BacktestSummary } from "./types";
 import { T, API, sentCls, decColorJournal, nsSummary } from "./types";
-import { GoldRule, Heading, Mod, Row, BrandMark, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView, PriceChart, SignalToast, BacktestPanel } from "./components";
+import dynamic from "next/dynamic";
+import { GoldRule, Heading, Mod, Row, BrandMark, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, SignalToast, BacktestPanel } from "./components";
 import { useNotifications } from "./hooks/use-notifications";
+
+const PriceChart = dynamic(() => import("./components/price-chart").then(m => ({ default: m.PriceChart })), { ssr: false });
+const DailyIntelView = dynamic(() => import("./components/daily-intel").then(m => ({ default: m.DailyIntelView })), { ssr: false });
 
 /* Art Deco Design Atoms imported from ./components */
 
