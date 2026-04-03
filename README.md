@@ -73,15 +73,17 @@ Docker: `docker compose up --build` — that's it.
 <!-- EVAL_TABLE_START -->
 | Strategy | Ticker | OOS Sharpe | Verdict | p-value |
 |----------|--------|-----------|---------|---------|
-| trend_momentum | NVDA | **0.74** | STRONG PASS | 0.005 |
 | rsi_reversal | INTC | **1.41** | PASS | 0.002 |
 | dual_thrust | NVDA | **0.96** | PASS | 0.001 |
 | alpha_combo | NVDA | **0.92** | PASS | 0.016 |
 | macd_crossover | NVDA | **0.91** | PASS | 0.003 |
+| ensemble_vote | NVDA | **0.90** | PASS | 0.001 |
+| trend_momentum | NVDA | **0.74** | PASS | 0.005 |
 | double_ma | GOOG | **0.64** | PASS | 0.049 |
+| ensemble_vote | META | **0.31** | MARGINAL | 0.324 |
 <!-- EVAL_TABLE_END -->
 
-> 70 strategy-ticker pairs across 10 tickers. 1 STRONG PASS, 6 PASS, 21 MARGINAL. Rule-based strategies serve as feature generators for the 9-model ML ensemble. [Full report →](docs/evaluation_report.md)
+> 80 strategy-ticker pairs across 10 tickers and 8 strategies. 8 PASS, 25 MARGINAL. The ensemble vote strategy filters noise by requiring 3+ strategies to agree before entering. [Full report →](docs/evaluation_report.md)
 
 ---
 

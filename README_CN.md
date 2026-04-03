@@ -73,15 +73,17 @@ Docker 一键启动：`docker compose up --build`
 <!-- EVAL_TABLE_START -->
 | 策略 | 标的 | 样本外 Sharpe | 评级 | p 值 |
 |------|------|-------------|------|------|
-| trend_momentum | NVDA | **0.74** | STRONG PASS | 0.005 |
 | rsi_reversal | INTC | **1.41** | PASS | 0.002 |
 | dual_thrust | NVDA | **0.96** | PASS | 0.001 |
 | alpha_combo | NVDA | **0.92** | PASS | 0.016 |
 | macd_crossover | NVDA | **0.91** | PASS | 0.003 |
+| ensemble_vote | NVDA | **0.90** | PASS | 0.001 |
+| trend_momentum | NVDA | **0.74** | PASS | 0.005 |
 | double_ma | GOOG | **0.64** | PASS | 0.049 |
+| ensemble_vote | META | **0.31** | MARGINAL | 0.324 |
 <!-- EVAL_TABLE_END -->
 
-> 70 个策略-标的组合，10 个标的。1 个 STRONG PASS，6 个 PASS，21 个 MARGINAL。规则策略作为 9 模型 ML 集成的特征生成器。[完整报告 →](docs/evaluation_report.md)
+> 80 个策略-标的组合，10 个标的，8 个策略。8 个 PASS，25 个 MARGINAL。组合投票策略要求 3+ 策略同时看多才入场，过滤噪音。[完整报告 →](docs/evaluation_report.md)
 
 ---
 

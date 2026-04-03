@@ -20,6 +20,7 @@ Strategies included:
     5. trend_momentum     — Combined MA trend + MACD momentum + Volume confirmation
     6. dual_thrust        — Opening range breakout (high-frequency classic)
     7. alpha_combo        — Multi-factor composite signal
+    8. ensemble_vote      — Majority vote across all strategies (noise filter)
 """
 
 import numpy as np
@@ -414,6 +415,43 @@ def dual_thrust(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 8. ENSEMBLE VOTE — majority vote across base strategies
+# ══════════════════════════════════════════════════════════════════════════
+
+def ensemble_vote(df: pd.DataFrame, params: Dict[str, Any] = None) -> pd.Series:
+    """
+    Run all base strategies, only enter when >= min_agree strategies agree.
+    Filters out noise trades where only 1-2 strategies fire.
+    """
+    params = params or {}
+    min_agree = params.get("min_agree", 3)
+
+    base_strategies = [
+        (double_ma, STRATEGY_DEFAULT_PARAMS.get("double_ma", {})),
+        (macd_crossover, STRATEGY_DEFAULT_PARAMS.get("macd_crossover", {})),
+        (bollinger_breakout, STRATEGY_DEFAULT_PARAMS.get("bollinger_breakout", {})),
+        (rsi_reversal, STRATEGY_DEFAULT_PARAMS.get("rsi_reversal", {})),
+        (trend_momentum, STRATEGY_DEFAULT_PARAMS.get("trend_momentum", {})),
+        (dual_thrust, STRATEGY_DEFAULT_PARAMS.get("dual_thrust", {})),
+    ]
+
+    votes = pd.DataFrame(index=df.index)
+    for i, (fn, default_params) in enumerate(base_strategies):
+        try:
+            votes[f"s{i}"] = fn(df, default_params)
+        except Exception:
+            votes[f"s{i}"] = 0
+
+    # Count how many strategies say "long" (signal == 1)
+    long_votes = (votes == 1).sum(axis=1)
+
+    signal = pd.Series(0, index=df.index)
+    signal[long_votes >= min_agree] = 1
+
+    return signal
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # STRATEGY REGISTRY
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -425,6 +463,7 @@ STRATEGY_REGISTRY = {
     "trend_momentum":     trend_momentum,
     "alpha_combo":        alpha_combo,
     "dual_thrust":        dual_thrust,
+    "ensemble_vote":      ensemble_vote,
 }
 
 STRATEGY_DEFAULT_PARAMS = {
@@ -450,6 +489,9 @@ STRATEGY_DEFAULT_PARAMS = {
     "dual_thrust": {
         "lookback": 4, "k_up": 0.5, "k_down": 0.5
     },
+    "ensemble_vote": {
+        "min_agree": 3
+    },
 }
 
 STRATEGY_DESCRIPTIONS = {
@@ -460,6 +502,7 @@ STRATEGY_DESCRIPTIONS = {
     "trend_momentum":     "MA trend + MACD momentum + Volume — Orallexa enhanced strategy",
     "alpha_combo":        "Multi-factor alpha composite — 6 independent signals combined",
     "dual_thrust":        "Opening range breakout — high-frequency classic using N-day range triggers",
+    "ensemble_vote":      "Majority vote across 6 base strategies — noise filter, only trades when 3+ agree",
 }
 
 
