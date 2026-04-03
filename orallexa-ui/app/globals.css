@@ -138,7 +138,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: linear-gradient(90deg, rgba(212,175,55,0.06) 25%, rgba(212,175,55,0.12) 50%, rgba(212,175,55,0.06) 75%);
   background-size: 200% 100%;
   animation: goldShimmer 1.5s ease-in-out infinite;
-  border-radius: 3px;
+  border-radius: 0;
 }
 
 /* ── Tooltip ──────────────────────────────────────────────────────── */
