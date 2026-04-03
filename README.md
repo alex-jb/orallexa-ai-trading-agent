@@ -226,6 +226,27 @@ Not every task needs the expensive model:
 
 ---
 
+## Orallexa vs ai-hedge-fund
+
+Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share the multi-agent philosophy but take different approaches:
+
+| Feature | ai-hedge-fund | Orallexa |
+|---------|:------------:|:--------:|
+| ML Models | 0 (LLM-only) | 9 (RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR) |
+| Model Ranking | No | Auto-ranked by Sharpe ratio |
+| LLM Providers | OpenAI, Groq, Anthropic, DeepSeek | Claude Sonnet + Haiku (dual-tier routing) |
+| Cost per Analysis | ~$0.03+ (single-tier) | ~$0.003 (80% Haiku, 20% Sonnet) |
+| Real-time Dashboard | Basic web UI | Next.js 16 with WebSocket, Art Deco theme |
+| Paper Trading | No execution | Alpaca bracket orders (stop-loss + take-profit) |
+| Daily Intelligence | No | 50+ tickers, sector rotation, AI morning brief |
+| Desktop Assistant | No | Pixel bull with voice (Whisper + TTS) |
+| Social Content | No | One-click "Copy for X" on every section |
+| Walk-Forward Eval | No | 70 strategy-ticker pairs, OOS Sharpe |
+| Tests | Limited | 277 automated (139 frontend + 138 backend) |
+| Bilingual | No | EN/ZH |
+
+---
+
 ## Tech Stack
 
 <table>

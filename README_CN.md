@@ -226,6 +226,27 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 ---
 
+## Orallexa vs ai-hedge-fund
+
+受 [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) 启发。我们共享多 Agent 理念，但走了不同路线：
+
+| 功能 | ai-hedge-fund | Orallexa |
+|------|:------------:|:--------:|
+| ML 模型 | 0（纯 LLM） | 9 个（RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR） |
+| 模型排名 | 无 | 按 Sharpe 自动排名 |
+| LLM 供应商 | OpenAI, Groq, Anthropic, DeepSeek | Claude Sonnet + Haiku（双层路由） |
+| 单次分析成本 | ~$0.03+（单层） | ~$0.003（80% Haiku，20% Sonnet） |
+| 实时仪表盘 | 基础 Web UI | Next.js 16 + WebSocket，Art Deco 主题 |
+| 模拟交易 | 无执行 | Alpaca 括号单（止损 + 止盈） |
+| 每日情报 | 无 | 50+ 标的扫描，板块轮动，AI 晨间简报 |
+| 桌面助手 | 无 | 像素牛 + 语音（Whisper + TTS） |
+| 社交内容 | 无 | 一键"复制到 X" |
+| Walk-Forward 评估 | 无 | 70 个策略-标的组合，样本外 Sharpe |
+| 测试 | 有限 | 277 个自动化（139 前端 + 138 后端） |
+| 双语 | 无 | 中英双语 |
+
+---
+
 ## 技术栈
 
 <table>
