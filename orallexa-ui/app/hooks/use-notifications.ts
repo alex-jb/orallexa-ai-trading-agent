@@ -19,6 +19,7 @@ export function useNotifications(): UseNotificationsReturn {
   useEffect(() => {
     // Sync initial permission state once client-side
     if ("Notification" in window) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync of browser permission state on mount
       setPermission(Notification.permission);
     }
 

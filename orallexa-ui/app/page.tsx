@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import * as Mock from "./mock-data";
 import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData, BacktestSummary } from "./types";
-import { T, API, displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, riskColor, sentCls, recBg, decColorJournal, nsSummary, copyWithAttribution } from "./types";
-import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, BrandMark, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView, PriceChart, SignalToast, BacktestPanel } from "./components";
+import { T, API, sentCls, decColorJournal, nsSummary } from "./types";
+import { GoldRule, Heading, Mod, Row, BrandMark, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView, PriceChart, SignalToast, BacktestPanel } from "./components";
 import { useNotifications } from "./hooks/use-notifications";
 
 /* Art Deco Design Atoms imported from ./components */
@@ -99,7 +99,7 @@ export default function Home() {
       if (pRes.ok) { setProfile(await pRes.json()); }
       if (jRes.ok) { const d = await jRes.json(); setJournal(d.entries || []); }
     } catch { setError(lang === "ZH" ? "无法连接后端 API，请检查服务是否启动" : "Cannot connect to API server. Is the backend running?"); }
-  }, [asset]);
+  }, [asset, lang]);
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
 
@@ -403,7 +403,7 @@ export default function Home() {
       if (res.ok) setDailyIntel(await res.json());
     } catch { if (!apiDead.current) setError(zh ? "每日情报加载失败" : "Daily intel failed to load"); }
     finally { setIntelLoading(false); }
-  }, []);
+  }, [zh]);
 
   // Auto-fetch intel when tab switches to "intel"
   useEffect(() => {
@@ -598,12 +598,14 @@ export default function Home() {
         <Mod title={t.voice}>
           <button
             onMouseDown={() => {
-              const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+              /* eslint-disable @typescript-eslint/no-explicit-any */
+              const w = window as any;
+              const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
               if (!SR) { setError(t.voiceError); return; }
               const recognition = new SR();
               recognition.lang = lang === "ZH" ? "zh-CN" : "en-US";
               recognition.interimResults = false;
-              recognition.onresult = (e: any) => {
+              recognition.onresult = (e: { results: { 0: { 0: { transcript: string } } } }) => {
                 const transcript = e.results[0][0].transcript;
                 if (transcript) {
                   setContext((prev) => prev ? `${prev}; ${transcript}` : transcript);
@@ -613,10 +615,11 @@ export default function Home() {
               recognition.onerror = () => setIsRecording(false);
               recognition.start();
               setIsRecording(true);
-              (window as any).__recognition = recognition;
+              w.__recognition = recognition;
+              /* eslint-enable @typescript-eslint/no-explicit-any */
             }}
-            onMouseUp={() => { (window as any).__recognition?.stop(); setIsRecording(false); }}
-            onMouseLeave={() => { (window as any).__recognition?.stop(); setIsRecording(false); }}
+            onMouseUp={() => { (window as unknown as Record<string, { stop: () => void }>).__recognition?.stop(); setIsRecording(false); }}
+            onMouseLeave={() => { (window as unknown as Record<string, { stop: () => void }>).__recognition?.stop(); setIsRecording(false); }}
             className={`w-full py-2 text-[10px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.12em] transition-colors ${isRecording ? "text-[#D4AF37]" : "text-[#8B8E96] hover:text-[#C5A255]"}`}
             style={{ background: isRecording ? "rgba(212,175,55,0.08)" : "#2A2A3E", border: `1px solid ${isRecording ? "rgba(212,175,55,0.4)" : "rgba(212,175,55,0.1)"}` }}>
             {isRecording ? t.listening : t.holdSpeak}

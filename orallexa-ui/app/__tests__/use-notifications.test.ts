@@ -104,7 +104,6 @@ describe("useNotifications", () => {
   it("handles missing Notification API gracefully", async () => {
     // Remove Notification from window
     const original = globalThis.Notification;
-    // @ts-expect-error — intentionally removing for test
     delete (globalThis as Record<string, unknown>).Notification;
     const { result } = renderHook(() => useNotifications());
     await act(async () => {

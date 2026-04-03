@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BreakingSignal } from "../types";
 
 interface Toast {
@@ -14,15 +14,16 @@ export function SignalToast({ signals, onSelect }: {
   onSelect: (ticker: string) => void;
 }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [seen, setSeen] = useState<Set<string>>(new Set());
+  const seenRef = useRef<Set<string>>(new Set());
 
-  // Watch for new signals
+  // Sync external signals prop → internal toast state (legitimate external-system sync)
   useEffect(() => {
     for (const sig of signals) {
       const key = `${sig.ticker}-${sig.type}-${sig.timestamp}`;
-      if (seen.has(key)) continue;
-      setSeen(prev => new Set(prev).add(key));
+      if (seenRef.current.has(key)) continue;
+      seenRef.current.add(key);
       const id = crypto.randomUUID();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing external signal prop to toast queue
       setToasts(prev => [{ id, signal: sig, exiting: false }, ...prev].slice(0, 3));
 
       // Auto-dismiss after 8s
@@ -33,7 +34,7 @@ export function SignalToast({ signals, onSelect }: {
         }, 300);
       }, 8000);
     }
-  }, [signals, seen]);
+  }, [signals]);
 
   const dismiss = (id: string) => {
     setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));

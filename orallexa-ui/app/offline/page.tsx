@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore, useState } from "react";
+import Link from "next/link";
+
+function getLastSeen() {
+  return localStorage.getItem("orallexa_last_online");
+}
+
+const subscribe = () => () => {};
 
 export default function OfflinePage() {
   const [checking, setChecking] = useState(false);
-  const [lastSeen, setLastSeen] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Show when the user was last online
-    const ts = localStorage.getItem("orallexa_last_online");
-    if (ts) setLastSeen(ts);
-  }, []);
+  const lastSeen = useSyncExternalStore(subscribe, getLastSeen, () => null);
 
   const handleRetry = () => {
     setChecking(true);
@@ -195,7 +196,7 @@ export default function OfflinePage() {
         </button>
 
         {/* Go to cached dashboard */}
-        <a
+        <Link
           href="/"
           className="mt-3 text-[10px] uppercase tracking-[0.14em] transition-colors hover:text-[#FFD700]"
           style={{
@@ -205,7 +206,7 @@ export default function OfflinePage() {
           }}
         >
           View cached dashboard / 查看缓存数据
-        </a>
+        </Link>
 
         {/* Bottom accent line */}
         <div

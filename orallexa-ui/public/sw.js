@@ -1,7 +1,6 @@
 // Orallexa Capital — Service Worker
 // Cache-first for static assets, network-first for pages, offline fallback
 
-const CACHE_VERSION = "orallexa-v3";
 const STATIC_CACHE = "orallexa-static-v3";
 const RUNTIME_CACHE = "orallexa-runtime-v3";
 const API_CACHE = "orallexa-api-v3";
