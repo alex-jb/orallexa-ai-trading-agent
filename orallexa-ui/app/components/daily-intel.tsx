@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow } from "../types";
-import { copyWithAttribution } from "../types";
+import { copyWithAttribution, TWITTER_HANDLE } from "../types";
 import { Mod, CopyBtn } from "./atoms";
 
 /* ── Macro Pulse Strip ─────────────────────────────────────────────── */
@@ -92,9 +93,9 @@ function FearGreedGauge({ data, t }: { data: FearGreedData; t: Record<string, st
             style={{ fontSize: "24px", fontFamily: "DM Mono", fontWeight: 700 }}>{score}</text>
           {/* Labels */}
           <text x="18" y="100" textAnchor="middle" fill="#8B0000"
-            style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>Fear</text>
+            style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t.fearLabel}</text>
           <text x="182" y="100" textAnchor="middle" fill="#006B3F"
-            style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>Greed</text>
+            style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t.greedLabel}</text>
         </svg>
         <div className="text-[16px] font-[Josefin_Sans] font-bold uppercase tracking-[0.12em] -mt-2" style={{ color: scoreColor }}>{data.label}</div>
       </div>
@@ -198,13 +199,13 @@ function BreadthPanel({ data, t }: { data: MarketBreadth; t: Record<string, stri
           <div style={{ width: `${decPct}%`, background: "#8B0000" }} />
         </div>
         <div className="text-center text-[8px] font-[DM_Mono] text-[#4A4D55] mt-1">
-          {data.unchanged} unchanged
+          {data.unchanged} {t.unchanged}
         </div>
       </div>
 
       {/* Volume split */}
       <div className="mb-3">
-        <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">Volume</div>
+        <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{t.volumeLabel}</div>
         <div className="flex h-[6px] w-full overflow-hidden" style={{ background: "#2A2A3E" }}>
           <div style={{ width: `${advVolPct}%`, background: "rgba(0,107,63,0.6)" }} />
           <div style={{ width: `${100 - advVolPct}%`, background: "rgba(139,0,0,0.6)" }} />
@@ -245,7 +246,7 @@ function OptionsFlowPanel({ flows, onSelectTicker, t }: { flows: OptionsFlow[]; 
             <span className="text-[11px] font-[DM_Mono] font-bold text-[#F5E6CA] w-[42px] shrink-0">{f.ticker}</span>
             <span className="text-[7px] font-[Josefin_Sans] font-bold uppercase tracking-[0.08em] px-1.5 py-[2px] shrink-0"
               style={{ color, background: `${color}15`, border: `1px solid ${color}30` }}>
-              {isCall ? "CALL" : "PUT"}
+              {isCall ? t.callType : t.putType}
             </span>
             {/* Strike + expiry */}
             <div className="flex-1 min-w-0">
@@ -256,16 +257,109 @@ function OptionsFlowPanel({ flows, onSelectTicker, t }: { flows: OptionsFlow[]; 
             <span className="text-[10px] font-[DM_Mono] font-medium shrink-0" style={{ color }}>{f.premium}</span>
             {/* Unusual flag */}
             {f.unusual && (
-              <span className="w-[5px] h-[5px] rotate-45 shrink-0" style={{ background: "#D4AF37" }} title="Unusual activity" />
+              <span className="w-[5px] h-[5px] rotate-45 shrink-0" style={{ background: "#D4AF37" }} title={t.unusualActivity} />
             )}
           </button>
         );
       })}
       <div className="text-[8px] font-[Lato] text-[#4A4D55] mt-2 flex items-center gap-1">
         <span className="w-[4px] h-[4px] rotate-45 inline-block" style={{ background: "#D4AF37" }} />
-        = unusual activity
+        = {t.unusualActivity}
       </div>
     </Mod>
+  );
+}
+
+/* ── Share Row ────────────────────────────────────────────────────── */
+function ShareRow({ briefText, t }: { briefText: string; t: Record<string, string> }) {
+  const [copied, setCopied] = useState(false);
+
+  const pageUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareText = briefText || "AI-Powered Capital Intelligence — Orallexa";
+
+  const handleShareX = () => {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}&via=orallexatrading`;
+    window.open(url, "_blank", "noopener,noreferrer,width=550,height=420");
+  };
+
+  const handleShareLinkedIn = () => {
+    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`;
+    window.open(url, "_blank", "noopener,noreferrer,width=550,height=420");
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(pageUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative" style={{ background: "#1A1A2E" }}>
+      <div className="absolute inset-0 border pointer-events-none" style={{ borderColor: "rgba(212,175,55,0.15)" }} />
+      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, transparent, #D4AF37, transparent)" }} />
+      <div className="px-4 py-3">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex gap-0.5">
+            <div className="w-1 h-1 rotate-45" style={{ background: "#D4AF37" }} />
+            <div className="w-1.5 h-1.5 rotate-45 border" style={{ borderColor: "#D4AF37" }} />
+          </div>
+          <span className="text-[10px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.28em]"
+            style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            {t.share}
+          </span>
+          <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.2), transparent)" }} />
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2">
+          {/* Share to X */}
+          <button
+            onClick={handleShareX}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 transition-colors hover:bg-[#D4AF37]/8"
+            style={{ background: "rgba(42,42,62,0.5)", border: "1px solid rgba(212,175,55,0.12)" }}
+            aria-label={t.shareX}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#D4AF37" />
+            </svg>
+            <span className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#D4AF37]">X</span>
+          </button>
+
+          {/* Share to LinkedIn */}
+          <button
+            onClick={handleShareLinkedIn}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 transition-colors hover:bg-[#D4AF37]/8"
+            style={{ background: "rgba(42,42,62,0.5)", border: "1px solid rgba(212,175,55,0.12)" }}
+            aria-label={t.shareLinkedIn}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="#D4AF37" />
+            </svg>
+            <span className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#D4AF37]">LinkedIn</span>
+          </button>
+
+          {/* Copy Link */}
+          <button
+            onClick={handleCopyLink}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 transition-colors hover:bg-[#D4AF37]/8"
+            style={{ background: copied ? "rgba(212,175,55,0.1)" : "rgba(42,42,62,0.5)", border: `1px solid ${copied ? "rgba(212,175,55,0.3)" : "rgba(212,175,55,0.12)"}` }}
+            aria-label={t.copyLink}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              {copied ? (
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#D4AF37" />
+              ) : (
+                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" fill="#D4AF37" />
+              )}
+            </svg>
+            <span className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#D4AF37]">
+              {copied ? t.copied : t.copyLink}
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -350,7 +444,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
       <Mod title={<div className="flex items-center justify-between w-full"><span>{t.topMovers}</span><CopyBtn text={data.social_posts?.movers || moversText} /></div>}>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "#006B3F" }}>{zh ? "涨幅榜" : "Gainers"}</div>
+            <div className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "#006B3F" }}>{t.gainersLabel}</div>
             {data.gainers.map((g, i) => (
               <button key={i} onClick={() => onSelectTicker(g.ticker)} className="w-full flex justify-between items-center py-[6px] border-b last:border-b-0 hover:bg-[#006B3F]/5 transition-colors text-left" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
                 <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{g.ticker}</span>
@@ -362,7 +456,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
             ))}
           </div>
           <div>
-            <div className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "#8B0000" }}>{zh ? "跌幅榜" : "Losers"}</div>
+            <div className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "#8B0000" }}>{t.losersLabel}</div>
             {data.losers.map((l, i) => (
               <button key={i} onClick={() => onSelectTicker(l.ticker)} className="w-full flex justify-between items-center py-[6px] border-b last:border-b-0 hover:bg-[#8B0000]/5 transition-colors text-left" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
                 <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{l.ticker}</span>
@@ -418,7 +512,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
 
       {/* Volume Spikes */}
       {data.volume_spikes && data.volume_spikes.length > 0 && (
-        <Mod title={<div className="flex items-center justify-between w-full"><span>{zh ? "成交量异动" : "Volume Spikes"}</span><CopyBtn text={data.social_posts?.volume || volumeText} /></div>}>
+        <Mod title={<div className="flex items-center justify-between w-full"><span>{t.volumeSpikes}</span><CopyBtn text={data.social_posts?.volume || volumeText} /></div>}>
           {data.volume_spikes.map((s, i) => (
             <button key={i} onClick={() => onSelectTicker(s.ticker)} className="w-full flex justify-between items-center py-[6px] border-b last:border-b-0 hover:bg-[#D4AF37]/4 transition-colors text-left" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
               <div className="flex items-center gap-2">
@@ -436,7 +530,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
 
       {/* Orallexa Thread */}
       {data.orallexa_thread && data.orallexa_thread.length > 0 && (
-        <Mod title={zh ? "Orallexa 推文串" : "Orallexa Thread"}>
+        <Mod title={t.oralexaThread}>
           <div className="space-y-2 mb-3">
             {data.orallexa_thread.map((tw, i) => (
               <div key={i} className="relative group">
@@ -444,13 +538,13 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
                   <span className="text-[8px] font-[DM_Mono] text-[#4A4D55] mr-2">{i + 1}/{data.orallexa_thread!.length}</span>
                   {tw}
                 </div>
-                <button onClick={() => { copyWithAttribution(tw); }} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-[Josefin_Sans] text-[#C5A255] hover:text-[#FFD700] px-1.5 py-0.5 uppercase" style={{ background: "rgba(26,26,46,0.9)", border: "1px solid rgba(212,175,55,0.2)" }} aria-label="Copy post">Copy</button>
+                <button onClick={() => { copyWithAttribution(tw); }} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-[Josefin_Sans] text-[#C5A255] hover:text-[#FFD700] px-1.5 py-0.5 uppercase" style={{ background: "rgba(26,26,46,0.9)", border: "1px solid rgba(212,175,55,0.2)" }} aria-label={t.copy}>{t.copy}</button>
               </div>
             ))}
           </div>
           <button onClick={() => { const full = data.orallexa_thread!.map((tw, i) => `${i + 1}/${data.orallexa_thread!.length} ${tw}`).join("\n\n"); copyWithAttribution(full); }}
             className="w-full py-2 text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#D4AF37] hover:text-[#FFD700] transition-colors" style={{ background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.2)" }}>
-            {zh ? "复制完整推文串" : "Copy Full Thread"}
+            {t.copyFullThread}
           </button>
         </Mod>
       )}
@@ -476,6 +570,9 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
           </div>
         ))}
       </Mod>
+
+      {/* Share Row */}
+      <ShareRow briefText={data.social_posts?.brief || data.summary.slice(0, 240)} t={t} />
     </div>
   );
 }

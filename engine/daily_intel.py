@@ -464,6 +464,95 @@ CRITICAL RULES:
     return result
 
 
+# ── Step 6b: Options Flow (DEEP_MODEL) ─────────────────────────────────────
+
+def _generate_options_flow(
+    gainers: list[dict],
+    losers: list[dict],
+    spikes: list[dict],
+) -> list[dict] | None:
+    """Generate realistic unusual options activity via Sonnet based on today's movers."""
+    import llm.claude_client as cc
+    from llm.claude_client import get_client, _extract_text
+    from llm.call_logger import logged_create
+
+    gainers_str = "\n".join(
+        f"  {g['ticker']} +{g['change_pct']:.1f}% (${g['price']}, vol {g['volume_ratio']:.1f}x avg)"
+        for g in gainers[:6]
+    )
+    losers_str = "\n".join(
+        f"  {l['ticker']} {l['change_pct']:.1f}% (${l['price']}, vol {l['volume_ratio']:.1f}x avg)"
+        for l in losers[:6]
+    )
+    spikes_str = "\n".join(
+        f"  {s['ticker']} {s['change_pct']:+.1f}% — volume {s['volume_ratio']:.1f}x average (${s['price']})"
+        for s in spikes[:5]
+    )
+
+    today = datetime.now().strftime("%B %d, %Y")
+
+    prompt = f"""You are an options flow analyst generating a realistic unusual options activity report for {today}.
+
+Based on today's stock movers and volume spikes, generate 5-8 notable options trades that would plausibly appear on an options flow scanner (like unusual_whales or cheddarflow).
+
+TODAY'S MOVERS:
+
+TOP GAINERS:
+{gainers_str or "  None notable"}
+
+TOP LOSERS:
+{losers_str or "  None notable"}
+
+VOLUME SPIKES:
+{spikes_str or "  None detected"}
+
+RULES:
+- Tie each options trade to a real mover/spike from the data above
+- Strike prices should be realistic relative to current stock prices (slightly OTM or ATM)
+- Premium sizes should scale with stock price and market cap (mega-cap = larger premiums $5M-$50M, mid-cap = $1M-$10M)
+- Expiry dates should be near-term (1-4 weeks out) for most, with 1-2 longer-dated (2-3 months)
+- Gainers should skew toward calls, losers toward puts, but include 1-2 contrarian trades
+- Flag 60-70% of trades as "unusual" (true) — meaning volume significantly exceeds open interest
+- Include a mix of bullish and bearish sentiment
+
+Output ONLY valid JSON array (no markdown):
+[
+  {{"ticker": "NVDA", "type": "call", "premium": "$12.4M", "strike": "$150", "expiry": "Apr 18", "sentiment": "bullish", "unusual": true}}
+]"""
+
+    try:
+        client = get_client()
+        response, _ = logged_create(
+            client, request_type="daily_intel_options_flow",
+            model=cc.DEEP_MODEL, max_tokens=600, temperature=0.3,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = _extract_text(response).strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        start, end = text.find("["), text.rfind("]")
+        if start != -1 and end != -1:
+            text = text[start:end + 1]
+        flows = json.loads(text)
+
+        # Validate and clean
+        valid = []
+        for f in flows:
+            if "ticker" in f and "type" in f:
+                valid.append({
+                    "ticker": f.get("ticker", ""),
+                    "type": f.get("type", "call"),
+                    "premium": f.get("premium", ""),
+                    "strike": f.get("strike", ""),
+                    "expiry": f.get("expiry", ""),
+                    "sentiment": f.get("sentiment", "neutral"),
+                    "unusual": bool(f.get("unusual", False)),
+                })
+        return valid[:8] if valid else None
+    except Exception as e:
+        logger.warning("Options flow generation failed: %s", e)
+        return None
+
+
 # ── Step 7: Macro Indicators ────────────────────────────────────────────────
 
 MACRO_TICKERS = [
@@ -735,7 +824,7 @@ def generate_daily_intel(force: bool = False) -> dict:
     Generate social-grade daily market intelligence report.
     Cached per day — only regenerates if date changed or force=True.
 
-    Cost: ~$0.05 (3 Sonnet calls) + ~10s yfinance.
+    Cost: ~$0.06 (4 Sonnet calls) + ~10s yfinance.
     """
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -773,6 +862,9 @@ def generate_daily_intel(force: bool = False) -> dict:
         summary, mood, gainers, losers, spikes, picks, sectors, headlines
     )
 
+    # Step 6b: Options flow (Sonnet)
+    options_flow = _generate_options_flow(gainers, losers, spikes)
+
     # Step 7-10: New modules (fail gracefully)
     macro = _fetch_macro()
     fear_greed = _calc_fear_greed(gainers, losers, sectors)
@@ -798,6 +890,7 @@ def generate_daily_intel(force: bool = False) -> dict:
             "brief": social.get("brief_post", ""),
             "volume": social.get("volume_post", ""),
         },
+        "options_flow": options_flow,
         "macro": macro,
         "fear_greed": fear_greed,
         "econ_calendar": econ_calendar,

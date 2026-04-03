@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import * as Mock from "./mock-data";
 import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData } from "./types";
 import { T, API, displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, riskColor, sentCls, recBg, decColorJournal, nsSummary, copyWithAttribution } from "./types";
-import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, BrandMark, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView } from "./components";
+import { DecoFan, GoldRule, Heading, Mod, Row, Toggle, BullIcon, BrandMark, CopyBtn, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, DailyIntelView, PriceChart, SignalToast } from "./components";
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -386,13 +386,16 @@ export default function Home() {
       role="application" aria-label="Orallexa Capital Intelligence Dashboard"
       style={{ background: "radial-gradient(ellipse at 30% 0%, #1A1A2E 0%, #0D1117 25%, #0A0A0F 60%, #0A0A0F 100%)" }}>
 
+      {/* Signal Toast Notifications */}
+      <SignalToast signals={breakingSignals} onSelect={(tk) => { setAsset(tk); setViewMode("signal"); }} />
+
       {/* Demo Mode Banner — Art Deco styled */}
       {isDemo && (
         <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0 flex items-center justify-center gap-3"
           style={{ background: "linear-gradient(90deg, #0A0A0F, rgba(212,175,55,0.12), rgba(212,175,55,0.18), rgba(212,175,55,0.12), #0A0A0F)", color: "#C5A255", borderBottom: "1px solid rgba(212,175,55,0.2)" }}>
           <span className="inline-block w-[3px] h-[3px] rotate-45" style={{ background: "#D4AF37" }} />
           <span className="h-px w-8" style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.4))" }} />
-          {zh ? "演示模式 — 展示数据非实时行情" : "Demo Mode — Simulated data for demonstration"}
+          {t.demoMode}
           <span className="h-px w-8" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.4), transparent)" }} />
           <span className="inline-block w-[3px] h-[3px] rotate-45" style={{ background: "#D4AF37" }} />
         </div>
@@ -403,7 +406,7 @@ export default function Home() {
         <div className="w-full py-2 text-center text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] shrink-0"
           role="alert"
           style={{ background: "rgba(139,0,0,0.15)", color: "#FF6666", borderBottom: "1px solid rgba(139,0,0,0.3)" }}>
-          {zh ? "网络已断开 — 数据可能不是最新的" : "Network offline — data may be stale"}
+          {t.networkOffline}
         </div>
       )}
 
@@ -679,6 +682,7 @@ export default function Home() {
           <WatchlistGrid items={watchlistItems} onSelect={(tk) => { setAsset(tk); setWatchlistItems([]); }} />
           <MarketStrip summary={marketSummary} decision={decision} livePrice={livePrice} priceFlash={priceFlash} />
           <DecisionCard d={decision} asset={asset} strategy={strategy} horizon={horizon} news={news} risk={risk} investmentPlan={investmentPlan} t={t} zh={zh} />
+          {asset && <PriceChart ticker={asset} t={t} />}
           {decision && decision.decision !== "WAIT" && (
             <div className="mt-3 flex items-center gap-3">
               <button onClick={executePaperTrade} disabled={tradeLoading}
