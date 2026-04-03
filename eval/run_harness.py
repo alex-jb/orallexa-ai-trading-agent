@@ -119,10 +119,14 @@ def main():
     report = generate_report(result, output_path=output_path)
 
     # Summary
+    verdicts = [e.verdict for e in result.evaluations]
     print(f"\n{'=' * 60}")
     print(f"  RESULTS")
     print(f"  Evaluated: {result.total_evaluated} strategy-ticker pairs")
-    print(f"  Passed: {result.total_passed}/{result.total_evaluated}")
+    print(f"  STRONG PASS: {verdicts.count('STRONG PASS')} | "
+          f"PASS: {verdicts.count('PASS')} | "
+          f"MARGINAL: {verdicts.count('MARGINAL')} | "
+          f"FAIL: {verdicts.count('FAIL')}")
     if result.skipped_tickers:
         print(f"  Skipped tickers: {', '.join(result.skipped_tickers)} (insufficient data)")
     print(f"  Report: {output_path or 'docs/evaluation_report.md'}")

@@ -71,16 +71,17 @@ Docker: `docker compose up --build` — that's it.
 ## Walk-Forward Evaluation (Out-of-Sample)
 
 <!-- EVAL_TABLE_START -->
-| Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value |
-|----------|--------|-----------|------------|--------|---------|
-| rsi_reversal | INTC | **1.41** | 0.45 | 43.4% | 0.002 |
-| alpha_combo | JPM | **1.11** | -1.26 | 97.4% | 0.135 |
-| trend_momentum | JPM | **1.09** | -0.80 | 90.2% | 0.104 |
-| macd_crossover | JPM | **0.99** | -1.02 | 100% | 0.236 |
-| dual_thrust | NVDA | **0.96** | -0.93 | 89.4% | 0.001 |
+| Strategy | Ticker | OOS Sharpe | Verdict | p-value |
+|----------|--------|-----------|---------|---------|
+| trend_momentum | NVDA | **0.74** | STRONG PASS | 0.005 |
+| rsi_reversal | INTC | **1.41** | PASS | 0.002 |
+| dual_thrust | NVDA | **0.96** | PASS | 0.001 |
+| alpha_combo | NVDA | **0.92** | PASS | 0.016 |
+| macd_crossover | NVDA | **0.91** | PASS | 0.003 |
+| double_ma | GOOG | **0.64** | PASS | 0.049 |
 <!-- EVAL_TABLE_END -->
 
-> 70 strategy-ticker pairs evaluated. Top 5 by OOS Sharpe shown. The value is in the ML ensemble + LLM synthesis layer above rule-based strategies. [Full report →](docs/evaluation_report.md)
+> 70 strategy-ticker pairs across 10 tickers. 1 STRONG PASS, 6 PASS, 21 MARGINAL. Rule-based strategies serve as feature generators for the 9-model ML ensemble. [Full report →](docs/evaluation_report.md)
 
 ---
 

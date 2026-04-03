@@ -32,6 +32,8 @@ class StrategyEvaluation:
     monte_carlo: MonteCarloResult | None = None
     statistical: StatisticalTestResult | None = None
     overall_pass: bool = False
+    verdict: str = "FAIL"
+    gates_passed: int = 0
 
 
 @dataclass
@@ -168,7 +170,7 @@ class EvaluationHarness:
         except Exception as exc:
             logger.warning("Backtest/MC/stats failed for %s/%s: %s", strategy_name, ticker, exc)
 
-        # Overall pass: all three tests must pass (where applicable)
+        # Gate counting for tiered verdict
         wf_pass = evaluation.walk_forward.passed if evaluation.walk_forward else False
         mc_pass = evaluation.monte_carlo.passed if evaluation.monte_carlo else False
         st_pass = (
@@ -176,7 +178,20 @@ class EvaluationHarness:
             if evaluation.statistical and evaluation.statistical.sufficient_data
             else False
         )
-        evaluation.overall_pass = wf_pass and mc_pass and st_pass
+        gates = sum([wf_pass, mc_pass, st_pass])
+        evaluation.gates_passed = gates
+        evaluation.overall_pass = gates == 3
+
+        # Tiered verdict based on gates passed + OOS Sharpe
+        oos_sharpe = evaluation.walk_forward.avg_oos_sharpe if evaluation.walk_forward else 0
+        if gates == 3:
+            evaluation.verdict = "STRONG PASS"
+        elif gates == 2 and oos_sharpe > 0.5:
+            evaluation.verdict = "PASS"
+        elif gates >= 1 and oos_sharpe > 0:
+            evaluation.verdict = "MARGINAL"
+        else:
+            evaluation.verdict = "FAIL"
 
         if progress_callback:
             progress_callback()

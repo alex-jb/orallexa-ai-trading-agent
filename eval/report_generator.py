@@ -228,8 +228,6 @@ def _generate_ranking_table(result: HarnessResult) -> str:
         ir = wf.avg_information_ratio if wf else 0.0
         mc_rank = mc.sharpe_percentile_rank if mc else 0.0
         p_val = st.p_value if st and st.sufficient_data else 1.0
-        passed = "PASS" if ev.overall_pass else "FAIL"
-
         rows.append({
             "strategy": ev.strategy_name,
             "ticker": ev.ticker,
@@ -237,7 +235,8 @@ def _generate_ranking_table(result: HarnessResult) -> str:
             "info_ratio": ir,
             "mc_percentile": mc_rank,
             "p_value": p_val,
-            "verdict": passed,
+            "verdict": ev.verdict,
+            "gates_passed": ev.gates_passed,
         })
 
     rows.sort(key=lambda r: r["oos_sharpe"], reverse=True)
@@ -306,10 +305,35 @@ def generate_report(
                  f"Strategies: {result.num_strategies_tested} | "
                  f"Skipped: {skipped_str}\n")
 
-    # Executive Summary
+    # Executive Summary — tiered verdicts
     lines.append("## Executive Summary\n")
-    lines.append(f"**{result.total_passed}/{result.total_evaluated}** strategy-ticker "
-                 f"pairs passed all evaluation gates.\n")
+
+    verdicts = [e.verdict for e in result.evaluations]
+    strong = verdicts.count("STRONG PASS")
+    passed = verdicts.count("PASS")
+    marginal = verdicts.count("MARGINAL")
+    failed = verdicts.count("FAIL")
+    total = len(verdicts)
+
+    # Gate-by-gate breakdown
+    wf_passed = sum(1 for e in result.evaluations if e.walk_forward and e.walk_forward.passed)
+    st_passed = sum(1 for e in result.evaluations if e.statistical and e.statistical.sufficient_data and e.statistical.returns_significant)
+    mc_passed = sum(1 for e in result.evaluations if e.monte_carlo and e.monte_carlo.passed)
+
+    lines.append(f"{total} strategy-ticker pairs evaluated across {len(tickers_with_data)} tickers "
+                 f"and {result.num_strategies_tested} rule-based strategies. "
+                 f"Each pair is tested against three independent statistical gates.\n")
+    lines.append("**Results by gate:**")
+    lines.append(f"- **Walk-forward (OOS Sharpe > 0 in >50% windows):** {wf_passed}/{total} passed")
+    lines.append(f"- **Statistical significance (p < 0.05):** {st_passed}/{total} passed")
+    lines.append(f"- **Monte Carlo (beat 75th percentile):** {mc_passed}/{total} passed\n")
+    lines.append("**Tiered verdicts:**")
+    lines.append(f"- **STRONG PASS** (all 3 gates): {strong}")
+    lines.append(f"- **PASS** (2 gates + Sharpe > 0.5): {passed}")
+    lines.append(f"- **MARGINAL** (1+ gate + Sharpe > 0): {marginal}")
+    lines.append(f"- **FAIL** (0 gates or Sharpe <= 0): {failed}\n")
+    lines.append("> Rule-based strategies serve as feature generators for the 9-model ML ensemble "
+                 "and Claude AI synthesis layer. The value is in the composite system, not individual strategies.\n")
     lines.append(_generate_ranking_table(result))
     lines.append("")
 
@@ -455,6 +479,8 @@ def _result_to_dict(result: HarnessResult) -> dict:
             "strategy": ev.strategy_name,
             "ticker": ev.ticker,
             "overall_pass": ev.overall_pass,
+            "verdict": ev.verdict,
+            "gates_passed": ev.gates_passed,
         }
         if ev.walk_forward:
             wf = ev.walk_forward
