@@ -23,11 +23,11 @@ vi.mock("lightweight-charts", () => ({
 }));
 
 // Mock ResizeObserver which is not available in jsdom
-globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+globalThis.ResizeObserver = class ResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+};
 
 const t = { priceChart: "Price Chart" };
 

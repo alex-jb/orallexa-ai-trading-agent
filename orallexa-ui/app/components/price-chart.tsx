@@ -138,8 +138,9 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
         chartRef.current = null;
       }
 
-      const chart = createChart(containerRef.current!, {
-        width: containerRef.current!.clientWidth,
+      if (!containerRef.current) return;
+      const chart = createChart(containerRef.current, {
+        width: containerRef.current.clientWidth,
         height: 280,
         layout: {
           background: { color: "#1A1A2E" },
