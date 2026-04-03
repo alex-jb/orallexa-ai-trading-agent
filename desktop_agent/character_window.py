@@ -57,6 +57,21 @@ BUBBLE_FADE_TICKS = 4    # last ~2s the bubble dims before hiding
 PET_HEARTS = ["♥", "♥ ♥", "♥  ♥  ♥", "♥   ♥", "·  ·"]
 PET_BURST_MS = 2500
 
+# ── Idle tips (random wisdom while idle) ──────────────────────────────────────
+IDLE_TIPS_EN = [
+    "Don't chase the market...", "Volume confirms trend", "Patience is alpha",
+    "Risk/reward > win rate", "Cut losses, let winners run", "The trend is your friend",
+    "Buy the fear, sell the greed", "No setup = no trade", "Position size matters",
+    "Markets are never wrong", "Plan the trade, trade the plan",
+]
+IDLE_TIPS_ZH = [
+    "别追涨杀跌...", "成交量确认趋势", "耐心就是超额收益",
+    "风险收益比 > 胜率", "截断亏损，让利润奔跑", "趋势是你的朋友",
+    "别人恐惧我贪婪", "没信号 = 不交易", "仓位管理很重要",
+    "市场永远是对的", "计划你的交易，交易你的计划",
+]
+IDLE_TIP_INTERVAL = (30, 90)  # seconds between random tips
+
 # ── State definitions ─────────────────────────────────────────────────────────
 
 StateName = Literal["idle", "listening", "thinking", "confident", "warning", "wait"]
@@ -257,6 +272,25 @@ class BullCharacter:
         self._img_item = self._canvas.create_image(0, 0, anchor="nw",
                                                    image=self._idle)
         self._canvas.bind("<Button-1>", self._handle_click)
+        # Drag to move
+        self._drag_data = {"x": 0, "y": 0, "dragging": False}
+        self._canvas.bind("<ButtonPress-3>", self._drag_start)
+        self._canvas.bind("<B3-Motion>", self._drag_motion)
+        self._canvas.bind("<ButtonRelease-3>", self._drag_end)
+        # Right-click context menu (Shift+Right or double-click)
+        self._canvas.bind("<Double-Button-1>", self._show_context_menu)
+        self._context_menu = tk.Menu(self._win, tearoff=0,
+                                      bg="#1A1A2E", fg="#F5E6CA",
+                                      activebackground="#D4AF37", activeforeground="#0A0A0F",
+                                      font=("Segoe UI", 9))
+        self._context_menu.add_command(label="Analyze NVDA", command=lambda: self._quick_action("NVDA"))
+        self._context_menu.add_command(label="Analyze TSLA", command=lambda: self._quick_action("TSLA"))
+        self._context_menu.add_command(label="Analyze QQQ", command=lambda: self._quick_action("QQQ"))
+        self._context_menu.add_separator()
+        self._context_menu.add_command(label="Voice (K)", command=lambda: self._quick_action("voice"))
+        self._context_menu.add_command(label="Screenshot", command=lambda: self._quick_action("screenshot"))
+        self._context_menu.add_separator()
+        self._context_menu.add_command(label="Hide Bull", command=self._toggle_visibility)
 
         # ── Bubble window ─────────────────────────────────────────
         self._bwin = tk.Toplevel(self._win)
@@ -273,12 +307,20 @@ class BullCharacter:
         # ── Heart overlay (pet interaction) ───────────────────────
         self._heart_item: int | None = None
 
+        # ── Mood memory (tracks recent analysis results) ──────────
+        self._mood_history: list[dict] = []  # [{ticker, decision, confidence, ts}]
+        self._mood_streak = 0  # positive = consecutive bulls, negative = bears
+
+        # ── Quick action callback (set by main.py) ────────────────
+        self._quick_action_cb = None
+
         # ── Start loops ───────────────────────────────────────────
         self._pick_target()
         self._move_loop()
         self._sprite_loop()
         self._idle_tick_loop()
         self._bubble_tick_loop()
+        self._idle_tip_loop()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -489,6 +531,106 @@ class BullCharacter:
         self._bwin.geometry(f"+{bx}+{by}")
 
     # ── Click ─────────────────────────────────────────────────────────────────
+
+    # ── Drag to move ───────────────────────────────────────────────────────
+
+    def _drag_start(self, event) -> None:
+        self._drag_data["x"] = event.x_root - self._x
+        self._drag_data["y"] = event.y_root - self._y
+        self._drag_data["dragging"] = True
+        self._paused = True
+        self._pause_until = time.time() + 999
+
+    def _drag_motion(self, event) -> None:
+        if not self._drag_data["dragging"]:
+            return
+        self._x = event.x_root - self._drag_data["x"]
+        self._y = event.y_root - self._drag_data["y"]
+        self._x = max(0, min(self._sw - CHAR_W, self._x))
+        self._y = max(0, min(self._sh - CHAR_H, self._y))
+        self._win.geometry(f"{CHAR_W}x{CHAR_H}+{self._x}+{self._y}")
+        self._update_bubble_pos()
+
+    def _drag_end(self, _event) -> None:
+        self._drag_data["dragging"] = False
+        self._pause_until = time.time() + random.uniform(PAUSE_MIN, PAUSE_MAX)
+
+    # ── Context menu ─────────────────────────────────────────────────────
+
+    def _show_context_menu(self, event) -> None:
+        try:
+            self._context_menu.tk_popup(
+                self._x + event.x, self._y + event.y - 120)
+        finally:
+            self._context_menu.grab_release()
+
+    def _quick_action(self, action: str) -> None:
+        if self._quick_action_cb:
+            self._quick_action_cb(action)
+        else:
+            self.flash_state("thinking", f"Analyzing {action}..." if action not in ("voice", "screenshot") else action.title())
+
+    def _toggle_visibility(self) -> None:
+        self._win.withdraw()
+        self._bwin.withdraw()
+        # Re-show after 30 seconds
+        self._win.after(30000, self._win.deiconify)
+
+    def set_quick_action_callback(self, cb) -> None:
+        """Set callback for context menu quick actions. cb(action: str)."""
+        self._quick_action_cb = cb
+
+    # ── Idle tips ────────────────────────────────────────────────────────
+
+    def _idle_tip_loop(self) -> None:
+        """Show random trading wisdom when idle for a while."""
+        if self._state == "idle" and self._paused and not self._bubble_visible:
+            lang = get_lang()
+            tips = IDLE_TIPS_ZH if lang == "zh" else IDLE_TIPS_EN
+            # Mood-aware tips
+            if self._mood_streak >= 3:
+                tip = random.choice(["On a roll! 🐂", "连胜中！保持冷静"] if lang == "zh" else ["On a roll! 🐂", "Stay disciplined on streaks"])
+            elif self._mood_streak <= -3:
+                tip = random.choice(["别气馁，回顾策略", "Tough streak. Review your plan."])
+            else:
+                tip = random.choice(tips)
+            self._show_bubble(tip, accent="#C5A255")
+        interval = random.randint(IDLE_TIP_INTERVAL[0], IDLE_TIP_INTERVAL[1]) * 1000
+        self._win.after(interval, self._idle_tip_loop)
+
+    # ── Mood memory ──────────────────────────────────────────────────────
+
+    def record_analysis(self, ticker: str, decision: str, confidence: float) -> None:
+        """Record an analysis result for mood tracking."""
+        self._mood_history.append({
+            "ticker": ticker, "decision": decision,
+            "confidence": confidence, "ts": time.time(),
+        })
+        # Keep last 20
+        if len(self._mood_history) > 20:
+            self._mood_history = self._mood_history[-20:]
+        # Update streak
+        if decision == "BUY":
+            self._mood_streak = max(1, self._mood_streak + 1)
+        elif decision == "SELL":
+            self._mood_streak = min(-1, self._mood_streak - 1)
+        else:
+            self._mood_streak = 0
+
+    def get_mood_summary(self) -> str:
+        """Get a mood summary string for display."""
+        if not self._mood_history:
+            return "No analyses yet"
+        recent = self._mood_history[-5:]
+        buys = sum(1 for r in recent if r["decision"] == "BUY")
+        sells = sum(1 for r in recent if r["decision"] == "SELL")
+        if buys > sells:
+            return f"Bullish mood ({buys}/{len(recent)} buys)"
+        elif sells > buys:
+            return f"Bearish mood ({sells}/{len(recent)} sells)"
+        return f"Mixed signals ({len(recent)} recent)"
+
+    # ── Click ─────────────────────────────────────────────────────────────
 
     def _handle_click(self, _event) -> None:
         # Pet interaction: show floating hearts
