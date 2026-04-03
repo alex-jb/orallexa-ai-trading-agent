@@ -961,25 +961,31 @@ async def run_backtest(ticker: str, period: str = "2y"):
         from engine.multi_strategy import run_multi_strategy_analysis
         from skills.market_data import MarketDataSkill
 
-        mds = MarketDataSkill()
-        df = mds.fetch(ticker, period=period)
+        mds = MarketDataSkill(ticker)
+        df = mds.execute(period=period)
         if df is None or df.empty:
             return {"error": f"No data for {ticker}"}
 
-        results = run_multi_strategy_analysis(df, ticker)
+        # Split into 70% train / 30% test for walk-forward
+        split_idx = int(len(df) * 0.7)
+        train_df = df.iloc[:split_idx]
+        test_df = df.iloc[split_idx:]
+        analysis = run_multi_strategy_analysis(train_df, test_df, ticker)
+
+        # Build strategy results from all_results
         strategy_results = []
-        for name, metrics in results.items():
+        for name, entry in analysis.get("all_results", {}).items():
+            tm = entry.get("test_metrics", {})
             strategy_results.append({
                 "strategy": name,
-                "total_return": round(metrics.get("total_return", 0) * 100, 2),
-                "sharpe": round(metrics.get("sharpe_ratio", 0), 2),
-                "max_drawdown": round(abs(metrics.get("max_drawdown", 0)) * 100, 2),
-                "win_rate": round(metrics.get("win_rate", 0) * 100, 1),
-                "trades": metrics.get("total_trades", 0),
-                "profit_factor": round(metrics.get("profit_factor", 0), 2),
+                "total_return": round(tm.get("total_return", 0) * 100, 2),
+                "sharpe": round(tm.get("sharpe", 0), 2),
+                "max_drawdown": round(abs(tm.get("max_drawdown", 0)) * 100, 2),
+                "win_rate": round(tm.get("win_rate", 0) * 100, 1),
+                "trades": tm.get("n_trades", 0),
             })
+        strategy_results.sort(key=lambda x: x["sharpe"], reverse=True)
 
-        best = max(strategy_results, key=lambda x: x["sharpe"]) if strategy_results else None
         start = df.index[0].strftime("%Y-%m-%d") if hasattr(df.index[0], "strftime") else str(df.index[0])
         end = df.index[-1].strftime("%Y-%m-%d") if hasattr(df.index[-1], "strftime") else str(df.index[-1])
 
@@ -987,7 +993,7 @@ async def run_backtest(ticker: str, period: str = "2y"):
             "ticker": ticker.upper(),
             "period": f"{start} to {end}",
             "results": strategy_results,
-            "best_strategy": best["strategy"] if best else "",
+            "best_strategy": analysis.get("best_strategy", ""),
         }
     except Exception as exc:
         from core.logger import get_logger
