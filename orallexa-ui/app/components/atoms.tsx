@@ -126,7 +126,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
     <Image
       src="/logo.svg"
       alt="Orallexa Capital Intelligence"
-      width={compact ? 28 : 36}
+      width={compact ? 84 : 108}
       height={compact ? 28 : 36}
       className={compact ? "h-[28px] w-auto" : "h-[36px] w-auto"}
       priority
