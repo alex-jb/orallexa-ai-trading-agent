@@ -31,15 +31,17 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Orallexa Capital",
-    description: "AI-Powered Capital Intelligence Engine",
+    description: "AI-Powered Capital Intelligence Engine — 9 ML Models, Adversarial Debate, One-Click Execution",
     siteName: "Orallexa",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Orallexa — AI Trading Operating System" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Orallexa Capital",
-    description: "AI-Powered Capital Intelligence Engine",
+    description: "AI-Powered Capital Intelligence Engine — 9 ML Models, Adversarial Debate, One-Click Execution",
     creator: "@orallexatrading",
+    images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
 };

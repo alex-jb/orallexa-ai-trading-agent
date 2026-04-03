@@ -6,7 +6,7 @@ import { displayDec, subtitleDec, sigLabel, confLabel, riskLabel, decColor, risk
 import { DecoFan, GoldRule, Heading, Toggle, CopyBtn } from "./atoms";
 
 /* ── Probability Bar (Polymarket-inspired) ────────────────────────────── */
-function ProbBar({ probs, decision }: { probs: { up: number; neutral: number; down: number }; decision: string }) {
+function ProbBar({ probs, decision, zh }: { probs: { up: number; neutral: number; down: number }; decision: string; zh: boolean }) {
   const up = Math.round(probs.up * 100);
   const neut = Math.round(probs.neutral * 100);
   const down = Math.round(probs.down * 100);
@@ -17,7 +17,7 @@ function ProbBar({ probs, decision }: { probs: { up: number; neutral: number; do
       <div className="flex items-center gap-4 mb-3">
         <div className="text-[36px] font-[DM_Mono] font-bold leading-none" style={{ color: heroColor }}>{hero}%</div>
         <div className="text-[10px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] leading-relaxed">
-          {decision === "SELL" ? "Downside" : "Upside"}<br/>Probability
+          {decision === "SELL" ? (zh ? "下跌" : "Downside") : (zh ? "上涨" : "Upside")}<br/>{zh ? "概率" : "Probability"}
         </div>
       </div>
       <div className="flex h-[6px] overflow-hidden" style={{ background: "#2A2A3E" }}>
@@ -192,7 +192,7 @@ export function DecisionCard({ d, asset, strategy, horizon, news, risk, investme
         <div className="text-[13px] font-[Lato] text-[#F5E6CA] leading-relaxed py-3 px-5 font-light border-l-[2px]" style={{ borderColor: "#D4AF37", background: recBg(d.decision) }}>{d.recommendation}</div>
       </div>
       {news.length > 0 && <div className="relative px-8 pb-3 text-[10px] font-[Lato] text-[#6B6E76]">News: <span className="font-semibold" style={{ color: ns.color }}>{ns.label}</span> sentiment ({news.length} headlines)</div>}
-      {d.probabilities && <ProbBar probs={d.probabilities} decision={d.decision} />}
+      {d.probabilities && <ProbBar probs={d.probabilities} decision={d.decision} zh={zh} />}
       <GoldRule strength={22} />
       <div className="relative grid grid-cols-3 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
         {[{ h: t.signal, v: sigLabel(d.signal_strength), s: `${d.signal_strength}/100` },

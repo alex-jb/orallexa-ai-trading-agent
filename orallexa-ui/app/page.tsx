@@ -791,8 +791,12 @@ export default function Home() {
           </> : <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="flex justify-between py-[5px]"><div className="skeleton h-3 w-16" /><div className="skeleton h-3 w-20" /></div>)}</div>}
         </Mod>
 
-        {alpacaAccount && (
-          <Mod title={zh ? "模拟交易" : "Paper Trading"}>
+        <Mod title={zh ? "模拟交易" : "Paper Trading"}>
+          {alpacaAccount ? (<>
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#006B3F] animate-pulse" />
+              <span className="text-[8px] font-[Josefin_Sans] text-[#006B3F] uppercase tracking-[0.14em] font-bold">{zh ? "已连接 Alpaca" : "Alpaca Connected"}</span>
+            </div>
             <Row label={zh ? "账户净值" : "Equity"} value={`$${alpacaAccount.equity.toLocaleString()}`} />
             <Row label={zh ? "可用资金" : "Cash"} value={`$${alpacaAccount.cash.toLocaleString()}`} />
             <Row label={zh ? "购买力" : "Buying Power"} value={`$${alpacaAccount.buying_power.toLocaleString()}`} />
@@ -809,8 +813,18 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </Mod>
-        )}
+          </>) : (
+            <div className="text-center py-3">
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#4A4D55]" />
+                <span className="text-[8px] font-[Josefin_Sans] text-[#4A4D55] uppercase tracking-[0.14em] font-bold">{zh ? "未连接" : "Not Connected"}</span>
+              </div>
+              <div className="text-[9px] font-[Lato] text-[#4A4D55] leading-relaxed">
+                {zh ? "设置 ALPACA_API_KEY 和 ALPACA_SECRET_KEY 启用模拟交易" : "Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env to enable paper trading"}
+              </div>
+            </div>
+          )}
+        </Mod>
 
         <Mod title={t.executionLog}>
           {journal.length > 0 ? journal.map((e, i) => (
