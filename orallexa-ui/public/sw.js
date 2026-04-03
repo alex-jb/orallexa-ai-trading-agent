@@ -1,9 +1,10 @@
 // Orallexa Capital — Service Worker
 // Cache-first for static assets, network-first for pages, offline fallback
 
-const CACHE_VERSION = "orallexa-v2";
-const STATIC_CACHE = "orallexa-static-v2";
-const RUNTIME_CACHE = "orallexa-runtime-v2";
+const CACHE_VERSION = "orallexa-v3";
+const STATIC_CACHE = "orallexa-static-v3";
+const RUNTIME_CACHE = "orallexa-runtime-v3";
+const API_CACHE = "orallexa-api-v3";
 
 // App shell — precached on install
 const PRECACHE_URLS = [
@@ -27,13 +28,18 @@ self.addEventListener("install", (event) => {
 
 // --------------- Activate ---------------
 self.addEventListener("activate", (event) => {
-  const keepCaches = new Set([STATIC_CACHE, RUNTIME_CACHE]);
+  const keepCaches = new Set([STATIC_CACHE, RUNTIME_CACHE, API_CACHE]);
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys.filter((k) => !keepCaches.has(k)).map((k) => caches.delete(k))
       )
-    )
+    ).then(() => {
+      // Notify all clients that a new version is active
+      self.clients.matchAll({ type: "window" }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: "SW_UPDATED" }));
+      });
+    })
   );
   self.clients.claim();
 });
@@ -47,9 +53,12 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (url.origin !== self.location.origin) return;
 
-  // API calls — network-first, no cache fallback (data must be fresh)
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/ws/")) {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+  // WebSocket — skip
+  if (url.pathname.startsWith("/ws/")) return;
+
+  // API calls — network-first, fall back to last cached response offline
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(networkFirstApi(request));
     return;
   }
 
@@ -153,6 +162,36 @@ self.addEventListener("notificationclick", (event) => {
     })
   );
 });
+
+function networkFirstApi(request) {
+  return fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(API_CACHE).then((cache) => cache.put(request, clone));
+      }
+      return response;
+    })
+    .catch(() =>
+      caches.match(request).then((cached) => {
+        if (!cached) {
+          // Return a JSON "offline" response so the UI can handle gracefully
+          return new Response(
+            JSON.stringify({ offline: true, error: "No cached data available" }),
+            { status: 503, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        // Add header so the UI knows this is stale cached data
+        const headers = new Headers(cached.headers);
+        headers.set("X-SW-Cache", "stale");
+        return new Response(cached.body, {
+          status: cached.status,
+          statusText: cached.statusText,
+          headers,
+        });
+      })
+    );
+}
 
 // --------------- Helpers ---------------
 

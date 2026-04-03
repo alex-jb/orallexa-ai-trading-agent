@@ -3,10 +3,12 @@
   "short_name": "Orallexa",
   "description": "AI-Powered Trading Intelligence — Bull/Bear Debate, 9 ML Models, Real-Time Dashboard",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0A0A0F",
   "theme_color": "#0A0A0F",
   "orientation": "portrait-primary",
+  "categories": ["finance", "business", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -19,6 +21,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Signal Mode",
+      "short_name": "Signal",
+      "url": "/?view=signal",
+      "description": "Run trading signal analysis",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Daily Intel",
+      "short_name": "Intel",
+      "url": "/?view=intel",
+      "description": "View market intelligence report",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

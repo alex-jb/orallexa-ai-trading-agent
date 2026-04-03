@@ -1,8 +1,31 @@
-export const metadata = {
-  title: "Offline — Orallexa Capital",
-};
+"use client";
+
+import { useEffect, useState } from "react";
 
 export default function OfflinePage() {
+  const [checking, setChecking] = useState(false);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Show when the user was last online
+    const ts = localStorage.getItem("orallexa_last_online");
+    if (ts) setLastSeen(ts);
+  }, []);
+
+  const handleRetry = () => {
+    setChecking(true);
+    // Test connectivity
+    fetch("/api/status", { cache: "no-store" })
+      .then((r) => {
+        if (r.ok) {
+          window.location.href = "/";
+        } else {
+          setChecking(false);
+        }
+      })
+      .catch(() => setChecking(false));
+  };
+
   return (
     <main
       className="flex min-h-screen flex-col items-center justify-center px-6"
@@ -82,7 +105,7 @@ export default function OfflinePage() {
           className="text-center text-sm tracking-wide mb-6"
           style={{
             fontFamily: "var(--font-josefin, 'Josefin Sans', sans-serif)",
-            color: "var(--text-muted, #8B8E96)",
+            color: "var(--text-muted-safe, #8B8E96)",
           }}
         >
           您目前处于离线状态
@@ -121,19 +144,44 @@ export default function OfflinePage() {
           Check your connection and try again.
         </p>
         <p
-          className="text-center text-xs leading-relaxed mb-8"
+          className="text-center text-xs leading-relaxed mb-4"
           style={{
             fontFamily: "var(--font-lato, 'Lato', sans-serif)",
-            color: "var(--text-muted, #8B8E96)",
+            color: "var(--text-muted-safe, #8B8E96)",
           }}
         >
           请检查您的网络连接，然后重试。
         </p>
 
+        {/* Last online timestamp */}
+        {lastSeen && (
+          <p
+            className="text-center text-[10px] mb-6"
+            style={{
+              fontFamily: "var(--font-dm-mono, 'DM Mono', monospace)",
+              color: "var(--text-muted-safe, #8B8E96)",
+            }}
+          >
+            Last online: {lastSeen}
+          </p>
+        )}
+
+        {/* Cached data hint */}
+        <p
+          className="text-center text-[10px] mb-6 px-4"
+          style={{
+            fontFamily: "var(--font-lato, 'Lato', sans-serif)",
+            color: "var(--gold-muted, #C5A255)",
+          }}
+        >
+          Previously viewed data may still be available from cache.
+        </p>
+
         {/* Retry button */}
         <button
-          onClick={undefined}
-          className="px-8 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] transition-colors duration-[120ms] cursor-pointer"
+          onClick={handleRetry}
+          disabled={checking}
+          className="px-8 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] transition-colors duration-[120ms] cursor-pointer disabled:opacity-50"
           style={{
             fontFamily: "var(--font-josefin, 'Josefin Sans', sans-serif)",
             background: "var(--gold, #D4AF37)",
@@ -141,16 +189,22 @@ export default function OfflinePage() {
             border: "none",
             borderRadius: 0,
           }}
-          // Client-side reload needs a client component wrapper — use a simple inline handler via data attribute
-          // Since this is a server component, the button is decorative; the real retry is the link below
         >
-          <a
-            href="/"
-            style={{ color: "inherit", textDecoration: "none" }}
-          >
-            Retry / 重试
-          </a>
+          {checking ? "Checking... / 检测中..." : "Retry / 重试"}
         </button>
+
+        {/* Go to cached dashboard */}
+        <a
+          href="/"
+          className="mt-3 text-[10px] uppercase tracking-[0.14em] transition-colors hover:text-[#FFD700]"
+          style={{
+            fontFamily: "var(--font-josefin, 'Josefin Sans', sans-serif)",
+            color: "var(--gold-muted, #C5A255)",
+            textDecoration: "none",
+          }}
+        >
+          View cached dashboard / 查看缓存数据
+        </a>
 
         {/* Bottom accent line */}
         <div

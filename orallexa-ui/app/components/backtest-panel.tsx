@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Mod, GoldRule } from "./atoms";
 import type { BacktestSummary } from "../types";
 
@@ -16,6 +16,13 @@ const STRATEGY_LABELS: Record<string, string> = {
   ensemble_vote: "Ensemble Vote",
   regime_ensemble: "Regime Ensemble",
 };
+
+const PERIOD_OPTIONS = [
+  { value: "1y", labelKey: "bt1y" },
+  { value: "2y", labelKey: "bt2y" },
+  { value: "5y", labelKey: "bt5y" },
+  { value: "max", labelKey: "btMax" },
+] as const;
 
 /* ── Metric color helpers ────────────────────────────────────────────── */
 function returnColor(v: number): string {
@@ -54,10 +61,21 @@ function pfColor(v: number): string {
 export function BacktestPanel({
   data,
   t,
+  loading,
+  onPeriodChange,
 }: {
   data: BacktestSummary | null;
   t: Record<string, string>;
+  loading?: boolean;
+  onPeriodChange?: (period: string) => void;
 }) {
+  const [selectedPeriod, setSelectedPeriod] = useState("2y");
+
+  const handlePeriodChange = (period: string) => {
+    setSelectedPeriod(period);
+    onPeriodChange?.(period);
+  };
+
   const sorted = useMemo(() => {
     if (!data) return [];
     return [...data.results].sort((a, b) => b.sharpe - a.sharpe);
@@ -68,21 +86,65 @@ export function BacktestPanel({
     return Math.max(...sorted.map((r) => Math.abs(r.total_return)), 1);
   }, [sorted]);
 
+  /* ── Period selector (always shown) ──────────────────────────────── */
+  const periodSelector = (
+    <div className="flex items-center gap-1 mb-3">
+      <span
+        className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.12em] mr-1"
+        style={{ color: "#8B8E96" }}
+      >
+        {t.backtestPeriod}
+      </span>
+      {PERIOD_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => handlePeriodChange(opt.value)}
+          className="px-2 py-0.5 text-[9px] font-[DM_Mono] font-medium transition-colors"
+          style={{
+            color: selectedPeriod === opt.value ? "#0A0A0F" : "#8B8E96",
+            background:
+              selectedPeriod === opt.value
+                ? "linear-gradient(135deg, #D4AF37, #FFD700)"
+                : "transparent",
+            border:
+              selectedPeriod === opt.value
+                ? "1px solid #D4AF37"
+                : "1px solid rgba(212,175,55,0.15)",
+          }}
+        >
+          {t[opt.labelKey] ?? opt.value.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+
   if (!data) {
     return (
       <Mod title={t.backtestResults}>
-        <p
-          className="text-[11px] font-[Lato] py-4 text-center"
-          style={{ color: "#8B8E96" }}
-        >
-          {t.noBacktestData}
-        </p>
+        {periodSelector}
+        {loading ? (
+          <div className="flex items-center justify-center py-6 gap-2">
+            <div className="w-3 h-3 border border-[#D4AF37] border-t-transparent rounded-full anim-spin" />
+            <span className="text-[10px] font-[Josefin_Sans] uppercase tracking-[0.12em]" style={{ color: "#C5A255" }}>
+              Running backtest...
+            </span>
+          </div>
+        ) : (
+          <p
+            className="text-[11px] font-[Lato] py-4 text-center"
+            style={{ color: "#8B8E96" }}
+          >
+            {t.noBacktestData}
+          </p>
+        )}
       </Mod>
     );
   }
 
   return (
     <Mod title={t.backtestResults}>
+      {periodSelector}
+
       {/* Ticker + Period header */}
       <div className="flex items-center justify-between mb-2">
         <span
@@ -95,7 +157,7 @@ export function BacktestPanel({
           className="text-[9px] font-[Josefin_Sans] uppercase tracking-[0.14em]"
           style={{ color: "#8B8E96" }}
         >
-          {t.backtestPeriod}: {data.period}
+          {data.period}
         </span>
       </div>
 
@@ -131,6 +193,16 @@ export function BacktestPanel({
       </div>
 
       <GoldRule strength={15} />
+
+      {/* Loading overlay */}
+      {loading && (
+        <div className="flex items-center justify-center py-2 gap-2">
+          <div className="w-3 h-3 border border-[#D4AF37] border-t-transparent rounded-full anim-spin" />
+          <span className="text-[9px] font-[Josefin_Sans] uppercase tracking-[0.12em]" style={{ color: "#C5A255" }}>
+            Updating...
+          </span>
+        </div>
+      )}
 
       {/* Table header */}
       <div

@@ -63,6 +63,7 @@ export const T: Record<string, Record<string, string>> = {
     sharpeRatio: "Sharpe Ratio", maxDrawdown: "Max Drawdown", winRateCol: "Win Rate",
     tradesCol: "Trades", profitFactor: "Profit Factor", bestStrategy: "Best Strategy",
     backtestPeriod: "Period", noBacktestData: "No backtest data available",
+    bt1y: "1Y", bt2y: "2Y", bt5y: "5Y", btMax: "Max",
   },
   ZH: {
     brand: "ORALLEXA", subtitle: "资本智能系统", active: "运行中",
@@ -104,6 +105,7 @@ export const T: Record<string, Record<string, string>> = {
     sharpeRatio: "夏普比率", maxDrawdown: "最大回撤", winRateCol: "胜率",
     tradesCol: "交易次数", profitFactor: "盈利因子", bestStrategy: "最优策略",
     backtestPeriod: "区间", noBacktestData: "暂无回测数据",
+    bt1y: "1年", bt2y: "2年", bt5y: "5年", btMax: "最大",
   },
 };
 

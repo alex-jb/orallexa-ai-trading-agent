@@ -45,6 +45,9 @@ export function ServiceWorkerRegistrar() {
 
     if (!("serviceWorker" in navigator)) return;
 
+    // Track last-online timestamp for offline page
+    localStorage.setItem("orallexa_last_online", new Date().toLocaleString());
+
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
@@ -63,6 +66,14 @@ export function ServiceWorkerRegistrar() {
         }
       })
       .catch(() => {});
+
+    // Listen for SW update messages
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "SW_UPDATED") {
+        // Could dispatch a custom event for the UI to show an update toast
+        window.dispatchEvent(new CustomEvent("sw-updated"));
+      }
+    });
   }, []);
 
   return null;

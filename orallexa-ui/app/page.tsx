@@ -55,7 +55,22 @@ export default function Home() {
   const [lastAnalyzedAt, setLastAnalyzedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [backtestData, setBacktestData] = useState<BacktestSummary | null>(null);
+  const [backtestLoading, setBacktestLoading] = useState(false);
   const { notify } = useNotifications();
+
+  const fetchBacktest = useCallback((ticker: string, period: string = "2y") => {
+    setBacktestLoading(true);
+    if (apiDead.current) {
+      setBacktestData(Mock.mockBacktest(ticker) as never);
+      setBacktestLoading(false);
+      return;
+    }
+    fetch(`${API}/api/backtest/${ticker}?period=${period}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !d.error) setBacktestData(d); else setBacktestData(Mock.mockBacktest(ticker) as never); })
+      .catch(() => setBacktestData(Mock.mockBacktest(ticker) as never))
+      .finally(() => setBacktestLoading(false));
+  }, []);
   const [tradeLoading, setTradeLoading] = useState(false);
   const [tradeResult, setTradeResult] = useState<{ status: string; order_id?: string; error?: string } | null>(null);
   const [alpacaAccount, setAlpacaAccount] = useState<{ equity: number; cash: number; buying_power: number } | null>(null);
