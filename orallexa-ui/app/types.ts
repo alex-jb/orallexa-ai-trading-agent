@@ -12,7 +12,12 @@ export interface MarketSummary { close?: number; change_pct?: number; rsi?: numb
 export interface BreakingSignal { type: string; severity: string; ticker: string; timestamp: string; message: string; direction?: string; shift_pct?: number; prev_decision?: string; new_decision?: string; }
 export interface WatchlistItem { ticker: string; price: number | null; change_pct: number | null; decision: string; confidence: number; signal_strength: number; risk_level: string; probabilities: { up: number; neutral: number; down: number }; recommendation: string; error: string | null; }
 export interface SocialPosts { movers: string; sectors: string; picks: string; brief: string; volume: string; }
-export interface DailyIntelData { date: string; generated_at: string; market_mood: string; summary: string; gainers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; losers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; volume_spikes?: { ticker: string; price: number; change_pct: number; volume_ratio: number }[]; sectors: { sector: string; etf: string; change_pct: number }[]; headlines: { title: string; ticker: string; sentiment: string; score: number; url: string; provider: string }[]; ai_picks: { ticker: string; direction: string; reason: string; catalyst: string }[]; orallexa_thread?: string[]; social_posts?: SocialPosts; }
+export interface MacroIndicator { label: string; value: string; change: number; direction: "up" | "down" | "flat"; }
+export interface EconEvent { date: string; time: string; event: string; impact: "high" | "medium" | "low"; forecast?: string; previous?: string; }
+export interface FearGreedData { score: number; label: string; components: { name: string; value: number; signal: "extreme_fear" | "fear" | "neutral" | "greed" | "extreme_greed" }[]; }
+export interface MarketBreadth { advancers: number; decliners: number; unchanged: number; new_highs: number; new_lows: number; adv_vol: number; dec_vol: number; }
+export interface OptionsFlow { ticker: string; type: "call" | "put"; premium: string; strike: string; expiry: string; sentiment: "bullish" | "bearish"; unusual: boolean; }
+export interface DailyIntelData { date: string; generated_at: string; market_mood: string; summary: string; gainers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; losers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; volume_spikes?: { ticker: string; price: number; change_pct: number; volume_ratio: number }[]; sectors: { sector: string; etf: string; change_pct: number }[]; headlines: { title: string; ticker: string; sentiment: string; score: number; url: string; provider: string }[]; ai_picks: { ticker: string; direction: string; reason: string; catalyst: string }[]; orallexa_thread?: string[]; social_posts?: SocialPosts; macro?: MacroIndicator[]; econ_calendar?: EconEvent[]; fear_greed?: FearGreedData; breadth?: MarketBreadth; options_flow?: OptionsFlow[]; }
 
 /* ── i18n ──────────────────────────────────────────────────────────────── */
 export const T: Record<string, Record<string, string>> = {
@@ -40,6 +45,10 @@ export const T: Record<string, Record<string, string>> = {
     signalTab: "Signal", intelTab: "Intel", morningBrief: "Morning Brief", topMovers: "Top Movers",
     sectorMap: "Sector Heatmap", aiPicks: "AI Picks", worthWatching: "Worth Watching", refresh: "Refresh",
     lastUpdated: "Last updated", catalyst: "Catalyst",
+    macroPulse: "Macro Pulse", econCalendar: "Economic Calendar", fearGreed: "Fear & Greed Index",
+    calToday: "Today", calTomorrow: "Tomorrow", forecast: "Forecast", previous: "Previous",
+    marketBreadth: "Market Breadth", advancers: "Advancers", decliners: "Decliners",
+    newHighs: "52W Highs", newLows: "52W Lows", optionsFlow: "Options Flow",
   },
   ZH: {
     brand: "ORALLEXA", subtitle: "资本智能系统", active: "运行中",
@@ -65,6 +74,10 @@ export const T: Record<string, Record<string, string>> = {
     signalTab: "信号", intelTab: "情报", morningBrief: "晨间简报", topMovers: "今日异动",
     sectorMap: "板块热力图", aiPicks: "AI 推荐", worthWatching: "值得关注", refresh: "刷新",
     lastUpdated: "更新于", catalyst: "催化剂",
+    macroPulse: "宏观脉搏", econCalendar: "经济日历", fearGreed: "恐惧与贪婪指数",
+    calToday: "今天", calTomorrow: "明天", forecast: "预期", previous: "前值",
+    marketBreadth: "市场广度", advancers: "上涨", decliners: "下跌",
+    newHighs: "52周新高", newLows: "52周新低", optionsFlow: "期权异动",
   },
 };
 

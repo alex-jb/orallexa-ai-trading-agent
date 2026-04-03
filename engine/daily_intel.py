@@ -464,6 +464,249 @@ CRITICAL RULES:
     return result
 
 
+# ── Step 7: Macro Indicators ────────────────────────────────────────────────
+
+MACRO_TICKERS = [
+    ("VIX", "^VIX", ""),
+    ("DXY", "DX-Y.NYB", ""),
+    ("10Y", "^TNX", "%"),
+    ("WTI", "CL=F", "$"),
+    ("Gold", "GC=F", "$"),
+    ("BTC", "BTC-USD", "$"),
+]
+
+
+def _fetch_macro() -> list[dict] | None:
+    """Fetch macro indicators: VIX, DXY, 10Y, Oil, Gold, BTC."""
+    import yfinance as yf
+    try:
+        indicators = []
+        for label, ticker, prefix in MACRO_TICKERS:
+            try:
+                tk = yf.Ticker(ticker)
+                info = tk.fast_info
+                price = getattr(info, "last_price", None) or getattr(info, "regularMarketPrice", None)
+                prev = getattr(info, "previous_close", None)
+                if not price or price <= 0:
+                    continue
+                change = round((price - prev) / prev * 100, 2) if prev and prev > 0 else 0.0
+                direction = "up" if change > 0.05 else "down" if change < -0.05 else "flat"
+
+                # Format value
+                if prefix == "$":
+                    if price >= 1000:
+                        value = f"${price:,.0f}"
+                    else:
+                        value = f"${price:.2f}"
+                elif prefix == "%":
+                    value = f"{price:.2f}%"
+                else:
+                    value = f"{price:.2f}"
+
+                indicators.append({
+                    "label": label,
+                    "value": value,
+                    "change": change,
+                    "direction": direction,
+                })
+            except Exception:
+                continue
+        return indicators if indicators else None
+    except Exception as e:
+        logger.warning("Macro fetch failed: %s", e)
+        return None
+
+
+# ── Step 8: Fear & Greed Index ──────────────────────────────────────────────
+
+def _calc_fear_greed(gainers: list[dict], losers: list[dict], sectors: list[dict]) -> dict | None:
+    """Calculate composite Fear & Greed score from available data."""
+    import yfinance as yf
+    try:
+        components = []
+
+        # 1. Market Momentum: SPY vs 125-day MA
+        try:
+            spy = yf.Ticker("SPY")
+            hist = spy.history(period="6mo", interval="1d")
+            if hist is not None and len(hist) >= 125:
+                current = float(hist["Close"].iloc[-1])
+                ma125 = float(hist["Close"].tail(125).mean())
+                ratio = (current / ma125 - 1) * 100
+                momentum = max(0, min(100, 50 + ratio * 10))
+            else:
+                momentum = 50
+        except Exception:
+            momentum = 50
+        components.append({"name": "Market Momentum", "value": round(momentum)})
+
+        # 2. Volume: current SPY volume vs 20-day avg
+        try:
+            if hist is not None and len(hist) >= 20:
+                cur_vol = float(hist["Volume"].iloc[-1])
+                avg_vol = float(hist["Volume"].tail(20).mean())
+                vol_ratio = cur_vol / max(avg_vol, 1)
+                volume_score = max(0, min(100, vol_ratio * 50))
+            else:
+                volume_score = 50
+        except Exception:
+            volume_score = 50
+        components.append({"name": "Volume", "value": round(volume_score)})
+
+        # 3. Volatility (VIX proxy): VIX 10=100(greed), VIX 40=0(fear)
+        try:
+            vix = yf.Ticker("^VIX")
+            vix_price = getattr(vix.fast_info, "last_price", None) or 20
+            vol_score = max(0, min(100, 100 - (float(vix_price) - 10) * (100 / 30)))
+        except Exception:
+            vol_score = 50
+        components.append({"name": "Volatility", "value": round(vol_score)})
+
+        # 4. Market Breadth: gainers vs losers ratio
+        adv = len(gainers)
+        dec = len(losers)
+        total = adv + dec
+        breadth = (adv / max(total, 1)) * 100 if total > 0 else 50
+        components.append({"name": "Breadth", "value": round(breadth)})
+
+        # 5. Safe Haven: if gold outperforms SPY, more fear
+        try:
+            gold_chg = 0.0
+            spy_chg = 0.0
+            for s in sectors:
+                pass  # sectors don't have gold
+            gold_tk = yf.Ticker("GC=F")
+            gold_info = gold_tk.fast_info
+            gold_price = getattr(gold_info, "last_price", None)
+            gold_prev = getattr(gold_info, "previous_close", None)
+            if gold_price and gold_prev and gold_prev > 0:
+                gold_chg = (gold_price - gold_prev) / gold_prev * 100
+
+            spy_info = spy.fast_info
+            spy_price = getattr(spy_info, "last_price", None)
+            spy_prev = getattr(spy_info, "previous_close", None)
+            if spy_price and spy_prev and spy_prev > 0:
+                spy_chg = (spy_price - spy_prev) / spy_prev * 100
+
+            diff = spy_chg - gold_chg  # positive = greed, negative = fear
+            safe_haven = max(0, min(100, 50 + diff * 15))
+        except Exception:
+            safe_haven = 50
+        components.append({"name": "Safe Haven", "value": round(safe_haven)})
+
+        # 6. Put/Call (proxy from VIX)
+        put_call = vol_score  # reuse VIX-based score
+        components.append({"name": "Put/Call Ratio", "value": round(put_call)})
+
+        # Composite score (equal weight)
+        composite = round(sum(c["value"] for c in components) / len(components))
+
+        # Signal labeling
+        def signal(v: int) -> str:
+            if v <= 20: return "extreme_fear"
+            if v <= 40: return "fear"
+            if v <= 60: return "neutral"
+            if v <= 80: return "greed"
+            return "extreme_greed"
+
+        label_map = {
+            "extreme_fear": "Extreme Fear",
+            "fear": "Fear",
+            "neutral": "Neutral",
+            "greed": "Greed",
+            "extreme_greed": "Extreme Greed",
+        }
+
+        for c in components:
+            c["signal"] = signal(c["value"])
+
+        return {
+            "score": composite,
+            "label": label_map[signal(composite)],
+            "components": components,
+        }
+    except Exception as e:
+        logger.warning("Fear & Greed calc failed: %s", e)
+        return None
+
+
+# ── Step 9: Economic Calendar (LLM) ────────────────────────────────────────
+
+def _generate_econ_calendar() -> list[dict] | None:
+    """Generate this week's economic calendar via Claude."""
+    import llm.claude_client as cc
+    from llm.claude_client import get_client, _extract_text
+    from llm.call_logger import logged_create
+
+    today = datetime.now().strftime("%Y-%m-%d (%A)")
+
+    prompt = f"""Today is {today}. List the most important US economic events for this week and next 3 days.
+
+Output ONLY valid JSON array (no markdown):
+[
+  {{"date": "YYYY-MM-DD", "time": "HH:MM", "event": "Event Name", "impact": "high|medium|low", "forecast": "value or null", "previous": "value or null"}}
+]
+
+Include: Fed speeches, CPI, PPI, GDP, jobs data, FOMC, earnings of major companies (NVDA, AAPL, TSLA, etc.), consumer sentiment.
+Impact: "high" for Fed decisions/CPI/NFP/major earnings, "medium" for other data, "low" for minor events.
+Return 6-10 events. Use EST times."""
+
+    try:
+        client = get_client()
+        response, _ = logged_create(
+            client, request_type="daily_intel_calendar",
+            model=cc.DEEP_MODEL, max_tokens=500, temperature=0.2,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = _extract_text(response).strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        start, end = text.find("["), text.rfind("]")
+        if start != -1 and end != -1:
+            text = text[start:end + 1]
+        events = json.loads(text)
+        # Validate and clean
+        valid = []
+        for e in events:
+            if "event" in e and "date" in e:
+                valid.append({
+                    "date": e.get("date", ""),
+                    "time": e.get("time", ""),
+                    "event": e.get("event", ""),
+                    "impact": e.get("impact", "medium"),
+                    "forecast": e.get("forecast"),
+                    "previous": e.get("previous"),
+                })
+        return valid[:10] if valid else None
+    except Exception as e:
+        logger.warning("Econ calendar failed: %s", e)
+        return None
+
+
+# ── Step 10: Market Breadth ─────────────────────────────────────────────────
+
+def _calc_breadth(gainers: list[dict], losers: list[dict]) -> dict | None:
+    """Estimate market breadth from fetched data."""
+    try:
+        adv = len([g for g in gainers if g["change_pct"] > 0])
+        dec = len([l for l in losers if l["change_pct"] < 0])
+        # Scale up to approximate full market
+        scale = 35  # rough multiplier from our ~60 tickers to ~3000 NYSE
+        adv_vol = sum(g.get("volume", 0) for g in gainers)
+        dec_vol = sum(l.get("volume", 0) for l in losers)
+        return {
+            "advancers": adv * scale,
+            "decliners": dec * scale,
+            "unchanged": max(5, (8 - adv - dec)) * scale,
+            "new_highs": sum(1 for g in gainers if g["change_pct"] > 3) * scale,
+            "new_lows": sum(1 for l in losers if l["change_pct"] < -3) * scale,
+            "adv_vol": adv_vol,
+            "dec_vol": dec_vol,
+        }
+    except Exception as e:
+        logger.warning("Breadth calc failed: %s", e)
+        return None
+
+
 # ── Cache ────────────────────────────────────────────────────────────────────
 
 def _load_cache() -> Optional[dict]:
@@ -530,6 +773,12 @@ def generate_daily_intel(force: bool = False) -> dict:
         summary, mood, gainers, losers, spikes, picks, sectors, headlines
     )
 
+    # Step 7-10: New modules (fail gracefully)
+    macro = _fetch_macro()
+    fear_greed = _calc_fear_greed(gainers, losers, sectors)
+    econ_calendar = _generate_econ_calendar()
+    breadth = _calc_breadth(gainers, losers)
+
     result = {
         "date": today,
         "generated_at": datetime.now().isoformat(),
@@ -549,9 +798,14 @@ def generate_daily_intel(force: bool = False) -> dict:
             "brief": social.get("brief_post", ""),
             "volume": social.get("volume_post", ""),
         },
+        "macro": macro,
+        "fear_greed": fear_greed,
+        "econ_calendar": econ_calendar,
+        "breadth": breadth,
     }
 
     _save_cache(result)
+    orallexa_thread = social.get("thread", [])
     logger.info("Daily intel generated: mood=%s, %d gainers, %d losers, %d spikes, %d headlines, %d picks, %d posts",
                 mood, len(gainers), len(losers), len(spikes), len(headlines), len(picks), len(orallexa_thread))
 

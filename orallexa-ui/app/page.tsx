@@ -111,12 +111,7 @@ export default function Home() {
     setTradeLoading(false);
   };
 
-  // PWA service worker registration
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
+  // PWA service worker registration moved to layout.tsx via ServiceWorkerRegistrar
 
   // Online/offline detection
   useEffect(() => {

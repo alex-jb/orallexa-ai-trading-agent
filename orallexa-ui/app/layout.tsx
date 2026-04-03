@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Poiret_One, Josefin_Sans, Lato, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegistrar } from "./components/ServiceWorkerRegistrar";
 
 const poiretOne = Poiret_One({ weight: "400", subsets: ["latin"], variable: "--font-poiret", display: "swap" });
 const josefinSans = Josefin_Sans({ weight: ["300", "400", "600", "700"], subsets: ["latin"], variable: "--font-josefin", display: "swap" });
@@ -57,6 +58,7 @@ export default function RootLayout({
         className="h-full"
         style={{ background: "#08090C", minHeight: "100vh" }}
       >
+        <ServiceWorkerRegistrar />
         {children}
       </body>
     </html>

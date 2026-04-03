@@ -1,9 +1,275 @@
 "use client";
 
-import type { DailyIntelData } from "../types";
+import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow } from "../types";
 import { copyWithAttribution } from "../types";
 import { Mod, CopyBtn } from "./atoms";
 
+/* ── Macro Pulse Strip ─────────────────────────────────────────────── */
+function MacroPulse({ indicators, t }: { indicators: MacroIndicator[]; t: Record<string, string> }) {
+  return (
+    <div className="relative mb-3" style={{ background: "#1A1A2E" }}>
+      <div className="absolute inset-0 border pointer-events-none" style={{ borderColor: "rgba(212,175,55,0.15)" }} />
+      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, transparent, #D4AF37, transparent)" }} />
+      <div className="px-4 py-3">
+        <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.28em] mb-3"
+          style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700, #C5A255)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          {t.macroPulse}
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {indicators.map((ind, i) => {
+            const chgColor = ind.direction === "up" ? "#006B3F" : ind.direction === "down" ? "#8B0000" : "#8B8E96";
+            const arrow = ind.direction === "up" ? "▲" : ind.direction === "down" ? "▼" : "–";
+            return (
+              <div key={i} className="text-center py-2 px-1" style={{ background: "rgba(42,42,62,0.5)", border: "1px solid rgba(212,175,55,0.06)" }}>
+                <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{ind.label}</div>
+                <div className="text-[14px] font-[DM_Mono] font-bold text-[#F5E6CA] leading-none">{ind.value}</div>
+                <div className="text-[9px] font-[DM_Mono] mt-1" style={{ color: chgColor }}>
+                  {arrow} {ind.change >= 0 ? "+" : ""}{ind.change.toFixed(1)}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Fear & Greed Gauge ────────────────────────────────────────────── */
+function FearGreedGauge({ data, t }: { data: FearGreedData; t: Record<string, string> }) {
+  const score = Math.max(0, Math.min(100, data.score));
+  // Semicircle: 180deg arc, needle rotates from -90 (0) to +90 (100)
+  const needleAngle = -90 + (score / 100) * 180;
+  const scoreColor = score <= 25 ? "#8B0000" : score <= 40 ? "#CD7F32" : score <= 60 ? "#D4AF37" : score <= 75 ? "#006B3F" : "#006B3F";
+  const signalColor = (s: string) =>
+    s === "extreme_fear" ? "#8B0000" : s === "fear" ? "#CD7F32" : s === "neutral" ? "#D4AF37" : s === "greed" ? "#006B3F" : "#006B3F";
+
+  return (
+    <Mod title={t.fearGreed}>
+      <div className="flex flex-col items-center py-2">
+        {/* Gauge SVG */}
+        <svg width="200" height="110" viewBox="0 0 200 110">
+          {/* Background arc segments */}
+          {[
+            { start: -90, end: -54, color: "#8B0000" },
+            { start: -54, end: -18, color: "#CD7F32" },
+            { start: -18, end: 18, color: "#D4AF37" },
+            { start: 18, end: 54, color: "#6B8E23" },
+            { start: 54, end: 90, color: "#006B3F" },
+          ].map((seg, i) => {
+            const r = 80;
+            const cx = 100, cy = 95;
+            const x1 = cx + r * Math.cos((seg.start * Math.PI) / 180);
+            const y1 = cy + r * Math.sin((seg.start * Math.PI) / 180);
+            const x2 = cx + r * Math.cos((seg.end * Math.PI) / 180);
+            const y2 = cy + r * Math.sin((seg.end * Math.PI) / 180);
+            return (
+              <path key={i}
+                d={`M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`}
+                fill="none" stroke={seg.color} strokeWidth="8" strokeLinecap="butt" opacity="0.4" />
+            );
+          })}
+          {/* Tick marks */}
+          {[0, 25, 50, 75, 100].map(v => {
+            const angle = -90 + (v / 100) * 180;
+            const r1 = 72, r2 = 68;
+            const cx = 100, cy = 95;
+            const x1 = cx + r1 * Math.cos((angle * Math.PI) / 180);
+            const y1 = cy + r1 * Math.sin((angle * Math.PI) / 180);
+            const x2 = cx + r2 * Math.cos((angle * Math.PI) / 180);
+            const y2 = cy + r2 * Math.sin((angle * Math.PI) / 180);
+            return <line key={v} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(212,175,55,0.3)" strokeWidth="1" />;
+          })}
+          {/* Needle */}
+          <line x1="100" y1="95"
+            x2={100 + 60 * Math.cos((needleAngle * Math.PI) / 180)}
+            y2={95 + 60 * Math.sin((needleAngle * Math.PI) / 180)}
+            stroke={scoreColor} strokeWidth="2" strokeLinecap="round" />
+          <circle cx="100" cy="95" r="4" fill={scoreColor} />
+          <circle cx="100" cy="95" r="2" fill="#0A0A0F" />
+          {/* Score text */}
+          <text x="100" y="88" textAnchor="middle" fill={scoreColor}
+            style={{ fontSize: "24px", fontFamily: "DM Mono", fontWeight: 700 }}>{score}</text>
+          {/* Labels */}
+          <text x="18" y="100" textAnchor="middle" fill="#8B0000"
+            style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>Fear</text>
+          <text x="182" y="100" textAnchor="middle" fill="#006B3F"
+            style={{ fontSize: "7px", fontFamily: "Josefin Sans", textTransform: "uppercase", letterSpacing: "0.08em" }}>Greed</text>
+        </svg>
+        <div className="text-[16px] font-[Josefin_Sans] font-bold uppercase tracking-[0.12em] -mt-2" style={{ color: scoreColor }}>{data.label}</div>
+      </div>
+      {/* Component breakdown */}
+      <div className="space-y-1 mt-2">
+        {data.components.map((c, i) => {
+          const barWidth = c.value;
+          const color = signalColor(c.signal);
+          return (
+            <div key={i} className="flex items-center gap-2 py-[2px]">
+              <span className="text-[9px] font-[Lato] text-[#8B8E96] w-[100px] shrink-0 truncate">{c.name}</span>
+              <div className="flex-1 h-[5px] relative" style={{ background: "#2A2A3E" }}>
+                <div className="absolute top-0 left-0 h-full transition-all" style={{ width: `${barWidth}%`, background: color }} />
+              </div>
+              <span className="text-[9px] font-[DM_Mono] w-[28px] text-right" style={{ color }}>{c.value}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Mod>
+  );
+}
+
+/* ── Economic Calendar ─────────────────────────────────────────────── */
+function EconCalendar({ events, t, zh }: { events: EconEvent[]; t: Record<string, string>; zh: boolean }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const dayLabel = (d: string) => d === todayStr ? (t.calToday || "Today") : d === tomorrowStr ? (t.calTomorrow || "Tomorrow") : d.slice(5);
+  const impactDots = (impact: string) => {
+    const color = impact === "high" ? "#8B0000" : impact === "medium" ? "#D4AF37" : "#8B8E96";
+    const count = impact === "high" ? 3 : impact === "medium" ? 2 : 1;
+    return (
+      <div className="flex gap-[2px]">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="w-[5px] h-[5px] rotate-45" style={{ background: i < count ? color : "rgba(42,42,62,0.8)" }} />
+        ))}
+      </div>
+    );
+  };
+
+  // Group by date
+  const grouped = events.reduce<Record<string, EconEvent[]>>((acc, e) => {
+    (acc[e.date] ??= []).push(e);
+    return acc;
+  }, {});
+
+  return (
+    <Mod title={t.econCalendar}>
+      {Object.entries(grouped).map(([date, evts]) => (
+        <div key={date} className="mb-2 last:mb-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.2em] px-1.5 py-0.5"
+              style={{ color: date === todayStr ? "#D4AF37" : "#8B8E96", background: date === todayStr ? "rgba(212,175,55,0.08)" : "transparent", border: date === todayStr ? "1px solid rgba(212,175,55,0.2)" : "1px solid transparent" }}>
+              {dayLabel(date)}
+            </span>
+            <div className="flex-1 h-px" style={{ background: "rgba(212,175,55,0.08)" }} />
+          </div>
+          {evts.map((ev, i) => (
+            <div key={i} className="flex items-center gap-2 py-[5px] border-b last:border-b-0" style={{ borderColor: "rgba(212,175,55,0.04)" }}>
+              <span className="text-[9px] font-[DM_Mono] text-[#4A4D55] w-[36px] shrink-0">{ev.time}</span>
+              {impactDots(ev.impact)}
+              <span className="text-[10px] font-[Lato] text-[#F5E6CA]/80 font-light flex-1 truncate">{ev.event}</span>
+              {(ev.forecast || ev.previous) && (
+                <div className="flex gap-2 shrink-0">
+                  {ev.forecast && <span className="text-[8px] font-[DM_Mono] text-[#D4AF37]">{zh ? "预" : "F"}: {ev.forecast}</span>}
+                  {ev.previous && <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">{zh ? "前" : "P"}: {ev.previous}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </Mod>
+  );
+}
+
+/* ── Market Breadth ────────────────────────────────────────────────── */
+function BreadthPanel({ data, t }: { data: MarketBreadth; t: Record<string, string> }) {
+  const total = data.advancers + data.decliners + data.unchanged;
+  const advPct = total > 0 ? (data.advancers / total) * 100 : 50;
+  const decPct = total > 0 ? (data.decliners / total) * 100 : 50;
+  const totalVol = data.adv_vol + data.dec_vol;
+  const advVolPct = totalVol > 0 ? (data.adv_vol / totalVol) * 100 : 50;
+  const fmtVol = (v: number) => v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : `${(v / 1e6).toFixed(0)}M`;
+
+  return (
+    <Mod title={t.marketBreadth}>
+      {/* Advance / Decline bar */}
+      <div className="mb-3">
+        <div className="flex justify-between mb-1">
+          <span className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em]" style={{ color: "#006B3F" }}>
+            {t.advancers} {data.advancers}
+          </span>
+          <span className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em]" style={{ color: "#8B0000" }}>
+            {data.decliners} {t.decliners}
+          </span>
+        </div>
+        <div className="flex h-[8px] w-full overflow-hidden" style={{ background: "#2A2A3E" }}>
+          <div style={{ width: `${advPct}%`, background: "#006B3F" }} />
+          <div className="w-px" style={{ background: "rgba(212,175,55,0.3)" }} />
+          <div style={{ width: `${decPct}%`, background: "#8B0000" }} />
+        </div>
+        <div className="text-center text-[8px] font-[DM_Mono] text-[#4A4D55] mt-1">
+          {data.unchanged} unchanged
+        </div>
+      </div>
+
+      {/* Volume split */}
+      <div className="mb-3">
+        <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">Volume</div>
+        <div className="flex h-[6px] w-full overflow-hidden" style={{ background: "#2A2A3E" }}>
+          <div style={{ width: `${advVolPct}%`, background: "rgba(0,107,63,0.6)" }} />
+          <div style={{ width: `${100 - advVolPct}%`, background: "rgba(139,0,0,0.6)" }} />
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[8px] font-[DM_Mono]" style={{ color: "#006B3F" }}>{fmtVol(data.adv_vol)}</span>
+          <span className="text-[8px] font-[DM_Mono]" style={{ color: "#8B0000" }}>{fmtVol(data.dec_vol)}</span>
+        </div>
+      </div>
+
+      {/* 52-week highs/lows */}
+      <div className="flex gap-4">
+        <div className="flex-1 text-center py-2" style={{ background: "rgba(0,107,63,0.06)", border: "1px solid rgba(0,107,63,0.15)" }}>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{t.newHighs}</div>
+          <div className="text-[18px] font-[DM_Mono] font-bold" style={{ color: "#006B3F" }}>{data.new_highs}</div>
+        </div>
+        <div className="flex-1 text-center py-2" style={{ background: "rgba(139,0,0,0.06)", border: "1px solid rgba(139,0,0,0.15)" }}>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{t.newLows}</div>
+          <div className="text-[18px] font-[DM_Mono] font-bold" style={{ color: "#8B0000" }}>{data.new_lows}</div>
+        </div>
+      </div>
+    </Mod>
+  );
+}
+
+/* ── Options Flow ──────────────────────────────────────────────────── */
+function OptionsFlowPanel({ flows, onSelectTicker, t }: { flows: OptionsFlow[]; onSelectTicker: (tk: string) => void; t: Record<string, string> }) {
+  return (
+    <Mod title={t.optionsFlow}>
+      {flows.map((f, i) => {
+        const isCall = f.type === "call";
+        const color = f.sentiment === "bullish" ? "#006B3F" : "#8B0000";
+        return (
+          <button key={i} onClick={() => onSelectTicker(f.ticker)}
+            className="w-full flex items-center gap-2 py-[6px] border-b last:border-b-0 hover:bg-[#D4AF37]/4 transition-colors text-left"
+            style={{ borderColor: "rgba(212,175,55,0.04)" }}>
+            {/* Ticker + type badge */}
+            <span className="text-[11px] font-[DM_Mono] font-bold text-[#F5E6CA] w-[42px] shrink-0">{f.ticker}</span>
+            <span className="text-[7px] font-[Josefin_Sans] font-bold uppercase tracking-[0.08em] px-1.5 py-[2px] shrink-0"
+              style={{ color, background: `${color}15`, border: `1px solid ${color}30` }}>
+              {isCall ? "CALL" : "PUT"}
+            </span>
+            {/* Strike + expiry */}
+            <div className="flex-1 min-w-0">
+              <span className="text-[9px] font-[DM_Mono] text-[#F5E6CA]/60">{f.strike}</span>
+              <span className="text-[8px] font-[Lato] text-[#4A4D55] ml-1">{f.expiry}</span>
+            </div>
+            {/* Premium */}
+            <span className="text-[10px] font-[DM_Mono] font-medium shrink-0" style={{ color }}>{f.premium}</span>
+            {/* Unusual flag */}
+            {f.unusual && (
+              <span className="w-[5px] h-[5px] rotate-45 shrink-0" style={{ background: "#D4AF37" }} title="Unusual activity" />
+            )}
+          </button>
+        );
+      })}
+      <div className="text-[8px] font-[Lato] text-[#4A4D55] mt-2 flex items-center gap-1">
+        <span className="w-[4px] h-[4px] rotate-45 inline-block" style={{ background: "#D4AF37" }} />
+        = unusual activity
+      </div>
+    </Mod>
+  );
+}
+
+/* ── Main Daily Intel View ─────────────────────────────────────────── */
 export function DailyIntelView({ data, onSelectTicker, t, zh }: {
   data: DailyIntelData | null; onSelectTicker: (tk: string) => void; t: Record<string, string>; zh: boolean;
 }) {
@@ -61,6 +327,15 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
         <div className="text-[9px] font-[Josefin_Sans] uppercase tracking-[0.3em] mb-2" style={{ color: moodColor }}>{data.date}</div>
         <div className="text-[42px] font-[Poiret_One] tracking-[0.12em] leading-none" style={{ color: moodColor }}>{data.market_mood.toUpperCase()}</div>
       </div>
+
+      {/* Macro Pulse */}
+      {data.macro && data.macro.length > 0 && <MacroPulse indicators={data.macro} t={t} />}
+
+      {/* Fear & Greed */}
+      {data.fear_greed && <FearGreedGauge data={data.fear_greed} t={t} />}
+
+      {/* Market Breadth */}
+      {data.breadth && <BreadthPanel data={data.breadth} t={t} />}
 
       {/* Morning Brief */}
       <Mod title={t.morningBrief}>
@@ -138,6 +413,9 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
         </Mod>
       )}
 
+      {/* Economic Calendar */}
+      {data.econ_calendar && data.econ_calendar.length > 0 && <EconCalendar events={data.econ_calendar} t={t} zh={zh} />}
+
       {/* Volume Spikes */}
       {data.volume_spikes && data.volume_spikes.length > 0 && (
         <Mod title={<div className="flex items-center justify-between w-full"><span>{zh ? "成交量异动" : "Volume Spikes"}</span><CopyBtn text={data.social_posts?.volume || volumeText} /></div>}>
@@ -152,6 +430,9 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
           ))}
         </Mod>
       )}
+
+      {/* Options Flow */}
+      {data.options_flow && data.options_flow.length > 0 && <OptionsFlowPanel flows={data.options_flow} onSelectTicker={onSelectTicker} t={t} />}
 
       {/* Orallexa Thread */}
       {data.orallexa_thread && data.orallexa_thread.length > 0 && (

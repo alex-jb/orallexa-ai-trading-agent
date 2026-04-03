@@ -138,3 +138,104 @@ describe("DailyIntelView — orallexa thread", () => {
     expect(screen.getByText("Tech leading the way")).toBeInTheDocument();
   });
 });
+
+describe("DailyIntelView — macro pulse", () => {
+  it("shows macro indicators when provided", () => {
+    const withMacro = {
+      ...mockData,
+      macro: [
+        { label: "VIX", value: "14.2", change: -1.8, direction: "down" as const },
+        { label: "BTC", value: "$91,200", change: 3.2, direction: "up" as const },
+      ],
+    };
+    render(<DailyIntelView data={withMacro} onSelectTicker={() => {}} t={t} zh={false} />);
+    expect(screen.getByText("VIX")).toBeInTheDocument();
+    expect(screen.getByText("14.2")).toBeInTheDocument();
+    expect(screen.getByText("BTC")).toBeInTheDocument();
+    expect(screen.getByText("$91,200")).toBeInTheDocument();
+  });
+
+  it("does not render macro section when absent", () => {
+    render(<DailyIntelView data={mockData} onSelectTicker={() => {}} t={t} zh={false} />);
+    expect(screen.queryByText("Macro Pulse")).not.toBeInTheDocument();
+  });
+});
+
+describe("DailyIntelView — fear & greed", () => {
+  it("shows fear & greed gauge when provided", () => {
+    const withFG = {
+      ...mockData,
+      fear_greed: {
+        score: 68,
+        label: "Greed",
+        components: [
+          { name: "Market Momentum", value: 74, signal: "greed" as const },
+          { name: "Volatility", value: 78, signal: "greed" as const },
+        ],
+      },
+    };
+    render(<DailyIntelView data={withFG} onSelectTicker={() => {}} t={t} zh={false} />);
+    expect(screen.getAllByText("Greed").length).toBeGreaterThan(0);
+    expect(screen.getByText("68")).toBeInTheDocument();
+    expect(screen.getByText("Market Momentum")).toBeInTheDocument();
+  });
+});
+
+describe("DailyIntelView — market breadth", () => {
+  it("shows breadth panel when provided", () => {
+    const withBreadth = {
+      ...mockData,
+      breadth: { advancers: 1842, decliners: 1156, unchanged: 87, new_highs: 124, new_lows: 38, adv_vol: 6800000000, dec_vol: 3200000000 },
+    };
+    render(<DailyIntelView data={withBreadth} onSelectTicker={() => {}} t={t} zh={false} />);
+    expect(screen.getByText(/1842/)).toBeInTheDocument();
+    expect(screen.getByText(/1156/)).toBeInTheDocument();
+    expect(screen.getByText("124")).toBeInTheDocument();
+    expect(screen.getByText("38")).toBeInTheDocument();
+  });
+});
+
+describe("DailyIntelView — options flow", () => {
+  it("shows options flow entries when provided", () => {
+    const withOptions = {
+      ...mockData,
+      options_flow: [
+        { ticker: "NVDA", type: "call" as const, premium: "$12.4M", strike: "$150", expiry: "Apr 18", sentiment: "bullish" as const, unusual: true },
+        { ticker: "TSLA", type: "put" as const, premium: "$8.7M", strike: "$250", expiry: "Apr 11", sentiment: "bearish" as const, unusual: false },
+      ],
+    };
+    render(<DailyIntelView data={withOptions} onSelectTicker={() => {}} t={t} zh={false} />);
+    expect(screen.getByText("$12.4M")).toBeInTheDocument();
+    expect(screen.getByText("CALL")).toBeInTheDocument();
+    expect(screen.getByText("PUT")).toBeInTheDocument();
+    expect(screen.getByText("$150")).toBeInTheDocument();
+  });
+
+  it("calls onSelectTicker when clicking an options flow entry", () => {
+    const onSelect = vi.fn();
+    const withOptions = {
+      ...mockData,
+      options_flow: [
+        { ticker: "AMD", type: "call" as const, premium: "$4.8M", strike: "$140", expiry: "Apr 25", sentiment: "bullish" as const, unusual: true },
+      ],
+    };
+    render(<DailyIntelView data={withOptions} onSelectTicker={onSelect} t={t} zh={false} />);
+    fireEvent.click(screen.getByText("$4.8M"));
+    expect(onSelect).toHaveBeenCalledWith("AMD");
+  });
+});
+
+describe("DailyIntelView — economic calendar", () => {
+  it("shows calendar events when provided", () => {
+    const withCal = {
+      ...mockData,
+      econ_calendar: [
+        { date: new Date().toISOString().slice(0, 10), time: "08:30", event: "CPI (MoM)", impact: "high" as const, forecast: "0.3%", previous: "0.4%" },
+      ],
+    };
+    render(<DailyIntelView data={withCal} onSelectTicker={() => {}} t={t} zh={false} />);
+    expect(screen.getByText("CPI (MoM)")).toBeInTheDocument();
+    expect(screen.getByText("08:30")).toBeInTheDocument();
+    expect(screen.getByText(/0\.3%/)).toBeInTheDocument();
+  });
+});

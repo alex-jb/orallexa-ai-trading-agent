@@ -192,4 +192,54 @@ describe("mockDailyIntel", () => {
       expect(l.change_pct).toBeLessThan(0);
     }
   });
+
+  it("includes macro indicators", () => {
+    const result = mockDailyIntel();
+    expect(result.macro).toBeInstanceOf(Array);
+    expect(result.macro!.length).toBe(6);
+    for (const m of result.macro!) {
+      expect(m.label).toBeTruthy();
+      expect(m.value).toBeTruthy();
+      expect(["up", "down", "flat"]).toContain(m.direction);
+    }
+  });
+
+  it("includes fear & greed data", () => {
+    const result = mockDailyIntel();
+    expect(result.fear_greed).toBeDefined();
+    expect(result.fear_greed!.score).toBeGreaterThanOrEqual(0);
+    expect(result.fear_greed!.score).toBeLessThanOrEqual(100);
+    expect(result.fear_greed!.label).toBeTruthy();
+    expect(result.fear_greed!.components.length).toBeGreaterThan(0);
+  });
+
+  it("includes economic calendar", () => {
+    const result = mockDailyIntel();
+    expect(result.econ_calendar).toBeInstanceOf(Array);
+    expect(result.econ_calendar!.length).toBeGreaterThan(0);
+    for (const e of result.econ_calendar!) {
+      expect(e.event).toBeTruthy();
+      expect(["high", "medium", "low"]).toContain(e.impact);
+    }
+  });
+
+  it("includes market breadth", () => {
+    const result = mockDailyIntel();
+    expect(result.breadth).toBeDefined();
+    expect(result.breadth!.advancers).toBeGreaterThan(0);
+    expect(result.breadth!.decliners).toBeGreaterThan(0);
+    expect(result.breadth!.new_highs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("includes options flow", () => {
+    const result = mockDailyIntel();
+    expect(result.options_flow).toBeInstanceOf(Array);
+    expect(result.options_flow!.length).toBeGreaterThan(0);
+    for (const f of result.options_flow!) {
+      expect(f.ticker).toBeTruthy();
+      expect(["call", "put"]).toContain(f.type);
+      expect(f.premium).toBeTruthy();
+      expect(["bullish", "bearish"]).toContain(f.sentiment);
+    }
+  });
 });
