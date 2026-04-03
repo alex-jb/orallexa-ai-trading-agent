@@ -1,10 +1,12 @@
 <div align="center">
 
-<img src="assets/avatar/bull_idle.png" alt="Orallexa — Art Deco 华尔街金牛" width="120">
+<img src="assets/logo.svg" alt="Orallexa — AI Trading Operating System" width="480">
 
 # Orallexa
 
-### 一个让 AI 先辩论再做决策的交易系统
+### AI 交易操作系统
+
+<img src="assets/showcase_demo.png" alt="Market Scan → AI Analysis → Decision" width="640">
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)](https://nextjs.org)
