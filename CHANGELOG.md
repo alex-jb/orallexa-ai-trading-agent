@@ -2,6 +2,49 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-03b] — Optimization Sprint & Test Coverage Expansion (698 Tests)
+
+### Adaptive Walk-Forward Optimization
+- **Optuna integration** — Per-window Bayesian parameter search in walk-forward evaluation
+- **Adaptive trial count** — Base 20 + 8 per parameter dimension (e.g., rsi_reversal gets 52 trials)
+- **CLI flag** — `--no-adaptive` to disable and use fixed default params
+
+### Desktop Agent Hardening
+- **API retry with exponential backoff** — Claude, Whisper, TTS calls retry 3x on transient errors (timeout, 429, 503)
+- **Thread safety** — `threading.Lock` on voice_handler recording flag
+- **Chart analysis cache** — SHA256-based cache with 5-min TTL, LRU eviction (max 20 entries)
+- **Model name configurable** — `CLAUDE_MODEL` constant, overridable via `BULL_CLAUDE_MODEL` env var
+- **Timer cleanup** — Batch-cancel all pending `after()` callbacks on rapid state changes
+
+### Strategy Evolver Overfitting Protection
+- **Early stopping** — Halt if best Sharpe stagnates for 2+ generations
+- **Diversity enforcement** — Reject signals with >0.9 correlation to existing strategies
+- **Sharpe cap** — Cap unrealistic Sharpe (>4.0) as suspicious
+- **Trade count penalty** — Strategies with <5 trades penalized proportionally
+
+### Performance
+- **Monte Carlo vectorized** — Numpy batch operations replace Python for-loop (10-50x speedup)
+- **RL Agent multi-seed** — Train 3 seeds, pick best; gradient clipping, convergence check
+- **Multi-Agent timeout** — 60s guard on LLM calls with graceful fallback
+- **Particle effects** — Batch-delete dead canvas items, skip off-screen early
+
+### Testing — 424 → 698 (+274 tests)
+- **test_engine_core** (62) — backtest, 9 strategies, market analyst
+- **test_engine_extras** (47) — decision_log, demo_data, factor_engine, multi_strategy
+- **test_ml_rl_signals** (20) — ML features/labels, RL env/trader
+- **test_brain_bridge** (30) — intent detection, ticker/mode/TF extraction
+- **test_daily_intel** (10) — price fetch, constants, cache path
+- **components.spec.ts** (16) — Playwright E2E: watchlist, market strip, decision card, mobile layout
+
+### CI/CD
+- **Coverage reporting** — `pytest --cov` with XML output in CI
+- **test:coverage script** — Added to orallexa-ui/package.json
+
+### Docs
+- **README** — Test count 424→698, architecture table updated with Optuna, comparison table updated
+
+---
+
 ## [2026-04-03] — Quality, Testing, CI/CD, Performance & Deployment
 
 ### Code Quality
