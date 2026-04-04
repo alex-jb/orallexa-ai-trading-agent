@@ -565,16 +565,33 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
       {data.ai_picks.length > 0 && (
         <div ref={picksRef}>
         <Mod title={<div className="flex items-center justify-between w-full"><span>{t.aiPicks} — {t.worthWatching}</span><div className="flex gap-1"><CopyBtn text={data.social_posts?.picks || picksText} /><CopyImageBtn targetRef={picksRef} /></div></div>}>
-          {data.ai_picks.map((p, i) => (
+          {data.ai_picks.map((p, i) => {
+            const convColor = p.conviction === "high" ? "#006B3F" : p.conviction === "low" ? "#8B0000" : "#D4AF37";
+            return (
             <button key={i} onClick={() => onSelectTicker(p.ticker)} className="w-full text-left py-2 border-b last:border-b-0 hover:bg-[#D4AF37]/4 transition-colors" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[12px] font-[DM_Mono] font-bold text-[#F5E6CA]">{p.ticker}</span>
                 <span className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5" style={{ color: dirColor(p.direction), background: `${dirColor(p.direction)}15`, border: `1px solid ${dirColor(p.direction)}30` }}>{p.direction}</span>
+                {p.conviction && <span className="text-[7px] font-[DM_Mono] uppercase px-1 py-0.5" style={{ color: convColor, background: `${convColor}10` }}>{p.conviction}</span>}
+                {p.timeframe && <span className="text-[7px] font-[DM_Mono] text-[#8B8E96]">{p.timeframe}</span>}
               </div>
               <div className="text-[10px] font-[Lato] text-[#F5E6CA]/60 font-light">{p.reason}</div>
               <div className="text-[9px] font-[Lato] text-[#C5A255]/50 mt-0.5">{t.catalyst}: {p.catalyst}</div>
+              {(p.target_price || p.stop_loss) && (
+                <div className="flex gap-3 mt-1">
+                  {p.target_price && <span className="text-[9px] font-[DM_Mono] text-[#006B3F]">Target ${p.target_price.toFixed(2)}</span>}
+                  {p.stop_loss && <span className="text-[9px] font-[DM_Mono] text-[#8B0000]">Stop ${p.stop_loss.toFixed(2)}</span>}
+                  {p.target_price && p.stop_loss && (
+                    <span className="text-[8px] font-[DM_Mono] text-[#8B8E96]">R:R {((p.target_price - (p.stop_loss + p.target_price) / 2) / ((p.stop_loss + p.target_price) / 2 - p.stop_loss)).toFixed(1)}:1</span>
+                  )}
+                </div>
+              )}
             </button>
-          ))}
+            );
+          })}
+          <div className="mt-2 pt-2 border-t text-[7px] font-[Lato] text-[#4A4D55] italic leading-relaxed" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
+            {zh ? "⚠️ 以上为 AI 模型预测结果，仅供参考，不构成投资建议。市场有风险，投资需谨慎。" : "⚠️ AI-generated predictions for informational purposes only. Not financial advice. Markets involve risk — trade at your own discretion."}
+          </div>
         </Mod>
         </div>
       )}

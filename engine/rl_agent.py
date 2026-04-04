@@ -86,12 +86,15 @@ def _build_env(df: pd.DataFrame, features: list[str], initial_balance: float = 1
             # Use data up to previous day to avoid lookahead bias
             end = max(1, self.step_idx)
             start = max(0, end - self.window)
-            feat_data = self.df[self.features].iloc[start:end].values
+            feat_data = self.df[self.features].iloc[start:end].values.copy()
+
+            # Replace NaN/Inf with 0 to prevent gradient explosion
+            feat_data = np.nan_to_num(feat_data, nan=0.0, posinf=0.0, neginf=0.0)
 
             # Z-score normalization within window
             mean = feat_data.mean(axis=0, keepdims=True)
             std = feat_data.std(axis=0, keepdims=True) + 1e-8
-            feat_norm = (feat_data - mean) / std
+            feat_norm = np.clip((feat_data - mean) / std, -5.0, 5.0)  # clip extreme z-scores
 
             n_rows = len(feat_norm)
 

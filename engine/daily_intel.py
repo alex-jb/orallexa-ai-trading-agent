@@ -325,10 +325,19 @@ def _generate_picks(
     spikes_str = "\n".join(f"  {s['ticker']} vol {s['volume_ratio']:.1f}x, {s['change_pct']:+.1f}%" for s in spikes[:5])
     headlines_str = "\n".join(f"  {h['ticker']}: {h['title']} ({h['sentiment']})" for h in headlines[:8])
 
-    prompt = f"""You are a trading analyst selecting the top 3-5 stocks worth watching today.
+    # Build price context for predictions
+    price_context = "\n".join(
+        f"  {m['ticker']} current: ${m['price']:.2f} ({m['change_pct']:+.1f}%)"
+        for m in (gainers[:5] + losers[:5]) if m.get("price")
+    )
+
+    prompt = f"""You are a quantitative trading analyst selecting the top 3-5 stocks worth watching today.
+Give DIRECT, OPINIONATED predictions with specific price targets.
 
 Movers:
 {movers_str}
+Current Prices:
+{price_context}
 Volume Spikes:
 {spikes_str or "  None"}
 Headlines:
@@ -336,15 +345,20 @@ Headlines:
 
 Output ONLY valid JSON array (no markdown):
 [
-  {{"ticker": "NVDA", "direction": "bullish", "reason": "compelling one-sentence thesis", "catalyst": "specific event/level to watch"}}
+  {{"ticker": "NVDA", "direction": "bullish", "reason": "compelling thesis", "catalyst": "specific event", "target_price": 150.0, "stop_loss": 140.0, "timeframe": "1-2 weeks", "conviction": "high"}}
 ]
 
 Rules:
 - direction: "bullish", "bearish", or "neutral"
-- reason: max 25 words, be specific and opinionated (not "shows momentum" but "AI capex cycle accelerating, data center orders backlogged through 2027")
-- catalyst: the ONE thing to watch today (earnings report, Fed speech, support level, etc.)
-- Include at least 1 contrarian pick (a loser that might bounce or a gainer that's overextended)
-- Volume spikes deserve extra attention — institutional money is moving"""
+- reason: max 30 words, be DIRECT and opinionated. Say "likely to break $150 resistance" not "shows momentum"
+- catalyst: the ONE thing driving the move
+- target_price: specific dollar price target based on technical levels (resistance/support)
+- stop_loss: where you'd cut the position (support level or % below entry)
+- timeframe: "today", "this week", "1-2 weeks", or "1 month"
+- conviction: "high", "medium", or "low"
+- Include at least 1 contrarian pick (loser bounce or overextended gainer)
+- Volume spikes = institutional money moving, flag these prominently
+- Be bold. Traders want alpha, not hedging language."""
 
     try:
         client = get_client()
