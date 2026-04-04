@@ -61,7 +61,7 @@ describe("MarketStrip", () => {
   it("shows live indicator dot when timestamp present", () => {
     const livePrice = { price: 150, change_pct: 1, high: 155, low: 145, timestamp: "2026-04-02T14:30:00Z" };
     const { container } = render(<MarketStrip summary={null} decision={null} livePrice={livePrice} />);
-    const dot = container.querySelector("[title='Live']");
+    const dot = container.querySelector("[title='Polling']") || container.querySelector("[title='WebSocket Live']");
     expect(dot).toBeInTheDocument();
   });
 });

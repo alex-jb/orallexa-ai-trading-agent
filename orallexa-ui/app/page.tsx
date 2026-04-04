@@ -8,6 +8,7 @@ import { T, API, sentCls, decColorJournal, nsSummary } from "./types";
 import dynamic from "next/dynamic";
 import { GoldRule, Heading, Mod, Row, BrandMark, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, SignalToast, BacktestPanel } from "./components";
 import { useNotifications } from "./hooks/use-notifications";
+import { useLiveWS } from "./hooks/use-live-ws";
 
 const PriceChart = dynamic(() => import("./components/price-chart").then(m => ({ default: m.PriceChart })), { ssr: false });
 const DailyIntelView = dynamic(() => import("./components/daily-intel").then(m => ({ default: m.DailyIntelView })), { ssr: false });
@@ -62,6 +63,9 @@ export default function Home() {
   const [isDemo, setIsDemo] = useState(false);
   const apiDead = useRef(false); // true = backend unreachable, use client mocks
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
+
+  // WebSocket for real-time prices (replaces polling when connected)
+  const ws = useLiveWS(API, asset, autoRefresh && !apiDead.current);
   const [lastAnalyzedAt, setLastAnalyzedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [backtestData, setBacktestData] = useState<BacktestSummary | null>(null);
@@ -212,8 +216,24 @@ export default function Home() {
   }, []);
 
   // Auto-refresh live price every 30s when enabled
+  // Sync WebSocket data into component state
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (ws.livePrice) {
+      setLivePrice(ws.livePrice);
+      setMarketSummary(prev => ({
+        ...prev,
+        close: ws.livePrice!.price,
+        change_pct: ws.livePrice!.change_pct,
+        volume_ratio: prev?.volume_ratio,
+        rsi: prev?.rsi,
+      }));
+    }
+    if (ws.priceFlash) setPriceFlash(ws.priceFlash);
+  }, [ws.livePrice, ws.priceFlash]);
+
+  // HTTP polling fallback (only when WebSocket is NOT connected)
+  useEffect(() => {
+    if (!autoRefresh || ws.isConnected) return;
     const fetchLive = async () => {
       try {
         const res = await fetch(`${API}/api/live/${asset}`);
@@ -221,14 +241,12 @@ export default function Home() {
           const d = await res.json();
           if (d.price) {
             setLivePrice(prev => {
-              // Flash animation on price change
               if (prev?.price && d.price !== prev.price) {
                 setPriceFlash(d.price > prev.price ? "up" : "down");
                 setTimeout(() => setPriceFlash(null), 800);
               }
               return d;
             });
-            // Update marketSummary with live data
             if (d.price) {
               setMarketSummary(prev => ({
                 ...prev,
@@ -245,7 +263,7 @@ export default function Home() {
     fetchLive();
     const interval = setInterval(fetchLive, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, asset]);
+  }, [autoRefresh, asset, ws.isConnected]);
 
   const runSignal = async () => {
     setLoading(true); setError("");
@@ -721,7 +739,7 @@ export default function Home() {
         {viewMode === "signal" ? (<>
           <BreakingBanner signals={breakingSignals} zh={zh} />
           <WatchlistGrid items={watchlistItems} onSelect={(tk) => { setAsset(tk); setWatchlistItems([]); }} />
-          <MarketStrip summary={marketSummary} decision={decision} livePrice={livePrice} priceFlash={priceFlash} />
+          <MarketStrip summary={marketSummary} decision={decision} livePrice={livePrice} priceFlash={priceFlash} wsConnected={ws.isConnected} />
           <DecisionCard d={decision} asset={asset} strategy={strategy} horizon={horizon} news={news} risk={risk} investmentPlan={investmentPlan} t={t} zh={zh} />
           {asset && <PriceChart ticker={asset} t={t} />}
           {decision && decision.decision !== "WAIT" && (

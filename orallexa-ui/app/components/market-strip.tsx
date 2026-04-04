@@ -2,10 +2,11 @@
 
 import type { Decision, MarketSummary } from "../types";
 
-export function MarketStrip({ summary, decision, livePrice, priceFlash }: {
+export function MarketStrip({ summary, decision, livePrice, priceFlash, wsConnected }: {
   summary: MarketSummary | null; decision: Decision | null;
   livePrice?: { price: number; change_pct: number; high: number; low: number; timestamp: string } | null;
   priceFlash?: "up" | "down" | null;
+  wsConnected?: boolean;
 }) {
   if (!summary && !decision && !livePrice) return null;
 
@@ -36,9 +37,11 @@ export function MarketStrip({ summary, decision, livePrice, priceFlash }: {
           <div className="text-[13px] font-[DM_Mono] font-medium mt-0.5 transition-colors" style={{ color: item.color }}>{item.value}</div>
         </div>
       ))}
-      {livePrice?.timestamp && (
-        <div className="flex items-center px-2" style={{ borderLeft: "1px solid rgba(212,175,55,0.06)" }}>
-          <div className="w-1.5 h-1.5 rounded-full bg-[#006B3F] animate-pulse" title="Live" />
+      {(livePrice?.timestamp || wsConnected != null) && (
+        <div className="flex items-center gap-1 px-2" style={{ borderLeft: "1px solid rgba(212,175,55,0.06)" }}>
+          <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? "bg-[#006B3F]" : livePrice ? "bg-[#D4AF37]" : "bg-[#4A4D55]"} ${wsConnected || livePrice ? "animate-pulse" : ""}`}
+            title={wsConnected ? "WebSocket Live" : livePrice ? "Polling" : "Offline"} />
+          {wsConnected && <span className="text-[7px] font-[DM_Mono] text-[#006B3F]/60">WS</span>}
         </div>
       )}
     </div>
