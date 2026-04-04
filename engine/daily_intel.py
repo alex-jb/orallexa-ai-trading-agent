@@ -148,8 +148,14 @@ def _fetch_sectors() -> list[dict]:
 # ── Step 3: News Scan ────────────────────────────────────────────────────────
 
 def _fetch_headlines(tickers: list[str]) -> list[dict]:
-    """Fetch and score headlines for multiple tickers."""
+    """Fetch and score headlines with weighted ranking.
+
+    Ranking formula: weighted_score = |sentiment| * recency_weight * provider_tier
+    - Recency: exponential decay, newer articles score higher
+    - Provider tier: premium sources (Bloomberg, Reuters) get 1.5x multiplier
+    """
     from skills.news import NewsSkill
+    from datetime import datetime, timezone
 
     try:
         from engine.sentiment import score_text
@@ -159,6 +165,34 @@ def _fetch_headlines(tickers: list[str]) -> list[dict]:
         def score_text(text):
             sc = _sia.polarity_scores(text)
             return {"compound": sc["compound"], "label": "positive" if sc["compound"] > 0.1 else "negative" if sc["compound"] < -0.1 else "neutral"}
+
+    # Provider credibility tiers
+    _TIER1 = {"bloomberg", "reuters", "wsj", "wall street journal", "financial times",
+              "cnbc", "barron's", "marketwatch", "the wall street journal"}
+    _TIER2 = {"yahoo finance", "seeking alpha", "benzinga", "investopedia",
+              "motley fool", "tipranks", "zacks", "thestreet"}
+
+    def _provider_weight(provider: str) -> float:
+        low = provider.lower()
+        if any(t in low for t in _TIER1):
+            return 1.5
+        if any(t in low for t in _TIER2):
+            return 1.2
+        return 1.0
+
+    def _recency_weight(pub_time: str) -> float:
+        """Exponential decay: 1.0 for now, 0.5 for 12h ago, 0.25 for 24h ago."""
+        try:
+            if pub_time:
+                from dateutil.parser import parse as dateparse
+                dt = dateparse(pub_time)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                hours_ago = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+                return max(0.2, 0.5 ** (hours_ago / 12))
+        except Exception:
+            pass
+        return 0.7  # default if no timestamp
 
     all_headlines = []
     seen_titles = set()
@@ -173,18 +207,27 @@ def _fetch_headlines(tickers: list[str]) -> list[dict]:
                 scored = score_text(title)
                 compound = scored.get("compound", 0)
                 sentiment = "bullish" if compound > 0.1 else "bearish" if compound < -0.1 else "neutral"
+                provider = item.get("publisher", "")
+                pub_time = item.get("published", "") or item.get("providerPublishTime", "")
+
+                # Weighted ranking score
+                recency = _recency_weight(pub_time)
+                tier = _provider_weight(provider)
+                weighted = abs(compound) * recency * tier
+
                 all_headlines.append({
                     "title": title,
                     "ticker": tk,
                     "sentiment": sentiment,
                     "score": round(compound, 3),
+                    "weighted_score": round(weighted, 4),
                     "url": item.get("link", ""),
-                    "provider": item.get("publisher", ""),
+                    "provider": provider,
                 })
         except Exception as e:
             logger.debug("News fetch failed for %s: %s", tk, e)
 
-    all_headlines.sort(key=lambda x: abs(x["score"]), reverse=True)
+    all_headlines.sort(key=lambda x: x.get("weighted_score", abs(x["score"])), reverse=True)
     return all_headlines[:20]
 
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow } from "../types";
 import { copyWithAttribution } from "../types";
-import { Mod, CopyBtn } from "./atoms";
+import { Mod, CopyBtn, CopyImageBtn } from "./atoms";
 
 /* ── Macro Pulse Strip ─────────────────────────────────────────────── */
 function MacroPulse({ indicators, t }: { indicators: MacroIndicator[]; t: Record<string, string> }) {
@@ -365,6 +365,45 @@ function ShareRow({ briefText, t }: { briefText: string; t: Record<string, strin
   );
 }
 
+/* ── Sector Correlation Grid ──────────────────────────────────────── */
+function SectorCorrelationGrid({ sectors, t }: { sectors: { sector: string; etf: string; change_pct: number }[]; t: Record<string, string> }) {
+  if (sectors.length < 4) return null;
+  const maxAbs = Math.max(...sectors.map(s => Math.abs(s.change_pct)), 0.5);
+  const cellColor = (pct: number) => {
+    const intensity = Math.min(Math.abs(pct) / maxAbs, 1);
+    if (pct >= 0) return `rgba(0,107,63,${(intensity * 0.7 + 0.1).toFixed(2)})`;
+    return `rgba(139,0,0,${(intensity * 0.7 + 0.1).toFixed(2)})`;
+  };
+  return (
+    <Mod title={t.sectorHeatGrid || "SECTOR HEAT GRID"}>
+      <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${Math.min(sectors.length, 4)}, 1fr)` }}>
+        {sectors.map((s, i) => (
+          <div key={i} className="text-center py-2 px-1 transition-all hover:brightness-125" style={{ background: cellColor(s.change_pct), border: "1px solid rgba(212,175,55,0.04)" }}>
+            <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] text-[#F5E6CA]/80 truncate">{s.sector.replace("Comm ", "").replace("Consumer ", "C.")}</div>
+            <div className="text-[13px] font-[DM_Mono] font-bold text-[#F5E6CA] mt-0.5">{s.change_pct >= 0 ? "+" : ""}{s.change_pct.toFixed(1)}%</div>
+            <div className="text-[7px] font-[DM_Mono] text-[#F5E6CA]/40 mt-0.5">{s.etf}</div>
+          </div>
+        ))}
+      </div>
+    </Mod>
+  );
+}
+
+/* ── Mini Sparkline SVG ──────────────────────────────────────────── */
+function MiniSparkline({ data, color, width = 60, height = 20 }: { data: number[]; color: string; width?: number; height?: number }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => `${(i / (data.length - 1)) * width},${height - ((v - min) / range) * height}`).join(" ");
+  return (
+    <svg width={width} height={height} className="inline-block">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={(data.length - 1) / (data.length - 1) * width} cy={height - ((data[data.length - 1] - min) / range) * height} r="2" fill={color} />
+    </svg>
+  );
+}
+
 /* ── Main Daily Intel View ─────────────────────────────────────────── */
 export function DailyIntelView({ data, onSelectTicker, t, zh }: {
   data: DailyIntelData | null; onSelectTicker: (tk: string) => void; t: Record<string, string>; zh: boolean;
@@ -378,6 +417,12 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
   const moodColor = data.market_mood === "Risk-On" ? "#006B3F" : data.market_mood === "Risk-Off" ? "#8B0000" : "#D4AF37";
   const moodBg = data.market_mood === "Risk-On" ? "rgba(0,107,63,0.08)" : data.market_mood === "Risk-Off" ? "rgba(139,0,0,0.08)" : "rgba(212,175,55,0.06)";
   const dirColor = (d: string) => d === "bullish" ? "#006B3F" : d === "bearish" ? "#8B0000" : "#D4AF37";
+
+  // Refs for image capture
+  const moversRef = useRef<HTMLDivElement>(null);
+  const sectorRef = useRef<HTMLDivElement>(null);
+  const picksRef = useRef<HTMLDivElement>(null);
+  const fearRef = useRef<HTMLDivElement>(null);
 
   const moversText = (() => {
     const g = data.gainers.slice(0, 5).map(m => `🟢 $${m.ticker} +${m.change_pct.toFixed(1)}% ($${m.price})`).join("\n");
@@ -428,7 +473,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
       {data.macro && data.macro.length > 0 && <MacroPulse indicators={data.macro} t={t} />}
 
       {/* Fear & Greed */}
-      {data.fear_greed && <FearGreedGauge data={data.fear_greed} t={t} />}
+      {data.fear_greed && <div ref={fearRef}><FearGreedGauge data={data.fear_greed} t={t} /><div className="flex justify-end -mt-2 mb-3 px-4"><CopyImageBtn targetRef={fearRef} /></div></div>}
 
       {/* Market Breadth */}
       {data.breadth && <BreadthPanel data={data.breadth} t={t} />}
@@ -443,37 +488,59 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
       </Mod>
 
       {/* Top Movers */}
-      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.topMovers}</span><CopyBtn text={data.social_posts?.movers || moversText} /></div>}>
+      <div ref={moversRef}>
+      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.topMovers}</span><div className="flex gap-1"><CopyBtn text={data.social_posts?.movers || moversText} /><CopyImageBtn targetRef={moversRef} /></div></div>}>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "#006B3F" }}>{t.gainersLabel}</div>
-            {data.gainers.map((g, i) => (
+            {data.gainers.map((g, i) => {
+              const volBar = Math.min((g.volume_ratio ?? 1) / 3, 1) * 100;
+              return (
               <button key={i} onClick={() => onSelectTicker(g.ticker)} className="w-full flex justify-between items-center py-[6px] border-b last:border-b-0 hover:bg-[#006B3F]/5 transition-colors text-left" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
-                <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{g.ticker}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{g.ticker}</span>
+                  <div className="w-[30px] h-[4px] rounded-full overflow-hidden" style={{ background: "#2A2A3E" }}>
+                    <div className="h-full rounded-full" style={{ width: `${volBar}%`, background: "#006B3F" }} />
+                  </div>
+                </div>
                 <div className="text-right">
                   <span className="text-[11px] font-[DM_Mono] font-bold" style={{ color: "#006B3F" }}>+{g.change_pct.toFixed(1)}%</span>
                   <span className="text-[9px] font-[DM_Mono] text-[#8B8E96] ml-2">${g.price}</span>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
           <div>
             <div className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "#8B0000" }}>{t.losersLabel}</div>
-            {data.losers.map((l, i) => (
+            {data.losers.map((l, i) => {
+              const volBar = Math.min((l.volume_ratio ?? 1) / 3, 1) * 100;
+              return (
               <button key={i} onClick={() => onSelectTicker(l.ticker)} className="w-full flex justify-between items-center py-[6px] border-b last:border-b-0 hover:bg-[#8B0000]/5 transition-colors text-left" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
-                <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{l.ticker}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA]">{l.ticker}</span>
+                  <div className="w-[30px] h-[4px] rounded-full overflow-hidden" style={{ background: "#2A2A3E" }}>
+                    <div className="h-full rounded-full" style={{ width: `${volBar}%`, background: "#8B0000" }} />
+                  </div>
+                </div>
                 <div className="text-right">
                   <span className="text-[11px] font-[DM_Mono] font-bold" style={{ color: "#8B0000" }}>{l.change_pct.toFixed(1)}%</span>
                   <span className="text-[9px] font-[DM_Mono] text-[#8B8E96] ml-2">${l.price}</span>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       </Mod>
+      </div>
 
-      {/* Sector Heatmap */}
-      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.sectorMap}</span><CopyBtn text={data.social_posts?.sectors || sectorsText} /></div>}>
+      {/* Sector Heat Grid (new visualization) */}
+      <div ref={sectorRef}>
+      <SectorCorrelationGrid sectors={data.sectors} t={t} />
+
+      {/* Sector Heatmap (bar chart) */}
+      <Mod title={<div className="flex items-center justify-between w-full"><span>{t.sectorMap}</span><div className="flex gap-1"><CopyBtn text={data.social_posts?.sectors || sectorsText} /><CopyImageBtn targetRef={sectorRef} /></div></div>}>
         <div className="space-y-1">
           {data.sectors.map((s, i) => {
             const pct = s.change_pct;
@@ -492,10 +559,12 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
           })}
         </div>
       </Mod>
+      </div>
 
       {/* AI Picks */}
       {data.ai_picks.length > 0 && (
-        <Mod title={<div className="flex items-center justify-between w-full"><span>{t.aiPicks} — {t.worthWatching}</span><CopyBtn text={data.social_posts?.picks || picksText} /></div>}>
+        <div ref={picksRef}>
+        <Mod title={<div className="flex items-center justify-between w-full"><span>{t.aiPicks} — {t.worthWatching}</span><div className="flex gap-1"><CopyBtn text={data.social_posts?.picks || picksText} /><CopyImageBtn targetRef={picksRef} /></div></div>}>
           {data.ai_picks.map((p, i) => (
             <button key={i} onClick={() => onSelectTicker(p.ticker)} className="w-full text-left py-2 border-b last:border-b-0 hover:bg-[#D4AF37]/4 transition-colors" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
               <div className="flex items-center gap-2 mb-1">
@@ -507,6 +576,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
             </button>
           ))}
         </Mod>
+        </div>
       )}
 
       {/* Economic Calendar */}

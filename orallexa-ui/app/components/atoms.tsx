@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback, type RefObject } from "react";
 import Image from "next/image";
 import { copyWithAttribution } from "../types";
 
@@ -142,6 +142,53 @@ export function CopyBtn({ text, label }: { text: string; label?: string }) {
       className="flex items-center gap-1 px-2 py-1 text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] transition-all hover:text-[#FFD700] shrink-0"
       style={{ color: copied ? "#006B3F" : "#C5A255", background: copied ? "rgba(0,107,63,0.1)" : "rgba(212,175,55,0.06)", border: `1px solid ${copied ? "rgba(0,107,63,0.3)" : "rgba(212,175,55,0.15)"}` }}>
       {copied ? "Copied!" : (label || "Copy for 𝕏")}
+    </button>
+  );
+}
+
+export function CopyImageBtn({ targetRef, label }: { targetRef: RefObject<HTMLDivElement | null>; label?: string }) {
+  const [status, setStatus] = useState<"idle" | "copying" | "done">("idle");
+
+  const handleCopy = useCallback(async () => {
+    if (!targetRef.current) return;
+    setStatus("copying");
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(targetRef.current, {
+        backgroundColor: "#0A0A0F",
+        scale: 2,
+        logging: false,
+        useCORS: true,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob }),
+          ]);
+          setStatus("done");
+        } catch {
+          // Fallback: download as file
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "orallexa-chart.png";
+          a.click();
+          URL.revokeObjectURL(url);
+          setStatus("done");
+        }
+        setTimeout(() => setStatus("idle"), 2000);
+      }, "image/png");
+    } catch {
+      setStatus("idle");
+    }
+  }, [targetRef]);
+
+  return (
+    <button onClick={handleCopy} disabled={status === "copying"}
+      className="flex items-center gap-1 px-2 py-1 text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.1em] transition-all hover:text-[#FFD700] shrink-0"
+      style={{ color: status === "done" ? "#006B3F" : "#C5A255", background: status === "done" ? "rgba(0,107,63,0.1)" : "rgba(212,175,55,0.06)", border: `1px solid ${status === "done" ? "rgba(0,107,63,0.3)" : "rgba(212,175,55,0.15)"}` }}>
+      {status === "copying" ? "..." : status === "done" ? "Copied!" : (label || "📷 Copy Image")}
     </button>
   );
 }
