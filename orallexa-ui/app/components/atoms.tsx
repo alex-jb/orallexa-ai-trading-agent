@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, type RefObject } from "react";
+import { useState, useCallback, type RefObject } from "react";
 import Image from "next/image";
 import { copyWithAttribution } from "../types";
 

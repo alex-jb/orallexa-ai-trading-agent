@@ -390,7 +390,7 @@ function SectorCorrelationGrid({ sectors, t }: { sectors: { sector: string; etf:
 }
 
 /* ── Mini Sparkline SVG ──────────────────────────────────────────── */
-function MiniSparkline({ data, color, width = 60, height = 20 }: { data: number[]; color: string; width?: number; height?: number }) {
+export function MiniSparkline({ data, color, width = 60, height = 20 }: { data: number[]; color: string; width?: number; height?: number }) {
   if (!data || data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -408,6 +408,12 @@ function MiniSparkline({ data, color, width = 60, height = 20 }: { data: number[
 export function DailyIntelView({ data, onSelectTicker, t, zh }: {
   data: DailyIntelData | null; onSelectTicker: (tk: string) => void; t: Record<string, string>; zh: boolean;
 }) {
+  // Refs must be declared before any early return (React hooks rules)
+  const moversRef = useRef<HTMLDivElement>(null);
+  const sectorRef = useRef<HTMLDivElement>(null);
+  const picksRef = useRef<HTMLDivElement>(null);
+  const fearRef = useRef<HTMLDivElement>(null);
+
   if (!data) return (
     <div className="space-y-4">
       {[1,2,3,4].map(i => <div key={i} className="skeleton h-24 w-full" />)}
@@ -417,12 +423,6 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
   const moodColor = data.market_mood === "Risk-On" ? "#006B3F" : data.market_mood === "Risk-Off" ? "#8B0000" : "#D4AF37";
   const moodBg = data.market_mood === "Risk-On" ? "rgba(0,107,63,0.08)" : data.market_mood === "Risk-Off" ? "rgba(139,0,0,0.08)" : "rgba(212,175,55,0.06)";
   const dirColor = (d: string) => d === "bullish" ? "#006B3F" : d === "bearish" ? "#8B0000" : "#D4AF37";
-
-  // Refs for image capture
-  const moversRef = useRef<HTMLDivElement>(null);
-  const sectorRef = useRef<HTMLDivElement>(null);
-  const picksRef = useRef<HTMLDivElement>(null);
-  const fearRef = useRef<HTMLDivElement>(null);
 
   const moversText = (() => {
     const g = data.gainers.slice(0, 5).map(m => `🟢 $${m.ticker} +${m.change_pct.toFixed(1)}% ($${m.price})`).join("\n");
