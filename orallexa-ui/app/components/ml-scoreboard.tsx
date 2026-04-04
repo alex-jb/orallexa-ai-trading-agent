@@ -30,6 +30,58 @@ function statusBadge(status?: string) {
   return { text: "LIVE", color: "#006B3F", bg: "rgba(0,107,63,0.1)" };
 }
 
+/* ── Strategy Registry Dashboard ─────────────────────────────────── */
+const STRATEGIES = [
+  { id: 1, en: "Double MA Crossover",     zh: "双均线交叉",     type: "trend",    winRate: 72, sharpe: 1.91 },
+  { id: 2, en: "MACD Crossover",          zh: "MACD 交叉",      type: "momentum", winRate: 68, sharpe: 1.41 },
+  { id: 3, en: "Bollinger Breakout",      zh: "布林带突破",     type: "volatility", winRate: 55, sharpe: 1.33 },
+  { id: 4, en: "RSI Reversal",            zh: "RSI 反转",       type: "reversal", winRate: 76, sharpe: 2.20 },
+  { id: 5, en: "Trend Momentum",          zh: "趋势动量",       type: "trend",    winRate: 65, sharpe: 1.48 },
+  { id: 6, en: "Alpha Combo",             zh: "多因子复合",     type: "multi",    winRate: 62, sharpe: 1.10 },
+  { id: 7, en: "Dual Thrust",             zh: "双推力突破",     type: "breakout", winRate: 70, sharpe: 2.46 },
+  { id: 8, en: "Ensemble Vote",           zh: "集成投票",       type: "ensemble", winRate: 64, sharpe: 1.86 },
+  { id: 9, en: "Regime Ensemble",         zh: "环境自适应集成", type: "ensemble", winRate: 60, sharpe: 1.35 },
+];
+
+function StrategyDashboard({ zh }: { zh: boolean }) {
+  const avgWin = STRATEGIES.reduce((s, r) => s + r.winRate, 0) / STRATEGIES.length;
+  const typeColor = (t: string) =>
+    t === "trend" ? "#006B3F" : t === "momentum" ? "#D4AF37" : t === "reversal" ? "#8B0000"
+    : t === "volatility" ? "#CD7F32" : t === "breakout" ? "#64A0DC" : t === "ensemble" ? "#9678C8" : "#8B8E96";
+
+  return (
+    <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em]"
+          style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          {zh ? "策略体系" : "STRATEGY REGISTRY"} ({STRATEGIES.length})
+        </div>
+        <span className="text-[8px] font-[DM_Mono] text-[#D4AF37]">{zh ? "综合胜率" : "Avg Win"}: {avgWin.toFixed(1)}%</span>
+      </div>
+      {/* Header */}
+      <div className="grid gap-0 text-[7px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.08em] pb-1 border-b mb-1"
+        style={{ gridTemplateColumns: "20px 1fr 50px 44px 44px 42px", borderColor: "rgba(212,175,55,0.06)" }}>
+        <span>#</span><span>{zh ? "策略" : "Strategy"}</span><span className="text-center">{zh ? "类型" : "Type"}</span>
+        <span className="text-right">{zh ? "胜率" : "Win%"}</span><span className="text-right">Sharpe</span><span className="text-center">{zh ? "状态" : "Status"}</span>
+      </div>
+      {STRATEGIES.map(s => (
+        <div key={s.id} className="grid gap-0 py-[4px] border-b last:border-b-0"
+          style={{ gridTemplateColumns: "20px 1fr 50px 44px 44px 42px", borderColor: "rgba(212,175,55,0.03)" }}>
+          <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">{s.id}</span>
+          <span className="text-[8px] font-[Lato] text-[#F5E6CA]/70 truncate">{zh ? s.zh : s.en}</span>
+          <span className="flex justify-center">
+            <span className="text-[6px] font-[DM_Mono] font-bold uppercase px-1 py-0.5"
+              style={{ color: typeColor(s.type), background: `${typeColor(s.type)}15` }}>{s.type}</span>
+          </span>
+          <span className="text-[9px] font-[DM_Mono] text-right text-[#F5E6CA]/60">{s.winRate}%</span>
+          <span className={`text-[9px] font-[DM_Mono] text-right ${s.sharpe > 1.5 ? "text-[#006B3F]" : s.sharpe > 0 ? "text-[#D4AF37]" : "text-[#8B0000]"}`}>{s.sharpe.toFixed(2)}</span>
+          <span className="text-center text-[8px]">✅</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── System Overview (Factor + Strategy counts) ─────────────────── */
 function SystemOverview({ zh }: { zh: boolean }) {
   const sections = [
@@ -156,8 +208,11 @@ export function MLScoreboard({ models, zh }: { models: MLModel[]; zh?: boolean }
         )}
       </div>
 
-      {/* System Overview — Factor & Strategy Engine */}
-      {expanded && <SystemOverview zh={!!zh} />}
+      {/* Strategy Registry + System Overview */}
+      {expanded && <>
+        <StrategyDashboard zh={!!zh} />
+        <SystemOverview zh={!!zh} />
+      </>}
     </Mod>
   );
 }
