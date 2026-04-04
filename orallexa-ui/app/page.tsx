@@ -109,8 +109,6 @@ export default function Home() {
     } catch { setError(lang === "ZH" ? "无法连接后端 API，请检查服务是否启动" : "Cannot connect to API server. Is the backend running?"); }
   }, [asset, lang]);
 
-  useEffect(() => { fetchContext(); }, [fetchContext]);
-
   // Fetch Alpaca account + positions (non-blocking)
   const fetchAlpaca = useCallback(async () => {
     if (apiDead.current) return;
@@ -123,7 +121,9 @@ export default function Home() {
       if (pRes.ok) { const d = await pRes.json(); if (Array.isArray(d)) setAlpacaPositions(d); }
     } catch { /* Alpaca optional */ }
   }, []);
-  useEffect(() => { fetchAlpaca(); }, [fetchAlpaca]);
+
+  // Batch initial data load: context + alpaca in parallel
+  useEffect(() => { fetchContext(); fetchAlpaca(); }, [fetchContext, fetchAlpaca]);
 
   const executePaperTrade = async () => {
     if (!decision || decision.decision === "WAIT") return;
@@ -287,8 +287,8 @@ export default function Home() {
       setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
       if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
       notify(`${asset} Signal`, `${data.decision} — ${data.recommendation}`);
-      fetchBacktest(asset);
-      fetchContext();
+      // Fire both in parallel — no dependency between them
+      fetchBacktest(asset); fetchContext();
     } catch (e) { setError(e instanceof Error ? e.message : "Analysis unavailable. Is the API server running?"); }
     finally { setLoading(false); }
   };
