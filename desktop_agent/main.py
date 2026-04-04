@@ -88,17 +88,19 @@ def main() -> None:
 
     bull = BullCharacter(on_click=on_bull_click)
 
-    _auto_idle_timer: str | None = None
+    _pending_timers: list[str] = []
 
-    def on_state_change(decision: str, risk: str) -> None:
-        nonlocal _auto_idle_timer
-        # Cancel any pending auto-idle timer
-        if _auto_idle_timer is not None:
+    def _cancel_all_timers() -> None:
+        """Cancel all pending after() timers to prevent stale callbacks."""
+        for timer_id in _pending_timers:
             try:
-                bull._win.after_cancel(_auto_idle_timer)
+                bull._win.after_cancel(timer_id)
             except (ValueError, tk.TclError):
                 pass
-            _auto_idle_timer = None
+        _pending_timers.clear()
+
+    def on_state_change(decision: str, risk: str) -> None:
+        _cancel_all_timers()
 
         upper = decision.upper()
         if upper == "THINKING":
@@ -124,11 +126,13 @@ def main() -> None:
 
         # Schedule auto-idle (THINKING gets longer timeout for slow API)
         if upper == "THINKING":
-            _auto_idle_timer = bull._win.after(
+            tid = bull._win.after(
                 AUTO_IDLE_MS * 3, lambda: bull.set_state("idle"))
+            _pending_timers.append(tid)
         elif upper != "LISTENING":
-            _auto_idle_timer = bull._win.after(
+            tid = bull._win.after(
                 AUTO_IDLE_MS, lambda: bull.set_state("idle"))
+            _pending_timers.append(tid)
 
     popover = ChatPopover(brain, voice, tts)
     popover.build(bull._win, on_state_change=on_state_change)

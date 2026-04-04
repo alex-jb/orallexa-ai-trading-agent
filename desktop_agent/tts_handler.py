@@ -94,13 +94,29 @@ class TTSHandler:
             return
         self._speaking = True
         try:
-            response = self._client.audio.speech.create(
-                model="tts-1-hd",
-                voice=voice,
-                input=text,
-            )
-            audio_bytes = response.read()
-            if not self._stop_event.is_set():
+            import time as _time
+            last_exc = None
+            audio_bytes = None
+            for attempt in range(3):
+                try:
+                    response = self._client.audio.speech.create(
+                        model="tts-1-hd",
+                        voice=voice,
+                        input=text,
+                    )
+                    audio_bytes = response.read()
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    exc_str = str(exc).lower()
+                    is_transient = any(kw in exc_str for kw in [
+                        "timeout", "connection", "429", "overloaded", "503",
+                    ])
+                    if not is_transient or attempt == 2:
+                        raise
+                    _time.sleep(1.0 * (2 ** attempt))
+
+            if audio_bytes and not self._stop_event.is_set():
                 self._play_bytes(audio_bytes)
         except Exception as exc:
             logger.warning("TTS error: %s", exc)

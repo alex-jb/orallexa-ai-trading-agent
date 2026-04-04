@@ -48,6 +48,7 @@ class VoiceHandler:
 
     def __init__(self) -> None:
         self._frames: list[np.ndarray] = []
+        self._lock         = threading.Lock()
         self._recording    = False
         self._thread: Optional[threading.Thread] = None
         self._stop_event   = threading.Event()
@@ -65,18 +66,19 @@ class VoiceHandler:
 
         Raises RuntimeError if sounddevice is not installed.
         """
-        if self._recording:
-            return
-        # Fail fast if dependency is missing
-        try:
-            import sounddevice  # noqa: F401
-        except ImportError:
-            raise RuntimeError("sounddevice not installed — run: pip install sounddevice")
-        self._frames     = []
-        self._recording  = True
-        self._stop_event = threading.Event()
-        self._thread     = threading.Thread(target=self._capture, daemon=True)
-        self._thread.start()
+        with self._lock:
+            if self._recording:
+                return
+            # Fail fast if dependency is missing
+            try:
+                import sounddevice  # noqa: F401
+            except ImportError:
+                raise RuntimeError("sounddevice not installed — run: pip install sounddevice")
+            self._frames     = []
+            self._recording  = True
+            self._stop_event = threading.Event()
+            self._thread     = threading.Thread(target=self._capture, daemon=True)
+            self._thread.start()
 
     def stop_and_transcribe(self) -> tuple[str, str]:
         """
@@ -84,8 +86,9 @@ class VoiceHandler:
         Blocks until transcription completes.
         Returns ("", "en") on any error.
         """
-        self._stop_event.set()
-        self._recording = False
+        with self._lock:
+            self._stop_event.set()
+            self._recording = False
         if self._thread:
             self._thread.join(timeout=5.0)
 
@@ -181,21 +184,39 @@ class VoiceHandler:
         if self._client is None:
             return "[OpenAI API key not set]", "en"
         import tempfile
+        import time as _time
         tmp_path = None
         try:
             # Write to temp file to avoid BytesIO encoding issues on Windows
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                 f.write(wav_bytes)
                 tmp_path = f.name
-            with open(tmp_path, "rb") as f:
-                result = self._client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=f,
-                    response_format="verbose_json",
-                )
-            text = (result.text or "").strip()
-            lang = getattr(result, "language", "en") or "en"
-            return text, lang
+
+            # Retry with exponential backoff on transient errors
+            last_exc = None
+            for attempt in range(3):
+                try:
+                    with open(tmp_path, "rb") as f:
+                        result = self._client.audio.transcriptions.create(
+                            model="whisper-1",
+                            file=f,
+                            response_format="verbose_json",
+                        )
+                    text = (result.text or "").strip()
+                    lang = getattr(result, "language", "en") or "en"
+                    return text, lang
+                except Exception as exc:
+                    last_exc = exc
+                    exc_str = str(exc).lower()
+                    is_transient = any(kw in exc_str for kw in [
+                        "timeout", "connection", "429", "overloaded", "503",
+                    ])
+                    if not is_transient or attempt == 2:
+                        raise
+                    _time.sleep(1.0 * (2 ** attempt))
+
+            logger.warning("Whisper transcription error: %s", last_exc)
+            return "", "en"
         except Exception as exc:
             logger.warning("Whisper transcription error: %s", exc)
             return "", "en"

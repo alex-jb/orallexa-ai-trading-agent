@@ -25,10 +25,32 @@ import os
 import re
 import subprocess
 import sys
+import time
 import webbrowser
 from typing import Optional
 
 from desktop_agent.i18n import t as _t, get_lang
+
+# ── Configuration ────────────────────────────────────────────────────────────
+CLAUDE_MODEL = os.environ.get("BULL_CLAUDE_MODEL", "claude-sonnet-4-6")
+CHART_CACHE_TTL = 300  # seconds before cached chart result expires
+
+
+def _retry_api_call(fn, max_retries: int = 3, base_delay: float = 1.0):
+    """Retry an API call with exponential backoff on transient errors."""
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except Exception as exc:
+            exc_str = str(exc).lower()
+            is_transient = any(kw in exc_str for kw in [
+                "timeout", "timed out", "connection", "network",
+                "429", "overloaded", "rate", "503", "502",
+            ])
+            if not is_transient or attempt == max_retries - 1:
+                raise
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
 
 
 def _classify_error(exc: Exception, lang: str) -> str:
@@ -247,6 +269,7 @@ class BrainBridge:
         self.dashboard_url = dashboard_url
         self.auto_launch  = auto_launch
         self._history: list[dict] = []   # conversation history for Claude
+        self._chart_cache: dict = {}     # {key: (result, timestamp)}
 
     # ── Public ────────────────────────────────────────────────────────────────
 
@@ -340,48 +363,69 @@ class BrainBridge:
                       notes: str = "") -> str:
         """
         Analyze an image (screenshot or uploaded) and return a formatted reply.
-        Also stores the last DecisionOutput as self.last_chart_result.
+        Also stores the last DecisionOutput as self.last_chart_result (with TTL).
         """
         try:
+            import hashlib
             import sys
             sys.path.insert(0, str(_project_root()))
             from skills.chart_analysis import ChartAnalysisSkill
             from models.confidence import guard_decision
 
-            result = ChartAnalysisSkill().analyze(
-                image_bytes=image_bytes,
-                ticker=self.ticker,
-                timeframe=self.timeframe,
-                notes=notes,
-            )
+            # Check cache (by image hash + ticker + timeframe)
+            img_hash = hashlib.sha256(image_bytes[:4096]).hexdigest()[:16]
+            cache_key = f"{img_hash}:{self.ticker}:{self.timeframe}"
+            cached = self._chart_cache.get(cache_key)
+            if cached:
+                result, ts = cached
+                if time.time() - ts < CHART_CACHE_TTL:
+                    self.last_chart_result = result
+                    return self._format_chart_reply(result, lang)
+                del self._chart_cache[cache_key]
+
+            def _call():
+                return ChartAnalysisSkill().analyze(
+                    image_bytes=image_bytes,
+                    ticker=self.ticker,
+                    timeframe=self.timeframe,
+                    notes=notes,
+                )
+
+            result = _retry_api_call(_call)
             result = guard_decision(result)
             self.last_chart_result = result
+            # Cache with timestamp; evict old entries
+            self._chart_cache[cache_key] = (result, time.time())
+            if len(self._chart_cache) > 20:
+                oldest = min(self._chart_cache, key=lambda k: self._chart_cache[k][1])
+                del self._chart_cache[oldest]
 
-            dec  = result.decision
-            conf = result.confidence
-            risk = result.risk_level
-            rec  = getattr(result, "recommendation", "")
-
-            if lang == "zh":
-                summary = (
-                    f"图表分析: {self.ticker} {_decision_zh(dec)} 信号\n"
-                    f"置信度 {conf:.0f}%，风险 {_risk_zh(risk)}\n"
-                )
-                if rec:
-                    summary += f"{rec}\n"
-            else:
-                summary = (
-                    f"Chart: {self.ticker} {dec} signal\n"
-                    f"Confidence {conf:.0f}%  ·  Risk {risk}\n"
-                )
-                if rec:
-                    summary += f"{rec}\n"
-            return summary
+            return self._format_chart_reply(result, lang)
 
         except Exception as exc:
             self.last_chart_result = None
-            return (f"图表分析失败，请检查网络连接后重试。" if lang == "zh" else
-                    f"Chart analysis failed. Check your connection and try again.")
+            return ("图表分析失败，请检查网络连接后重试。" if lang == "zh" else
+                    "Chart analysis failed. Check your connection and try again.")
+
+    def _format_chart_reply(self, result, lang: str) -> str:
+        """Format a chart analysis result into a user-facing reply."""
+        dec  = result.decision
+        conf = result.confidence
+        risk = result.risk_level
+        rec  = getattr(result, "recommendation", "")
+        if lang == "zh":
+            summary = (
+                f"图表分析: {self.ticker} {_decision_zh(dec)} 信号\n"
+                f"置信度 {conf:.0f}%，风险 {_risk_zh(risk)}\n"
+            )
+        else:
+            summary = (
+                f"Chart: {self.ticker} {dec} signal\n"
+                f"Confidence {conf:.0f}%  ·  Risk {risk}\n"
+            )
+        if rec:
+            summary += f"{rec}\n"
+        return summary
 
     def _handle_dashboard(self, lang: str) -> str:
         opened = self._open_dashboard()
@@ -397,11 +441,15 @@ class BrainBridge:
             from core.brain import OrallexaBrain
 
             brain  = OrallexaBrain(self.ticker)
-            result = brain.run_for_mode(
-                mode=self.mode,
-                timeframe=self.timeframe,
-                use_claude=True,
-            )
+
+            def _call():
+                return brain.run_for_mode(
+                    mode=self.mode,
+                    timeframe=self.timeframe,
+                    use_claude=True,
+                )
+
+            result = _retry_api_call(_call)
 
             decision       = result.decision
             confidence     = result.confidence
@@ -453,12 +501,16 @@ class BrainBridge:
                 self._history = self._history[-20:]  # keep last 20 messages (10 turns)
 
             client = anthropic.Anthropic(api_key=api_key)
-            resp = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=400,
-                system=sys_prompt,
-                messages=self._history,
-            )
+
+            def _call():
+                return client.messages.create(
+                    model=CLAUDE_MODEL,
+                    max_tokens=400,
+                    system=sys_prompt,
+                    messages=self._history,
+                )
+
+            resp = _retry_api_call(_call)
             reply = resp.content[0].text.strip()
             self._history.append({"role": "assistant", "content": reply})
             return reply

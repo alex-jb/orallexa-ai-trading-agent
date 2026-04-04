@@ -408,19 +408,63 @@ def _ensure_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
 class StrategyEvolver:
     """
-    LLM-driven strategy evolution engine.
+    LLM-driven strategy evolution engine with overfitting protection.
 
     Parameters:
         ticker:      stock symbol
         generations: number of evolution cycles (default 3)
         population:  strategies per generation (default 4)
         top_k:       top strategies to feed forward (default 2)
+
+    Overfitting safeguards:
+        - Early stopping when best Sharpe stagnates for 2+ generations
+        - Diversity enforcement: reject strategies too similar to existing ones
+        - Minimum trade count filter (strategies with <5 trades are penalized)
+        - Capped Sharpe: unrealistic Sharpe (>4.0) treated as suspicious
     """
+
+    # Convergence / diversity thresholds
+    STAGNATION_GENS = 2       # stop if no improvement for this many generations
+    SHARPE_CAP = 4.0          # cap suspiciously high Sharpe
+    MIN_TRADES = 5            # minimum trades for a valid strategy
+    DIVERSITY_THRESHOLD = 0.9 # reject if signal correlation > this with existing
 
     def __init__(self, ticker: str = "NVDA"):
         self.ticker = ticker
         self.all_strategies: list[EvolvedStrategy] = []
         self.total_cost: float = 0.0
+        self._best_per_gen: list[float] = []  # best Sharpe per generation
+        self._signal_cache: list[pd.Series] = []  # cached signals for diversity check
+
+    def _check_diversity(self, new_signal: pd.Series) -> bool:
+        """Return True if new_signal is sufficiently different from cached signals."""
+        if not self._signal_cache:
+            return True
+        for existing in self._signal_cache[-10:]:  # check last 10
+            if len(existing) != len(new_signal):
+                continue
+            corr = new_signal.corr(existing)
+            if corr is not None and abs(corr) > self.DIVERSITY_THRESHOLD:
+                return False
+        return True
+
+    def _is_converged(self) -> bool:
+        """Return True if evolution has stagnated."""
+        if len(self._best_per_gen) < self.STAGNATION_GENS + 1:
+            return False
+        recent = self._best_per_gen[-self.STAGNATION_GENS:]
+        best_before = self._best_per_gen[-(self.STAGNATION_GENS + 1)]
+        return all(s <= best_before + 0.05 for s in recent)
+
+    def _adjusted_sharpe(self, sharpe: float, n_trades: int) -> float:
+        """Apply overfitting penalties to raw Sharpe."""
+        # Cap unrealistic Sharpe
+        if sharpe > self.SHARPE_CAP:
+            sharpe = self.SHARPE_CAP
+        # Penalize very few trades
+        if n_trades < self.MIN_TRADES:
+            sharpe *= max(0.2, n_trades / self.MIN_TRADES)
+        return sharpe
 
     def run(
         self,
@@ -451,6 +495,12 @@ class StrategyEvolver:
                                self.total_cost, max_cost)
                 break
 
+            # Early stopping on convergence
+            if self._is_converged():
+                logger.info("Early stopping: no improvement for %d generations.",
+                            self.STAGNATION_GENS)
+                break
+
             # Select top performers to evolve from
             top = sorted(
                 [s for s in self.all_strategies if not s.error],
@@ -458,6 +508,7 @@ class StrategyEvolver:
             )[:top_k]
 
             existing_names = [s.name for s in self.all_strategies]
+            gen_best_sharpe = -999.0
 
             for idx in range(population):
                 if self.total_cost >= max_cost:
@@ -490,6 +541,15 @@ class StrategyEvolver:
                     ))
                     continue
 
+                # Diversity check: reject signals too similar to existing
+                if not self._check_diversity(signal):
+                    logger.info("  %s: rejected — too similar to existing strategy", name)
+                    self.all_strategies.append(EvolvedStrategy(
+                        name=name, code=code, generation=gen,
+                        error="Rejected: low diversity", reasoning=reasoning,
+                    ))
+                    continue
+
                 # Backtest on TEST data for fair evaluation
                 test_signal = _execute_strategy(code, test_df)
                 if test_signal is None:
@@ -513,12 +573,16 @@ class StrategyEvolver:
                     ))
                     continue
 
+                # Apply overfitting adjustments
+                adj_sharpe = self._adjusted_sharpe(
+                    metrics["sharpe"], metrics["n_trades"])
+
                 strat = EvolvedStrategy(
                     name=name,
                     code=code,
                     generation=gen,
                     parent=top[0].name if top else "",
-                    sharpe=metrics["sharpe"],
+                    sharpe=adj_sharpe,
                     total_return=metrics["total_return"],
                     max_drawdown=metrics["max_drawdown"],
                     win_rate=metrics["win_rate"],
@@ -526,8 +590,13 @@ class StrategyEvolver:
                     reasoning=reasoning,
                 )
                 self.all_strategies.append(strat)
-                logger.info("  %s: Sharpe=%.2f Return=%.1f%% Trades=%d",
-                            name, strat.sharpe, strat.total_return * 100, strat.n_trades)
+                self._signal_cache.append(test_signal)
+                gen_best_sharpe = max(gen_best_sharpe, adj_sharpe)
+                logger.info("  %s: Sharpe=%.2f (adj=%.2f) Return=%.1f%% Trades=%d",
+                            name, metrics["sharpe"], adj_sharpe,
+                            strat.total_return * 100, strat.n_trades)
+
+            self._best_per_gen.append(gen_best_sharpe)
 
         # Build leaderboard
         valid = [s for s in self.all_strategies if not s.error]
@@ -548,6 +617,8 @@ class StrategyEvolver:
             "total_cost_usd": round(self.total_cost, 4),
             "best": best.to_dict() if best else None,
             "leaderboard": [s.to_dict() for s in leaderboard[:10]],
+            "converged_at_gen": len(self._best_per_gen) - 1 if self._is_converged() else None,
+            "best_sharpe_per_gen": self._best_per_gen,
         }
 
     def validate_with_harness(self, best: EvolvedStrategy, df: pd.DataFrame) -> dict:
