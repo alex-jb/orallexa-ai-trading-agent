@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow } from "../types";
+import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook } from "../types";
 import { copyWithAttribution } from "../types";
 import { Mod, CopyBtn, CopyImageBtn } from "./atoms";
 
@@ -365,6 +365,72 @@ function ShareRow({ briefText, t }: { briefText: string; t: Record<string, strin
   );
 }
 
+/* ── Pre-Market Playbook ─────────────────────────────────────────── */
+function PlaybookCard({ pb, zh, t }: { pb: Playbook; zh: boolean; t: Record<string, string> }) {
+  const riskColor = pb.environment.risk_level === "high" ? "#8B0000" : pb.environment.risk_level === "low" ? "#006B3F" : "#D4AF37";
+  const l = (en: string, zhStr: string) => zh ? zhStr : en;
+  return (
+    <Mod title={zh ? "盘前策略" : "PRE-MARKET PLAYBOOK"}>
+      {/* Tone / 总定调 */}
+      <div className="text-[13px] font-[Lato] font-medium text-[#F5E6CA] leading-relaxed mb-3 px-1" style={{ borderLeft: "3px solid #D4AF37", paddingLeft: "12px" }}>
+        {zh ? pb.tone_zh : pb.tone_en}
+      </div>
+
+      {/* Environment / 环境判断 */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3">
+        <div>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-0.5">{zh ? "风险等级" : "RISK LEVEL"}</div>
+          <div className="text-[12px] font-[DM_Mono] font-bold uppercase" style={{ color: riskColor }}>{pb.environment.risk_level}</div>
+        </div>
+        <div>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-0.5">{zh ? "指数偏向" : "INDEX BIAS"}</div>
+          <div className="text-[10px] font-[Lato] text-[#F5E6CA]/70">{l(pb.environment.index_bias, pb.environment.index_bias_zh)}</div>
+        </div>
+        <div>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-0.5">{zh ? "情绪" : "SENTIMENT"}</div>
+          <div className="text-[10px] font-[Lato] text-[#F5E6CA]/70">{l(pb.environment.sentiment, pb.environment.sentiment_zh)}</div>
+        </div>
+        <div>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-0.5">{zh ? "仓位建议" : "POSITIONING"}</div>
+          <div className="text-[10px] font-[Lato] text-[#F5E6CA]/70">{l(pb.environment.position_advice, pb.environment.position_advice_zh)}</div>
+        </div>
+      </div>
+
+      {/* Main Theme / 主线 */}
+      <div className="mb-2">
+        <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#D4AF37] mb-1">{zh ? "▎主线" : "▎MAIN THEME"}</div>
+        <div className="text-[10px] font-[Lato] text-[#F5E6CA]/80 leading-relaxed">{zh ? pb.main_theme_zh : pb.main_theme_en}</div>
+      </div>
+
+      {/* Secondary Themes / 候选 */}
+      {(zh ? pb.secondary_themes_zh : pb.secondary_themes_en)?.length > 0 && (
+        <div className="mb-2">
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B8E96] mb-1">{zh ? "▎候选" : "▎SECONDARY"}</div>
+          {(zh ? pb.secondary_themes_zh : pb.secondary_themes_en).map((t2, i) => (
+            <div key={i} className="text-[9px] font-[Lato] text-[#F5E6CA]/60 mb-0.5">• {t2}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Risk + Opportunity / 风险 + 机会 */}
+      <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
+        <div>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#8B0000] mb-1">{zh ? "最大风险" : "BIGGEST RISK"}</div>
+          <div className="text-[9px] font-[Lato] text-[#F5E6CA]/60 leading-relaxed">{zh ? pb.biggest_risk_zh : pb.biggest_risk_en}</div>
+        </div>
+        <div>
+          <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#006B3F] mb-1">{zh ? "最大机会" : "BEST OPPORTUNITY"}</div>
+          <div className="text-[9px] font-[Lato] text-[#F5E6CA]/60 leading-relaxed">{zh ? pb.biggest_opportunity_zh : pb.biggest_opportunity_en}</div>
+        </div>
+      </div>
+
+      <div className="mt-2 pt-2 border-t text-[7px] font-[Lato] text-[#4A4D55] italic" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
+        {zh ? "⚠️ AI 生成的盘前策略，仅供研究参考，不构成投资建议。" : "⚠️ AI-generated playbook for research only. Not financial advice."}
+      </div>
+    </Mod>
+  );
+}
+
 /* ── Sector Correlation Grid ──────────────────────────────────────── */
 function SectorCorrelationGrid({ sectors, t }: { sectors: { sector: string; etf: string; change_pct: number }[]; t: Record<string, string> }) {
   if (sectors.length < 4) return null;
@@ -468,6 +534,9 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
         <div className="text-[9px] font-[Josefin_Sans] uppercase tracking-[0.3em] mb-2" style={{ color: moodColor }}>{data.date}</div>
         <div className="text-[42px] font-[Poiret_One] tracking-[0.12em] leading-none" style={{ color: moodColor }}>{data.market_mood.toUpperCase()}</div>
       </div>
+
+      {/* Pre-Market Playbook */}
+      {data.playbook && <PlaybookCard pb={data.playbook} zh={zh} t={t} />}
 
       {/* Macro Pulse */}
       {data.macro && data.macro.length > 0 && <MacroPulse indicators={data.macro} t={t} />}

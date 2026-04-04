@@ -305,6 +305,97 @@ Write with conviction. Use specific numbers. No generic filler like "markets are
         return f"AI summary unavailable. Mood: {mood}. Top: {g_str}.", mood
 
 
+# ── Step 4b: Pre-Market Playbook (structured analysis) ───────────────────────
+
+def _generate_playbook(
+    summary: str,
+    mood: str,
+    gainers: list[dict],
+    losers: list[dict],
+    spikes: list[dict],
+    sectors: list[dict],
+    headlines: list[dict],
+) -> dict:
+    """Generate structured pre-market playbook (EN/ZH bilingual)."""
+    import llm.claude_client as cc
+    from llm.claude_client import get_client, _extract_text
+    from llm.call_logger import logged_create
+
+    top_sectors = ", ".join(f"{s['sector']} {s['change_pct']:+.1f}%" for s in sectors[:3])
+    worst_sectors = ", ".join(f"{s['sector']} {s['change_pct']:+.1f}%" for s in sectors[-3:])
+    top_movers = ", ".join(f"${g['ticker']} {g['change_pct']:+.1f}%" for g in (gainers[:3] + losers[:3]))
+    spike_str = ", ".join(f"${s['ticker']} {s['volume_ratio']:.0f}x" for s in spikes[:3]) or "None"
+    headlines_str = "\n".join(f"  {h['ticker']}: {h['title']} ({h['sentiment']})" for h in headlines[:6])
+
+    prompt = f"""You are a senior trading strategist writing a structured pre-market playbook.
+Output ONLY valid JSON (no markdown):
+
+{{
+  "tone_en": "One punchy sentence: today's dominant theme and direction (e.g. 'AI infrastructure rotation accelerates as Shenzhen policy catalyzes domestic supply chain plays')",
+  "tone_zh": "Same in Chinese (一句话总定调)",
+  "environment": {{
+    "risk_level": "high|mid|low",
+    "index_bias": "bullish|neutral|bearish (one sentence why)",
+    "index_bias_zh": "Same in Chinese",
+    "sentiment": "One sentence on market emotion/positioning",
+    "sentiment_zh": "Same in Chinese",
+    "position_advice": "One sentence: sizing/timing guidance (e.g. 'Scale in on confirmed breakouts, avoid chasing gaps')",
+    "position_advice_zh": "Same in Chinese"
+  }},
+  "main_theme_en": "Today's #1 sector/narrative to focus on, with 2-3 specific tickers and why (50 words max)",
+  "main_theme_zh": "Same in Chinese",
+  "secondary_themes_en": ["Theme 2 with tickers", "Theme 3 with tickers"],
+  "secondary_themes_zh": ["Same in Chinese", "Same in Chinese"],
+  "biggest_risk_en": "The ONE thing that could blow up today's thesis (be specific: a level, an event, a reversal pattern)",
+  "biggest_risk_zh": "Same in Chinese",
+  "biggest_opportunity_en": "The ONE asymmetric setup worth watching (specific ticker, level, catalyst)",
+  "biggest_opportunity_zh": "Same in Chinese"
+}}
+
+TODAY'S DATA:
+Mood: {mood}
+Top Sectors: {top_sectors}
+Worst Sectors: {worst_sectors}
+Key Movers: {top_movers}
+Volume Spikes: {spike_str}
+Headlines:
+{headlines_str}
+Morning Brief:
+{summary[:400]}
+
+Be opinionated and specific. Traders want alpha, not generic commentary."""
+
+    try:
+        client = get_client()
+        response, _ = logged_create(
+            client, request_type="daily_intel_playbook",
+            model=cc.DEEP_MODEL, max_tokens=800, temperature=0.2,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = _extract_text(response).strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end != -1:
+            text = text[start:end + 1]
+        return json.loads(text)
+    except Exception as e:
+        logger.warning("Playbook generation failed: %s", e)
+        return {
+            "tone_en": f"Market mood: {mood}. Key movers: {top_movers}.",
+            "tone_zh": f"市场情绪: {mood}。主要变动: {top_movers}。",
+            "environment": {
+                "risk_level": "mid",
+                "index_bias": "Neutral — insufficient data", "index_bias_zh": "中性 — 数据不足",
+                "sentiment": "Mixed signals", "sentiment_zh": "信号混合",
+                "position_advice": "Wait for confirmation", "position_advice_zh": "等待确认",
+            },
+            "main_theme_en": "Analysis unavailable", "main_theme_zh": "分析暂不可用",
+            "secondary_themes_en": [], "secondary_themes_zh": [],
+            "biggest_risk_en": "N/A", "biggest_risk_zh": "暂无",
+            "biggest_opportunity_en": "N/A", "biggest_opportunity_zh": "暂无",
+        }
+
+
 # ── Step 5: AI Picks (DEEP_MODEL) ────────────────────────────────────────────
 
 def _generate_picks(
@@ -911,6 +1002,9 @@ def generate_daily_intel(force: bool = False) -> dict:
     # Step 4: AI summary (Sonnet)
     summary, mood = _generate_summary(gainers, losers, spikes, sectors, headlines)
 
+    # Step 4b: Pre-market playbook (Sonnet)
+    playbook = _generate_playbook(summary, mood, gainers, losers, spikes, sectors, headlines)
+
     # Step 5: AI picks (Sonnet)
     picks = _generate_picks(gainers, losers, spikes, headlines)
 
@@ -948,6 +1042,7 @@ def generate_daily_intel(force: bool = False) -> dict:
             "volume": social.get("volume_post", ""),
         },
         "options_flow": options_flow,
+        "playbook": playbook,
         "macro": macro,
         "fear_greed": fear_greed,
         "econ_calendar": econ_calendar,
