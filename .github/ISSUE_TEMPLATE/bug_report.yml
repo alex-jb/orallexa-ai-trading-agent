@@ -1,0 +1,53 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in the details below.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Run `python api_server.py`
+        2. Open http://localhost:8000/api/analyze
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Dashboard (Next.js UI)
+        - API Server (FastAPI)
+        - Engine (strategies/backtest)
+        - ML Models (RF/XGB/GNN/RL/etc.)
+        - Desktop Agent (pixel bull)
+        - Evaluation Harness
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, Node version, etc.
+      placeholder: "Windows 11, Python 3.11, Node 20"
