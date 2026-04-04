@@ -463,8 +463,10 @@ def run_multi_agent_analysis(
 
     # ── Agent 5 + 6: Risk Manager & Deep Market Report (parallel, 2 LLM calls) ──
     from llm.claude_client import get_client
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
     client = get_client()
+
+    LLM_TIMEOUT = 60  # seconds — fail gracefully instead of hanging
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         risk_future = pool.submit(
@@ -475,8 +477,25 @@ def run_multi_agent_analysis(
             _run_llm_market_report, client,
             market_report, news_report, ml_report, ticker, summary,
         )
-        risk_data = risk_future.result()
-        deep_market_report = report_future.result()
+
+        # Timeout guard: if LLM hangs, use fallback instead of blocking forever
+        try:
+            risk_data = risk_future.result(timeout=LLM_TIMEOUT)
+        except (FuturesTimeout, Exception) as e:
+            logger.warning("Risk manager timed out or failed: %s", e)
+            close = summary.get("close", 0) if summary else 0
+            risk_data = {
+                "position_pct": 3, "entry": close, "stop_loss": close * 0.97,
+                "take_profit": close * 1.05, "risk_reward": "1:1.7",
+                "key_risks": ["Risk assessment timed out"],
+                "plan_summary": "Risk assessment unavailable due to timeout.",
+            }
+
+        try:
+            deep_market_report = report_future.result(timeout=LLM_TIMEOUT)
+        except (FuturesTimeout, Exception) as e:
+            logger.warning("Deep market report timed out or failed: %s", e)
+            deep_market_report = market_report  # fallback to local analysis
 
     # ── Apply edge guards ──
     from models.confidence import guard_decision

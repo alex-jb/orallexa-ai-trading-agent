@@ -196,50 +196,124 @@ def _build_env(df: pd.DataFrame, features: list[str], initial_balance: float = 1
 
 
 class RLTrader:
-    """PPO-based RL trading agent with improved reward shaping."""
+    """PPO-based RL trading agent with stability safeguards.
+
+    Stability features:
+        - Multi-seed training with best-of-N selection
+        - Gradient norm clipping (max_grad_norm=0.5)
+        - Training convergence check via reward trajectory
+        - Inference latency guard (<100ms per step)
+    """
+
+    N_SEEDS = 3              # train N models, pick best
+    MAX_INFERENCE_MS = 100   # warn if inference exceeds this
 
     def __init__(self, total_timesteps: int = 20000):
         self.total_timesteps = total_timesteps
         self.model = None
         self.features = RL_FEATURES
+        self.train_reward: float = 0.0  # final reward from best seed
 
     def train(self, train_df: pd.DataFrame) -> bool:
-        """Train PPO on historical data. Returns True if successful."""
+        """Train PPO with multi-seed selection. Returns True if successful."""
         try:
             from stable_baselines3 import PPO
             from stable_baselines3.common.vec_env import DummyVecEnv
+            from stable_baselines3.common.callbacks import BaseCallback
+            import time as _time
 
             env = _build_env(train_df, self.features)
             if env is None:
                 logger.warning("RL: Not enough features to build env")
                 return False
 
-            vec_env = DummyVecEnv([lambda: _build_env(train_df, self.features)])
-            self.model = PPO(
-                "MlpPolicy", vec_env,
-                n_steps=64,
-                batch_size=32,
-                n_epochs=10,
-                learning_rate=3e-4,
-                gamma=0.99,
-                gae_lambda=0.95,
-                clip_range=0.2,
-                ent_coef=0.01,
-                verbose=0,
-                seed=42,
-                policy_kwargs={"net_arch": [128, 64]},
-            )
-            self.model.learn(total_timesteps=self.total_timesteps)
-            logger.info("RL PPO trained: %d timesteps", self.total_timesteps)
+            best_model = None
+            best_reward = -np.inf
+
+            class RewardTracker(BaseCallback):
+                """Track episode rewards for convergence monitoring."""
+                def __init__(self):
+                    super().__init__()
+                    self.episode_rewards: list[float] = []
+
+                def _on_step(self) -> bool:
+                    infos = self.locals.get("infos", [])
+                    for info in infos:
+                        if "episode" in info:
+                            self.episode_rewards.append(info["episode"]["r"])
+                    return True
+
+            for seed in range(self.N_SEEDS):
+                vec_env = DummyVecEnv([lambda: _build_env(train_df, self.features)])
+                tracker = RewardTracker()
+                model = PPO(
+                    "MlpPolicy", vec_env,
+                    n_steps=64,
+                    batch_size=32,
+                    n_epochs=10,
+                    learning_rate=3e-4,
+                    gamma=0.99,
+                    gae_lambda=0.95,
+                    clip_range=0.2,
+                    ent_coef=0.01,
+                    max_grad_norm=0.5,
+                    verbose=0,
+                    seed=42 + seed,
+                    policy_kwargs={"net_arch": [128, 64]},
+                )
+                model.learn(
+                    total_timesteps=self.total_timesteps,
+                    callback=tracker,
+                )
+
+                # Evaluate: run one episode to get final reward
+                eval_env = _build_env(train_df, self.features)
+                if eval_env is None:
+                    continue
+                obs, _ = eval_env.reset()
+                total_reward = 0.0
+                for _ in range(len(train_df)):
+                    action, _ = model.predict(obs, deterministic=True)
+                    obs, reward, done, _, _ = eval_env.step(action)
+                    total_reward += reward
+                    if done:
+                        break
+
+                # Convergence check: reward should trend upward
+                if tracker.episode_rewards:
+                    n = len(tracker.episode_rewards)
+                    if n >= 4:
+                        first_half = np.mean(tracker.episode_rewards[:n//2])
+                        second_half = np.mean(tracker.episode_rewards[n//2:])
+                        if second_half < first_half * 0.8:
+                            logger.warning("RL seed %d: reward declined (%.2f -> %.2f), skipping",
+                                           seed, first_half, second_half)
+                            continue
+
+                logger.info("RL seed %d: total_reward=%.4f", seed, total_reward)
+                if total_reward > best_reward:
+                    best_reward = total_reward
+                    best_model = model
+
+            if best_model is None:
+                logger.warning("RL: all seeds failed convergence check")
+                return False
+
+            self.model = best_model
+            self.train_reward = best_reward
+            logger.info("RL PPO trained: %d timesteps x %d seeds, best_reward=%.4f",
+                        self.total_timesteps, self.N_SEEDS, best_reward)
             return True
         except Exception as e:
             logger.warning("RL training failed: %s", e)
             return False
 
     def predict(self, test_df: pd.DataFrame) -> Optional[pd.Series]:
-        """Generate trading signals from trained model. Returns Series of {0, 1}."""
+        """Generate trading signals with inference latency guard."""
         if self.model is None:
             return None
+
+        import time as _time
 
         env = _build_env(test_df, self.features)
         if env is None:
@@ -247,13 +321,22 @@ class RLTrader:
 
         obs, _ = env.reset()
         signals = []
+        slow_steps = 0
         for _ in range(len(test_df)):
+            t0 = _time.perf_counter()
             action, _ = self.model.predict(obs, deterministic=True)
+            dt_ms = (_time.perf_counter() - t0) * 1000
+            if dt_ms > self.MAX_INFERENCE_MS:
+                slow_steps += 1
+
             obs, _, done, _, _ = env.step(action)
-            # 1=buy (enter/hold long), 2=sell is captured by env
             signals.append(1 if action == 1 or (action == 0 and env.position > 0) else 0)
             if done:
                 break
+
+        if slow_steps > 0:
+            logger.warning("RL inference: %d/%d steps exceeded %dms",
+                           slow_steps, len(signals), self.MAX_INFERENCE_MS)
 
         # Pad to match test_df length
         while len(signals) < len(test_df):

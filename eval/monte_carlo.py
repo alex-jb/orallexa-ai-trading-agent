@@ -128,23 +128,34 @@ def run_monte_carlo(
     original_sharpe = _compute_sharpe(trade_returns)
     original_total_return = float((1 + trade_returns).prod() - 1)
 
-    # Monte Carlo simulation
-    sim_sharpes = np.zeros(n_iterations)
-    sim_returns = np.zeros(n_iterations)
-    sim_drawdowns = np.zeros(n_iterations)
-    equity_sample = []
-    sample_interval = max(1, n_iterations // 20)
+    # Monte Carlo simulation — vectorized batch approach
+    n = len(trade_returns)
 
+    # Generate all shuffled permutations at once: (n_iterations, n)
+    indices = np.zeros((n_iterations, n), dtype=int)
     for i in range(n_iterations):
-        shuffled = rng.permutation(trade_returns)
-        sim_sharpes[i] = _compute_sharpe(shuffled)
-        sim_returns[i] = float((1 + shuffled).prod() - 1)
+        indices[i] = rng.permutation(n)
+    shuffled_matrix = trade_returns[indices]  # (n_iterations, n)
 
-        equity = np.cumprod(1 + shuffled)
-        sim_drawdowns[i] = _compute_max_drawdown(equity)
+    # Vectorized Sharpe
+    means = shuffled_matrix.mean(axis=1)
+    stds = shuffled_matrix.std(axis=1)
+    safe_stds = np.where(stds > 0, stds, 1.0)
+    sim_sharpes = (means / safe_stds) * np.sqrt(252)
+    sim_sharpes = np.where(stds > 0, sim_sharpes, 0.0)
 
-        if i % sample_interval == 0:
-            equity_sample.append(equity.tolist())
+    # Vectorized total returns
+    equity_matrix = np.cumprod(1 + shuffled_matrix, axis=1)  # (n_iterations, n)
+    sim_returns = equity_matrix[:, -1] - 1.0
+
+    # Vectorized max drawdown
+    peaks = np.maximum.accumulate(equity_matrix, axis=1)
+    drawdowns = (equity_matrix - peaks) / np.where(peaks > 0, peaks, 1.0)
+    sim_drawdowns = drawdowns.min(axis=1)
+
+    # Sample equity curves for charting
+    sample_interval = max(1, n_iterations // 20)
+    equity_sample = [equity_matrix[i].tolist() for i in range(0, n_iterations, sample_interval)]
 
     # Percentile statistics
     pcts = [5, 25, 50, 75, 95]
