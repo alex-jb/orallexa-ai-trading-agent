@@ -881,18 +881,26 @@ class BullCharacter:
             })
 
     def _particle_loop(self) -> None:
-        """Update and render particles on the canvas (optimized: move items, don't recreate)."""
-        alive = []
+        """Update and render particles on the canvas.
+
+        Optimized: move existing canvas items instead of recreating,
+        batch-delete dead particles, skip off-screen particles.
+        """
+        alive: list[dict] = []
+        dead_ids: list[int] = []
+
         for p in self._particles:
             p["x"] += p["vx"]
             p["y"] += p["vy"]
             p["vy"] += 0.15  # gravity
             p["life"] -= 1
 
-            alpha = min(1.0, p["life"] / (PARTICLE_LIFE * 0.5))
-            if p["life"] <= 0 or alpha <= 0.3:
+            # Skip off-screen or expired particles
+            if (p["life"] <= 0
+                    or p["x"] < -10 or p["x"] > CHAR_W + 10
+                    or p["y"] < -20 or p["y"] > CHAR_H + 20):
                 if "item_id" in p:
-                    self._canvas.delete(p["item_id"])
+                    dead_ids.append(p["item_id"])
                 continue
 
             if "item_id" not in p:
@@ -903,8 +911,12 @@ class BullCharacter:
             else:
                 self._canvas.coords(p["item_id"], int(p["x"]), int(p["y"]))
             alive.append(p)
-        self._particles = alive
 
+        # Batch delete dead particles
+        for item_id in dead_ids:
+            self._canvas.delete(item_id)
+
+        self._particles = alive
         self._win.after(PARTICLE_TICK_MS, self._particle_loop)
 
     # ── Follow cursor mode ───────────────────────────────────────────────

@@ -19,7 +19,8 @@ import pandas as pd
 
 
 WARMUP_BARS = 50  # Extra bars before each window for indicator warmup
-OPTIMIZE_TRIALS = 20  # Optuna trials per window for adaptive optimization
+OPTIMIZE_TRIALS_BASE = 20   # Base Optuna trials; scaled by param count
+OPTIMIZE_TRIALS_PER_PARAM = 8  # Extra trials per parameter dimension
 
 
 @dataclass
@@ -64,9 +65,13 @@ def _optimize_on_train(
     strategy_fn: Callable,
     strategy_name: str,
     default_params: Dict[str, Any],
-    n_trials: int = OPTIMIZE_TRIALS,
+    n_trials: int = 0,
 ) -> Dict[str, Any]:
-    """Optimize strategy params on training window using Optuna. Returns best params."""
+    """Optimize strategy params on training window using Optuna.
+
+    Trial count is adaptive: base + extra per parameter dimension.
+    Returns best params or default if optimization fails.
+    """
     try:
         import optuna
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -77,6 +82,11 @@ def _optimize_on_train(
 
     if strategy_name not in SEARCH_SPACES:
         return default_params
+
+    # Adaptive trial count based on search space dimensionality
+    if n_trials <= 0:
+        n_params = len(SEARCH_SPACES[strategy_name])
+        n_trials = OPTIMIZE_TRIALS_BASE + n_params * OPTIMIZE_TRIALS_PER_PARAM
 
     # Prepare training data with indicators
     train_raw = full_df.iloc[train_start_idx:train_end_idx].copy()
