@@ -19,6 +19,7 @@ import pandas as pd
 
 
 WARMUP_BARS = 50  # Extra bars before each window for indicator warmup
+OPTIMIZE_TRIALS = 20  # Optuna trials per window for adaptive optimization
 
 
 @dataclass
@@ -56,6 +57,84 @@ def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return ta.copy()
 
 
+def _optimize_on_train(
+    full_df: pd.DataFrame,
+    train_start_idx: int,
+    train_end_idx: int,
+    strategy_fn: Callable,
+    strategy_name: str,
+    default_params: Dict[str, Any],
+    n_trials: int = OPTIMIZE_TRIALS,
+) -> Dict[str, Any]:
+    """Optimize strategy params on training window using Optuna. Returns best params."""
+    try:
+        import optuna
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+        from engine.param_optimizer import SEARCH_SPACES, _sample_params
+        from engine.backtest import simple_backtest
+    except ImportError:
+        return default_params
+
+    if strategy_name not in SEARCH_SPACES:
+        return default_params
+
+    # Prepare training data with indicators
+    train_raw = full_df.iloc[train_start_idx:train_end_idx].copy()
+    if len(train_raw) < 60:
+        return default_params
+    train_df = _compute_indicators(train_raw)
+
+    def objective(trial: optuna.Trial) -> float:
+        try:
+            params = _sample_params(trial, strategy_name)
+        except optuna.TrialPruned:
+            return -10.0
+        try:
+            signal = strategy_fn(train_df, params)
+            if signal is None or signal.abs().sum() == 0:
+                return -10.0
+            bt = train_df.copy()
+            bt["signal"] = signal
+            result = simple_backtest(bt, signal_col="signal")
+            net = result["net_strategy_return"]
+            if net.std() < 1e-9:
+                return 0.0
+            sharpe = float(net.mean() / net.std() * (252 ** 0.5))
+            # Penalize very few trades (encourages signal generation)
+            n_trades = int(signal.diff().abs().fillna(0).sum())
+            if n_trades < 3:
+                sharpe *= 0.3
+            elif n_trades < 5:
+                sharpe *= 0.6
+            # Penalize extreme Sharpe on train (likely overfit)
+            if sharpe > 3.0:
+                sharpe = 3.0
+            return sharpe
+        except Exception:
+            return -10.0
+
+    study = optuna.create_study(direction="maximize")
+    # Seed with default params
+    try:
+        study.enqueue_trial(default_params)
+    except Exception:
+        pass
+    study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
+
+    # Only use optimized params if they meaningfully beat the default
+    # This prevents overfitting to noise in small training windows
+    default_score = objective(
+        type("FakeTrial", (), {
+            "suggest_int": lambda s, n, lo, hi: default_params.get(n, lo),
+            "suggest_float": lambda s, n, lo, hi: default_params.get(n, lo),
+            "suggest_categorical": lambda s, n, choices: default_params.get(n, choices[0]),
+        })()
+    )
+    if study.best_value > default_score + 0.1:
+        return study.best_params
+    return default_params
+
+
 def _run_single_window(
     full_df: pd.DataFrame,
     train_start_idx: int,
@@ -65,10 +144,19 @@ def _run_single_window(
     strategy_fn: Callable,
     params: Dict[str, Any],
     window_idx: int,
+    strategy_name: str = "",
+    adaptive: bool = False,
 ) -> WindowResult:
     """Run backtest on a single walk-forward window."""
     from engine.backtest import simple_backtest
     from engine.evaluation import evaluate
+
+    # Adaptive: optimize params on training window
+    if adaptive and strategy_name:
+        params = _optimize_on_train(
+            full_df, train_start_idx, train_end_idx,
+            strategy_fn, strategy_name, params,
+        )
 
     # Include warmup buffer before test window for indicator computation
     warmup_start = max(0, test_start_idx - WARMUP_BARS)
@@ -137,6 +225,7 @@ def run_walk_forward(
     initial_train_days: int = 252,
     test_days: int = 63,
     min_windows: int = 4,
+    adaptive: bool = False,
 ) -> WalkForwardResult:
     """
     Run expanding-window walk-forward validation.
@@ -181,6 +270,8 @@ def run_walk_forward(
             strategy_fn=strategy_fn,
             params=params,
             window_idx=window_idx,
+            strategy_name=strategy_name,
+            adaptive=adaptive,
         )
         windows.append(result)
         window_idx += 1

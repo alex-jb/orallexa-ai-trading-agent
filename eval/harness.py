@@ -90,6 +90,7 @@ class EvaluationHarness:
         self.data_years = data_years
         self.strategies = list(STRATEGY_REGISTRY.keys())
         self.num_strategies = len(self.strategies)
+        self.adaptive = True  # Enable walk-forward parameter optimization
 
     def _fetch_data(self, ticker: str) -> pd.DataFrame | None:
         """Fetch historical OHLCV data from yfinance."""
@@ -135,6 +136,7 @@ class EvaluationHarness:
                 params=params,
                 initial_train_days=self.initial_train_days,
                 test_days=self.test_days,
+                adaptive=self.adaptive,
             )
             evaluation.walk_forward = wf
         except Exception as exc:

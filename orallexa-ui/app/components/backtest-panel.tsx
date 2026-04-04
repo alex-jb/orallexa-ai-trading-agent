@@ -320,9 +320,9 @@ export function BacktestPanel({
             {/* Profit Factor */}
             <span
               className="text-[12px] font-[DM_Mono] font-medium text-right tabular-nums"
-              style={{ color: pfColor(row.profit_factor) }}
+              style={{ color: pfColor(row.profit_factor ?? 0) }}
             >
-              {row.profit_factor.toFixed(2)}
+              {(row.profit_factor ?? 0).toFixed(2)}
             </span>
           </div>
         );

@@ -52,6 +52,10 @@ def main():
         help="Years of historical data to fetch (default: 5)",
     )
     parser.add_argument(
+        "--no-adaptive", action="store_true",
+        help="Disable adaptive parameter optimization (use fixed default params)",
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true",
         help="Enable verbose logging",
     )
@@ -89,7 +93,9 @@ def main():
     print(f"  Tickers: {', '.join(tickers)}")
     print(f"  Strategies: {num_strategies}")
     print(f"  MC Iterations: {args.mc_iterations}")
+    adaptive = not args.no_adaptive
     print(f"  Walk-Forward: {args.train_days}d train / {args.test_days}d test")
+    print(f"  Adaptive Params: {'ON' if adaptive else 'OFF'}")
     print(f"{'=' * 60}\n")
 
     harness = EvaluationHarness(
@@ -100,6 +106,7 @@ def main():
         mc_seed=args.seed,
         data_years=args.years,
     )
+    harness.adaptive = adaptive
 
     # Run with progress bar
     if has_tqdm:
