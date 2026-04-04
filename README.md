@@ -35,14 +35,15 @@ Don't guess the market. Let AI argue about it first.
 
 Most AI trading projects: feed data into a model, get a signal, done.
 
-Orallexa runs a **full adversarial pipeline**. A Bull AI argues for the trade. A Bear AI argues against it. A Judge AI makes the final call with evidence from both sides. Then it executes.
+Orallexa runs a **multi-agent intelligence pipeline**. 4 AI analysts with different risk profiles debate the trade. A 20-agent swarm simulates market reactions. 5 independent signal sources vote. A bias tracker corrects the system's own mistakes. Then it executes.
 
 ```
-Market Data → 9 ML Models → Bull/Bear Debate → Judge Verdict
+Market Data → 9 ML Models → 4-Role Panel + Bull/Bear Debate
+    → 5-Source Signal Fusion → Judge Verdict → What-If Scenarios
     → Risk Plan → Paper Execution → Dashboard → Social Content
 ```
 
-Every stage automated. Every stage observable. The system runs continuously.
+Every stage automated. Every stage observable. The system learns from itself.
 
 ---
 
@@ -103,9 +104,13 @@ Docker: `docker compose up --build` — that's it.
 | Component | Detail |
 |-----------|--------|
 | **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
+| **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with persistent memory |
 | **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
-| **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners (with overfitting protection) |
-| **Adaptive Walk-Forward** | Optuna Bayesian optimization per window, adaptive trial count by param dimensionality |
+| **5-Source Signal Fusion** | Technical + ML + News + Options Flow + Institutional data |
+| **What-If Scenarios** | Claude simulates impact of hypothetical events on your portfolio |
+| **20-Agent Micro Swarm** | Rule-based Monte Carlo convergence simulation |
+| **Bias Self-Correction** | Tracks prediction accuracy, auto-adjusts confidence |
+| **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
 | **Daily Intel** | 50+ tickers, sector rotation, volume spikes, AI morning brief |
 
 </td>
@@ -210,11 +215,14 @@ Not every task needs the expensive model:
 | Task | Model | Cost |
 |------|-------|------|
 | Bull/Bear arguments | Haiku 4.5 | ~$0.001 |
-| Signal overlay | Haiku 4.5 | ~$0.001 |
+| 4-Role perspective panel | Haiku 4.5 | ~$0.002 |
 | Judge verdict | Sonnet 4.6 | ~$0.005 |
 | Deep market report | Sonnet 4.6 | ~$0.005 |
+| What-if scenario | Sonnet 4.6 | ~$0.005 |
+| Signal fusion + swarm | Local (no LLM) | $0 |
+| Bias tracking | Local (no LLM) | $0 |
 
-**One full analysis: ~$0.003.** One daily intel report: ~$0.05.
+**One full analysis: ~$0.005.** One daily intel report: ~$0.05.
 
 ---
 
@@ -222,8 +230,10 @@ Not every task needs the expensive model:
 
 | Problem | Typical Approach | Orallexa |
 |---------|-----------------|----------|
-| Isolated signals | One model, one prediction | 9 models ranked by Sharpe + LLM synthesis |
-| No reasoning | "BUY 73%" — why? | Bull argues, Bear argues, Judge decides with evidence |
+| Isolated signals | One model, one prediction | 5 sources fused: technical + ML + news + options + institutional |
+| No reasoning | "BUY 73%" — why? | 4 analysts debate, Bull/Bear argue, Judge decides with evidence |
+| No self-correction | Same mistakes repeated | Bias tracker detects overconfidence, auto-adjusts future calls |
+| Static analysis | Can't test hypotheticals | "What if Fed hikes 50bp?" — scenario simulation with swarm |
 | Expensive AI | Every call hits GPT-4 | Haiku for 80%, Sonnet only where reasoning matters |
 | Manual workflow | Notebook → read → decide → execute | Automated: signal → debate → risk plan → paper order |
 | No context | Each stock analyzed alone | GNN propagates signals across 17 related stocks |
@@ -317,6 +327,10 @@ cd orallexa-ui && npx playwright test   # E2E (16+ specs)
 | `GET` | `/api/news/{ticker}` | News + sentiment scores |
 | `GET` | `/api/profile` | Trader behavior profile |
 | `GET` | `/api/journal` | Decision execution log |
+| `POST` | `/api/scenario` | What-if scenario simulation |
+| `GET` | `/api/bias-profile` | Prediction bias analysis |
+| `GET` | `/api/role-memory` | Role learning progress |
+| `POST` | `/api/swarm-sim` | Agent swarm simulation |
 | `POST` | `/api/evolve-strategies` | LLM strategy evolution |
 | `GET` | `/api/alpaca/account` | Paper trading account |
 | `POST` | `/api/alpaca/execute` | Execute signal as paper order |
@@ -336,8 +350,13 @@ orallexa/
 ├── api_server.py               # FastAPI + WebSocket server
 ├── docker-compose.yml          # One-click deployment
 │
-├── engine/                     # Trading engine (9 models)
-│   ├── multi_agent_analysis.py # LangGraph debate pipeline
+├── engine/                     # Trading engine (9 models + intelligence)
+│   ├── multi_agent_analysis.py # Multi-agent pipeline (debate + panel + fusion)
+│   ├── signal_fusion.py        # 5-source signal fusion (tech/ML/news/options/institutional)
+│   ├── scenario_sim.py         # What-if scenario simulation
+│   ├── bias_tracker.py         # Prediction bias self-correction
+│   ├── role_memory.py          # Persistent role memory & learning
+│   ├── micro_swarm.py          # 20-agent Monte Carlo swarm
 │   ├── ml_signal.py            # Model comparison framework
 │   ├── strategies.py           # 7 rule-based strategies
 │   ├── emaformer.py            # EMAformer Transformer
@@ -349,8 +368,8 @@ orallexa/
 │
 ├── llm/                        # AI reasoning
 │   ├── claude_client.py        # Dual-tier model routing
-│   ├── debate.py               # Bull/Bear debate
-│   └── debate_graph.py         # LangGraph pipeline
+│   ├── debate.py               # Bull/Bear debate (with bias injection)
+│   └── perspective_panel.py    # 4-role analyst panel with memory
 │
 ├── orallexa-ui/                # Dashboard (Next.js 16)
 │   ├── app/components/         # 11 UI components
