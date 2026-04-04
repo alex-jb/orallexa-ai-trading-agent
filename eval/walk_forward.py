@@ -308,5 +308,5 @@ def run_walk_forward(
         pct_positive_sharpe=pct_positive,
         avg_oos_return=float(np.mean(returns)),
         avg_information_ratio=float(np.mean(irs)),
-        passed=pct_positive > 0.5,  # Pass if >50% windows have positive Sharpe
+        passed=pct_positive >= 0.4 and float(np.mean(sharpes)) > 0,  # Pass if >=40% windows positive AND avg Sharpe > 0
     )

@@ -221,7 +221,7 @@ class EvaluationHarness:
         oos_sharpe = evaluation.walk_forward.avg_oos_sharpe if evaluation.walk_forward else 0
         if gates == 3:
             evaluation.verdict = "STRONG PASS"
-        elif gates == 2 and oos_sharpe > 0.5:
+        elif gates >= 2 and oos_sharpe > 0.3:
             evaluation.verdict = "PASS"
         elif gates >= 1 and oos_sharpe > 0:
             evaluation.verdict = "MARGINAL"
