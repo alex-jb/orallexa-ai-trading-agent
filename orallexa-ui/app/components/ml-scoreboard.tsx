@@ -30,6 +30,48 @@ function statusBadge(status?: string) {
   return { text: "LIVE", color: "#006B3F", bg: "rgba(0,107,63,0.1)" };
 }
 
+/* ── System Overview (Factor + Strategy counts) ─────────────────── */
+function SystemOverview({ zh }: { zh: boolean }) {
+  const sections = [
+    { category: zh ? "技术因子" : "Technical Indicators", count: 40, status: "done", impl: zh ? "TA v2 引擎" : "TA v2 Engine" },
+    { category: zh ? "Alpha 因子" : "Alpha Factors", count: 7, status: "done", impl: zh ? "因子引擎" : "Factor Engine" },
+    { category: zh ? "规则策略" : "Rule Strategies", count: 9, status: "done", impl: zh ? "策略注册表" : "Strategy Registry" },
+    { category: zh ? "ML 模型" : "ML Models", count: 9, status: "done", impl: zh ? "信号生成器" : "Signal Generator" },
+    { category: zh ? "评估指标" : "Eval Metrics", count: 8, status: "done", impl: zh ? "Walk-Forward + MC" : "WF + Monte Carlo" },
+    { category: zh ? "LLM 代理" : "LLM Agents", count: 5, status: "done", impl: zh ? "Bull/Bear/Judge/Risk/Report" : "Bull/Bear/Judge/Risk/Report" },
+  ];
+  const total = sections.reduce((s, r) => s + r.count, 0);
+
+  return (
+    <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(212,175,55,0.08)" }}>
+      <div className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] mb-2"
+        style={{ background: "linear-gradient(135deg, #D4AF37, #FFD700)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+        {zh ? "系统能力总览" : "SYSTEM CAPABILITIES"}
+      </div>
+      <div className="grid gap-0 text-[7px] font-[Josefin_Sans] text-[#8B8E96] uppercase tracking-[0.08em] pb-1 border-b mb-1"
+        style={{ gridTemplateColumns: "1fr 36px 42px 1fr", borderColor: "rgba(212,175,55,0.06)" }}>
+        <span>{zh ? "类别" : "Category"}</span>
+        <span className="text-right">{zh ? "数量" : "Count"}</span>
+        <span className="text-center">{zh ? "状态" : "Status"}</span>
+        <span className="text-right">{zh ? "实现" : "Impl"}</span>
+      </div>
+      {sections.map((s, i) => (
+        <div key={i} className="grid gap-0 py-[4px] border-b last:border-b-0"
+          style={{ gridTemplateColumns: "1fr 36px 42px 1fr", borderColor: "rgba(212,175,55,0.03)" }}>
+          <span className="text-[8px] font-[Lato] text-[#F5E6CA]/60">{s.category}</span>
+          <span className="text-[9px] font-[DM_Mono] font-bold text-[#D4AF37] text-right">{s.count}</span>
+          <span className="text-center text-[8px]">{s.status === "done" ? "✅" : "⚠️"}</span>
+          <span className="text-[7px] font-[DM_Mono] text-[#8B8E96] text-right">{s.impl}</span>
+        </div>
+      ))}
+      <div className="flex justify-between mt-1.5 pt-1.5 border-t" style={{ borderColor: "rgba(212,175,55,0.06)" }}>
+        <span className="text-[8px] font-[Josefin_Sans] font-bold text-[#F5E6CA]/80 uppercase tracking-[0.1em]">{zh ? "总计" : "Total"}</span>
+        <span className="text-[10px] font-[DM_Mono] font-bold text-[#D4AF37]">{total} {zh ? "个组件" : "components"}</span>
+      </div>
+    </div>
+  );
+}
+
 export function MLScoreboard({ models, zh }: { models: MLModel[]; zh?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   if (models.length === 0) return null;
@@ -113,6 +155,9 @@ export function MLScoreboard({ models, zh }: { models: MLModel[]; zh?: boolean }
           </span>
         )}
       </div>
+
+      {/* System Overview — Factor & Strategy Engine */}
+      {expanded && <SystemOverview zh={!!zh} />}
     </Mod>
   );
 }
