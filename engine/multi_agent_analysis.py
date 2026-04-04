@@ -514,13 +514,18 @@ def run_multi_agent_analysis(
             data = results.get(name)
             if data:
                 m = data["metrics"]
-                ml_models.append({
+                status = data.get("status", "ok")
+                entry = {
                     "model": name.replace("_", " ").title(),
                     "sharpe": round(m.get("sharpe", 0), 2),
                     "return": round(m.get("total_return", 0) * 100, 1),
                     "win_rate": round(m.get("win_rate", 0) * 100, 1),
                     "trades": m.get("n_trades", 0),
-                })
+                    "status": status,
+                }
+                if status != "ok":
+                    entry["error"] = data.get("error", "Unknown error")
+                ml_models.append(entry)
         bh = results.get("buy_and_hold", {}).get("metrics", {})
         if bh:
             ml_models.append({

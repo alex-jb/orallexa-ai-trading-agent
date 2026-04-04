@@ -28,8 +28,16 @@ optuna
 # ── X/Twitter Publishing ────────────────
 tweepy
 
+# ── Deep Learning (optional — enables 6 additional models) ──
+# Uncomment to enable EMAformer, Diffusion, GNN, RL PPO:
+# torch
+# einops
+# stable-baselines3
+# gymnasium
+
 # ── Testing ──────────────────────────────
 pytest
+pytest-cov
 
 # ── Desktop Agent (optional) ─────────────
 openai

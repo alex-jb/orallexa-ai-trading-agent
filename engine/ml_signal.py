@@ -64,6 +64,43 @@ def _make_features_labels(df: pd.DataFrame, forward_days: int = 5) -> Tuple[pd.D
     return X, y
 
 
+def _empty_metrics() -> dict:
+    """Return zeroed metrics dict for failed/skipped models."""
+    return {"sharpe": 0, "total_return": 0, "max_drawdown": 0, "win_rate": 0, "n_trades": 0, "mkt_return": 0, "excess_return": 0}
+
+
+# ── Model cache (in-memory, keyed by ticker + data hash) ──────────────────
+_MODEL_CACHE: Dict[str, Dict] = {}
+_CACHE_TTL = 3600  # 1 hour
+
+
+def _cache_key(ticker: str, train_len: int) -> str:
+    """Generate cache key from ticker and training data size."""
+    return f"{ticker}:{train_len}"
+
+
+def _get_cached(ticker: str, train_len: int) -> Optional[Dict]:
+    """Return cached models if still valid."""
+    import time
+    key = _cache_key(ticker, train_len)
+    entry = _MODEL_CACHE.get(key)
+    if entry and time.time() - entry["ts"] < _CACHE_TTL:
+        logger.info("ML cache hit: %s (%d models)", key, len(entry["models"]))
+        return entry["models"]
+    return None
+
+
+def _set_cache(ticker: str, train_len: int, models: Dict) -> None:
+    """Cache trained models with timestamp."""
+    import time
+    key = _cache_key(ticker, train_len)
+    _MODEL_CACHE[key] = {"models": models, "ts": time.time()}
+    # Evict old entries (keep max 5 tickers)
+    if len(_MODEL_CACHE) > 5:
+        oldest = min(_MODEL_CACHE, key=lambda k: _MODEL_CACHE[k]["ts"])
+        del _MODEL_CACHE[oldest]
+
+
 class MLSignalGenerator:
     """
     Trains ML models on train_df, generates signals on test_df.
@@ -298,15 +335,48 @@ class MLSignalGenerator:
     # ──────────────────────────────────────────────────────────────────────
 
     def run_all(self) -> Dict:
-        """Train all models, generate signals, backtest, return comparison."""
+        """Train all models, generate signals, backtest, return comparison.
+
+        Uses in-memory cache (1h TTL) to avoid retraining on repeated calls.
+        """
         X_train, y_train = _make_features_labels(self.train_df, self.forward_days)
         X_test,  _       = _make_features_labels(self.test_df,  self.forward_days)
         feat_names = list(X_train.columns)
 
-        results = {}
+        # Check cache
+        cached = _get_cached(self._ticker, len(self.train_df))
+        if cached:
+            self.models = cached
+            # Re-generate signals from cached models on current test data
+            results = {}
+            for name, model_data in cached.items():
+                model = model_data.get("model")
+                scaler = model_data.get("scaler")
+                if model is not None:
+                    try:
+                        sig = self._signal_from_model(model, X_test, scaler)
+                        full_sig = pd.Series(0, index=self.test_df.index)
+                        full_sig.loc[sig.index] = sig
+                        metrics = self._backtest_signal(self.test_df, full_sig)
+                        results[name] = {"metrics": metrics, "signal": full_sig, "status": "ok"}
+                    except Exception:
+                        pass
+            if results:
+                # Still need to add buy_and_hold and advanced models
+                # Fall through to add them below, but skip retraining core models
+                self.results = results
+                # Skip to advanced models section below
+                # (core models already done from cache)
 
-        # ── Random Forest ──
-        rf_model, rf_scaler = self._train_random_forest(X_train, y_train)
+        results = getattr(self, "results", {})
+
+        # ── Random Forest (skip if cached) ──
+        rf_model, rf_scaler = None, None
+        if "random_forest" not in results:
+            rf_model, rf_scaler = self._train_random_forest(X_train, y_train)
+        else:
+            rf_model = self.models.get("random_forest", {}).get("model")
+            rf_scaler = self.models.get("random_forest", {}).get("scaler")
         if rf_model is not None:
             sig = self._signal_from_model(rf_model, X_test, rf_scaler)
             # Align signal with test_df index
@@ -349,18 +419,24 @@ class MLSignalGenerator:
             chronos_sig = self._run_chronos(self.train_df, self.test_df)
             if chronos_sig is not None:
                 metrics = self._backtest_signal(self.test_df, chronos_sig)
-                results["chronos2"] = {"metrics": metrics, "signal": chronos_sig}
-        except Exception:
-            pass
+                results["chronos2"] = {"metrics": metrics, "signal": chronos_sig, "status": "ok"}
+            else:
+                results["chronos2"] = {"metrics": _empty_metrics(), "status": "skipped", "error": "No signal generated"}
+        except Exception as exc:
+            logger.warning("Chronos-2 failed: %s", exc)
+            results["chronos2"] = {"metrics": _empty_metrics(), "status": "failed", "error": str(exc)[:80]}
 
         # ── MOIRAI-2 (Salesforce pretrained time series foundation model) ──
         try:
             moirai_sig = self._run_moirai2(self.train_df, self.test_df)
             if moirai_sig is not None:
                 metrics = self._backtest_signal(self.test_df, moirai_sig)
-                results["moirai2"] = {"metrics": metrics, "signal": moirai_sig}
-        except Exception:
-            pass
+                results["moirai2"] = {"metrics": metrics, "signal": moirai_sig, "status": "ok"}
+            else:
+                results["moirai2"] = {"metrics": _empty_metrics(), "status": "skipped", "error": "No signal generated"}
+        except Exception as exc:
+            logger.warning("MOIRAI-2 failed: %s", exc)
+            results["moirai2"] = {"metrics": _empty_metrics(), "status": "failed", "error": str(exc)[:80]}
 
         # ── EMAformer (AAAI 2026 — Embedding Armor Transformer) ──
         try:
@@ -370,9 +446,12 @@ class MLSignalGenerator:
             ema_sig = ema.predict_with_context(self.train_df, self.test_df)
             if ema_sig is not None:
                 metrics = self._backtest_signal(self.test_df, ema_sig)
-                results["emaformer"] = {"metrics": metrics, "signal": ema_sig}
+                results["emaformer"] = {"metrics": metrics, "signal": ema_sig, "status": "ok"}
+            else:
+                results["emaformer"] = {"metrics": _empty_metrics(), "status": "skipped", "error": "No signal"}
         except Exception as exc:
             logger.warning("EMAformer failed: %s", exc)
+            results["emaformer"] = {"metrics": _empty_metrics(), "status": "failed", "error": str(exc)[:80]}
 
         # ── Diffusion (DDPM probabilistic forecasting) ──
         try:
@@ -382,9 +461,12 @@ class MLSignalGenerator:
             diff_sig = diff.predict_signal_series(self.train_df, self.test_df)
             if diff_sig is not None:
                 metrics = self._backtest_signal(self.test_df, diff_sig)
-                results["diffusion"] = {"metrics": metrics, "signal": diff_sig}
+                results["diffusion"] = {"metrics": metrics, "signal": diff_sig, "status": "ok"}
+            else:
+                results["diffusion"] = {"metrics": _empty_metrics(), "status": "skipped", "error": "No signal"}
         except Exception as exc:
             logger.warning("Diffusion failed: %s", exc)
+            results["diffusion"] = {"metrics": _empty_metrics(), "status": "failed", "error": str(exc)[:80]}
 
         # ── GNN (Graph Neural Network inter-stock signals) ──
         try:
@@ -393,22 +475,23 @@ class MLSignalGenerator:
             gnn_result = gnn.run()
             gnn_sig = gnn_result.get("signal_series")
             if gnn_sig is not None and len(gnn_sig) > 0:
-                # Align with test_df index
                 aligned = pd.Series(0, index=self.test_df.index)
                 common_idx = aligned.index.intersection(gnn_sig.index)
                 aligned.loc[common_idx] = gnn_sig.loc[common_idx].astype(int)
                 metrics = self._backtest_signal(self.test_df, aligned)
                 results["gnn"] = {
-                    "metrics": metrics,
-                    "signal": aligned,
+                    "metrics": metrics, "signal": aligned, "status": "ok",
                     "graph_context": {
                         "consensus": gnn_result.get("consensus"),
                         "accuracy": gnn_result.get("accuracy"),
                         "neighbors": gnn_result.get("neighbor_signals"),
                     },
                 }
+            else:
+                results["gnn"] = {"metrics": _empty_metrics(), "status": "skipped", "error": "No signal"}
         except Exception as exc:
             logger.warning("GNN failed: %s", exc)
+            results["gnn"] = {"metrics": _empty_metrics(), "status": "failed", "error": str(exc)[:80]}
 
         # ── RL Agent (PPO reinforcement learning) ──
         try:
@@ -418,9 +501,14 @@ class MLSignalGenerator:
                 rl_sig = rl.predict(self.test_df)
                 if rl_sig is not None:
                     metrics = self._backtest_signal(self.test_df, rl_sig)
-                    results["rl_ppo"] = {"metrics": metrics, "signal": rl_sig}
-        except Exception:
-            pass
+                    results["rl_ppo"] = {"metrics": metrics, "signal": rl_sig, "status": "ok"}
+                else:
+                    results["rl_ppo"] = {"metrics": _empty_metrics(), "status": "skipped", "error": "No signal"}
+            else:
+                results["rl_ppo"] = {"metrics": _empty_metrics(), "status": "failed", "error": "Training failed"}
+        except Exception as exc:
+            logger.warning("RL PPO failed: %s", exc)
+            results["rl_ppo"] = {"metrics": _empty_metrics(), "status": "failed", "error": str(exc)[:80]}
 
         # ── Buy & Hold baseline ──
         bh_sig = pd.Series(1, index=self.test_df.index)
@@ -446,8 +534,13 @@ class MLSignalGenerator:
             })
         summary = pd.DataFrame(rows).sort_values("sharpe", ascending=False)
 
+        # Save trained models to cache
+        if self.models:
+            _set_cache(self._ticker, len(self.train_df), self.models)
+
         # Best ML model
-        ml_only = {k: v for k, v in results.items() if k != "buy_and_hold"}
+        ml_only = {k: v for k, v in results.items()
+                   if k != "buy_and_hold" and v.get("status", "ok") == "ok"}
         best_name = max(ml_only, key=lambda k: ml_only[k]["metrics"]["sharpe"]) if ml_only else None
 
         return {

@@ -4,7 +4,7 @@ export interface NewsItem { title: string; sentiment: "bullish" | "bearish" | "n
 export interface DeepReport { market: string; fundamentals: string; news: string; }
 export interface RiskMgmt { entry: number; stop: number; target: number; size: number; }
 export interface InvestmentPlan { position_pct: number; entry: number; stop_loss: number; take_profit: number; risk_reward: string; key_risks: string[]; plan_summary: string; analysis_narrative?: string; }
-export interface MLModel { model: string; sharpe: number; return: number; win_rate: number; trades: number; }
+export interface MLModel { model: string; sharpe: number; return: number; win_rate: number; trades: number; status?: "ok" | "failed" | "skipped"; error?: string; }
 export interface ChartInsight { trend: string; setup: string; levels: string; summary: string; }
 export interface Profile { style: string; win_rate: string; today: string; win_streak: number; loss_streak: number; patterns: string[]; }
 export interface JournalEntry { ticker: string; mode: string; decision: string; timestamp: string; }
