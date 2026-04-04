@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook } from "../types";
+import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook, PerspectivePanel as PerspectivePanelType } from "../types";
 import { copyWithAttribution } from "../types";
 import { Mod, CopyBtn, CopyImageBtn } from "./atoms";
+import { ScenarioSimulator, PerspectivePanelCard } from "./scenario-panel";
+import { BiasTrackerCard } from "./bias-tracker";
 
 /* ── Macro Pulse Strip ─────────────────────────────────────────────── */
 function MacroPulse({ indicators, t }: { indicators: MacroIndicator[]; t: Record<string, string> }) {
@@ -706,6 +708,15 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
           </button>
         </Mod>
       )}
+
+      {/* What-If Scenario Simulator */}
+      <ScenarioSimulator
+        tickers={data.ai_picks?.map(p => p.ticker).slice(0, 6) || ["NVDA", "AAPL", "TSLA"]}
+        t={t} zh={zh}
+      />
+
+      {/* Prediction Bias Tracker */}
+      <BiasTrackerCard t={t} zh={zh} />
 
       {/* Headlines */}
       <Mod title={<div className="flex items-center justify-between w-full"><span>{t.marketIntel}</span><CopyBtn text={headlinesText} /></div>}>

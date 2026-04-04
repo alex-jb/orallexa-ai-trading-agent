@@ -284,6 +284,8 @@ async def deep_analysis(
             "analysis_narrative": plan.get("analysis_narrative", ""),
             "ml_models": result.ml_models or [],
             "summary": result.summary or {},
+            "perspective_panel": result.perspective_panel or {},
+            "signal_fusion": result.signal_fusion or {},
         }
         if breaking:
             out["breaking_signal"] = breaking
@@ -365,7 +367,7 @@ async def deep_analysis_stream(
         try:
             from engine.multi_agent_analysis import _run_market_analyst, _run_news_analyst, _run_ml_analyst
             market_report = _run_market_analyst(summary, tk)
-            news_report, _ = await asyncio.to_thread(_run_news_analyst, tk)
+            news_report, news_items = await asyncio.to_thread(_run_news_analyst, tk)
             ml_report, ml_result = await asyncio.to_thread(_run_ml_analyst, train_df, test_df, tk)
         except Exception as exc:
             yield _send("error", {"detail": f"Analysis failed: {exc}"})
@@ -388,32 +390,50 @@ async def deep_analysis_stream(
                 recommendation=make_recommendation("WAIT", 40.0, "MEDIUM"),
             )
 
-        yield _send("progress", {"step": 4, "total": 6, "label": "Bull/Bear debate (3 LLM calls)...",
-                                  "label_zh": "多空辩论（3次AI调用）..."})
+        yield _send("progress", {"step": 4, "total": 7, "label": "Bull/Bear debate + perspective panel...",
+                                  "label_zh": "多空辩论 + 多视角分析..."})
 
         try:
             rag_context = f"{ml_report}\n\n{news_report}"
             from llm.debate import run_lightweight_debate
-            debate_decision = await asyncio.to_thread(
+            from llm.perspective_panel import run_perspective_panel
+            from engine.signal_fusion import fuse_signals
+            debate_future = asyncio.to_thread(
                 run_lightweight_debate,
                 initial_decision=initial_decision, summary=summary,
                 ticker=tk, rag_context=rag_context,
             )
+            panel_future = asyncio.to_thread(
+                run_perspective_panel,
+                summary=summary, ticker=tk,
+                news_report=news_report, ml_report=ml_report,
+            )
+            fusion_future = asyncio.to_thread(
+                fuse_signals, ticker=tk, summary=summary,
+                ml_result=ml_result, news_items=news_items,
+            )
+            debate_decision, panel_result, fusion_result = await asyncio.gather(
+                debate_future, panel_future, fusion_future,
+            )
         except Exception as exc:
-            yield _send("error", {"detail": f"Debate failed: {exc}"})
+            yield _send("error", {"detail": f"Debate/Panel/Fusion failed: {exc}"})
             return
 
-        yield _send("progress", {"step": 5, "total": 6, "label": "Risk assessment & deep report (parallel)...",
+        yield _send("progress", {"step": 5, "total": 7, "label": "Risk assessment & deep report (parallel)...",
                                   "label_zh": "风险评估 & 深度报告（并行）..."})
 
         try:
             from llm.claude_client import get_client
             from engine.multi_agent_analysis import _run_risk_manager, _run_llm_market_report
             client = get_client()
+            panel_summary = panel_result.get("panel_summary", "") if panel_result else ""
+            fusion_summary = fusion_result.get("fusion_detail", "") if fusion_result else ""
 
             risk_future = asyncio.to_thread(
                 _run_risk_manager, client, debate_decision,
-                market_report, news_report, ml_report, tk, summary,
+                market_report, news_report,
+                f"{ml_report}\n\n{panel_summary}\n\nSignal Fusion: {fusion_summary}",
+                tk, summary,
             )
             report_future = asyncio.to_thread(
                 _run_llm_market_report, client,
@@ -424,13 +444,26 @@ async def deep_analysis_stream(
             yield _send("error", {"detail": f"Risk/Report failed: {exc}"})
             return
 
-        yield _send("progress", {"step": 6, "total": 6, "label": "Finalizing...",
-                                  "label_zh": "生成最终结果..."})
+        yield _send("progress", {"step": 6, "total": 7, "label": "Aggregating perspectives...",
+                                  "label_zh": "汇总多视角分析..."})
 
         from models.confidence import guard_decision
         final_decision = guard_decision(debate_decision)
+        if panel_result:
+            pc = panel_result.get("consensus", "NEUTRAL")
+            ps = panel_result.get("avg_score", 0)
+            pa = panel_result.get("agreement", 0)
+            final_decision.reasoning.append(f"Panel: {pc} (score: {ps:+.0f}, agreement: {pa}%)")
+        if fusion_result:
+            fd = fusion_result.get("direction", "NEUTRAL")
+            fc = fusion_result.get("conviction", 0)
+            ff = fusion_result.get("fusion_detail", "")
+            final_decision.reasoning.append(f"Fusion: {fd} (conviction: {fc:+d}) — {ff}")
         plan_summary = risk_data.get("plan_summary", "")
         final_decision.reasoning.append(f"Risk Plan: {plan_summary[:200]}")
+
+        yield _send("progress", {"step": 7, "total": 7, "label": "Finalizing...",
+                                  "label_zh": "生成最终结果..."})
 
         # Build ML models list
         ml_models = []
@@ -479,6 +512,8 @@ async def deep_analysis_stream(
             "analysis_narrative": risk_data.get("analysis_narrative", ""),
             "ml_models": ml_models,
             "summary": summary,
+            "perspective_panel": panel_result or {},
+            "signal_fusion": fusion_result or {},
         }
         if breaking:
             out["breaking_signal"] = breaking
@@ -795,6 +830,93 @@ async def breaking_signals(hours: int = 24, limit: int = 10):
         from core.logger import get_logger
         get_logger("api").warning("Failed to load breaking signals: %s", exc)
         return {"signals": []}
+
+
+@app.get("/api/bias-profile")
+async def bias_profile(days: int = 90, force: bool = False):
+    """Prediction bias analysis — historical accuracy and systematic biases."""
+    import asyncio
+    try:
+        from engine.bias_tracker import get_bias_profile
+        result = await asyncio.to_thread(get_bias_profile, days=days, force_refresh=force)
+        return result
+    except Exception as e:
+        return {"status": "error", "detail": str(e)[:200]}
+
+
+@app.get("/api/role-memory")
+async def role_memory_stats():
+    """Role memory — per-role prediction accuracy and learning progress."""
+    import asyncio
+    try:
+        from engine.role_memory import RoleMemory
+        mem = RoleMemory()
+        # Auto-update pending outcomes
+        await asyncio.to_thread(mem.update_outcomes_batch, 5)
+        stats = mem.get_all_role_stats()
+        return {"status": "ready", "roles": stats}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)[:200], "roles": {}}
+
+
+@app.post("/api/scenario")
+async def scenario_simulation(
+    scenario: str = Form(...),
+    tickers: str = Form("NVDA,AAPL,TLT,GLD"),
+):
+    """What-If scenario simulation — estimate impact on tickers."""
+    from fastapi.responses import JSONResponse
+    import asyncio
+
+    ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    if not ticker_list:
+        return JSONResponse(status_code=400, content={"detail": "No tickers provided"})
+    if not scenario.strip():
+        return JSONResponse(status_code=400, content={"detail": "No scenario provided"})
+
+    try:
+        from engine.scenario_sim import run_scenario
+        result = await asyncio.wait_for(
+            asyncio.to_thread(run_scenario, scenario=scenario.strip(), tickers=ticker_list),
+            timeout=60,
+        )
+        return result
+    except asyncio.TimeoutError:
+        return JSONResponse(status_code=504, content={"detail": "Scenario simulation timed out"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
+
+
+@app.post("/api/swarm-sim")
+async def swarm_simulation(
+    shock_pct: float = Form(0.0),
+    sentiment: float = Form(0.0),
+    ticker: str = Form("NVDA"),
+):
+    """Micro swarm simulation — 20 rule-based agents react to a shock."""
+    import asyncio
+    try:
+        # Get current RSI/ADX from live data
+        rsi, adx = 50.0, 20.0
+        try:
+            from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2
+            ta = TechnicalAnalysisSkillV2()
+            df = ta.get_data(ticker.upper())
+            summary = ta.get_summary(df)
+            rsi = float(summary.get("rsi", 50))
+            adx = float(summary.get("adx", 20))
+        except Exception:
+            pass
+
+        from engine.micro_swarm import run_swarm_simulation
+        result = await asyncio.to_thread(
+            run_swarm_simulation,
+            shock_pct=shock_pct, sentiment=sentiment,
+            rsi=rsi, adx=adx, ticker=ticker.upper(),
+        )
+        return result
+    except Exception as e:
+        return {"convergence": "MIXED", "conviction": 0, "detail": str(e)[:200]}
 
 
 @app.post("/api/evolve-strategies")

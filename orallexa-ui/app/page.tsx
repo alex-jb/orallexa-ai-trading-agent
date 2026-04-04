@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import * as Mock from "./mock-data";
-import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData, BacktestSummary } from "./types";
+import type { Decision, NewsItem, DeepReport, RiskMgmt, InvestmentPlan, MLModel, ChartInsight, Profile, JournalEntry, MarketSummary, BreakingSignal, WatchlistItem, DailyIntelData, BacktestSummary, PerspectivePanel as PerspectivePanelType, SignalFusion as SignalFusionType } from "./types";
 import { T, API, sentCls, decColorJournal, nsSummary } from "./types";
 import dynamic from "next/dynamic";
 import { GoldRule, Heading, Mod, Row, BrandMark, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, SignalToast, BacktestPanel } from "./components";
@@ -12,6 +12,8 @@ import { useLiveWS } from "./hooks/use-live-ws";
 
 const PriceChart = dynamic(() => import("./components/price-chart").then(m => ({ default: m.PriceChart })), { ssr: false });
 const DailyIntelView = dynamic(() => import("./components/daily-intel").then(m => ({ default: m.DailyIntelView })), { ssr: false });
+const PerspectivePanelCard = dynamic(() => import("./components/scenario-panel").then(m => ({ default: m.PerspectivePanelCard })), { ssr: false });
+const SignalFusionCard = dynamic(() => import("./components/signal-fusion").then(m => ({ default: m.SignalFusionCard })), { ssr: false });
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -39,6 +41,8 @@ export default function Home() {
   const [deepReport, setDeepReport] = useState<DeepReport | null>(null);
   const [investmentPlan, setInvestmentPlan] = useState<InvestmentPlan | null>(null);
   const [mlModels, setMlModels] = useState<MLModel[]>([]);
+  const [perspectivePanel, setPerspectivePanel] = useState<PerspectivePanelType | null>(null);
+  const [signalFusion, setSignalFusion] = useState<SignalFusionType | null>(null);
   const [marketSummary, setMarketSummary] = useState<MarketSummary | null>(null);
   const [breakingSignals, setBreakingSignals] = useState<BreakingSignal[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -354,6 +358,8 @@ export default function Home() {
                 }
                 if (data.ml_models) setMlModels(data.ml_models);
                 if (data.summary) setMarketSummary(data.summary);
+                if (data.perspective_panel) setPerspectivePanel(data.perspective_panel);
+                if (data.signal_fusion) setSignalFusion(data.signal_fusion);
                 if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
                 fetchContext();
               }
@@ -808,6 +814,10 @@ export default function Home() {
         </Mod>
 
         {mlModels.length > 0 && <MLScoreboard models={mlModels} zh={lang === "ZH"} />}
+
+        {signalFusion && <SignalFusionCard fusion={signalFusion} t={t} zh={lang === "ZH"} />}
+
+        {perspectivePanel && <PerspectivePanelCard panel={perspectivePanel} t={t} />}
 
         <BacktestPanel data={backtestData} t={t} loading={backtestLoading} onPeriodChange={(p) => fetchBacktest(asset, p)} />
 

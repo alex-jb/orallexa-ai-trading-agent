@@ -17,6 +17,18 @@ export interface EconEvent { date: string; time: string; event: string; impact: 
 export interface FearGreedData { score: number; label: string; components: { name: string; value: number; signal: "extreme_fear" | "fear" | "neutral" | "greed" | "extreme_greed" }[]; }
 export interface MarketBreadth { advancers: number; decliners: number; unchanged: number; new_highs: number; new_lows: number; adv_vol: number; dec_vol: number; }
 export interface OptionsFlow { ticker: string; type: "call" | "put"; premium: string; strike: string; expiry: string; sentiment: "bullish" | "bearish"; unusual: boolean; }
+export interface ScenarioImpact { ticker: string; impact_pct: number; direction: "bullish" | "bearish" | "neutral"; severity: "low" | "medium" | "high"; reasoning: string; time_horizon: string; key_level: number; }
+export interface ScenarioResult { scenario: string; date: string; impacts: ScenarioImpact[]; portfolio_delta_pct: number; historical_analog: { event: string; date: string; market_reaction: string; relevance: string }; hedging_suggestions: string[]; summary: string; confidence: number; regime_shift: string; }
+export interface PerspectiveView { role: string; icon: string; bias: "BULLISH" | "BEARISH" | "NEUTRAL"; score: number; conviction: number; reasoning: string; key_factor: string; }
+export interface RoleMemoryStats { total: number; correct: number; accuracy: number; by_bias: Record<string, { total: number; correct: number }>; best_ticker: { ticker: string; accuracy: number } | null; worst_ticker: { ticker: string; accuracy: number } | null; }
+export interface PerspectivePanel { consensus: string; avg_score: number; agreement: number; perspectives: PerspectiveView[]; panel_summary: string; }
+export interface BiasPattern { type: string; severity: "low" | "medium" | "high"; description: string; ticker?: string; magnitude: number; }
+export interface BiasCalibration { range: string; label: string; count: number; accuracy: number | null; avg_return?: number | null; }
+export interface BiasProfile { status: string; total_evaluated?: number; minimum_required?: number; overall?: { accuracy: number; correct: number; total: number; avg_return: number; forward_days: number; days_analyzed: number }; by_direction?: { buy: { accuracy: number; count: number }; sell: { accuracy: number; count: number } }; by_ticker?: Record<string, { accuracy: number; count: number; avg_return: number }>; calibration?: BiasCalibration[]; patterns?: BiasPattern[]; recommendations?: string[]; updated_at?: string; }
+export interface SignalSource { score: number; weight: number; normalized_weight: number; available: boolean; signals?: string[]; agreement?: number; n_models?: number; pc_ratio?: number; unusual_calls?: { strike: number; volume: number; oi: number; ratio: number }[]; unusual_puts?: { strike: number; volume: number; oi: number; ratio: number }[]; max_pain?: number; insider_transactions?: { type: string; shares: number; text: string }[]; short_pct?: number; institutional_pct?: number; }
+export interface SignalFusion { conviction: number; direction: "BULLISH" | "BEARISH" | "NEUTRAL"; confidence: number; n_sources: number; sources: Record<string, SignalSource>; fusion_detail: string; }
+export interface SwarmPath { step: number; avg_position: number; bullish_pct: number; bearish_pct: number; neutral_pct: number; }
+export interface SwarmResult { ticker: string; convergence: string; conviction: number; convergence_speed: string; avg_steps_to_converge: number; buy_pct: number; sell_pct: number; mixed_pct: number; n_simulations: number; avg_final_position: number; sample_path: SwarmPath[]; }
 export interface BacktestResult { strategy: string; total_return: number; sharpe: number; max_drawdown: number; win_rate: number; trades: number; profit_factor?: number; }
 export interface BacktestSummary { ticker: string; period: string; results: BacktestResult[]; best_strategy: string; }
 export interface Playbook { tone_en: string; tone_zh: string; environment: { risk_level: string; index_bias: string; index_bias_zh: string; sentiment: string; sentiment_zh: string; position_advice: string; position_advice_zh: string }; main_theme_en: string; main_theme_zh: string; secondary_themes_en: string[]; secondary_themes_zh: string[]; biggest_risk_en: string; biggest_risk_zh: string; biggest_opportunity_en: string; biggest_opportunity_zh: string; }
@@ -65,6 +77,21 @@ export const T: Record<string, Record<string, string>> = {
     tradesCol: "Trades", profitFactor: "Profit Factor", bestStrategy: "Best Strategy",
     backtestPeriod: "Period", noBacktestData: "No backtest data available",
     bt1y: "1Y", bt2y: "2Y", bt5y: "5Y", btMax: "Max",
+    scenario: "What-If Scenario", scenarioPh: "e.g. Fed raises rates by 50bp...",
+    scenarioRun: "Simulate", scenarioRunning: "Simulating...",
+    scenarioImpact: "Impact Analysis", scenarioHistory: "Historical Parallel",
+    scenarioHedge: "Hedging Suggestions", scenarioPortfolio: "Portfolio Impact",
+    perspectivePanel: "Perspective Panel", perspectiveConsensus: "Consensus",
+    perspectiveAgreement: "Agreement",
+    biasTracker: "Prediction Bias Tracker", biasAccuracy: "Accuracy",
+    biasBuy: "BUY Accuracy", biasSell: "SELL Accuracy", biasPatterns: "Detected Biases",
+    biasCalibration: "Confidence Calibration", biasRecommendations: "Self-Corrections",
+    biasInsufficient: "Need more predictions to analyze bias (minimum 5)",
+    signalFusion: "Signal Fusion", fusionConviction: "Conviction",
+    fusionSources: "Signal Sources", fusionOptions: "Options Flow",
+    fusionInstitutional: "Institutional",
+    swarmSim: "Agent Swarm", swarmConvergence: "Convergence",
+    swarmSpeed: "Speed", swarmAgents: "20 agents",
   },
   ZH: {
     brand: "ORALLEXA", subtitle: "资本智能系统", active: "运行中",
@@ -107,6 +134,21 @@ export const T: Record<string, Record<string, string>> = {
     tradesCol: "交易次数", profitFactor: "盈利因子", bestStrategy: "最优策略",
     backtestPeriod: "区间", noBacktestData: "暂无回测数据",
     bt1y: "1年", bt2y: "2年", bt5y: "5年", btMax: "最大",
+    scenario: "假设场景", scenarioPh: "例如：美联储意外加息50bp...",
+    scenarioRun: "模拟", scenarioRunning: "模拟中...",
+    scenarioImpact: "影响���析", scenarioHistory: "历史参照",
+    scenarioHedge: "对冲建议", scenarioPortfolio: "组合影响",
+    perspectivePanel: "多视角面板", perspectiveConsensus: "共识",
+    perspectiveAgreement: "一致性",
+    biasTracker: "预测偏差追踪", biasAccuracy: "准确率",
+    biasBuy: "做多准确率", biasSell: "做空准确率", biasPatterns: "检测到的偏差",
+    biasCalibration: "置信度校准", biasRecommendations: "自我修正建议",
+    biasInsufficient: "需要更多预测数据来分析偏差（最少5条）",
+    signalFusion: "信号融合", fusionConviction: "信念",
+    fusionSources: "信号来源", fusionOptions: "期权异动",
+    fusionInstitutional: "机构动向",
+    swarmSim: "Agent 群体模拟", swarmConvergence: "收敛方向",
+    swarmSpeed: "速度", swarmAgents: "20个Agent",
   },
 };
 

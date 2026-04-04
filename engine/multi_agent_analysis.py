@@ -47,6 +47,8 @@ class MultiAgentResult:
     raw_signal:         str = ""
     ml_models:          list = None       # ML model comparison data
     summary:            dict = None       # technical indicator summary
+    perspective_panel:  dict = None       # role-based multi-perspective analysis
+    signal_fusion:      dict = None       # multi-source signal fusion result
 
 
 # ── Agent 1: Market Analyst (local, instant) ──────────────────────────────────
@@ -451,27 +453,76 @@ def run_multi_agent_analysis(
             recommendation=make_recommendation("WAIT", 40.0, "MEDIUM"),
         )
 
-    # ── Agent 4: Bull/Bear Debate (3 LLM calls) ──
+    # ── Agent 4: Debate + Panel + Signal Fusion (parallel) ──
     rag_context = f"{ml_report}\n\n{news_report}"
     from llm.debate import run_lightweight_debate
-    debate_decision = run_lightweight_debate(
-        initial_decision=initial_decision,
-        summary=summary,
-        ticker=ticker,
-        rag_context=rag_context,
-    )
+    from llm.perspective_panel import run_perspective_panel
+    from engine.signal_fusion import fuse_signals
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        debate_future = pool.submit(
+            run_lightweight_debate,
+            initial_decision=initial_decision,
+            summary=summary,
+            ticker=ticker,
+            rag_context=rag_context,
+        )
+        panel_future = pool.submit(
+            run_perspective_panel,
+            summary=summary,
+            ticker=ticker,
+            news_report=news_report,
+            ml_report=ml_report,
+        )
+        fusion_future = pool.submit(
+            fuse_signals,
+            ticker=ticker,
+            summary=summary,
+            ml_result=ml_result,
+            news_items=news_items,
+        )
+
+        try:
+            debate_decision = debate_future.result(timeout=90)
+        except (FuturesTimeout, Exception) as e:
+            logger.warning("Debate timed out: %s", e)
+            debate_decision = initial_decision
+
+        try:
+            panel_result = panel_future.result(timeout=45)
+        except (FuturesTimeout, Exception) as e:
+            logger.warning("Perspective panel timed out: %s", e)
+            panel_result = {
+                "consensus": "NEUTRAL", "avg_score": 0, "agreement": 0,
+                "perspectives": [], "panel_summary": "",
+            }
+
+        try:
+            fusion_result = fusion_future.result(timeout=30)
+        except (FuturesTimeout, Exception) as e:
+            logger.warning("Signal fusion timed out: %s", e)
+            fusion_result = {
+                "conviction": 0, "direction": "NEUTRAL", "confidence": 0,
+                "n_sources": 0, "sources": {}, "fusion_detail": "",
+            }
 
     # ── Agent 5 + 6: Risk Manager & Deep Market Report (parallel, 2 LLM calls) ──
     from llm.claude_client import get_client
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
     client = get_client()
+
+    # Enrich context with panel consensus + fusion for risk manager
+    panel_summary = panel_result.get("panel_summary", "")
+    fusion_summary = fusion_result.get("fusion_detail", "")
 
     LLM_TIMEOUT = 60  # seconds — fail gracefully instead of hanging
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         risk_future = pool.submit(
             _run_risk_manager, client, debate_decision,
-            market_report, news_report, ml_report, ticker, summary,
+            market_report, news_report,
+            f"{ml_report}\n\n{panel_summary}\n\nSignal Fusion: {fusion_summary}",
+            ticker, summary,
         )
         report_future = pool.submit(
             _run_llm_market_report, client,
@@ -501,7 +552,19 @@ def run_multi_agent_analysis(
     from models.confidence import guard_decision
     final_decision = guard_decision(debate_decision)
 
-    # Add risk manager reasoning
+    # Add panel consensus, signal fusion, and risk manager reasoning
+    panel_consensus = panel_result.get("consensus", "NEUTRAL")
+    panel_agreement = panel_result.get("agreement", 0)
+    panel_score = panel_result.get("avg_score", 0)
+    final_decision.reasoning.append(
+        f"Panel: {panel_consensus} (score: {panel_score:+.0f}, agreement: {panel_agreement}%)"
+    )
+    fusion_conv = fusion_result.get("conviction", 0)
+    fusion_dir = fusion_result.get("direction", "NEUTRAL")
+    fusion_detail = fusion_result.get("fusion_detail", "")
+    final_decision.reasoning.append(
+        f"Fusion: {fusion_dir} (conviction: {fusion_conv:+d}) — {fusion_detail}"
+    )
     plan_summary = risk_data.get("plan_summary", "")
     final_decision.reasoning.append(f"Risk Plan: {plan_summary[:200]}")
 
@@ -560,4 +623,6 @@ def run_multi_agent_analysis(
         raw_signal=final_decision.decision,
         ml_models=ml_models,
         summary=summary,
+        perspective_panel=panel_result,
+        signal_fusion=fusion_result,
     )

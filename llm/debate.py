@@ -107,11 +107,13 @@ def _call_judge(
     context: str,
     bull_argument: str,
     bear_argument: str,
+    bias_context: str = "",
 ) -> dict:
     """Judge: synthesize both sides and output a final decision as JSON."""
+    bias_block = f"\n{bias_context}\n" if bias_context else ""
     prompt = f"""You are a senior portfolio manager making the final trading decision.
 
-{context}
+{context}{bias_block}
 
 Initial signal: {initial.decision} (confidence {initial.confidence:.0f}%)
 
@@ -172,14 +174,22 @@ def run_lightweight_debate(
         client = get_client()
         context = _build_context(summary, ticker, rag_context)
 
+        # Load bias awareness for self-correction
+        bias_context = ""
+        try:
+            from engine.bias_tracker import get_bias_context
+            bias_context = get_bias_context(ticker)
+        except Exception:
+            pass  # non-critical
+
         # Stage 1: Bull argues FOR
         bull_argument = _call_bull(client, initial_decision, context)
 
         # Stage 2: Bear argues AGAINST
         bear_argument = _call_bear(client, initial_decision, context, bull_argument)
 
-        # Stage 3: Judge synthesizes
-        judge_data = _call_judge(client, initial_decision, context, bull_argument, bear_argument)
+        # Stage 3: Judge synthesizes (with bias awareness)
+        judge_data = _call_judge(client, initial_decision, context, bull_argument, bear_argument, bias_context)
 
         # Parse judge output
         decision = str(judge_data.get("decision", "WAIT")).upper()
