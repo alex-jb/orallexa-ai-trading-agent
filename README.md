@@ -16,7 +16,7 @@ Don't guess the market. Let AI argue about it first.
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
 [![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI%20—%20Tests%20%26%20Build&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/424_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/698_Tests-Passing-22c55e?style=for-the-badge)](tests/)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -104,7 +104,8 @@ Docker: `docker compose up --build` — that's it.
 |-----------|--------|
 | **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
 | **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
-| **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
+| **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners (with overfitting protection) |
+| **Adaptive Walk-Forward** | Optuna Bayesian optimization per window, adaptive trial count by param dimensionality |
 | **Daily Intel** | 50+ tickers, sector rotation, volume spikes, AI morning brief |
 
 </td>
@@ -117,7 +118,7 @@ Docker: `docker compose up --build` — that's it.
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
 | **Dashboard** | Next.js 16, Art Deco theme, EN/ZH bilingual |
-| **Desktop Coach** | Floating AI pet with voice input (Whisper) + TTS |
+| **Desktop Coach** | Floating AI pet with voice input (Whisper) + TTS, API retry + caching |
 
 </td>
 </tr>
@@ -246,7 +247,7 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 | Desktop Assistant | No | Pixel bull with voice (Whisper + TTS) |
 | Social Content | No | One-click "Copy for X" on every section |
 | Walk-Forward Eval | No | 70 strategy-ticker pairs, OOS Sharpe |
-| Tests | Limited | 424 automated (244 frontend + 180 backend) |
+| Tests | Limited | 698 automated (261 frontend + 437 backend) |
 | Bilingual | No | EN/ZH |
 
 ---
@@ -269,12 +270,13 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 
 ## Testing
 
-424 automated tests. 0 failures. CI on every push.
+698 automated tests. 0 failures. CI on every push.
 
 ```bash
-python -m pytest tests/ -v           # Backend (~180 tests)
-cd orallexa-ui && npm test           # Frontend (200 unit tests)
-cd orallexa-ui && npx playwright test # E2E (14 tests)
+python -m pytest tests/ -v             # Backend (390 tests)
+cd orallexa-ui && npm test             # Frontend (245 unit tests)
+cd orallexa-ui && npm run test:coverage # Frontend with coverage
+cd orallexa-ui && npx playwright test   # E2E (16+ specs)
 ```
 
 <details>
@@ -282,16 +284,19 @@ cd orallexa-ui && npx playwright test # E2E (14 tests)
 
 | Suite | Tests | Coverage |
 |-------|-------|----------|
+| Engine Core | 62 | Backtest, 9 strategies, market analyst |
 | Engine Integration | 34 | TA indicators, strategies, backtest, brain routing |
+| ML/RL Signals | 20 | Feature extraction, RL env, PPO trainer |
 | ML Regression | 13 | All 9 models — ensures upgrades don't degrade |
 | API E2E | 19 | Every endpoint via FastAPI TestClient |
 | Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk, scalping |
+| Desktop Agent | 30 | Intent detection, ticker/mode/TF extraction |
+| Daily Intel | 10 | Price fetch, constants, cache path |
 | Backend Other | 67 | Monte Carlo, walk-forward, regime, ensemble, statistics |
-| Types & Helpers | 28 | Display functions, color mapping, i18n |
-| UI Components | 141 | All 11 components + hooks + mock data (86% coverage) |
-| UI Mock Data | 31 | All mock generators |
-| Playwright E2E | 14 | Dashboard flows, responsive, offline page |
-| Frontend Total | 230 unit + 14 E2E | vitest + Playwright Chromium |
+| Backend Misc | 88 | Param optimizer, strategy evolver, breaking signals |
+| UI Components | 245 | All 14 component suites + hooks + mock data |
+| Playwright E2E | 16+ | Dashboard, components, responsive, offline |
+| **Total** | **635** | **437 backend + 245 frontend** |
 
 </details>
 
