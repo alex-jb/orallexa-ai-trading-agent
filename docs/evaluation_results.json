@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-03T23:30:31.273491",
+  "generated": "2026-04-04T00:08:30.773612",
   "tickers": [
     "NVDA"
   ],
@@ -17,29 +17,29 @@
   "num_strategies_tested": 9,
   "skipped_tickers": [],
   "total_evaluated": 9,
-  "total_passed": 0,
+  "total_passed": 5,
   "evaluations": [
     {
       "strategy": "double_ma",
       "ticker": "NVDA",
-      "overall_pass": false,
-      "verdict": "MARGINAL",
-      "gates_passed": 1,
+      "overall_pass": true,
+      "verdict": "STRONG PASS",
+      "gates_passed": 3,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": 0.387,
+        "avg_oos_sharpe": 0.9527,
         "pct_positive_sharpe": 0.429,
-        "avg_oos_return": 0.0446,
-        "avg_information_ratio": -1.438,
-        "passed": false
+        "avg_oos_return": 0.0957,
+        "avg_information_ratio": -1.1386,
+        "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 484,
         "original_sharpe": 1.9136,
-        "sharpe_percentile_rank": 5.3,
+        "sharpe_percentile_rank": 97.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 484,
@@ -59,24 +59,24 @@
     {
       "strategy": "macd_crossover",
       "ticker": "NVDA",
-      "overall_pass": false,
-      "verdict": "PASS",
-      "gates_passed": 2,
+      "overall_pass": true,
+      "verdict": "STRONG PASS",
+      "gates_passed": 3,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": 0.5609,
+        "avg_oos_sharpe": 0.5721,
         "pct_positive_sharpe": 0.571,
-        "avg_oos_return": 0.0358,
-        "avg_information_ratio": -1.1972,
+        "avg_oos_return": 0.0394,
+        "avg_information_ratio": -1.1457,
         "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 348,
         "original_sharpe": 1.4141,
-        "sharpe_percentile_rank": 83.4,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 348,
@@ -98,22 +98,22 @@
       "ticker": "NVDA",
       "overall_pass": false,
       "verdict": "FAIL",
-      "gates_passed": 0,
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": -1.1143,
+        "avg_oos_sharpe": -0.0705,
         "pct_positive_sharpe": 0.143,
-        "avg_oos_return": -0.0291,
-        "avg_information_ratio": -1.5623,
+        "avg_oos_return": -0.0044,
+        "avg_information_ratio": -1.3988,
         "passed": false
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 125,
         "original_sharpe": 1.3265,
-        "sharpe_percentile_rank": 94.4,
+        "sharpe_percentile_rank": 94.6,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 125,
@@ -138,11 +138,11 @@
       "gates_passed": 1,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": 0.7077,
-        "pct_positive_sharpe": 0.714,
-        "avg_oos_return": 0.0556,
-        "avg_information_ratio": -1.1126,
-        "passed": true
+        "avg_oos_sharpe": 0.1727,
+        "pct_positive_sharpe": 0.143,
+        "avg_oos_return": 0.0077,
+        "avg_information_ratio": -1.1699,
+        "passed": false
       },
       "monte_carlo": {
         "n_iterations": 1000,
@@ -150,7 +150,7 @@
         "original_sharpe": 2.2005,
         "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 21,
@@ -170,24 +170,24 @@
     {
       "strategy": "trend_momentum",
       "ticker": "NVDA",
-      "overall_pass": false,
-      "verdict": "MARGINAL",
-      "gates_passed": 2,
+      "overall_pass": true,
+      "verdict": "STRONG PASS",
+      "gates_passed": 3,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": 0.3155,
+        "avg_oos_sharpe": 0.4469,
         "pct_positive_sharpe": 0.571,
-        "avg_oos_return": 0.0055,
-        "avg_information_ratio": -1.3616,
+        "avg_oos_return": 0.0217,
+        "avg_information_ratio": -1.1997,
         "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 347,
         "original_sharpe": 1.4794,
-        "sharpe_percentile_rank": 84.4,
+        "sharpe_percentile_rank": 99.2,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 347,
@@ -207,9 +207,9 @@
     {
       "strategy": "alpha_combo",
       "ticker": "NVDA",
-      "overall_pass": false,
-      "verdict": "PASS",
-      "gates_passed": 2,
+      "overall_pass": true,
+      "verdict": "STRONG PASS",
+      "gates_passed": 3,
       "walk_forward": {
         "num_windows": 7,
         "avg_oos_sharpe": 0.5153,
@@ -222,9 +222,9 @@
         "n_iterations": 1000,
         "n_trade_returns": 573,
         "original_sharpe": 1.1049,
-        "sharpe_percentile_rank": 96.9,
+        "sharpe_percentile_rank": 66.1,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 573,
@@ -244,24 +244,24 @@
     {
       "strategy": "dual_thrust",
       "ticker": "NVDA",
-      "overall_pass": false,
-      "verdict": "MARGINAL",
-      "gates_passed": 1,
+      "overall_pass": true,
+      "verdict": "STRONG PASS",
+      "gates_passed": 3,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": 0.4274,
+        "avg_oos_sharpe": 0.6088,
         "pct_positive_sharpe": 0.429,
-        "avg_oos_return": 0.0768,
-        "avg_information_ratio": -1.3364,
-        "passed": false
+        "avg_oos_return": 0.0992,
+        "avg_information_ratio": -1.0448,
+        "passed": true
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 354,
         "original_sharpe": 2.4573,
-        "sharpe_percentile_rank": 97.5,
+        "sharpe_percentile_rank": 100.0,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 354,
@@ -282,23 +282,23 @@
       "strategy": "ensemble_vote",
       "ticker": "NVDA",
       "overall_pass": false,
-      "verdict": "FAIL",
-      "gates_passed": 1,
+      "verdict": "PASS",
+      "gates_passed": 2,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": -0.2936,
+        "avg_oos_sharpe": 0.4239,
         "pct_positive_sharpe": 0.286,
-        "avg_oos_return": 0.0258,
-        "avg_information_ratio": -1.3252,
+        "avg_oos_return": 0.0672,
+        "avg_information_ratio": -1.0704,
         "passed": false
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 340,
         "original_sharpe": 1.8568,
-        "sharpe_percentile_rank": 93.0,
+        "sharpe_percentile_rank": 99.9,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 340,
@@ -320,22 +320,22 @@
       "ticker": "NVDA",
       "overall_pass": false,
       "verdict": "FAIL",
-      "gates_passed": 0,
+      "gates_passed": 1,
       "walk_forward": {
         "num_windows": 7,
-        "avg_oos_sharpe": -0.2269,
-        "pct_positive_sharpe": 0.429,
-        "avg_oos_return": 0.0197,
-        "avg_information_ratio": -1.344,
+        "avg_oos_sharpe": -0.0117,
+        "pct_positive_sharpe": 0.286,
+        "avg_oos_return": 0.038,
+        "avg_information_ratio": -1.4318,
         "passed": false
       },
       "monte_carlo": {
         "n_iterations": 1000,
         "n_trade_returns": 347,
         "original_sharpe": 1.3455,
-        "sharpe_percentile_rank": 99.1,
+        "sharpe_percentile_rank": 99.4,
         "probability_of_ruin": 0.0,
-        "passed": false
+        "passed": true
       },
       "statistical": {
         "n_observations": 347,

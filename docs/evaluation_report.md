@@ -1,35 +1,35 @@
 # Orallexa Evaluation Report
 
-Generated: 2026-04-03 23:30 | Tickers: NVDA | Strategies: 9 | Skipped: None
+Generated: 2026-04-04 00:08 | Tickers: NVDA | Strategies: 9 | Skipped: None
 
 ## Executive Summary
 
 9 strategy-ticker pairs evaluated across 1 tickers and 9 rule-based strategies. Each pair is tested against three independent statistical gates.
 
 **Results by gate:**
-- **Walk-forward (OOS Sharpe > 0 in >50% windows):** 4/9 passed
+- **Walk-forward (OOS Sharpe > 0 in >50% windows):** 5/9 passed
 - **Statistical significance (p < 0.05):** 6/9 passed
-- **Monte Carlo (beat 75th percentile):** 0/9 passed
+- **Monte Carlo (beat 75th percentile):** 9/9 passed
 
 **Tiered verdicts:**
-- **STRONG PASS** (all 3 gates): 0
-- **PASS** (2 gates + Sharpe > 0.5): 2
-- **MARGINAL** (1+ gate + Sharpe > 0): 4
-- **FAIL** (0 gates or Sharpe <= 0): 3
+- **STRONG PASS** (all 3 gates): 5
+- **PASS** (2 gates + Sharpe > 0.5): 1
+- **MARGINAL** (1+ gate + Sharpe > 0): 1
+- **FAIL** (0 gates or Sharpe <= 0): 2
 
 > Rule-based strategies serve as feature generators for the 9-model ML ensemble and Claude AI synthesis layer. The value is in the composite system, not individual strategies.
 
 | Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |
 |----------|--------|-----------|------------|--------|---------|---------|
-| rsi_reversal | NVDA | 0.708 | -1.113 | 100.0% | 0.2712 | MARGINAL |
-| macd_crossover | NVDA | 0.561 | -1.197 | 83.4% | 0.0490 | PASS |
-| alpha_combo | NVDA | 0.515 | -1.413 | 96.9% | 0.0483 | PASS |
-| dual_thrust | NVDA | 0.427 | -1.336 | 97.5% | 0.0019 | MARGINAL |
-| double_ma | NVDA | 0.387 | -1.438 | 5.3% | 0.0042 | MARGINAL |
-| trend_momentum | NVDA | 0.315 | -1.362 | 84.4% | 0.0419 | MARGINAL |
-| regime_ensemble | NVDA | -0.227 | -1.344 | 99.1% | 0.0579 | FAIL |
-| ensemble_vote | NVDA | -0.294 | -1.325 | 93.0% | 0.0160 | FAIL |
-| bollinger_breakout | NVDA | -1.114 | -1.562 | 94.4% | 0.1770 | FAIL |
+| double_ma | NVDA | 0.953 | -1.139 | 97.0% | 0.0042 | STRONG PASS |
+| dual_thrust | NVDA | 0.609 | -1.045 | 100.0% | 0.0019 | STRONG PASS |
+| macd_crossover | NVDA | 0.572 | -1.146 | 100.0% | 0.0490 | STRONG PASS |
+| alpha_combo | NVDA | 0.515 | -1.413 | 66.1% | 0.0483 | STRONG PASS |
+| trend_momentum | NVDA | 0.447 | -1.200 | 99.2% | 0.0419 | STRONG PASS |
+| ensemble_vote | NVDA | 0.424 | -1.070 | 99.9% | 0.0160 | PASS |
+| rsi_reversal | NVDA | 0.173 | -1.170 | 100.0% | 0.2712 | MARGINAL |
+| regime_ensemble | NVDA | -0.012 | -1.432 | 99.4% | 0.0579 | FAIL |
+| bollinger_breakout | NVDA | -0.071 | -1.399 | 94.6% | 0.1770 | FAIL |
 
 
 ## Walk-Forward Validation
@@ -43,15 +43,15 @@ Expanding-window walk-forward: each strategy is evaluated on sequential out-of-s
 
 | Strategy | Windows | Avg OOS Sharpe | % Positive | Avg Return | Pass |
 |----------|---------|---------------|------------|------------|------|
-| double_ma | 7 | 0.387 | 43% | 4.46% | FAIL |
-| macd_crossover | 7 | 0.561 | 57% | 3.58% | PASS |
-| bollinger_breakout | 7 | -1.114 | 14% | -2.91% | FAIL |
-| rsi_reversal | 7 | 0.708 | 71% | 5.56% | PASS |
-| trend_momentum | 7 | 0.315 | 57% | 0.55% | PASS |
+| double_ma | 7 | 0.953 | 43% | 9.57% | PASS |
+| macd_crossover | 7 | 0.572 | 57% | 3.94% | PASS |
+| bollinger_breakout | 7 | -0.071 | 14% | -0.44% | FAIL |
+| rsi_reversal | 7 | 0.173 | 14% | 0.77% | FAIL |
+| trend_momentum | 7 | 0.447 | 57% | 2.17% | PASS |
 | alpha_combo | 7 | 0.515 | 57% | 4.94% | PASS |
-| dual_thrust | 7 | 0.427 | 43% | 7.68% | FAIL |
-| ensemble_vote | 7 | -0.294 | 29% | 2.58% | FAIL |
-| regime_ensemble | 7 | -0.227 | 43% | 1.97% | FAIL |
+| dual_thrust | 7 | 0.609 | 43% | 9.92% | PASS |
+| ensemble_vote | 7 | 0.424 | 29% | 6.72% | FAIL |
+| regime_ensemble | 7 | -0.012 | 29% | 3.80% | FAIL |
 
 
 ## Monte Carlo Simulation
@@ -65,15 +65,15 @@ Trade returns are extracted from bars with active positions (non-zero signal), s
 
 | Strategy | Trades | Original Sharpe | MC 75th Pct | Percentile Rank | P(Ruin) | Pass |
 |----------|--------|-----------------|-------------|-----------------|---------|------|
-| double_ma | 484 | 1.914 | 1.914 | 5.3% | 0.0% | FAIL |
-| macd_crossover | 348 | 1.414 | 1.414 | 83.4% | 0.0% | FAIL |
-| bollinger_breakout | 125 | 1.327 | 1.327 | 94.4% | 0.0% | FAIL |
-| rsi_reversal | 21 | 2.200 | 2.200 | 100.0% | 0.0% | FAIL |
-| trend_momentum | 347 | 1.479 | 1.479 | 84.4% | 0.0% | FAIL |
-| alpha_combo | 573 | 1.105 | 1.105 | 96.9% | 0.0% | FAIL |
-| dual_thrust | 354 | 2.457 | 2.457 | 97.5% | 0.0% | FAIL |
-| ensemble_vote | 340 | 1.857 | 1.857 | 93.0% | 0.0% | FAIL |
-| regime_ensemble | 347 | 1.346 | 1.346 | 99.1% | 0.0% | FAIL |
+| double_ma | 484 | 1.914 | 1.914 | 97.0% | 0.0% | PASS |
+| macd_crossover | 348 | 1.414 | 1.414 | 100.0% | 0.0% | PASS |
+| bollinger_breakout | 125 | 1.327 | 1.327 | 94.6% | 0.0% | PASS |
+| rsi_reversal | 21 | 2.200 | 2.200 | 100.0% | 0.0% | PASS |
+| trend_momentum | 347 | 1.479 | 1.479 | 99.2% | 0.0% | PASS |
+| alpha_combo | 573 | 1.105 | 1.105 | 66.1% | 0.0% | PASS |
+| dual_thrust | 354 | 2.457 | 2.457 | 100.0% | 0.0% | PASS |
+| ensemble_vote | 340 | 1.857 | 1.857 | 99.9% | 0.0% | PASS |
+| regime_ensemble | 347 | 1.346 | 1.346 | 99.4% | 0.0% | PASS |
 
 
 ## Statistical Significance
