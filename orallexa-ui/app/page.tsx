@@ -807,7 +807,7 @@ export default function Home() {
           {news.length > 0 && <div className="mt-2 pt-2 border-t text-[10px] font-[Lato] text-[#8B8E96]" style={{ borderColor: "rgba(212,175,55,0.1)" }}>{t.overall}: <span className="font-semibold" style={{ color: ns.color }}>{ns.label}</span> ({ns.avg.toFixed(2)})</div>}
         </Mod>
 
-        {mlModels.length > 0 && <MLScoreboard models={mlModels} />}
+        {mlModels.length > 0 && <MLScoreboard models={mlModels} zh={lang === "ZH"} />}
 
         <BacktestPanel data={backtestData} t={t} loading={backtestLoading} onPeriodChange={(p) => fetchBacktest(asset, p)} />
 

@@ -515,6 +515,17 @@ def run_multi_agent_analysis(
             if data:
                 m = data["metrics"]
                 status = data.get("status", "ok")
+                _PURPOSE = {
+                    "random_forest": "Core stock selection",
+                    "xgboost": "Gradient boosting",
+                    "logistic_regression": "Baseline model",
+                    "emaformer": "Time series forecast",
+                    "chronos2": "Foundation model",
+                    "moirai2": "Zero-shot forecast",
+                    "diffusion": "Probability paths",
+                    "gnn": "Inter-stock signals",
+                    "rl_ppo": "Position optimization",
+                }
                 entry = {
                     "model": name.replace("_", " ").title(),
                     "sharpe": round(m.get("sharpe", 0), 2),
@@ -522,6 +533,7 @@ def run_multi_agent_analysis(
                     "win_rate": round(m.get("win_rate", 0) * 100, 1),
                     "trades": m.get("n_trades", 0),
                     "status": status,
+                    "purpose": _PURPOSE.get(name, "Analysis"),
                 }
                 if status != "ok":
                     entry["error"] = data.get("error", "Unknown error")
