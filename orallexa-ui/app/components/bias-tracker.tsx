@@ -68,16 +68,19 @@ function CalibrationBar({ calibration, t }: { calibration: BiasProfile["calibrat
 /* ── Main Bias Tracker Card ─────���──────────────────────────────────── */
 export function BiasTrackerCard({ t, zh }: { t: Record<string, string>; zh: boolean }) {
   const [profile, setProfile] = useState<BiasProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    fetch(`${API}/api/bias-profile`)
-      .then(r => r.json())
-      .then(data => { if (!cancelled) setProfile(data); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+    (async () => {
+      try {
+        const r = await fetch(`${API}/api/bias-profile`);
+        const data = await r.json();
+        if (!cancelled) { setProfile(data); setLoading(false); }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, []);
 

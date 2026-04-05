@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook, PerspectivePanel as PerspectivePanelType } from "../types";
+import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook } from "../types";
 import { copyWithAttribution } from "../types";
 import { Mod, CopyBtn, CopyImageBtn } from "./atoms";
-import { ScenarioSimulator, PerspectivePanelCard } from "./scenario-panel";
+import { ScenarioSimulator } from "./scenario-panel";
 import { BiasTrackerCard } from "./bias-tracker";
 
 /* ── Macro Pulse Strip ─────────────────────────────────────────────── */
@@ -368,7 +368,7 @@ function ShareRow({ briefText, t }: { briefText: string; t: Record<string, strin
 }
 
 /* ── Pre-Market Playbook ─────────────────────────────────────────── */
-function PlaybookCard({ pb, zh, t }: { pb: Playbook; zh: boolean; t: Record<string, string> }) {
+function PlaybookCard({ pb, zh }: { pb: Playbook; zh: boolean }) {
   const riskColor = pb.environment.risk_level === "high" ? "#8B0000" : pb.environment.risk_level === "low" ? "#006B3F" : "#D4AF37";
   const l = (en: string, zhStr: string) => zh ? zhStr : en;
   return (
@@ -538,7 +538,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
       </div>
 
       {/* Pre-Market Playbook */}
-      {data.playbook && <PlaybookCard pb={data.playbook} zh={zh} t={t} />}
+      {data.playbook && <PlaybookCard pb={data.playbook} zh={zh} />}
 
       {/* Macro Pulse */}
       {data.macro && data.macro.length > 0 && <MacroPulse indicators={data.macro} t={t} />}
