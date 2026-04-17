@@ -13,6 +13,7 @@ Output: DecisionOutput(source="chart_analysis")
 import base64
 import json
 from anthropic import Anthropic
+from llm.claude_client import DEEP_MODEL
 from models.decision import DecisionOutput
 
 
@@ -127,7 +128,7 @@ class ChartAnalysisSkill:
         try:
             client = self._get_client()
             response = client.messages.create(
-                model="claude-sonnet-4-6",
+                model=DEEP_MODEL,
                 max_tokens=800,
                 messages=[
                     {

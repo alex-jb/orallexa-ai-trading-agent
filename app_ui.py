@@ -39,6 +39,7 @@ from core.brain import OrallexaBrain
 from core.loop import StrategyLoop
 from engine.backtest import simple_backtest
 from engine.proposal_runner import compare_metric_block, proposal_is_better, run_proposal_backtest
+from llm.claude_client import DEEP_MODEL
 from llm.strategy_generator import generate_strategy_proposal
 from llm.ui_analysis import ui_analysis_with_rag, ui_probability_report
 from portfolio.allocator import allocate_by_sharpe, select_top_n, select_top_n_diversified
@@ -371,7 +372,7 @@ def ask_coach(question, top_row, all_results, resp_mode, persona, history, coach
     msgs = list(history) + [{"role": "user", "content": question}]
     try:
         r = anthropic_client.messages.create(
-            model="claude-sonnet-4-6", max_tokens=512,
+            model=DEEP_MODEL, max_tokens=512,
             system=system, messages=msgs)
         return r.content[0].text.strip()
     except Exception as e:
