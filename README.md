@@ -344,6 +344,17 @@ cd orallexa-ui && npx playwright test   # E2E (16+ specs)
 
 ---
 
+## Ships with Claude Code skills
+
+This repo includes `.claude/skills/` — drop the folder into any Claude Code project and the agent learns these patterns automatically:
+
+- `.claude/skills/tier-router/` — route Haiku for structured, Sonnet for reasoning ([standalone](https://github.com/alex-jb/claude-tier-router))
+- `.claude/skills/adversarial-debate/` — Advocate/Critic/Judge over any decision ([standalone](https://github.com/alex-jb/claude-debate))
+
+Both skills are self-contained: copy the folder, no install needed.
+
+---
+
 ## Project Structure
 
 <details>
