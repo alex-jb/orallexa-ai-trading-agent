@@ -224,6 +224,8 @@ Not every task needs the expensive model:
 
 **One full analysis: ~$0.005.** One daily intel report: ~$0.05.
 
+> The dual-tier routing pattern (Haiku for structured, Sonnet for reasoning) has been extracted as a standalone Python package + Claude Code skill: **[claude-tier-router](https://github.com/alex-jb/claude-tier-router)** — `pip install claude-tier-router`
+
 ---
 
 ## Why this architecture
