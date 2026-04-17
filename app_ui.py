@@ -371,7 +371,7 @@ def ask_coach(question, top_row, all_results, resp_mode, persona, history, coach
     msgs = list(history) + [{"role": "user", "content": question}]
     try:
         r = anthropic_client.messages.create(
-            model="claude-sonnet-4-20250514", max_tokens=512,
+            model="claude-sonnet-4-6", max_tokens=512,
             system=system, messages=msgs)
         return r.content[0].text.strip()
     except Exception as e:

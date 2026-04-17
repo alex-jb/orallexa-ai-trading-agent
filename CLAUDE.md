@@ -77,7 +77,7 @@ streamlit run app.py
 - Use `TechnicalAnalysisSkillV2` (not v1) for indicator computation
 - Strategies are pure functions: `strategy_fn(df, params) -> pd.Series` of signals {-1, 0, 1}
 - All trade decisions return `DecisionOutput` (models/decision.py) — use `.to_dict()` to serialize
-- LLM model in use: `claude-sonnet-4-5` (defined in `llm/claude_client.py`)
+- LLM model in use: `claude-sonnet-4-6` (deep) + `claude-haiku-4-5-20251001` (fast), defined in `llm/claude_client.py`
 - Backtest params: `rsi_min`, `rsi_max`, `stop_loss`, `take_profit`
 - Transaction cost + slippage defaults: 0.001 each
 - Results saved to `results/{prefix}_{ticker}.json`
