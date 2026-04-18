@@ -89,6 +89,10 @@ async def status():
     """Health check + demo mode indicator."""
     return {"status": "ok", "demo": DEMO_MODE}
 
+@app.get("/healthz")
+async def healthz():
+    """Lightweight health check for Docker."""
+    return {"ok": True}
 
 def _fast_claude_overlay(result, ticker: str, context: str = ""):
     """Single Haiku call to refine a technical-only decision. ~0.5s, ~$0.0005."""
