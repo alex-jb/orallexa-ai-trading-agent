@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ && rm -rf /var/lib/apt/lists/*
 
 COPY requirements-docker.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements-docker.txt
+RUN pip install --no-cache-dir --prefix=/install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-docker.txt
 
 # Stage 2: Production runtime (no compiler)
 FROM python:3.11-slim
@@ -40,7 +40,12 @@ EXPOSE 8002
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/profile')" || exit 1
+# Add non-root user
+RUN adduser --disabled-password --gecos "" orallexa
+USER orallexa
+
+# New curl-based healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -fsS http://localhost:8002/healthz || exit 1
 
 CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8002"]
