@@ -30,6 +30,14 @@ linkedin_content.md
 docs/post_*.md
 docs/tweets_thread.md
 docs/eval_badge_url.txt
+yc_pitch.html
+yc_pitch_zh.html
+小红书/
+小红书回复.md
+orallexa-ui/screenshot.mjs
+
+# Local Claude Code plugin config (user-specific)
+.claude/settings.json
 
 # Font archives (TTFs are tracked, zips are not)
 assets/fonts/*.zip
