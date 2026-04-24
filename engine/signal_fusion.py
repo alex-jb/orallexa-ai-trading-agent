@@ -7,13 +7,14 @@ Aggregates heterogeneous signals into a unified conviction score
 using dynamic Bayesian-inspired weighting based on recent accuracy.
 
 Signal sources:
-  1. Technical indicators   (existing: TechnicalAnalysisSkillV2)
-  2. News sentiment         (existing: sentiment.py)
-  3. ML model ensemble      (existing: ml_signal.py)
-  4. Options flow           (existing: unusual options activity)
-  5. Institutional data     (existing: insider transactions + fund flows)
-  6. Social sentiment       (Reddit + optional X/Twitter)
-  7. Earnings / PEAD        (NEW: proximity + historical drift)
+  1. Technical indicators     (existing: TechnicalAnalysisSkillV2)
+  2. News sentiment           (existing: sentiment.py)
+  3. ML model ensemble        (existing: ml_signal.py)
+  4. Options flow             (existing: unusual options activity)
+  5. Institutional data       (existing: insider transactions + fund flows)
+  6. Social sentiment         (Reddit + optional X/Twitter)
+  7. Earnings / PEAD          (proximity + historical drift)
+  8. Prediction markets       (NEW: Polymarket binary outcomes)
 
 Usage:
     from engine.signal_fusion import fuse_signals
@@ -373,14 +374,25 @@ def _score_news(news_items: list) -> dict:
 
 # Default weights — can be dynamically adjusted based on bias tracker
 DEFAULT_WEIGHTS = {
-    "technical":        0.20,
-    "ml_ensemble":      0.20,
-    "news_sentiment":   0.12,
-    "options_flow":     0.17,
-    "institutional":    0.14,
-    "social_sentiment": 0.09,
-    "earnings":         0.08,
+    "technical":          0.19,
+    "ml_ensemble":        0.19,
+    "news_sentiment":     0.11,
+    "options_flow":       0.16,
+    "institutional":      0.13,
+    "social_sentiment":   0.08,
+    "earnings":           0.08,
+    "prediction_markets": 0.06,
 }
+
+
+def _fetch_prediction_markets_signal(ticker: str) -> dict:
+    """Fetch Polymarket consensus. Safe on any failure."""
+    try:
+        from skills.prediction_markets import analyze_prediction_markets
+        return analyze_prediction_markets(ticker)
+    except Exception as e:
+        logger.debug("Prediction markets fetch failed for %s: %s", ticker, e)
+        return {"available": False, "score": 0}
 
 
 def _fetch_social_signal(ticker: str) -> dict:
@@ -570,6 +582,18 @@ def fuse_signals(
         "avg_drift_5d": earnings.get("avg_drift_5d"),
         "positive_rate": earnings.get("positive_rate"),
         "narrative": earnings.get("narrative", ""),
+    }
+
+    # 8. Prediction markets (Polymarket consensus)
+    pred = _fetch_prediction_markets_signal(ticker)
+    sources["prediction_markets"] = {
+        "score": pred.get("score", 0),
+        "weight": weights.get("prediction_markets", 0.06) if pred.get("available") else 0,
+        "available": pred.get("available", False),
+        "n_markets": pred.get("n_markets", 0),
+        "n_directional": pred.get("n_directional", 0),
+        "total_volume_24hr": pred.get("total_volume_24hr", 0),
+        "markets": pred.get("markets", [])[:3],
     }
 
     # Normalize weights for available sources
