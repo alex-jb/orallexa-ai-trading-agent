@@ -14,6 +14,7 @@ const PriceChart = dynamic(() => import("./components/price-chart").then(m => ({
 const DailyIntelView = dynamic(() => import("./components/daily-intel").then(m => ({ default: m.DailyIntelView })), { ssr: false });
 const PerspectivePanelCard = dynamic(() => import("./components/scenario-panel").then(m => ({ default: m.PerspectivePanelCard })), { ssr: false });
 const SignalFusionCard = dynamic(() => import("./components/signal-fusion").then(m => ({ default: m.SignalFusionCard })), { ssr: false });
+const RegimeCard = dynamic(() => import("./components/regime-card").then(m => ({ default: m.RegimeCard })), { ssr: false });
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -43,6 +44,7 @@ export default function Home() {
   const [mlModels, setMlModels] = useState<MLModel[]>([]);
   const [perspectivePanel, setPerspectivePanel] = useState<PerspectivePanelType | null>(null);
   const [signalFusion, setSignalFusion] = useState<SignalFusionType | null>(null);
+  const [regimeProposal, setRegimeProposal] = useState<import("./types").RegimeProposal | null>(null);
   const [marketSummary, setMarketSummary] = useState<MarketSummary | null>(null);
   const [breakingSignals, setBreakingSignals] = useState<BreakingSignal[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -361,6 +363,11 @@ export default function Home() {
                 if (data.perspective_panel) setPerspectivePanel(data.perspective_panel);
                 if (data.signal_fusion) setSignalFusion(data.signal_fusion);
                 if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
+                // Fetch regime proposal in parallel — non-blocking, ignore failures
+                fetch(`${API}/api/regime/${asset}`)
+                  .then(r => r.ok ? r.json() : null)
+                  .then(r => { if (r && !r.detail) setRegimeProposal(r); })
+                  .catch(() => {});
                 fetchContext();
               }
             } catch (parseErr) { if (eventType === "error") throw parseErr; }
@@ -816,6 +823,7 @@ export default function Home() {
         {mlModels.length > 0 && <MLScoreboard models={mlModels} zh={lang === "ZH"} />}
 
         {signalFusion && <SignalFusionCard fusion={signalFusion} t={t} zh={lang === "ZH"} />}
+        {regimeProposal && <RegimeCard proposal={regimeProposal} t={t} zh={lang === "ZH"} />}
 
         {perspectivePanel && <PerspectivePanelCard panel={perspectivePanel} t={t} />}
 

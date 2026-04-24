@@ -287,6 +287,13 @@ async def deep_analysis(
             "perspective_panel": result.perspective_panel or {},
             "signal_fusion": result.signal_fusion or {},
         }
+        # Surface Portfolio Manager verdict if upstream populated decision.extra
+        try:
+            decision_extra = getattr(result.decision_output, "extra", None)
+            if isinstance(decision_extra, dict) and "portfolio_manager" in decision_extra:
+                out["portfolio_manager"] = decision_extra["portfolio_manager"]
+        except Exception:
+            pass
         if breaking:
             out["breaking_signal"] = breaking
         return out
@@ -696,6 +703,63 @@ async def daily_intel_refresh():
         from engine.daily_intel import generate_daily_intel
         result = await asyncio.to_thread(generate_daily_intel, force=True)
         return result
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
+
+
+@app.get("/api/regime/{ticker}")
+async def regime_strategy(ticker: str):
+    """
+    Detect current market regime and propose a tailored strategy.
+    Returns {ticker, regime, strategy, params, reasoning, source}.
+    """
+    if DEMO_MODE:
+        return {
+            "ticker": ticker.upper(),
+            "regime": "trending",
+            "strategy": "trend_momentum",
+            "params": {"rsi_min": 40, "rsi_max": 75, "adx_min": 22,
+                       "stop_loss": 0.04, "take_profit": 0.10},
+            "reasoning": (
+                f"{ticker.upper()} in a trending regime — trend_momentum with "
+                "relaxed RSI bounds and 10% take-profit suits continuation plays."
+            ),
+            "source": "heuristic",
+        }
+
+    import asyncio
+    try:
+        from core.brain import OrallexaBrain
+        brain = OrallexaBrain(ticker.upper())
+        result = await asyncio.to_thread(brain.get_regime_strategy)
+        return {"ticker": ticker.upper(), **result}
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
+
+
+@app.get("/api/layered-memory/{role}/{ticker}")
+async def layered_memory_stats(role: str, ticker: str):
+    """
+    Per-tier accuracy (short/mid/long) for a perspective role on a ticker.
+    """
+    if DEMO_MODE:
+        return {
+            "role": role,
+            "ticker": ticker.upper(),
+            "short_term": {"n": 8,  "correct": 5, "pending": 1, "accuracy": 0.625, "avg_conviction": 62.5},
+            "mid_term":   {"n": 14, "correct": 9, "pending": 0, "accuracy": 0.643, "avg_conviction": 58.2},
+            "long_term":  {"n": 22, "correct": 16, "pending": 0, "accuracy": 0.727, "avg_conviction": 55.4},
+            "narrative":  f"{role} accuracy on {ticker.upper()} — short_term: 63% (8 records) | mid_term: 64% (14 records) | long_term: 73% (22 records)",
+        }
+
+    try:
+        from engine.layered_memory import LayeredMemory
+        lm = LayeredMemory()
+        ctx = lm.get_tiered_context(role, ticker.upper())
+        narr = lm.narrative(role, ticker.upper())
+        return {"role": role, "ticker": ticker.upper(), "narrative": narr, **ctx}
     except Exception as e:
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=500, content={"detail": str(e)[:200]})

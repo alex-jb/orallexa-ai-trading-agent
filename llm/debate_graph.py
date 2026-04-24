@@ -23,7 +23,7 @@ Usage:
 from __future__ import annotations
 
 import json
-from typing import Annotated, TypedDict
+from typing import TypedDict
 
 from langgraph.graph import StateGraph, START, END
 

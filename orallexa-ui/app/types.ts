@@ -27,6 +27,7 @@ export interface BiasPattern { type: string; severity: "low" | "medium" | "high"
 export interface BiasCalibration { range: string; label: string; count: number; accuracy: number | null; avg_return?: number | null; }
 export interface BiasProfile { status: string; total_evaluated?: number; minimum_required?: number; overall?: { accuracy: number; correct: number; total: number; avg_return: number; forward_days: number; days_analyzed: number }; by_direction?: { buy: { accuracy: number; count: number }; sell: { accuracy: number; count: number } }; by_ticker?: Record<string, { accuracy: number; count: number; avg_return: number }>; calibration?: BiasCalibration[]; patterns?: BiasPattern[]; recommendations?: string[]; updated_at?: string; }
 export interface PredictionMarket { question: string; yes_price: number; volume_24hr: number; end_date: string; sign: number; }
+export interface RegimeProposal { ticker: string; regime: "trending" | "ranging" | "volatile" | "unknown"; strategy: string | null; params: Record<string, number | string>; reasoning: string; source: "heuristic" | "llm" | "none"; }
 export interface SignalSource { score: number; weight: number; normalized_weight: number; available: boolean; signals?: string[]; agreement?: number; n_models?: number; pc_ratio?: number; unusual_calls?: { strike: number; volume: number; oi: number; ratio: number }[]; unusual_puts?: { strike: number; volume: number; oi: number; ratio: number }[]; max_pain?: number; insider_transactions?: { type: string; shares: number; text: string }[]; short_pct?: number; institutional_pct?: number; n_posts?: number; bullish?: number; bearish?: number; engagement?: number; days_until?: number | null; next_date?: string | null; avg_drift_5d?: number | null; positive_rate?: number | null; narrative?: string; n_markets?: number; n_directional?: number; total_volume_24hr?: number; markets?: PredictionMarket[]; }
 export interface SignalFusion { conviction: number; direction: "BULLISH" | "BEARISH" | "NEUTRAL"; confidence: number; n_sources: number; sources: Record<string, SignalSource>; fusion_detail: string; }
 export interface SwarmPath { step: number; avg_position: number; bullish_pct: number; bearish_pct: number; neutral_pct: number; }
@@ -67,6 +68,7 @@ export const T: Record<string, Record<string, string>> = {
     marketBreadth: "Market Breadth", advancers: "Advancers", decliners: "Decliners",
     newHighs: "52W Highs", newLows: "52W Lows", optionsFlow: "Options Flow",
     earningsWatch: "Earnings Watch", peadDrift: "PEAD Drift", eps: "EPS", daysLabel: "days", positiveRateLabel: "win rate",
+    regimeStrategy: "Regime & Strategy",
     share: "Share", shareX: "Share on X", shareLinkedIn: "Share on LinkedIn", copyLink: "Copy Link", copied: "Copied",
     fearLabel: "Fear", greedLabel: "Greed", unchanged: "unchanged", volumeLabel: "Volume",
     callType: "CALL", putType: "PUT", unusualActivity: "unusual activity",
@@ -125,6 +127,7 @@ export const T: Record<string, Record<string, string>> = {
     marketBreadth: "市场广度", advancers: "上涨", decliners: "下跌",
     newHighs: "52周新高", newLows: "52周新低", optionsFlow: "期权异动",
     earningsWatch: "财报观察", peadDrift: "财报后漂移", eps: "每股收益", daysLabel: "天", positiveRateLabel: "胜率",
+    regimeStrategy: "行情与策略",
     share: "分享", shareX: "分享到 X", shareLinkedIn: "分享到 LinkedIn", copyLink: "复制链接", copied: "已复制",
     fearLabel: "恐惧", greedLabel: "贪婪", unchanged: "不变", volumeLabel: "成交量",
     callType: "看涨", putType: "看跌", unusualActivity: "异动活动",
