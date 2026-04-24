@@ -77,6 +77,46 @@ def _append_record(record: LLMCallRecord) -> None:
             f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
 
 
+def _send_to_posthog(record: LLMCallRecord) -> None:
+    """
+    Forward the LLM call record to PostHog LLM Analytics.
+    No-op if POSTHOG_API_KEY is not set. Must never raise.
+    """
+    api_key = os.environ.get("POSTHOG_API_KEY")
+    if not api_key:
+        return
+    host = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com").rstrip("/")
+    distinct_id = os.environ.get("POSTHOG_DISTINCT_ID", "oralexxa")
+    try:
+        import requests
+        payload = {
+            "api_key": api_key,
+            "event": "$ai_generation",
+            "distinct_id": distinct_id,
+            "properties": {
+                "$ai_provider": "anthropic",
+                "$ai_model": record.model,
+                "$ai_input_tokens": record.input_tokens,
+                "$ai_output_tokens": record.output_tokens,
+                "$ai_latency": record.latency_ms / 1000.0,
+                "$ai_http_status": 200 if record.error is None else 500,
+                "$ai_is_error": record.error is not None,
+                "$ai_error": record.error,
+                "$ai_trace_id": record.run_id,
+                "request_type": record.request_type,
+                "tier": record.tier,
+                "cost_usd": record.estimated_cost_usd,
+                "ticker": record.ticker,
+                "final_action": record.final_action,
+                "confidence_score": record.confidence_score,
+            },
+            "timestamp": record.timestamp,
+        }
+        requests.post(f"{host}/capture/", json=payload, timeout=2.0)
+    except Exception:
+        pass  # telemetry must never break main flow
+
+
 def logged_create(
     client,
     *,
@@ -133,6 +173,7 @@ def logged_create(
             _append_record(record)
         except Exception:
             pass  # logging must never break the main flow
+        _send_to_posthog(record)
 
     return response, record
 
