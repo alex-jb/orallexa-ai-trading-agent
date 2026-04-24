@@ -4,11 +4,13 @@ import type { SignalFusion } from "../types";
 import { Mod } from "./atoms";
 
 const SOURCE_LABELS: Record<string, { en: string; zh: string; icon: string }> = {
-  technical:      { en: "Technical",     zh: "技术面",   icon: "📈" },
-  ml_ensemble:    { en: "ML Ensemble",   zh: "ML集成",   icon: "🤖" },
-  news_sentiment: { en: "News",          zh: "新闻情绪",  icon: "📰" },
-  options_flow:   { en: "Options",       zh: "期权异动",  icon: "🎯" },
-  institutional:  { en: "Institutional", zh: "机构",     icon: "🏦" },
+  technical:        { en: "Technical",     zh: "技术面",   icon: "📈" },
+  ml_ensemble:      { en: "ML Ensemble",   zh: "ML集成",   icon: "🤖" },
+  news_sentiment:   { en: "News",          zh: "新闻情绪",  icon: "📰" },
+  options_flow:     { en: "Options",       zh: "期权异动",  icon: "🎯" },
+  institutional:    { en: "Institutional", zh: "机构",     icon: "🏦" },
+  social_sentiment: { en: "Social",        zh: "社交情绪",  icon: "💬" },
+  earnings:         { en: "Earnings",      zh: "财报",     icon: "📅" },
 };
 
 function ScoreBar({ score, weight }: { score: number; weight: number }) {

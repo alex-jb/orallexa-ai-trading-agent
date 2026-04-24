@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 _REDDIT_UA = "oralexxa/1.0 (social sentiment aggregator)"
+_SUBREDDIT_RE = re.compile(r"^[A-Za-z0-9_]{1,21}$")
 
 
 def fetch_reddit_posts(
@@ -46,6 +48,9 @@ def fetch_reddit_posts(
     posts: list[dict] = []
     per_sub = max(1, limit // len(subreddits))
     for sub in subreddits:
+        if not _SUBREDDIT_RE.match(sub):
+            logger.debug("Skipping invalid subreddit name: %r", sub)
+            continue
         try:
             url = f"https://www.reddit.com/r/{sub}/search.json"
             params = {

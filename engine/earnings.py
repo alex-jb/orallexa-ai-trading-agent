@@ -17,7 +17,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ def compute_pead_stats(ticker: str, lookback_years: int = 2) -> dict:
             return {"available": False}
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        cutoff = now.replace(year=now.year - lookback_years)
+        cutoff = now - timedelta(days=365 * lookback_years)
 
         past = []
         for ts, row in ed.iterrows():
