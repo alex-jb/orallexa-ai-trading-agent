@@ -15,6 +15,7 @@ const DailyIntelView = dynamic(() => import("./components/daily-intel").then(m =
 const PerspectivePanelCard = dynamic(() => import("./components/scenario-panel").then(m => ({ default: m.PerspectivePanelCard })), { ssr: false });
 const SignalFusionCard = dynamic(() => import("./components/signal-fusion").then(m => ({ default: m.SignalFusionCard })), { ssr: false });
 const RegimeCard = dynamic(() => import("./components/regime-card").then(m => ({ default: m.RegimeCard })), { ssr: false });
+const PortfolioManagerCard = dynamic(() => import("./components/portfolio-manager-card").then(m => ({ default: m.PortfolioManagerCard })), { ssr: false });
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -45,6 +46,7 @@ export default function Home() {
   const [perspectivePanel, setPerspectivePanel] = useState<PerspectivePanelType | null>(null);
   const [signalFusion, setSignalFusion] = useState<SignalFusionType | null>(null);
   const [regimeProposal, setRegimeProposal] = useState<import("./types").RegimeProposal | null>(null);
+  const [pmVerdict, setPmVerdict] = useState<import("./types").PortfolioManagerVerdict | null>(null);
   const [marketSummary, setMarketSummary] = useState<MarketSummary | null>(null);
   const [breakingSignals, setBreakingSignals] = useState<BreakingSignal[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -362,6 +364,7 @@ export default function Home() {
                 if (data.summary) setMarketSummary(data.summary);
                 if (data.perspective_panel) setPerspectivePanel(data.perspective_panel);
                 if (data.signal_fusion) setSignalFusion(data.signal_fusion);
+                if (data.portfolio_manager) setPmVerdict(data.portfolio_manager);
                 if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
                 // Fetch regime proposal in parallel — non-blocking, ignore failures
                 fetch(`${API}/api/regime/${asset}`)
@@ -823,6 +826,7 @@ export default function Home() {
         {mlModels.length > 0 && <MLScoreboard models={mlModels} zh={lang === "ZH"} />}
 
         {signalFusion && <SignalFusionCard fusion={signalFusion} t={t} zh={lang === "ZH"} />}
+        {pmVerdict && <PortfolioManagerCard verdict={pmVerdict} t={t} zh={lang === "ZH"} />}
         {regimeProposal && <RegimeCard proposal={regimeProposal} t={t} zh={lang === "ZH"} />}
 
         {perspectivePanel && <PerspectivePanelCard panel={perspectivePanel} t={t} />}

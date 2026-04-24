@@ -70,8 +70,13 @@ class TechnicalAnalysisSkillV2:
         minus_dm = -low.diff()
         plus_dm[plus_dm  < 0] = 0
         minus_dm[minus_dm < 0] = 0
-        plus_dm[plus_dm <= minus_dm]  = 0
-        minus_dm[minus_dm <= plus_dm] = 0 if False else minus_dm[minus_dm <= plus_dm]  # keep
+        # Zero the DM that didn't win (Wilder spec: only the larger move counts).
+        # Use a snapshot so the second comparison sees original plus_dm values,
+        # not the mutated ones. Both zero on ties, matching strict Wilder.
+        plus_wins  = plus_dm > minus_dm
+        minus_wins = minus_dm > plus_dm
+        plus_dm[~plus_wins]  = 0
+        minus_dm[~minus_wins] = 0
 
         tr = pd.concat([
             high - low,

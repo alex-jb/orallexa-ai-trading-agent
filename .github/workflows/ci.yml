@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [master]
 
+# Opt into Node 24 now (default from 2026-06-02). Eliminates the
+# "Node 20 actions are deprecated" warnings across all jobs without
+# having to bump each action version individually.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   test:
     runs-on: ubuntu-latest
