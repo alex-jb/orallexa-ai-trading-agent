@@ -39,6 +39,46 @@ class OrallexaBrain:
         ta = ta.dropna().copy()
         return ta
 
+    def get_regime_strategy(self, *, use_llm: bool = False, llm_fn=None) -> dict:
+        """
+        Detect current market regime and propose a tailored strategy.
+
+        Returns a dict matching engine.regime_strategist.propose_regime_strategy:
+            {regime, strategy, params, reasoning, source}
+        Returns {regime: "unknown", ...} if data prep or detection fails.
+        """
+        try:
+            from engine.strategies import _detect_regime
+            from engine.regime_strategist import propose_regime_strategy
+
+            df = self._prepare_data()
+            if df is None or len(df) < 50:
+                return {
+                    "regime": "unknown",
+                    "strategy": None,
+                    "params": {},
+                    "reasoning": "Insufficient data for regime detection.",
+                    "source": "none",
+                }
+            # Latest regime classification (single bar)
+            regime_series = _detect_regime(df)
+            regime = str(regime_series.iloc[-1])
+
+            proposal = propose_regime_strategy(
+                self.ticker, regime=regime, df=df,
+                use_llm=use_llm, llm_fn=llm_fn,
+            )
+            return {"regime": regime, **proposal}
+        except Exception as e:
+            logger.warning("Regime strategy failed for %s: %s", self.ticker, e)
+            return {
+                "regime": "unknown",
+                "strategy": None,
+                "params": {},
+                "reasoning": f"Regime detection failed: {str(e)[:120]}",
+                "source": "none",
+            }
+
     def _single_split(self, df, train_ratio=0.7):
         split_idx = int(len(df) * train_ratio)
         train_df = df.iloc[:split_idx].copy()

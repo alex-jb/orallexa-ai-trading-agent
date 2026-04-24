@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -194,12 +195,48 @@ def _fetch_headlines(tickers: list[str]) -> list[dict]:
             pass
         return 0.7  # default if no timestamp
 
+    # Opt-in: multi-platform RSS aggregation (Google News + Yahoo Finance)
+    # alongside the existing yfinance-backed NewsSkill path. When enabled,
+    # items are merged per-ticker and deduped before scoring.
+    use_rss = os.environ.get("DAILY_INTEL_USE_RSS", "").lower() in ("1", "true", "yes")
+
+    def _collect_per_ticker(tk: str) -> list[dict]:
+        items: list[dict] = []
+        try:
+            ys = NewsSkill(tk).fetch_news(limit=4)
+            for it in ys:
+                items.append({
+                    "title": it.get("title", ""),
+                    "url": it.get("link", ""),
+                    "provider": it.get("publisher", ""),
+                    "published": it.get("published", "") or it.get("providerPublishTime", ""),
+                    "source": "yfinance",
+                })
+        except Exception as e:
+            logger.debug("yfinance news fetch failed for %s: %s", tk, e)
+        if use_rss:
+            try:
+                from engine.news_aggregator import fetch_aggregated_news
+                items.extend(fetch_aggregated_news(tk, limit=6))
+            except Exception as e:
+                logger.debug("RSS aggregator failed for %s: %s", tk, e)
+        return items
+
+    def _dedup_merge(items: list[dict]) -> list[dict]:
+        if not use_rss:
+            return items  # single-source path: simple title-set dedup handled below
+        try:
+            from engine.news_aggregator import _dedupe_and_rank
+            return _dedupe_and_rank(items, limit=len(items))
+        except Exception:
+            return items
+
     all_headlines = []
     seen_titles = set()
     for tk in tickers:
         try:
-            items = NewsSkill(tk).fetch_news(limit=4)
-            for item in items:
+            merged = _dedup_merge(_collect_per_ticker(tk))
+            for item in merged:
                 title = item.get("title", "")
                 if not title or len(title) < 15 or title in seen_titles:
                     continue
@@ -207,8 +244,8 @@ def _fetch_headlines(tickers: list[str]) -> list[dict]:
                 scored = score_text(title)
                 compound = scored.get("compound", 0)
                 sentiment = "bullish" if compound > 0.1 else "bearish" if compound < -0.1 else "neutral"
-                provider = item.get("publisher", "")
-                pub_time = item.get("published", "") or item.get("providerPublishTime", "")
+                provider = item.get("provider", "")
+                pub_time = item.get("published", "")
 
                 # Weighted ranking score
                 recency = _recency_weight(pub_time)
@@ -221,7 +258,7 @@ def _fetch_headlines(tickers: list[str]) -> list[dict]:
                     "sentiment": sentiment,
                     "score": round(compound, 3),
                     "weighted_score": round(weighted, 4),
-                    "url": item.get("link", ""),
+                    "url": item.get("url", ""),
                     "provider": provider,
                 })
         except Exception as e:

@@ -310,6 +310,29 @@ class TestBrainRouting:
         assert _to_pct_scale(500) == 100
         assert _to_pct_scale("garbage") == 0
 
+    def test_get_regime_strategy_returns_proposal(self):
+        """Real-data smoke test: get_regime_strategy picks a strategy for AAPL."""
+        from core.brain import OrallexaBrain
+        brain = OrallexaBrain("AAPL")
+        result = brain.get_regime_strategy()
+        assert result["regime"] in ("trending", "ranging", "volatile", "unknown")
+        # When regime is detected, we get a known strategy or None
+        if result["regime"] != "unknown":
+            assert result["strategy"] in (
+                None, "trend_momentum", "rsi_reversal", "dual_thrust",
+            )
+            assert "reasoning" in result
+
+    def test_get_regime_strategy_handles_fetch_failure(self):
+        """Data-prep failure → unknown regime, no crash."""
+        from unittest.mock import patch
+        from core.brain import OrallexaBrain
+        brain = OrallexaBrain("XYZ")
+        with patch.object(brain, "_prepare_data", side_effect=RuntimeError("no data")):
+            result = brain.get_regime_strategy()
+        assert result["regime"] == "unknown"
+        assert result["strategy"] is None
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # ALERT SYSTEM

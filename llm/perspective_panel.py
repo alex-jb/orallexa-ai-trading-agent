@@ -214,6 +214,15 @@ def run_perspective_panel(
     except Exception:
         pass
 
+    # Layered (short/mid/long) memory — enriches role_memory with tier-aware
+    # accuracy so prompts can weight toward the role's strongest horizon.
+    layered_mem = None
+    try:
+        from engine.layered_memory import LayeredMemory
+        layered_mem = LayeredMemory()
+    except Exception:
+        pass
+
     # Run all 4 roles in parallel (4 FAST_MODEL calls)
     results: list[PerspectiveResult] = []
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -223,6 +232,13 @@ def run_perspective_panel(
             if role_mem:
                 try:
                     mem_ctx = role_mem.get_role_context(role["name"], ticker)
+                except Exception:
+                    pass
+            if layered_mem:
+                try:
+                    narrative = layered_mem.narrative(role["name"], ticker)
+                    if narrative and "Insufficient" not in narrative:
+                        mem_ctx = (mem_ctx + "\n" if mem_ctx else "") + narrative
                 except Exception:
                     pass
             futures[pool.submit(
@@ -241,7 +257,7 @@ def run_perspective_panel(
                     reasoning="Timed out.", key_factor="N/A",
                 ))
 
-    # Record predictions to role memory
+    # Record predictions to role memory (single-pool + layered-tier stores)
     if role_mem:
         for r in results:
             if r.conviction > 0:
@@ -250,6 +266,17 @@ def run_perspective_panel(
                         role=r.role, ticker=ticker, bias=r.bias,
                         score=r.score, conviction=r.conviction,
                         reasoning=r.reasoning, key_factor=r.key_factor,
+                    )
+                except Exception:
+                    pass
+    if layered_mem:
+        for r in results:
+            if r.conviction > 0:
+                try:
+                    layered_mem.record(
+                        role=r.role, ticker=ticker, bias=r.bias,
+                        score=r.score, conviction=r.conviction,
+                        reasoning=r.reasoning,
                     )
                 except Exception:
                     pass
