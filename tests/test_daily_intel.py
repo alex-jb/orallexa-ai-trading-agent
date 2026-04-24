@@ -16,6 +16,7 @@ from engine.daily_intel import (
     SCAN_TICKERS,
     SECTOR_ETFS,
     _fetch_price_with_volume,
+    _generate_earnings_watchlist,
 )
 
 
@@ -147,3 +148,76 @@ class TestFetchPriceWithVolume:
         result = _fetch_price_with_volume("ERR")
 
         assert result is None
+
+
+# ── Earnings watchlist ───────────────────────────────────────────────────────
+
+
+class TestGenerateEarningsWatchlist:
+    def test_filters_by_days_ahead(self):
+        def fake_signal(ticker):
+            return {
+                "AAPL": {"next_date": "2026-05-01", "days_until": 3,
+                         "eps_estimate": 1.5,
+                         "pead": {"available": True, "avg_drift_5d": 1.2, "positive_rate": 0.6},
+                         "narrative": "AAPL reports in 3 days"},
+                "MSFT": {"next_date": "2026-06-01", "days_until": 35,
+                         "eps_estimate": 2.0,
+                         "pead": {"available": False}, "narrative": ""},
+                "NVDA": {"next_date": None, "days_until": None,
+                         "eps_estimate": None, "pead": {"available": False},
+                         "narrative": ""},
+            }[ticker]
+
+        gainers = [{"ticker": "AAPL"}, {"ticker": "MSFT"}, {"ticker": "NVDA"}]
+        with patch("engine.earnings.get_earnings_signal", side_effect=fake_signal):
+            result = _generate_earnings_watchlist(gainers, [], [], days_ahead=7)
+
+        assert len(result) == 1
+        assert result[0]["ticker"] == "AAPL"
+        assert result[0]["days_until"] == 3
+        assert result[0]["pead_drift"] == 1.2
+
+    def test_empty_when_no_upcoming(self):
+        with patch("engine.earnings.get_earnings_signal",
+                   return_value={"next_date": None, "days_until": None,
+                                 "eps_estimate": None, "pead": {"available": False},
+                                 "narrative": ""}):
+            result = _generate_earnings_watchlist(
+                [{"ticker": "AAPL"}], [], [],
+            )
+        assert result == []
+
+    def test_deduplicates_tickers(self):
+        call_count = {"n": 0}
+
+        def fake_signal(ticker):
+            call_count["n"] += 1
+            return {"next_date": None, "days_until": None, "eps_estimate": None,
+                    "pead": {"available": False}, "narrative": ""}
+
+        with patch("engine.earnings.get_earnings_signal", side_effect=fake_signal):
+            _generate_earnings_watchlist(
+                [{"ticker": "AAPL"}],
+                [{"ticker": "AAPL"}],
+                [{"ticker": "AAPL"}],
+            )
+        assert call_count["n"] == 1
+
+    def test_sorted_by_days_until(self):
+        def fake_signal(ticker):
+            return {
+                "A": {"next_date": "2026-05-10", "days_until": 10, "eps_estimate": None,
+                      "pead": {"available": False}, "narrative": ""},
+                "B": {"next_date": "2026-05-03", "days_until": 3, "eps_estimate": None,
+                      "pead": {"available": False}, "narrative": ""},
+                "C": {"next_date": "2026-05-07", "days_until": 7, "eps_estimate": None,
+                      "pead": {"available": False}, "narrative": ""},
+            }[ticker]
+
+        with patch("engine.earnings.get_earnings_signal", side_effect=fake_signal):
+            result = _generate_earnings_watchlist(
+                [{"ticker": "A"}, {"ticker": "B"}, {"ticker": "C"}], [], [],
+                days_ahead=30,
+            )
+        assert [r["days_until"] for r in result] == [3, 7, 10]

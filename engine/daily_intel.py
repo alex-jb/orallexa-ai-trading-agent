@@ -967,6 +967,43 @@ def _save_cache(data: dict) -> None:
 
 # ── Main Entry Point ─────────────────────────────────────────────────────────
 
+def _generate_earnings_watchlist(
+    gainers: list[dict],
+    losers: list[dict],
+    spikes: list[dict],
+    days_ahead: int = 7,
+) -> list[dict]:
+    """Scan top movers for upcoming earnings within `days_ahead` days.
+
+    Each entry: {ticker, date, days_until, eps_estimate, pead_drift, positive_rate}.
+    """
+    try:
+        from engine.earnings import get_earnings_signal
+        tickers = list({m["ticker"] for m in (gainers[:5] + losers[:5] + spikes[:5])})
+        upcoming: list[dict] = []
+        for t in tickers:
+            try:
+                sig = get_earnings_signal(t)
+                if sig.get("days_until") is not None and sig["days_until"] <= days_ahead:
+                    pead = sig.get("pead", {})
+                    upcoming.append({
+                        "ticker": t,
+                        "date": sig["next_date"],
+                        "days_until": sig["days_until"],
+                        "eps_estimate": sig.get("eps_estimate"),
+                        "pead_drift": pead.get("avg_drift_5d") if pead.get("available") else None,
+                        "positive_rate": pead.get("positive_rate") if pead.get("available") else None,
+                        "narrative": sig.get("narrative", ""),
+                    })
+            except Exception:
+                continue
+        upcoming.sort(key=lambda x: x["days_until"])
+        return upcoming
+    except Exception as e:
+        logger.debug("Earnings watchlist failed: %s", e)
+        return []
+
+
 def generate_daily_intel(force: bool = False) -> dict:
     """
     Generate social-grade daily market intelligence report.
@@ -1021,6 +1058,7 @@ def generate_daily_intel(force: bool = False) -> dict:
     fear_greed = _calc_fear_greed(gainers, losers, sectors)
     econ_calendar = _generate_econ_calendar()
     breadth = _calc_breadth(gainers, losers)
+    earnings_watchlist = _generate_earnings_watchlist(gainers, losers, spikes)
 
     result = {
         "date": today,
@@ -1047,6 +1085,7 @@ def generate_daily_intel(force: bool = False) -> dict:
         "fear_greed": fear_greed,
         "econ_calendar": econ_calendar,
         "breadth": breadth,
+        "earnings_watchlist": earnings_watchlist,
     }
 
     _save_cache(result)
