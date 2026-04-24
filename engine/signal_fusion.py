@@ -12,8 +12,8 @@ Signal sources:
   3. ML model ensemble      (existing: ml_signal.py)
   4. Options flow           (existing: unusual options activity)
   5. Institutional data     (existing: insider transactions + fund flows)
-  6. Social sentiment       (NEW: Reddit + optional X/Twitter)
-  7. Factor engine          (existing: factor_engine.py)
+  6. Social sentiment       (Reddit + optional X/Twitter)
+  7. Earnings / PEAD        (NEW: proximity + historical drift)
 
 Usage:
     from engine.signal_fusion import fuse_signals
@@ -373,12 +373,13 @@ def _score_news(news_items: list) -> dict:
 
 # Default weights — can be dynamically adjusted based on bias tracker
 DEFAULT_WEIGHTS = {
-    "technical":        0.22,
-    "ml_ensemble":      0.22,
-    "news_sentiment":   0.13,
-    "options_flow":     0.18,
-    "institutional":    0.15,
-    "social_sentiment": 0.10,
+    "technical":        0.20,
+    "ml_ensemble":      0.20,
+    "news_sentiment":   0.12,
+    "options_flow":     0.17,
+    "institutional":    0.14,
+    "social_sentiment": 0.09,
+    "earnings":         0.08,
 }
 
 
@@ -389,6 +390,75 @@ def _fetch_social_signal(ticker: str) -> dict:
         return analyze_social_sentiment(ticker)
     except Exception as e:
         logger.debug("Social sentiment fetch failed for %s: %s", ticker, e)
+        return {"available": False, "score": 0}
+
+
+def _fetch_earnings_signal(ticker: str, proximity_days: int = 30) -> dict:
+    """
+    Score the earnings signal for a ticker.
+
+    Only active when earnings is within `proximity_days`. PEAD direction +
+    magnitude form the base score; proximity boosts confidence.
+
+    Returns {available, score, days_until, avg_drift_5d, positive_rate, ...}.
+    """
+    try:
+        from engine.earnings import get_earnings_signal
+        sig = get_earnings_signal(ticker)
+        days = sig.get("days_until")
+        pead = sig.get("pead", {})
+
+        if days is None or days > proximity_days:
+            return {"available": False, "score": 0, "days_until": days}
+        if not pead.get("available"):
+            return {
+                "available": True,
+                "score": 0,
+                "days_until": days,
+                "next_date": sig.get("next_date"),
+                "note": "earnings soon but no PEAD history",
+            }
+
+        drift = pead.get("avg_drift_5d", 0.0)
+        positive_rate = pead.get("positive_rate", 0.5)
+
+        # Base: drift direction + magnitude
+        base = np.sign(drift) * min(abs(drift) * 12, 50)
+
+        # Directional conviction from positive_rate (far-from-0.5 is informative)
+        bias = (positive_rate - 0.5) * 80  # -40..+40
+
+        # Proximity amplifier: closer = higher conviction
+        if days <= 3:
+            proximity_mult = 1.3
+        elif days <= 7:
+            proximity_mult = 1.1
+        elif days <= 14:
+            proximity_mult = 1.0
+        else:
+            proximity_mult = 0.7
+
+        # Correlation strengthens signal only if surprise history is reliable
+        corr = pead.get("surprise_drift_corr", 0.0)
+        corr_mult = 1.0 + min(abs(corr), 0.5)
+
+        score = int((base + bias) * proximity_mult * corr_mult)
+        score = max(-100, min(100, score))
+
+        return {
+            "available": True,
+            "score": score,
+            "days_until": days,
+            "next_date": sig.get("next_date"),
+            "eps_estimate": sig.get("eps_estimate"),
+            "avg_drift_5d": drift,
+            "positive_rate": positive_rate,
+            "surprise_drift_corr": corr,
+            "n_events": pead.get("n_events", 0),
+            "narrative": sig.get("narrative", ""),
+        }
+    except Exception as e:
+        logger.debug("Earnings signal failed for %s: %s", ticker, e)
         return {"available": False, "score": 0}
 
 
@@ -481,12 +551,25 @@ def fuse_signals(
     social = _fetch_social_signal(ticker)
     sources["social_sentiment"] = {
         "score": social.get("score", 0),
-        "weight": weights.get("social_sentiment", 0.10) if social.get("available") else 0,
+        "weight": weights.get("social_sentiment", 0.09) if social.get("available") else 0,
         "available": social.get("available", False),
         "n_posts": social.get("n_posts", 0),
         "bullish": social.get("bullish", 0),
         "bearish": social.get("bearish", 0),
         "engagement": social.get("engagement", 0),
+    }
+
+    # 7. Earnings / PEAD (active only when earnings is near)
+    earnings = _fetch_earnings_signal(ticker)
+    sources["earnings"] = {
+        "score": earnings.get("score", 0),
+        "weight": weights.get("earnings", 0.08) if earnings.get("available") else 0,
+        "available": earnings.get("available", False),
+        "days_until": earnings.get("days_until"),
+        "next_date": earnings.get("next_date"),
+        "avg_drift_5d": earnings.get("avg_drift_5d"),
+        "positive_rate": earnings.get("positive_rate"),
+        "narrative": earnings.get("narrative", ""),
     }
 
     # Normalize weights for available sources

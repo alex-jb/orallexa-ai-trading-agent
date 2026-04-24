@@ -221,3 +221,110 @@ class TestSignalFusionIntegration:
                 summary={"close": 100, "ma20": 95, "ma50": 90, "rsi": 55},
             )
         assert result["sources"]["social_sentiment"]["weight"] == 0
+
+
+# ── Earnings as 7th fusion source ──────────────────────────────────────────
+
+
+class TestEarningsFusionSource:
+    def test_earnings_source_registered(self):
+        from engine.signal_fusion import DEFAULT_WEIGHTS
+        assert "earnings" in DEFAULT_WEIGHTS
+        assert DEFAULT_WEIGHTS["earnings"] > 0
+
+    def test_earnings_inactive_when_far(self):
+        from engine.signal_fusion import _fetch_earnings_signal
+        with patch("engine.earnings.get_earnings_signal", return_value={
+            "ticker": "NVDA",
+            "next_date": "2026-08-01",
+            "days_until": 60,
+            "eps_estimate": 1.0,
+            "pead": {"available": True, "avg_drift_5d": 2.0, "positive_rate": 0.7,
+                     "surprise_drift_corr": 0.4, "n_events": 8},
+            "narrative": "",
+        }):
+            sig = _fetch_earnings_signal("NVDA", proximity_days=30)
+        assert sig["available"] is False
+        assert sig["score"] == 0
+
+    def test_earnings_bullish_drift_positive_score(self):
+        from engine.signal_fusion import _fetch_earnings_signal
+        with patch("engine.earnings.get_earnings_signal", return_value={
+            "ticker": "NVDA",
+            "next_date": "2026-05-01",
+            "days_until": 5,
+            "eps_estimate": 1.5,
+            "pead": {"available": True, "avg_drift_5d": 3.0, "positive_rate": 0.8,
+                     "surprise_drift_corr": 0.5, "n_events": 8},
+            "narrative": "bullish drift",
+        }):
+            sig = _fetch_earnings_signal("NVDA")
+        assert sig["available"] is True
+        assert sig["score"] > 30
+        assert sig["days_until"] == 5
+
+    def test_earnings_bearish_drift_negative_score(self):
+        from engine.signal_fusion import _fetch_earnings_signal
+        with patch("engine.earnings.get_earnings_signal", return_value={
+            "ticker": "NVDA",
+            "next_date": "2026-05-01",
+            "days_until": 2,
+            "eps_estimate": 1.5,
+            "pead": {"available": True, "avg_drift_5d": -2.5, "positive_rate": 0.3,
+                     "surprise_drift_corr": -0.3, "n_events": 8},
+            "narrative": "bearish drift",
+        }):
+            sig = _fetch_earnings_signal("NVDA")
+        assert sig["available"] is True
+        assert sig["score"] < -20
+
+    def test_proximity_amplifies_score(self):
+        from engine.signal_fusion import _fetch_earnings_signal
+
+        def make_sig(days):
+            return {
+                "ticker": "NVDA", "next_date": "2026-05-01", "days_until": days,
+                "eps_estimate": 1.5,
+                "pead": {"available": True, "avg_drift_5d": 2.0, "positive_rate": 0.7,
+                         "surprise_drift_corr": 0.0, "n_events": 8},
+                "narrative": "",
+            }
+
+        with patch("engine.earnings.get_earnings_signal", return_value=make_sig(2)):
+            close_sig = _fetch_earnings_signal("NVDA")
+        with patch("engine.earnings.get_earnings_signal", return_value=make_sig(20)):
+            far_sig = _fetch_earnings_signal("NVDA")
+
+        assert abs(close_sig["score"]) > abs(far_sig["score"])
+
+    def test_earnings_soon_but_no_pead(self):
+        from engine.signal_fusion import _fetch_earnings_signal
+        with patch("engine.earnings.get_earnings_signal", return_value={
+            "ticker": "XYZ",
+            "next_date": "2026-05-01",
+            "days_until": 3,
+            "eps_estimate": None,
+            "pead": {"available": False, "n_events": 0},
+            "narrative": "",
+        }):
+            sig = _fetch_earnings_signal("XYZ")
+        assert sig["available"] is True
+        assert sig["score"] == 0
+        assert "no PEAD history" in sig.get("note", "")
+
+    def test_fusion_integrates_earnings_source(self):
+        from engine.signal_fusion import fuse_signals
+        with patch("engine.signal_fusion._fetch_options_flow", return_value={"available": False}), \
+             patch("engine.signal_fusion._fetch_institutional_signals", return_value={"available": False}), \
+             patch("engine.signal_fusion._fetch_social_signal",
+                   return_value={"available": False, "score": 0}), \
+             patch("engine.signal_fusion._fetch_earnings_signal", return_value={
+                 "available": True, "score": 55, "days_until": 4,
+                 "next_date": "2026-05-01", "avg_drift_5d": 2.3,
+                 "positive_rate": 0.75, "narrative": "NVDA reports in 4 days",
+             }):
+            result = fuse_signals("NVDA", summary={"rsi": 55, "close": 100})
+        assert "earnings" in result["sources"]
+        assert result["sources"]["earnings"]["available"] is True
+        assert result["sources"]["earnings"]["score"] == 55
+        assert result["sources"]["earnings"]["days_until"] == 4
