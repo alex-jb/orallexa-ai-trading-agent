@@ -64,6 +64,17 @@ class OrallexaBrain:
             regime_series = _detect_regime(df)
             regime = str(regime_series.iloc[-1])
 
+            # Default to the Claude-backed llm_fn when the caller enables LLM
+            # but didn't supply their own. Safe: the fn returns a sentinel
+            # proposal if ANTHROPIC_API_KEY is missing, so validation will
+            # bounce it back to the heuristic path.
+            if use_llm and llm_fn is None:
+                try:
+                    from llm.regime_llm import llm_regime_fn
+                    llm_fn = llm_regime_fn
+                except Exception:
+                    llm_fn = None
+
             proposal = propose_regime_strategy(
                 self.ticker, regime=regime, df=df,
                 use_llm=use_llm, llm_fn=llm_fn,

@@ -170,12 +170,38 @@ async def analyze(
     use_debate: bool = Form(False),
     use_claude: bool = Form(False),
     context: str = Form(""),
+    portfolio_json: str = Form(""),
+    portfolio_value: float = Form(0.0),
 ):
-    """Fast analysis — scalp / intraday / swing. Optional Claude overlay + debate."""
+    """
+    Fast analysis — scalp / intraday / swing. Optional Claude overlay + debate.
+    When portfolio_json (list of {ticker, value_usd, sector?}) + portfolio_value
+    are provided, the Portfolio Manager gate runs as the final layer and its
+    verdict is surfaced via the `extra.portfolio_manager` field.
+    """
     context = _sanitize_context(context)
     if DEMO_MODE:
         from engine.demo_data import mock_analyze
         return mock_analyze(ticker, mode, timeframe, context)
+
+    # Parse portfolio inputs once — reject malformed silently so the
+    # analysis still runs without PM gating.
+    portfolio = None
+    if portfolio_json and portfolio_value > 0:
+        try:
+            from engine.portfolio_manager import Position
+            raw = json.loads(portfolio_json)
+            if isinstance(raw, list):
+                portfolio = [
+                    Position(
+                        ticker=str(p.get("ticker", "")).upper(),
+                        value_usd=float(p.get("value_usd", 0) or 0),
+                        sector=p.get("sector") or None,
+                    )
+                    for p in raw if p.get("ticker")
+                ]
+        except (json.JSONDecodeError, ValueError, TypeError):
+            portfolio = None
 
     import asyncio
 
@@ -183,7 +209,12 @@ async def analyze(
         from core.brain import OrallexaBrain
         from models.confidence import guard_decision
         brain = OrallexaBrain(ticker.upper())
-        r = brain.run_for_mode(mode=mode, timeframe=timeframe, use_claude=False, use_debate=use_debate, rag_context=context)
+        r = brain.run_for_mode(
+            mode=mode, timeframe=timeframe,
+            use_claude=False, use_debate=use_debate, rag_context=context,
+            portfolio=portfolio,
+            portfolio_value=portfolio_value if portfolio else None,
+        )
         return guard_decision(r)
 
     result = await asyncio.to_thread(_run)
@@ -214,6 +245,14 @@ async def analyze(
         get_logger("api").warning("Failed to save decision log: %s", exc)
 
     out = result.to_dict()
+    # Surface PM verdict at the top level for UI convenience (extra already
+    # carries it, but clients shouldn't need to peek into extra).
+    try:
+        extra = getattr(result, "extra", None)
+        if isinstance(extra, dict) and "portfolio_manager" in extra:
+            out["portfolio_manager"] = extra["portfolio_manager"]
+    except Exception:
+        pass
     if breaking:
         out["breaking_signal"] = breaking
     return out
@@ -709,9 +748,11 @@ async def daily_intel_refresh():
 
 
 @app.get("/api/regime/{ticker}")
-async def regime_strategy(ticker: str):
+async def regime_strategy(ticker: str, use_llm: bool = False):
     """
     Detect current market regime and propose a tailored strategy.
+    When use_llm=true and ANTHROPIC_API_KEY is set, Claude tweaks the
+    heuristic params; otherwise the deterministic recipe is returned.
     Returns {ticker, regime, strategy, params, reasoning, source}.
     """
     if DEMO_MODE:
@@ -732,7 +773,7 @@ async def regime_strategy(ticker: str):
     try:
         from core.brain import OrallexaBrain
         brain = OrallexaBrain(ticker.upper())
-        result = await asyncio.to_thread(brain.get_regime_strategy)
+        result = await asyncio.to_thread(brain.get_regime_strategy, use_llm=use_llm)
         return {"ticker": ticker.upper(), **result}
     except Exception as e:
         from fastapi.responses import JSONResponse
@@ -766,8 +807,18 @@ async def layered_memory_stats(role: str, ticker: str):
 
 
 @app.post("/api/watchlist-scan")
-async def watchlist_scan(tickers: str = Form("NVDA,AAPL,TSLA")):
-    """Fast parallel scan of multiple tickers — technical signals only, no LLM."""
+async def watchlist_scan(
+    tickers: str = Form("NVDA,AAPL,TSLA"),
+    use_fusion: bool = Form(False),
+):
+    """
+    Fast parallel scan of multiple tickers — technical signals only.
+
+    When `use_fusion=true`, each ticker also runs through the 8-source
+    signal_fusion (tech + ML + news + options + institutional + social +
+    earnings + prediction markets). Network-heavy (~10-30s per ticker),
+    so parallelism is capped at 3 and the list at 8 tickers.
+    """
     if DEMO_MODE:
         from engine.demo_data import mock_watchlist_scan
         ticker_list = [t.strip().upper() for t in tickers.replace("，", ",").split(",") if t.strip()]
@@ -777,7 +828,9 @@ async def watchlist_scan(tickers: str = Form("NVDA,AAPL,TSLA")):
     import yfinance as yf
 
     ticker_list = [t.strip().upper() for t in tickers.replace("，", ",").split(",") if t.strip()]
-    ticker_list = ticker_list[:10]  # cap at 10
+    # Tighter cap when fusion is enabled — each call hits Polymarket/Reddit/etc
+    max_tickers = 8 if use_fusion else 10
+    ticker_list = ticker_list[:max_tickers]
 
     def scan_one(tk: str) -> dict:
         out = {"ticker": tk, "price": None, "change_pct": None, "decision": "WAIT",
@@ -809,24 +862,59 @@ async def watchlist_scan(tickers: str = Form("NVDA,AAPL,TSLA")):
                 "probabilities": d["probabilities"],
                 "recommendation": d["recommendation"],
             })
+
+            # Optional: 8-source fusion overlay
+            if use_fusion:
+                try:
+                    from engine.signal_fusion import fuse_signals
+                    fusion = fuse_signals(
+                        tk,
+                        summary={
+                            "rsi": 55, "close": out["price"] or 100,
+                            "ma20": out["price"] or 100,
+                            "ma50": (out["price"] or 100) * 0.98,
+                            "macd_hist": 0.01,
+                        },
+                    )
+                    out["fusion"] = {
+                        "conviction": fusion["conviction"],
+                        "direction": fusion["direction"],
+                        "confidence": fusion["confidence"],
+                        "n_sources": fusion["n_sources"],
+                        "top_sources": [
+                            {"name": n, "score": s["score"]}
+                            for n, s in sorted(
+                                fusion["sources"].items(),
+                                key=lambda kv: abs(kv[1]["score"]),
+                                reverse=True,
+                            ) if s["available"]
+                        ][:3],
+                        "detail": fusion["fusion_detail"],
+                    }
+                except Exception as fe:
+                    out["fusion_error"] = str(fe)[:100]
         except Exception as e:
             out["error"] = str(e)[:100]
         return out
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    max_workers = 3 if use_fusion else 4
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         results = list(pool.map(scan_one, ticker_list))
 
-    # Sort: strongest signals first (BUY/SELL with highest confidence)
+    # Sort: strongest signals first. When fusion ran, use |conviction| to rank —
+    # otherwise fall back to the existing confidence-based ranking.
     def sort_key(r: dict) -> float:
         if r.get("error"):
             return -999
+        if use_fusion and r.get("fusion"):
+            return abs(r["fusion"]["conviction"])
         base = r.get("confidence", 0)
         if r.get("decision") == "WAIT":
             base -= 50
         return base
 
     results.sort(key=sort_key, reverse=True)
-    return {"tickers": results}
+    return {"tickers": results, "fusion_enabled": use_fusion}
 
 
 @app.get("/api/live/{ticker}")
