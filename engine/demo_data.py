@@ -419,4 +419,15 @@ def mock_daily_intel() -> dict:
             "brief": f"☀️ Risk-on day — $NVDA +5.2% leads as AI capex accelerates. Semis +3.2%. Watch the Fed — CPI miss kills this rally. #stocks #trading",
             "volume": "🐳 UNUSUAL ACTIVITY\n\n$NVDA — 2.3x avg volume\n$COIN — 2.1x avg volume\n$PLTR — 1.8x avg volume\n\nSmart money moving. 👀",
         },
+        "earnings_watchlist": [
+            {"ticker": "NVDA", "date": (now + timedelta(days=3)).strftime("%Y-%m-%d"),
+             "days_until": 3, "eps_estimate": 1.77, "pead_drift": 2.3,
+             "positive_rate": 0.75, "narrative": "NVDA reports in 3 days. PEAD history (8 events): avg +2.3% 5d drift, 75% positive → bullish bias."},
+            {"ticker": "PLTR", "date": (now + timedelta(days=6)).strftime("%Y-%m-%d"),
+             "days_until": 6, "eps_estimate": 0.15, "pead_drift": -1.1,
+             "positive_rate": 0.40, "narrative": "PLTR reports in 6 days. PEAD history (5 events): avg -1.1% 5d drift, 40% positive → bearish bias."},
+            {"ticker": "AMD", "date": (now + timedelta(days=12)).strftime("%Y-%m-%d"),
+             "days_until": 12, "eps_estimate": 0.92, "pead_drift": 0.4,
+             "positive_rate": 0.55, "narrative": "AMD reports in 12 days. PEAD history (6 events): avg +0.4% 5d drift, 55% positive → neutral bias."},
+        ],
     }

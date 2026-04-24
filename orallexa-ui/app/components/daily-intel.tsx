@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook } from "../types";
+import type { DailyIntelData, MacroIndicator, EconEvent, FearGreedData, MarketBreadth, OptionsFlow, Playbook, EarningsEvent } from "../types";
 import { copyWithAttribution } from "../types";
 import { Mod, CopyBtn, CopyImageBtn } from "./atoms";
 import { ScenarioSimulator } from "./scenario-panel";
@@ -236,6 +236,62 @@ function BreadthPanel({ data, t }: { data: MarketBreadth; t: Record<string, stri
 }
 
 /* ── Options Flow ──────────────────────────────────────────────────── */
+/* ── Earnings Watch ────────────────────────────────────────────────── */
+function EarningsWatchPanel({ events, onSelectTicker, t }: { events: EarningsEvent[]; onSelectTicker: (tk: string) => void; t: Record<string, string> }) {
+  const driftColor = (d: number | null) => {
+    if (d === null) return "#6B6E76";
+    if (d > 0.5) return "#006B3F";
+    if (d < -0.5) return "#8B0000";
+    return "#D4AF37";
+  };
+  const proxBadge = (days: number) => {
+    if (days <= 3) return { bg: "rgba(139,0,0,0.12)", fg: "#8B0000" };
+    if (days <= 7) return { bg: "rgba(212,175,55,0.12)", fg: "#D4AF37" };
+    return { bg: "rgba(107,110,118,0.1)", fg: "#8B8E96" };
+  };
+  return (
+    <Mod title={t.earningsWatch}>
+      {events.map((ev, i) => {
+        const badge = proxBadge(ev.days_until);
+        const dColor = driftColor(ev.pead_drift);
+        return (
+          <button
+            key={i}
+            onClick={() => onSelectTicker(ev.ticker)}
+            className="w-full flex items-center gap-3 py-[7px] border-b last:border-b-0 hover:bg-[#D4AF37]/5 transition-colors text-left"
+            style={{ borderColor: "rgba(212,175,55,0.06)" }}
+          >
+            <span className="text-[11px] font-[DM_Mono] font-medium text-[#F5E6CA] w-[52px] shrink-0">{ev.ticker}</span>
+            <span
+              className="text-[8px] font-[Josefin_Sans] font-bold uppercase tracking-[0.16em] px-1.5 py-0.5 shrink-0"
+              style={{ background: badge.bg, color: badge.fg, border: `1px solid ${badge.fg}30` }}
+            >
+              {ev.days_until}{t.daysLabel ? ` ${t.daysLabel}` : "d"}
+            </span>
+            <span className="text-[9px] font-[DM_Mono] text-[#6B6E76] shrink-0">{ev.date.slice(5)}</span>
+            {ev.eps_estimate !== null && (
+              <span className="text-[9px] font-[DM_Mono] text-[#8B8E96] shrink-0">
+                {t.eps}: {ev.eps_estimate.toFixed(2)}
+              </span>
+            )}
+            <div className="flex-1" />
+            {ev.pead_drift !== null && (
+              <span className="text-[10px] font-[DM_Mono] font-medium shrink-0" style={{ color: dColor }}>
+                {ev.pead_drift >= 0 ? "+" : ""}{ev.pead_drift.toFixed(1)}%
+              </span>
+            )}
+            {ev.positive_rate !== null && (
+              <span className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.14em] text-[#8B8E96] shrink-0">
+                {Math.round(ev.positive_rate * 100)}% {t.positiveRateLabel}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </Mod>
+  );
+}
+
 function OptionsFlowPanel({ flows, onSelectTicker, t }: { flows: OptionsFlow[]; onSelectTicker: (tk: string) => void; t: Record<string, string> }) {
   return (
     <Mod title={t.optionsFlow}>
@@ -687,6 +743,9 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
 
       {/* Options Flow */}
       {data.options_flow && data.options_flow.length > 0 && <OptionsFlowPanel flows={data.options_flow} onSelectTicker={onSelectTicker} t={t} />}
+
+      {/* Earnings Watch */}
+      {data.earnings_watchlist && data.earnings_watchlist.length > 0 && <EarningsWatchPanel events={data.earnings_watchlist} onSelectTicker={onSelectTicker} t={t} />}
 
       {/* Orallexa Thread */}
       {data.orallexa_thread && data.orallexa_thread.length > 0 && (
