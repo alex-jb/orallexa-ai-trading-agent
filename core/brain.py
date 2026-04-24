@@ -150,6 +150,10 @@ class OrallexaBrain:
         rag_context: str = "",
         use_debate: bool = False,
         use_langgraph: bool = False,
+        portfolio: list | None = None,
+        portfolio_value: float | None = None,
+        recent_decisions: list | None = None,
+        pm_rules: dict | None = None,
     ):
         """
         Unified entry point. Routes to the correct skill based on mode.
@@ -161,6 +165,11 @@ class OrallexaBrain:
 
         use_debate: if True, runs a lightweight Bull/Bear debate after initial signal.
         use_langgraph: if True, uses LangGraph debate pipeline instead of direct calls.
+
+        Portfolio Manager gate (opt-in): if `portfolio` + `portfolio_value` are
+        provided, the final decision is run through engine.portfolio_manager
+        (concentration, sector, streak, sizing). Rejections downgrade the
+        decision to WAIT with a reason; warnings are appended to reasoning.
 
         Returns DecisionOutput.
         """
@@ -200,7 +209,19 @@ class OrallexaBrain:
                 except Exception as e:
                     logger.warning("Debate skipped for %s: %s", self.ticker, e)
 
-            return guard_decision(result)
+            result = guard_decision(result)
+
+            # Portfolio Manager gate (opt-in final layer)
+            if portfolio is not None and portfolio_value:
+                result = self._apply_portfolio_manager(
+                    result,
+                    portfolio=portfolio,
+                    portfolio_value=portfolio_value,
+                    recent_decisions=recent_decisions or [],
+                    rules=pm_rules,
+                )
+
+            return result
         except Exception as e:
             from models.confidence import make_recommendation
             return DecisionOutput(
@@ -213,6 +234,53 @@ class OrallexaBrain:
                 signal_strength=0.0,
                 recommendation=make_recommendation("WAIT", 0.0, "HIGH"),
             )
+
+    def _apply_portfolio_manager(
+        self,
+        decision,
+        *,
+        portfolio: list,
+        portfolio_value: float,
+        recent_decisions: list,
+        rules: dict | None = None,
+    ):
+        """
+        Run the decision through engine.portfolio_manager. Mutates the
+        DecisionOutput with the approval outcome — rejection downgrades to
+        WAIT, warnings append to reasoning, scaled_position_pct is surfaced
+        via the .extra dict so downstream consumers (API, UI) see it.
+        """
+        try:
+            from engine.portfolio_manager import approve_decision
+            verdict = approve_decision(
+                ticker=self.ticker,
+                decision={
+                    "decision": decision.decision,
+                    "confidence": int(decision.confidence * 100)
+                        if decision.confidence <= 1 else int(decision.confidence),
+                    "signal_strength": int(decision.signal_strength * 100)
+                        if decision.signal_strength <= 1 else int(decision.signal_strength),
+                },
+                portfolio=portfolio,
+                portfolio_value=portfolio_value,
+                recent_decisions=recent_decisions,
+                rules=rules,
+            )
+            if not verdict["approved"]:
+                decision.decision = "WAIT"
+                decision.reasoning = (decision.reasoning or []) + [
+                    f"Portfolio Manager rejected: {verdict['reason']}"
+                ]
+            elif verdict.get("warnings"):
+                decision.reasoning = (decision.reasoning or []) + [
+                    f"PM warning: {w}" for w in verdict["warnings"]
+                ]
+            # Surface PM metadata
+            if hasattr(decision, "extra") and isinstance(decision.extra, dict):
+                decision.extra["portfolio_manager"] = verdict
+        except Exception as e:
+            logger.warning("Portfolio manager check failed for %s: %s", self.ticker, e)
+        return decision
 
     def run_scalping(self):
         """Run 5-minute scalping analysis. Returns DecisionOutput."""

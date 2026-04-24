@@ -187,6 +187,86 @@ class TestBrainRouting:
         assert "reasoning" in d
         assert "probabilities" in d
 
+    def test_portfolio_manager_rejection_downgrades_to_wait(self):
+        """PM gate at heavy concentration forces BUY → WAIT."""
+        from unittest.mock import patch
+        from core.brain import OrallexaBrain
+        from models.decision import DecisionOutput
+        from engine.portfolio_manager import Position
+
+        buy = DecisionOutput(
+            decision="BUY",
+            confidence=0.75,
+            risk_level="MEDIUM",
+            reasoning=["initial signal"],
+            probabilities={"up": 0.6, "neutral": 0.2, "down": 0.2},
+            source="test",
+            signal_strength=0.6,
+        )
+        brain = OrallexaBrain("NVDA")
+        # Patch run_prediction to return our canned BUY and bypass data fetch
+        with patch.object(brain, "run_prediction", return_value=buy), \
+             patch("models.confidence.guard_decision", side_effect=lambda x: x):
+            result = brain.run_for_mode(
+                mode="swing",
+                use_claude=False,
+                portfolio=[Position("NVDA", 3_000)],  # 30% — above default max 20%
+                portfolio_value=10_000,
+            )
+        assert result.decision == "WAIT"
+        assert any("Portfolio Manager rejected" in r for r in result.reasoning)
+
+    def test_portfolio_manager_approval_appends_warnings(self):
+        from unittest.mock import patch
+        from core.brain import OrallexaBrain
+        from models.decision import DecisionOutput
+        from engine.portfolio_manager import Position
+
+        buy = DecisionOutput(
+            decision="BUY",
+            confidence=0.80,
+            risk_level="LOW",
+            reasoning=["initial signal"],
+            probabilities={"up": 0.7, "neutral": 0.2, "down": 0.1},
+            source="test",
+            signal_strength=0.7,
+        )
+        brain = OrallexaBrain("GOOGL")
+        with patch.object(brain, "run_prediction", return_value=buy), \
+             patch("models.confidence.guard_decision", side_effect=lambda x: x):
+            result = brain.run_for_mode(
+                mode="swing",
+                use_claude=False,
+                portfolio=[Position("GOOGL", 500)],
+                portfolio_value=10_000,
+                recent_decisions=[{"decision": "BUY"}] * 6,
+            )
+        assert result.decision == "BUY"
+        assert any("PM warning" in r for r in result.reasoning)
+        assert "portfolio_manager" in result.extra
+
+    def test_no_pm_when_portfolio_omitted(self):
+        """Backward-compat: omitting portfolio skips PM entirely."""
+        from unittest.mock import patch
+        from core.brain import OrallexaBrain
+        from models.decision import DecisionOutput
+
+        buy = DecisionOutput(
+            decision="BUY",
+            confidence=0.80,
+            risk_level="LOW",
+            reasoning=["initial"],
+            probabilities={"up": 0.7, "neutral": 0.2, "down": 0.1},
+            source="test",
+            signal_strength=0.7,
+        )
+        brain = OrallexaBrain("AAPL")
+        with patch.object(brain, "run_prediction", return_value=buy), \
+             patch("models.confidence.guard_decision", side_effect=lambda x: x):
+            result = brain.run_for_mode(mode="swing", use_claude=False)
+        assert result.decision == "BUY"
+        assert "portfolio_manager" not in result.extra
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # ALERT SYSTEM

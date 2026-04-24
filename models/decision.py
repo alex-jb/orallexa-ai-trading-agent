@@ -17,9 +17,10 @@ class DecisionOutput:
     # ── Extended fields (default-empty so existing callers are unaffected) ──
     signal_strength: float = 0.0   # raw 0-100 composite score (before confidence scaling)
     recommendation: str = ""       # plain-English action sentence
+    extra: dict = field(default_factory=dict)  # carrier for optional metadata (e.g., portfolio_manager verdict)
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "decision":        self.decision,
             "confidence":      round(self.confidence, 1),
             "risk_level":      self.risk_level,
@@ -29,3 +30,6 @@ class DecisionOutput:
             "signal_strength": round(self.signal_strength, 1),
             "recommendation":  self.recommendation,
         }
+        if self.extra:
+            out["extra"] = dict(self.extra)
+        return out
