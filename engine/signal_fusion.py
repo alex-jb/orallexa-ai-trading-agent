@@ -7,12 +7,13 @@ Aggregates heterogeneous signals into a unified conviction score
 using dynamic Bayesian-inspired weighting based on recent accuracy.
 
 Signal sources:
-  1. Technical indicators  (existing: TechnicalAnalysisSkillV2)
-  2. News sentiment        (existing: sentiment.py)
-  3. ML model ensemble     (existing: ml_signal.py)
-  4. Options flow          (NEW: unusual options activity)
-  5. Institutional data    (NEW: insider transactions + fund flows)
-  6. Factor engine         (existing: factor_engine.py)
+  1. Technical indicators   (existing: TechnicalAnalysisSkillV2)
+  2. News sentiment         (existing: sentiment.py)
+  3. ML model ensemble      (existing: ml_signal.py)
+  4. Options flow           (existing: unusual options activity)
+  5. Institutional data     (existing: insider transactions + fund flows)
+  6. Social sentiment       (NEW: Reddit + optional X/Twitter)
+  7. Factor engine          (existing: factor_engine.py)
 
 Usage:
     from engine.signal_fusion import fuse_signals
@@ -372,12 +373,23 @@ def _score_news(news_items: list) -> dict:
 
 # Default weights — can be dynamically adjusted based on bias tracker
 DEFAULT_WEIGHTS = {
-    "technical":     0.25,
-    "ml_ensemble":   0.25,
-    "news_sentiment": 0.15,
-    "options_flow":  0.20,
-    "institutional": 0.15,
+    "technical":        0.22,
+    "ml_ensemble":      0.22,
+    "news_sentiment":   0.13,
+    "options_flow":     0.18,
+    "institutional":    0.15,
+    "social_sentiment": 0.10,
 }
+
+
+def _fetch_social_signal(ticker: str) -> dict:
+    """Fetch social sentiment via skills.social_sentiment. Safe on any failure."""
+    try:
+        from skills.social_sentiment import analyze_social_sentiment
+        return analyze_social_sentiment(ticker)
+    except Exception as e:
+        logger.debug("Social sentiment fetch failed for %s: %s", ticker, e)
+        return {"available": False, "score": 0}
 
 
 def fuse_signals(
@@ -463,6 +475,18 @@ def fuse_signals(
         "insider_transactions": inst.get("insider_transactions", []),
         "short_pct": inst.get("short_pct", 0),
         "institutional_pct": inst.get("institutional_pct", 0),
+    }
+
+    # 6. Social sentiment (live fetch: Reddit + optional X)
+    social = _fetch_social_signal(ticker)
+    sources["social_sentiment"] = {
+        "score": social.get("score", 0),
+        "weight": weights.get("social_sentiment", 0.10) if social.get("available") else 0,
+        "available": social.get("available", False),
+        "n_posts": social.get("n_posts", 0),
+        "bullish": social.get("bullish", 0),
+        "bearish": social.get("bearish", 0),
+        "engagement": social.get("engagement", 0),
     }
 
     # Normalize weights for available sources

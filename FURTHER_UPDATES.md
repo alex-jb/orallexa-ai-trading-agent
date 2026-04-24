@@ -219,3 +219,26 @@ Instead of MiroFish's 1M agent simulation, run a lightweight "mini swarm" of 10-
 - **OASIS** — Open Agent Social Interaction Simulations framework
 - **OpenSpace** — https://github.com/HKUDS/OpenSpace — self-evolving skill engine
 - **GraphRAG** — knowledge graph + RAG for grounding agent beliefs
+
+---
+
+## Phase 7: Follow-up Signal Upgrades ✅ DONE (2026-04-23)
+
+Three upgrades shipped:
+
+**A. Social sentiment (`skills/social_sentiment.py`)**
+- Reddit public JSON API (no auth) across wallstreetbets / stocks / investing
+- Optional X/Twitter via `TWITTER_BEARER_TOKEN` (tweepy)
+- Plugged into `signal_fusion.py` as 6th source with 0.10 default weight
+- Engagement-weighted compound score (upvotes + comments boost)
+
+**B. Earnings module (`engine/earnings.py`)**
+- Calendar: upcoming earnings dates + EPS estimates (60-day horizon)
+- PEAD stats: avg 5-day drift + positive rate + surprise↔drift correlation
+- Combined narrative: "NVDA reports in 7 days, PEAD avg +1.8% 5d drift, 71% positive → bullish bias"
+
+**C. PostHog LLM observability (`llm/call_logger.py`)**
+- Every `logged_create()` call mirrors to PostHog as `$ai_generation` event
+- Tracks: model, tier, latency, tokens, cost, ticker, error, trace_id
+- Opt-in via `POSTHOG_API_KEY` env var; `POSTHOG_HOST` override for EU
+- Zero overhead when key unset; failures silently swallowed
