@@ -39,8 +39,8 @@ Orallexa runs a **multi-agent intelligence pipeline**. 4 AI analysts with differ
 
 ```
 Market Data → 9 ML Models → 4-Role Panel + Bull/Bear Debate
-    → 5-Source Signal Fusion → Judge Verdict → What-If Scenarios
-    → Risk Plan → Paper Execution → Dashboard → Social Content
+    → 8-Source Signal Fusion → Judge Verdict → What-If Scenarios
+    → Risk Plan → Portfolio Manager → Paper Execution → Dashboard → Social Content
 ```
 
 Every stage automated. Every stage observable. The system learns from itself.
@@ -106,12 +106,12 @@ Docker: `docker compose up --build` — that's it.
 | **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
 | **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with persistent memory |
 | **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
-| **5-Source Signal Fusion** | Technical + ML + News + Options Flow + Institutional data |
+| **8-Source Signal Fusion** | Technical + ML + News + Options + Institutional + Social (Reddit/X) + Earnings/PEAD + Prediction Markets (Polymarket) |
 | **What-If Scenarios** | Claude simulates impact of hypothetical events on your portfolio |
 | **20-Agent Micro Swarm** | Rule-based Monte Carlo convergence simulation |
 | **Bias Self-Correction** | Tracks prediction accuracy, auto-adjusts confidence |
 | **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
-| **Daily Intel** | 50+ tickers, sector rotation, volume spikes, AI morning brief |
+| **Daily Intel** | 50+ tickers, sector rotation, volume spikes, earnings watchlist, AI morning brief |
 
 </td>
 <td width="50%">
@@ -120,8 +120,10 @@ Docker: `docker compose up --build` — that's it.
 
 | Component | Detail |
 |-----------|--------|
+| **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
+| **LLM Observability** | Dual-write to PostHog + Langfuse (cost, latency, prompts, evals) |
 | **Dashboard** | Next.js 16, Art Deco theme, EN/ZH bilingual |
 | **Desktop Coach** | Floating AI pet with voice input (Whisper) + TTS, API retry + caching |
 
@@ -234,7 +236,7 @@ Not every task needs the expensive model:
 
 | Problem | Typical Approach | Orallexa |
 |---------|-----------------|----------|
-| Isolated signals | One model, one prediction | 5 sources fused: technical + ML + news + options + institutional |
+| Isolated signals | One model, one prediction | 8 sources fused: technical + ML + news + options + institutional + social + earnings + prediction markets |
 | No reasoning | "BUY 73%" — why? | 4 analysts debate, Bull/Bear argue, Judge decides with evidence |
 | No self-correction | Same mistakes repeated | Bias tracker detects overconfidence, auto-adjusts future calls |
 | Static analysis | Can't test hypotheticals | "What if Fed hikes 50bp?" — scenario simulation with swarm |
@@ -367,7 +369,9 @@ orallexa/
 │
 ├── engine/                     # Trading engine (9 models + intelligence)
 │   ├── multi_agent_analysis.py # Multi-agent pipeline (debate + panel + fusion)
-│   ├── signal_fusion.py        # 5-source signal fusion (tech/ML/news/options/institutional)
+│   ├── signal_fusion.py        # 8-source signal fusion (tech/ML/news/options/institutional/social/earnings/polymarket)
+│   ├── portfolio_manager.py    # Final approval gate — concentration, sector, sizing
+│   ├── earnings.py             # Earnings calendar + PEAD drift stats
 │   ├── scenario_sim.py         # What-if scenario simulation
 │   ├── bias_tracker.py         # Prediction bias self-correction
 │   ├── role_memory.py          # Persistent role memory & learning

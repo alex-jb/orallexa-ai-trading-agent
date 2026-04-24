@@ -2,6 +2,114 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-24] — 8-Source Signal Fusion + Portfolio Manager + LLM Observability
+
+Two back-to-back upgrade phases (Phase 7 + Phase 8 in FURTHER_UPDATES.md)
+lifting the signal fusion engine from 5 sources to 8, adding a final
+approval gate, and wiring dual LLM observability.
+
+### Added — New Signal Sources (5 → 8)
+
+- **Social sentiment** (`skills/social_sentiment.py`) — Reddit public JSON API
+  (wallstreetbets / stocks / investing, no auth) + optional X/Twitter via
+  `TWITTER_BEARER_TOKEN` (tweepy). Engagement-weighted compound score via
+  existing FinBERT/VADER pipeline.
+- **Earnings / PEAD** (`engine/earnings.py`) — yfinance earnings calendar
+  (60-day horizon) + historical post-earnings 5-day drift, positive rate,
+  and surprise↔drift correlation. Score amplified by proximity (≤3d: 1.3×).
+- **Prediction markets** (`skills/prediction_markets.py`) — Polymarket Gamma
+  API (no auth) filtered to active, open markets with future endDate.
+  Volume-weighted deviation of Yes-price from 0.5, sign inferred from
+  question text keywords.
+
+Rebalanced `signal_fusion.DEFAULT_WEIGHTS` to seven sources with meaningful
+coverage; prediction markets join at 0.06 default weight.
+
+### Added — Decision Pipeline
+
+- **Portfolio Manager gate** (`engine/portfolio_manager.py`, inspired by
+  TauricResearch/TradingAgents, Apache-2.0) — final approval layer between
+  decision generation and return. Rules (all overridable): min confidence,
+  single-ticker concentration ≤20%, sector ≤40%, direction-streak warning
+  at 5+, conviction-scaled position sizing capped at `max_position_pct`.
+- Wired into `core/brain.run_for_mode` as opt-in layer: activated when
+  caller passes `portfolio` + `portfolio_value`. Rejections downgrade the
+  decision to WAIT with reasoning; warnings append to reasoning; the full
+  verdict is surfaced via `DecisionOutput.extra["portfolio_manager"]`.
+- `DecisionOutput` gained an `extra: dict` carrier field for optional
+  metadata (backward-compatible: emitted only when non-empty).
+
+### Added — LLM Observability
+
+- **PostHog LLM Analytics export** — every `logged_create()` call mirrors
+  to PostHog as `$ai_generation` event. Tracks model, tier, latency,
+  tokens, cost, ticker, error, trace_id. Opt-in via `POSTHOG_API_KEY`.
+- **Langfuse dual-write** — parallel export as `generation-create` batch
+  event to `/api/public/ingestion` with full usage/cost/error metadata.
+  Opt-in via `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`. Langfuse
+  complements PostHog with prompt versioning, evals, and datasets.
+
+### Added — UI
+
+- `EarningsWatchPanel` in `daily-intel.tsx` — Art Deco card rendering the
+  new `earnings_watchlist` field from `/api/daily-intel`. Proximity badge
+  (≤3d ruby / ≤7d gold), PEAD drift %, win rate, click-through to ticker.
+- `SignalFusionCard` — new `SOURCE_LABELS` entries for `social_sentiment`
+  (💬), `earnings` (📅), `prediction_markets` (🔮). Per-source detail rows
+  show n_posts/bull/bear, days-until/PEAD/win-rate, and top Polymarket
+  questions with Yes-price coloring.
+- `types.ts` — new `EarningsEvent` and `PredictionMarket` interfaces;
+  `SignalSource` extended with optional fields for the three new sources
+  (all additive, backward-compatible).
+
+### Changed
+
+- `engine/daily_intel.py` — new `_generate_earnings_watchlist` helper and
+  `earnings_watchlist` key in output, populated from top movers.
+- `engine/demo_data.py` — 3 mock earnings events so the new UI card
+  renders in demo mode.
+- `llm/call_logger.py` — `_append_record` path now calls `_send_to_posthog`
+  then `_send_to_langfuse`. All three are fire-and-forget, wrapped in
+  `try/except pass` — telemetry never breaks the main flow.
+
+### Fixed
+
+- `engine/earnings.py` — leap-year crash on `now.replace(year=now.year - 2)`
+  when today is Feb 29 and the target year isn't a leap year. Switched to
+  `timedelta(days=365 * lookback_years)`.
+- `skills/social_sentiment.py` — added Reddit-spec regex guard
+  (`^[A-Za-z0-9_]{1,21}$`) on subreddit names before URL interpolation
+  (SSRF mitigation for when the param is user-controlled).
+- `orallexa-ui/app/components/signal-fusion.tsx` — `SOURCE_LABELS` had
+  no entries for the two new keys added to fusion, so the UI rendered
+  raw snake_case with a generic fallback icon.
+
+### Research / Integrations
+
+- Evaluated trending repos (Apr 2026): TauricResearch/TradingAgents,
+  sandy1709/poly_data, langfuse/langfuse, sansan0/TrendRadar, FinMem,
+  AgentQuant, QuantAgent. Tier-1 borrowings (Portfolio Manager layer,
+  Polymarket alpha source, Langfuse observability) shipped; Tier-2
+  candidates (multi-platform news, layered memory, regime-conditional
+  strategies) queued for next session.
+
+### Tests
+
+- +64 new backend tests across `test_social_sentiment`, `test_earnings`,
+  `test_posthog_export` (+Langfuse), `test_prediction_markets`,
+  `test_portfolio_manager`, `test_engine_integration` (new PM cases).
+- 245 frontend (vitest) tests still green — `EarningsWatchPanel` added
+  without regression.
+
+### Verified Live
+
+Unmocked `fuse_signals("NVDA")` end-to-end with 6/8 sources active:
+`conviction=+5 NEUTRAL confidence=64`. Polymarket fetched 8 markets
+($21k 24h volume), earnings source active 26 days pre-report with
+PEAD −3.78%, Reddit returned 18 posts (6 bull / 3 bear).
+
+---
+
 ## [2026-04-03b] — Optimization Sprint & Test Coverage Expansion (698 Tests)
 
 ### Adaptive Walk-Forward Optimization
