@@ -267,6 +267,49 @@ class TestBrainRouting:
         assert result.decision == "BUY"
         assert "portfolio_manager" not in result.extra
 
+    def test_pm_failure_leaves_breadcrumb(self):
+        """PM exception → decision unchanged but extra records the failure."""
+        from unittest.mock import patch
+        from core.brain import OrallexaBrain
+        from models.decision import DecisionOutput
+        from engine.portfolio_manager import Position
+
+        buy = DecisionOutput(
+            decision="BUY",
+            confidence=0.75,
+            risk_level="MEDIUM",
+            reasoning=["initial"],
+            probabilities={"up": 0.6, "neutral": 0.2, "down": 0.2},
+            source="test",
+            signal_strength=0.6,
+        )
+        brain = OrallexaBrain("NVDA")
+        with patch.object(brain, "run_prediction", return_value=buy), \
+             patch("models.confidence.guard_decision", side_effect=lambda x: x), \
+             patch("engine.portfolio_manager.approve_decision",
+                   side_effect=RuntimeError("bad data")):
+            result = brain.run_for_mode(
+                mode="swing",
+                use_claude=False,
+                portfolio=[Position("NVDA", 1_000)],
+                portfolio_value=10_000,
+            )
+        assert result.decision == "BUY"  # unchanged
+        assert "portfolio_manager" in result.extra
+        assert result.extra["portfolio_manager"]["approved"] is None
+        assert "bad data" in result.extra["portfolio_manager"]["error"]
+
+    def test_pm_handles_none_confidence(self):
+        """decision.confidence = None should not crash PM conversion."""
+        from core.brain import _to_pct_scale
+        assert _to_pct_scale(None) == 0
+        assert _to_pct_scale(0.75) == 75
+        assert _to_pct_scale(75) == 75
+        assert _to_pct_scale(1.0) == 100
+        assert _to_pct_scale(-5) == 0
+        assert _to_pct_scale(500) == 100
+        assert _to_pct_scale("garbage") == 0
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # ALERT SYSTEM

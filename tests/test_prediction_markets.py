@@ -96,8 +96,10 @@ class TestYesIndex:
         assert _yes_index(["Yes", "No"]) == 0
         assert _yes_index(["No", "Yes"]) == 1
 
-    def test_binary_fallback(self):
-        assert _yes_index(["Google", "NVIDIA"]) == 0
+    def test_non_standard_binary_rejected(self):
+        # Binary markets with ticker-name outcomes are ambiguous —
+        # guessing the bullish side could flip scoring sign.
+        assert _yes_index(["Google", "NVIDIA"]) is None
 
     def test_unknown(self):
         assert _yes_index(["A", "B", "C"]) is None

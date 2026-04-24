@@ -2,6 +2,24 @@ from core.logger import get_logger
 from skills.market_data import MarketDataSkill
 
 logger = get_logger("brain")
+
+
+def _to_pct_scale(value) -> int:
+    """
+    Normalize a confidence/strength value to 0-100 int scale.
+
+    Accepts None (→ 0), 0-1 floats (scales up), and 0-100 numerics (passes through).
+    Negative or out-of-range values clamp to [0, 100].
+    """
+    if value is None:
+        return 0
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return 0
+    if v <= 1.0:
+        v *= 100.0
+    return max(0, min(100, int(v)))
 from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2 as TechnicalAnalysisSkill
 from engine.backtest import simple_backtest
 from engine.evaluation import evaluate
@@ -256,10 +274,8 @@ class OrallexaBrain:
                 ticker=self.ticker,
                 decision={
                     "decision": decision.decision,
-                    "confidence": int(decision.confidence * 100)
-                        if decision.confidence <= 1 else int(decision.confidence),
-                    "signal_strength": int(decision.signal_strength * 100)
-                        if decision.signal_strength <= 1 else int(decision.signal_strength),
+                    "confidence": _to_pct_scale(decision.confidence),
+                    "signal_strength": _to_pct_scale(decision.signal_strength),
                 },
                 portfolio=portfolio,
                 portfolio_value=portfolio_value,
@@ -280,6 +296,12 @@ class OrallexaBrain:
                 decision.extra["portfolio_manager"] = verdict
         except Exception as e:
             logger.warning("Portfolio manager check failed for %s: %s", self.ticker, e)
+            # Leave a breadcrumb so the caller can detect the PM silently bailed
+            if hasattr(decision, "extra") and isinstance(decision.extra, dict):
+                decision.extra["portfolio_manager"] = {
+                    "approved": None,
+                    "error": str(e)[:200],
+                }
         return decision
 
     def run_scalping(self):

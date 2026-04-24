@@ -134,14 +134,18 @@ def _parse_json_list(v) -> list:
 
 
 def _yes_index(outcomes: list) -> Optional[int]:
-    """Find the index of the 'Yes' / bullish-looking outcome."""
+    """
+    Find the index of the 'Yes' / bullish-looking outcome.
+
+    Only matches explicit Yes/No-style outcomes. Binary markets with
+    non-standard labels (e.g. ["Google", "NVIDIA"]) are rejected because
+    guessing the "bullish" side requires knowing which ticker the caller
+    cares about — get that wrong and scoring flips sign.
+    """
     for i, o in enumerate(outcomes):
         s = str(o).strip().lower()
         if s in ("yes", "y", "true"):
             return i
-    # Fallback: binary market → first outcome is convention for "Yes"
-    if len(outcomes) == 2:
-        return 0
     return None
 
 
