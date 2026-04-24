@@ -242,3 +242,31 @@ Three upgrades shipped:
 - Tracks: model, tier, latency, tokens, cost, ticker, error, trace_id
 - Opt-in via `POSTHOG_API_KEY` env var; `POSTHOG_HOST` override for EU
 - Zero overhead when key unset; failures silently swallowed
+
+---
+
+## Phase 8: Trending-Repo Integrations ✅ DONE (2026-04-24)
+
+Three Tier-1 borrowings shipped, each as an independent module:
+
+**A. Polymarket prediction markets (`skills/prediction_markets.py`)**
+- Gamma API `public-search` (no auth) → active, open markets per ticker
+- Bullish/bearish sign inferred from question text keyword match
+- Volume-weighted deviation from 0.5 → conviction score
+- Wired as **8th `signal_fusion` source** at default weight 0.06
+- Especially valuable for earnings / policy / M&A event-driven tickers
+
+**B. Portfolio Manager gate (`engine/portfolio_manager.py`)**
+- Inspired by TauricResearch/TradingAgents (Apache-2.0)
+- Final-layer approval between decision engine and execution
+- Gates: min confidence, single-ticker concentration ≤20%, sector ≤40%,
+  direction streak detection, conviction-scaled position sizing
+- Pure module: caller injects portfolio + recent-decision history
+- Returns {approved, scaled_position_pct, reason, warnings, checks}
+
+**C. Langfuse LLM observability (`llm/call_logger._send_to_langfuse`)**
+- Dual-write alongside PostHog — Langfuse handles prompts/evals/datasets
+- Event type: `generation-create` with model, usage, cost, error level,
+  metadata (ticker, action, confidence)
+- Opt-in via `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`;
+  `LANGFUSE_HOST` overrides for self-hosted / EU cloud

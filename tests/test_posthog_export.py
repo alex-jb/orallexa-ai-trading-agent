@@ -15,7 +15,7 @@ import pytest
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
-from llm.call_logger import LLMCallRecord, _send_to_posthog
+from llm.call_logger import LLMCallRecord, _send_to_posthog, _send_to_langfuse
 
 
 def _sample_record(**overrides) -> LLMCallRecord:
@@ -93,3 +93,74 @@ class TestPostHogExport:
                 assert body["properties"]["$ai_is_error"] is True
                 assert body["properties"]["$ai_error"] == "timeout"
                 assert body["properties"]["$ai_http_status"] == 500
+
+
+class TestLangfuseExport:
+    def test_no_op_when_keys_missing(self):
+        rec = _sample_record()
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("LANGFUSE_PUBLIC_KEY", None)
+            os.environ.pop("LANGFUSE_SECRET_KEY", None)
+            with patch("requests.post") as mock_post:
+                _send_to_langfuse(rec)
+                mock_post.assert_not_called()
+
+    def test_no_op_when_only_one_key(self):
+        rec = _sample_record()
+        with patch.dict(os.environ, {"LANGFUSE_PUBLIC_KEY": "pk"}, clear=False):
+            os.environ.pop("LANGFUSE_SECRET_KEY", None)
+            with patch("requests.post") as mock_post:
+                _send_to_langfuse(rec)
+                mock_post.assert_not_called()
+
+    def test_posts_generation_event_with_both_keys(self):
+        rec = _sample_record()
+        with patch.dict(os.environ, {
+            "LANGFUSE_PUBLIC_KEY": "pk-lf-abc",
+            "LANGFUSE_SECRET_KEY": "sk-lf-xyz",
+        }):
+            with patch("requests.post") as mock_post:
+                _send_to_langfuse(rec)
+                assert mock_post.called
+                args, kwargs = mock_post.call_args
+                assert "langfuse.com" in args[0] or "api/public/ingestion" in args[0]
+                assert "Authorization" in kwargs["headers"]
+                assert kwargs["headers"]["Authorization"].startswith("Basic ")
+                body = kwargs["json"]
+                assert "batch" in body
+                evt = body["batch"][0]
+                assert evt["type"] == "generation-create"
+                gen = evt["body"]
+                assert gen["type"] == "GENERATION"
+                assert gen["model"] == "claude-haiku-4-5-20251001"
+                assert gen["usage"]["input"] == 120
+                assert gen["usage"]["output"] == 80
+                assert gen["usage"]["totalCost"] == 0.000416
+                assert gen["metadata"]["ticker"] == "NVDA"
+
+    def test_custom_host(self):
+        rec = _sample_record()
+        with patch.dict(os.environ, {
+            "LANGFUSE_PUBLIC_KEY": "pk",
+            "LANGFUSE_SECRET_KEY": "sk",
+            "LANGFUSE_HOST": "https://self-hosted.example.com",
+        }):
+            with patch("requests.post") as mock_post:
+                _send_to_langfuse(rec)
+                args, _ = mock_post.call_args
+                assert args[0] == "https://self-hosted.example.com/api/public/ingestion"
+
+    def test_error_record_sets_level_error(self):
+        rec = _sample_record(error="rate_limited")
+        with patch.dict(os.environ, {"LANGFUSE_PUBLIC_KEY": "pk", "LANGFUSE_SECRET_KEY": "sk"}):
+            with patch("requests.post") as mock_post:
+                _send_to_langfuse(rec)
+                gen = mock_post.call_args.kwargs["json"]["batch"][0]["body"]
+                assert gen["level"] == "ERROR"
+                assert gen["statusMessage"] == "rate_limited"
+
+    def test_swallows_network_errors(self):
+        rec = _sample_record()
+        with patch.dict(os.environ, {"LANGFUSE_PUBLIC_KEY": "pk", "LANGFUSE_SECRET_KEY": "sk"}):
+            with patch("requests.post", side_effect=RuntimeError("boom")):
+                _send_to_langfuse(rec)  # must not raise

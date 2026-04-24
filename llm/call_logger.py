@@ -77,6 +77,72 @@ def _append_record(record: LLMCallRecord) -> None:
             f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
 
 
+def _send_to_langfuse(record: LLMCallRecord) -> None:
+    """
+    Forward the LLM call record to Langfuse as a 'generation-create' event.
+    Requires LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY. No-op otherwise.
+    Never raises.
+
+    Langfuse ingestion docs: https://api.reference.langfuse.com/
+    """
+    public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
+    secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
+    if not public_key or not secret_key:
+        return
+    host = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com").rstrip("/")
+    try:
+        import base64
+        import uuid
+        import requests
+        auth = base64.b64encode(f"{public_key}:{secret_key}".encode()).decode()
+        event_id = str(uuid.uuid4())
+        observation_id = str(uuid.uuid4())
+        body = {
+            "id": observation_id,
+            "traceId": record.run_id or f"trace-{observation_id}",
+            "name": record.request_type,
+            "type": "GENERATION",
+            "startTime": record.timestamp,
+            "endTime": record.timestamp,
+            "model": record.model,
+            "modelParameters": {"tier": record.tier},
+            "usage": {
+                "input": record.input_tokens,
+                "output": record.output_tokens,
+                "total": record.input_tokens + record.output_tokens,
+                "unit": "TOKENS",
+                "inputCost": None,
+                "outputCost": None,
+                "totalCost": record.estimated_cost_usd,
+            },
+            "level": "ERROR" if record.error else "DEFAULT",
+            "statusMessage": record.error,
+            "metadata": {
+                "ticker": record.ticker,
+                "final_action": record.final_action,
+                "confidence_score": record.confidence_score,
+                "latency_ms": record.latency_ms,
+                "retry_count": record.retry_count,
+            },
+        }
+        payload = {
+            "batch": [{
+                "id": event_id,
+                "timestamp": record.timestamp,
+                "type": "generation-create",
+                "body": body,
+            }],
+        }
+        requests.post(
+            f"{host}/api/public/ingestion",
+            json=payload,
+            headers={"Authorization": f"Basic {auth}"},
+            timeout=2.0,
+        )
+    except Exception:
+        pass  # telemetry must never break main flow
+
+
 def _send_to_posthog(record: LLMCallRecord) -> None:
     """
     Forward the LLM call record to PostHog LLM Analytics.
@@ -174,6 +240,7 @@ def logged_create(
         except Exception:
             pass  # logging must never break the main flow
         _send_to_posthog(record)
+        _send_to_langfuse(record)
 
     return response, record
 
