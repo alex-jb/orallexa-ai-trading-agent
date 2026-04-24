@@ -4,13 +4,14 @@ import type { SignalFusion } from "../types";
 import { Mod } from "./atoms";
 
 const SOURCE_LABELS: Record<string, { en: string; zh: string; icon: string }> = {
-  technical:        { en: "Technical",     zh: "技术面",   icon: "📈" },
-  ml_ensemble:      { en: "ML Ensemble",   zh: "ML集成",   icon: "🤖" },
-  news_sentiment:   { en: "News",          zh: "新闻情绪",  icon: "📰" },
-  options_flow:     { en: "Options",       zh: "期权异动",  icon: "🎯" },
-  institutional:    { en: "Institutional", zh: "机构",     icon: "🏦" },
-  social_sentiment: { en: "Social",        zh: "社交情绪",  icon: "💬" },
-  earnings:         { en: "Earnings",      zh: "财报",     icon: "📅" },
+  technical:          { en: "Technical",         zh: "技术面",     icon: "📈" },
+  ml_ensemble:        { en: "ML Ensemble",       zh: "ML集成",    icon: "🤖" },
+  news_sentiment:     { en: "News",              zh: "新闻情绪",   icon: "📰" },
+  options_flow:       { en: "Options",           zh: "期权异动",   icon: "🎯" },
+  institutional:      { en: "Institutional",     zh: "机构",      icon: "🏦" },
+  social_sentiment:   { en: "Social",            zh: "社交情绪",   icon: "💬" },
+  earnings:           { en: "Earnings",          zh: "财报",      icon: "📅" },
+  prediction_markets: { en: "Prediction Markets", zh: "预测市场",   icon: "🔮" },
 };
 
 function ScoreBar({ score, weight }: { score: number; weight: number }) {
@@ -125,6 +126,82 @@ export function SignalFusionCard({ fusion, t, zh }: {
                     {(source.insider_transactions?.length || 0) > 0 && (
                       <span className="text-[8px] font-[DM_Mono] text-[#8B8E96]">
                         {source.insider_transactions!.length} insider txns
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Extra details for prediction markets */}
+                {key === "prediction_markets" && (
+                  <div className="pl-5 mt-0.5">
+                    <div className="flex gap-3 mb-1">
+                      {source.n_markets !== undefined && (
+                        <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+                          {source.n_markets} {zh ? "市场" : "markets"}
+                          {source.n_directional !== undefined && ` (${source.n_directional} ${zh ? "方向性" : "directional"})`}
+                        </span>
+                      )}
+                      {source.total_volume_24hr !== undefined && source.total_volume_24hr > 0 && (
+                        <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+                          Vol 24h: ${(source.total_volume_24hr / 1000).toFixed(1)}k
+                        </span>
+                      )}
+                    </div>
+                    {source.markets && source.markets.length > 0 && (
+                      <div className="space-y-0.5">
+                        {source.markets.slice(0, 2).map((m, i) => {
+                          const bullish = m.sign > 0;
+                          const bearish = m.sign < 0;
+                          const probColor = bullish ? "#006B3F" : bearish ? "#8B0000" : "#8B8E96";
+                          return (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-[10px] font-[DM_Mono] font-medium shrink-0" style={{ color: probColor }}>
+                                {Math.round(m.yes_price * 100)}%
+                              </span>
+                              <span className="text-[8px] font-[Lato] text-[#F5E6CA]/70 truncate" title={m.question}>
+                                {m.question}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Extra details for earnings */}
+                {key === "earnings" && source.days_until !== undefined && source.days_until !== null && (
+                  <div className="flex gap-3 mt-0.5 pl-5">
+                    <span className="text-[8px] font-[DM_Mono] text-[#D4AF37]">
+                      {source.days_until}{zh ? "天后" : "d until"}
+                    </span>
+                    {source.avg_drift_5d !== undefined && source.avg_drift_5d !== null && (
+                      <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+                        PEAD: {source.avg_drift_5d >= 0 ? "+" : ""}{source.avg_drift_5d.toFixed(1)}%
+                      </span>
+                    )}
+                    {source.positive_rate !== undefined && source.positive_rate !== null && (
+                      <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+                        {Math.round(source.positive_rate * 100)}% {zh ? "胜率" : "win"}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Extra details for social sentiment */}
+                {key === "social_sentiment" && source.n_posts !== undefined && source.n_posts > 0 && (
+                  <div className="flex gap-3 mt-0.5 pl-5">
+                    <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
+                      {source.n_posts} {zh ? "帖子" : "posts"}
+                    </span>
+                    {source.bullish !== undefined && source.bullish > 0 && (
+                      <span className="text-[8px] font-[DM_Mono] text-[#006B3F]">
+                        {source.bullish} {zh ? "看多" : "bull"}
+                      </span>
+                    )}
+                    {source.bearish !== undefined && source.bearish > 0 && (
+                      <span className="text-[8px] font-[DM_Mono] text-[#8B0000]">
+                        {source.bearish} {zh ? "看空" : "bear"}
                       </span>
                     )}
                   </div>
