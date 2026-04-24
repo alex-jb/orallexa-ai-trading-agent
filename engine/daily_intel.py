@@ -1004,6 +1004,76 @@ def _save_cache(data: dict) -> None:
 
 # ── Main Entry Point ─────────────────────────────────────────────────────────
 
+def _enrich_picks_with_regime_and_pm(picks: list[dict]) -> list[dict]:
+    """
+    For each AI pick, attach a lightweight regime proposal + Portfolio Manager
+    preview. The PM runs against an empty book (no concentration), so the
+    verdict reflects confidence/direction gates + suggested base position only.
+
+    Picks that fail regime or PM enrichment are returned with empty fields
+    rather than dropped — downstream UI should treat these as optional.
+    """
+    if not picks:
+        return picks
+    try:
+        from core.brain import OrallexaBrain
+        from engine.portfolio_manager import approve_decision
+    except Exception as e:
+        logger.debug("Regime/PM imports failed: %s", e)
+        return picks
+
+    _DIRECTION_TO_DECISION = {"bullish": "BUY", "bearish": "SELL"}
+    enriched: list[dict] = []
+    for pick in picks:
+        ticker = str(pick.get("ticker", "")).upper()
+        if not ticker:
+            enriched.append(pick)
+            continue
+
+        regime_info = {"regime": "unknown", "strategy": None, "source": "none"}
+        try:
+            brain = OrallexaBrain(ticker)
+            regime_info = brain.get_regime_strategy()
+        except Exception as e:
+            logger.debug("Regime enrichment failed for %s: %s", ticker, e)
+
+        pm_preview = None
+        try:
+            decision_label = _DIRECTION_TO_DECISION.get(
+                str(pick.get("direction", "")).lower(), "WAIT"
+            )
+            conviction_label = str(pick.get("conviction", "medium")).lower()
+            conf = {"high": 75, "medium": 60, "low": 45}.get(conviction_label, 55)
+            pm_preview = approve_decision(
+                ticker=ticker,
+                decision={
+                    "decision": decision_label,
+                    "confidence": conf,
+                    "signal_strength": conf,
+                },
+                portfolio=[],
+                portfolio_value=10_000,
+            )
+        except Exception as e:
+            logger.debug("PM enrichment failed for %s: %s", ticker, e)
+
+        enriched.append({
+            **pick,
+            "regime": {
+                "regime": regime_info.get("regime"),
+                "strategy": regime_info.get("strategy"),
+                "source": regime_info.get("source"),
+            },
+            "pm_preview": {
+                "approved": pm_preview["approved"],
+                "scaled_position_pct": pm_preview.get("scaled_position_pct"),
+                "reason": pm_preview.get("reason"),
+                "warnings": pm_preview.get("warnings", []),
+            } if pm_preview else None,
+        })
+    return enriched
+
+
 def _generate_earnings_watchlist(
     gainers: list[dict],
     losers: list[dict],
@@ -1081,6 +1151,8 @@ def generate_daily_intel(force: bool = False) -> dict:
 
     # Step 5: AI picks (Sonnet)
     picks = _generate_picks(gainers, losers, spikes, headlines)
+    # Step 5b: enrich each pick with regime + PM preview (fails gracefully)
+    picks = _enrich_picks_with_regime_and_pm(picks)
 
     # Step 6: Social content — thread + per-section posts (Sonnet)
     social = _generate_social_posts(

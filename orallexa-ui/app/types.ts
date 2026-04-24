@@ -10,7 +10,8 @@ export interface Profile { style: string; win_rate: string; today: string; win_s
 export interface JournalEntry { ticker: string; mode: string; decision: string; timestamp: string; }
 export interface MarketSummary { close?: number; change_pct?: number; rsi?: number; volume_ratio?: number; }
 export interface BreakingSignal { type: string; severity: string; ticker: string; timestamp: string; message: string; direction?: string; shift_pct?: number; prev_decision?: string; new_decision?: string; }
-export interface WatchlistItem { ticker: string; price: number | null; change_pct: number | null; decision: string; confidence: number; signal_strength: number; risk_level: string; probabilities: { up: number; neutral: number; down: number }; recommendation: string; error: string | null; }
+export interface WatchlistFusion { conviction: number; direction: "BULLISH" | "BEARISH" | "NEUTRAL"; confidence: number; n_sources: number; top_sources: { name: string; score: number }[]; detail: string; }
+export interface WatchlistItem { ticker: string; price: number | null; change_pct: number | null; decision: string; confidence: number; signal_strength: number; risk_level: string; probabilities: { up: number; neutral: number; down: number }; recommendation: string; error: string | null; fusion?: WatchlistFusion; fusion_error?: string; }
 export interface SocialPosts { movers: string; sectors: string; picks: string; brief: string; volume: string; }
 export interface MacroIndicator { label: string; value: string; change: number; direction: "up" | "down" | "flat"; }
 export interface EconEvent { date: string; time: string; event: string; impact: "high" | "medium" | "low"; forecast?: string; previous?: string; }
@@ -36,7 +37,7 @@ export interface SwarmResult { ticker: string; convergence: string; conviction: 
 export interface BacktestResult { strategy: string; total_return: number; sharpe: number; max_drawdown: number; win_rate: number; trades: number; profit_factor?: number; }
 export interface BacktestSummary { ticker: string; period: string; results: BacktestResult[]; best_strategy: string; }
 export interface Playbook { tone_en: string; tone_zh: string; environment: { risk_level: string; index_bias: string; index_bias_zh: string; sentiment: string; sentiment_zh: string; position_advice: string; position_advice_zh: string }; main_theme_en: string; main_theme_zh: string; secondary_themes_en: string[]; secondary_themes_zh: string[]; biggest_risk_en: string; biggest_risk_zh: string; biggest_opportunity_en: string; biggest_opportunity_zh: string; }
-export interface DailyIntelData { date: string; generated_at: string; market_mood: string; summary: string; playbook?: Playbook; gainers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; losers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; volume_spikes?: { ticker: string; price: number; change_pct: number; volume_ratio: number }[]; sectors: { sector: string; etf: string; change_pct: number }[]; headlines: { title: string; ticker: string; sentiment: string; score: number; url: string; provider: string }[]; ai_picks: { ticker: string; direction: string; reason: string; catalyst: string; target_price?: number; stop_loss?: number; timeframe?: string; conviction?: string }[]; orallexa_thread?: string[]; social_posts?: SocialPosts; macro?: MacroIndicator[]; econ_calendar?: EconEvent[]; fear_greed?: FearGreedData; breadth?: MarketBreadth; options_flow?: OptionsFlow[]; earnings_watchlist?: EarningsEvent[]; }
+export interface DailyIntelData { date: string; generated_at: string; market_mood: string; summary: string; playbook?: Playbook; gainers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; losers: { ticker: string; price: number; change_pct: number; volume: number; volume_ratio?: number }[]; volume_spikes?: { ticker: string; price: number; change_pct: number; volume_ratio: number }[]; sectors: { sector: string; etf: string; change_pct: number }[]; headlines: { title: string; ticker: string; sentiment: string; score: number; url: string; provider: string }[]; ai_picks: { ticker: string; direction: string; reason: string; catalyst: string; target_price?: number; stop_loss?: number; timeframe?: string; conviction?: string; regime?: { regime: string; strategy: string | null; source: string }; pm_preview?: { approved: boolean | null; scaled_position_pct?: number; reason?: string; warnings?: string[] } | null }[]; orallexa_thread?: string[]; social_posts?: SocialPosts; macro?: MacroIndicator[]; econ_calendar?: EconEvent[]; fear_greed?: FearGreedData; breadth?: MarketBreadth; options_flow?: OptionsFlow[]; earnings_watchlist?: EarningsEvent[]; }
 
 /* ── i18n ──────────────────────────────────────────────────────────────── */
 export const T: Record<string, Record<string, string>> = {
@@ -71,6 +72,7 @@ export const T: Record<string, Record<string, string>> = {
     earningsWatch: "Earnings Watch", peadDrift: "PEAD Drift", eps: "EPS", daysLabel: "days", positiveRateLabel: "win rate",
     regimeStrategy: "Regime & Strategy",
     portfolioManager: "Portfolio Manager", pmApproved: "Approved", pmRejected: "Rejected", pmPosition: "Position", pmWarnings: "Warnings",
+    scanFusion: "8-src fusion", scanFusionHint: "pulls Polymarket + Reddit — slower",
     share: "Share", shareX: "Share on X", shareLinkedIn: "Share on LinkedIn", copyLink: "Copy Link", copied: "Copied",
     fearLabel: "Fear", greedLabel: "Greed", unchanged: "unchanged", volumeLabel: "Volume",
     callType: "CALL", putType: "PUT", unusualActivity: "unusual activity",
@@ -131,6 +133,7 @@ export const T: Record<string, Record<string, string>> = {
     earningsWatch: "财报观察", peadDrift: "财报后漂移", eps: "每股收益", daysLabel: "天", positiveRateLabel: "胜率",
     regimeStrategy: "行情与策略",
     portfolioManager: "组合管理", pmApproved: "已批准", pmRejected: "已拒绝", pmPosition: "仓位", pmWarnings: "警告",
+    scanFusion: "8 源融合", scanFusionHint: "拉 Polymarket + Reddit — 较慢",
     share: "分享", shareX: "分享到 X", shareLinkedIn: "分享到 LinkedIn", copyLink: "复制链接", copied: "已复制",
     fearLabel: "恐惧", greedLabel: "贪婪", unchanged: "不变", volumeLabel: "成交量",
     callType: "看涨", putType: "看跌", unusualActivity: "异动活动",

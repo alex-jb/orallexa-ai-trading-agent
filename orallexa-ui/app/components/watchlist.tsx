@@ -54,6 +54,37 @@ export function WatchlistGrid({ items, onSelect }: { items: WatchlistItem[]; onS
                   <span className="text-[8px] font-[DM_Mono] text-[#8B8E96]">{item.confidence.toFixed(0)}%</span>
                 </div>
               </div>
+              {/* 8-source fusion overlay (when use_fusion=true was sent) */}
+              {item.fusion && (
+                <div className="px-3 pb-2 pt-1 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[7px] font-[Josefin_Sans] uppercase tracking-[0.14em] text-[#8B8E96]">
+                      8-src
+                    </span>
+                    <span
+                      className="text-[10px] font-[DM_Mono] font-medium"
+                      style={{
+                        color: item.fusion.conviction > 15 ? "#006B3F" :
+                               item.fusion.conviction < -15 ? "#8B0000" : "#D4AF37",
+                      }}
+                    >
+                      {item.fusion.conviction >= 0 ? "+" : ""}{item.fusion.conviction}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {item.fusion.top_sources.slice(0, 3).map((s, i) => (
+                      <span key={i}
+                        className="text-[7px] font-[DM_Mono] px-1 py-[1px]"
+                        style={{
+                          background: "rgba(212,175,55,0.05)",
+                          color: s.score > 0 ? "#006B3F" : s.score < 0 ? "#8B0000" : "#8B8E96",
+                        }}>
+                        {s.name.slice(0, 6)} {s.score >= 0 ? "+" : ""}{s.score}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {item.error && <div className="px-3 pb-2 text-[8px] text-[#8B0000]/60 truncate">{item.error}</div>}
             </button>
           );

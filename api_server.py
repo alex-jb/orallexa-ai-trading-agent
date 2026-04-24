@@ -1312,11 +1312,70 @@ async def alpaca_execute(
     stop_loss: float = Form(0.0),
     take_profit: float = Form(0.0),
     position_pct: float = Form(5.0),
+    portfolio_json: str = Form(""),
+    portfolio_value: float = Form(0.0),
+    skip_pm: bool = Form(False),
 ):
-    """Execute a signal as an Alpaca paper order."""
+    """
+    Execute a signal as an Alpaca paper order.
+
+    When portfolio_json (list of {ticker, value_usd, sector?}) +
+    portfolio_value are supplied, the Portfolio Manager gate runs
+    BEFORE the order is placed. PM rejection → 409 Conflict with the
+    rejection reason. PM approval overrides `position_pct` with the
+    scaled value so concentration limits are honored.
+
+    Pass skip_pm=true to bypass (e.g. manual override), but this is
+    dangerous and only recommended for test/debug flows.
+    """
+    from fastapi.responses import JSONResponse
+
+    pm_verdict = None
+    if portfolio_json and portfolio_value > 0 and not skip_pm:
+        try:
+            from engine.portfolio_manager import Position, approve_decision
+            raw = json.loads(portfolio_json)
+            portfolio = [
+                Position(
+                    ticker=str(p.get("ticker", "")).upper(),
+                    value_usd=float(p.get("value_usd", 0) or 0),
+                    sector=p.get("sector") or None,
+                )
+                for p in raw if isinstance(raw, list) and p.get("ticker")
+            ] if isinstance(raw, list) else []
+
+            pm_verdict = approve_decision(
+                ticker=ticker.upper(),
+                decision={
+                    "decision": decision.upper(),
+                    "confidence": int(confidence),
+                    "signal_strength": int(confidence),  # reuse conf as strength proxy
+                },
+                portfolio=portfolio,
+                portfolio_value=portfolio_value,
+            )
+            if not pm_verdict["approved"]:
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "executed": False,
+                        "reason": "rejected_by_portfolio_manager",
+                        "portfolio_manager": pm_verdict,
+                    },
+                )
+            # PM-approved — use its scaled position size (can be <= user request)
+            scaled = float(pm_verdict.get("scaled_position_pct") or position_pct)
+            if scaled > 0:
+                position_pct = min(position_pct, scaled)
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            # Malformed PM inputs → log and proceed without gating rather
+            # than blocking a valid trade on a caller payload bug
+            from core.logger import get_logger
+            get_logger("api").warning("PM gate skipped (bad input): %s", e)
+
     from bot.alpaca_executor import AlpacaExecutor
     executor = AlpacaExecutor()
-    return executor.execute_signal(
+    result = executor.execute_signal(
         ticker=ticker.upper(),
         decision=decision.upper(),
         confidence=confidence,
@@ -1325,6 +1384,9 @@ async def alpaca_execute(
         take_profit=take_profit,
         position_pct=position_pct,
     )
+    if pm_verdict:
+        result["portfolio_manager"] = pm_verdict
+    return result
 
 
 @app.post("/api/alpaca/close/{ticker}", dependencies=[Depends(_require_api_key)])

@@ -58,6 +58,7 @@ export default function Home() {
   });
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [watchlistUseFusion, setWatchlistUseFusion] = useState(false);
   const [useClaude, setUseClaude] = useState(false);
   const searchParams = useSearchParams();
   const initialView = useMemo(() => {
@@ -420,6 +421,7 @@ export default function Home() {
       }
       const form = new FormData();
       form.append("tickers", watchlistInput);
+      if (watchlistUseFusion) form.append("use_fusion", "true");
       const res = await fetch(`${API}/api/watchlist-scan`, { method: "POST", body: form });
       if (!res.ok) throw new Error("Watchlist scan failed");
       const data = await res.json();
@@ -602,6 +604,21 @@ export default function Home() {
             style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", color: "#C5A255" }}>
             {watchlistLoading ? t.scanningAll : t.scanAll}
           </button>
+          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={watchlistUseFusion}
+              onChange={(e) => setWatchlistUseFusion(e.target.checked)}
+              disabled={watchlistLoading}
+              className="accent-[#D4AF37]"
+            />
+            <span className="text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] text-[#C5A255]">
+              {t.scanFusion || "8-src fusion"}
+            </span>
+            <span className="text-[8px] font-[Lato] text-[#6B6E76]">
+              ({t.scanFusionHint || "slower"})
+            </span>
+          </label>
         </Mod>
 
         <div className="flex-1" />

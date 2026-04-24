@@ -713,6 +713,44 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
                   )}
                 </div>
               )}
+              {/* Regime + PM enrichment (Phase 8) */}
+              {(p.regime || p.pm_preview) && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {p.regime && p.regime.regime && p.regime.regime !== "unknown" && (
+                    <span
+                      className="text-[7px] font-[Josefin_Sans] font-bold uppercase tracking-[0.12em] px-1.5 py-0.5"
+                      style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.20)", color: "#D4AF37" }}
+                    >
+                      {p.regime.regime}{p.regime.strategy ? ` → ${p.regime.strategy.replace("_", " ")}` : ""}
+                    </span>
+                  )}
+                  {p.pm_preview && p.pm_preview.approved && p.pm_preview.scaled_position_pct !== undefined && (
+                    <span
+                      className="text-[7px] font-[DM_Mono] px-1.5 py-0.5"
+                      style={{ background: "rgba(0,107,63,0.10)", border: "1px solid rgba(0,107,63,0.25)", color: "#006B3F" }}
+                    >
+                      PM: {p.pm_preview.scaled_position_pct.toFixed(1)}%
+                    </span>
+                  )}
+                  {p.pm_preview && p.pm_preview.approved === false && (
+                    <span
+                      className="text-[7px] font-[Josefin_Sans] font-bold uppercase tracking-[0.12em] px-1.5 py-0.5"
+                      style={{ background: "rgba(139,0,0,0.10)", border: "1px solid rgba(139,0,0,0.30)", color: "#8B0000" }}
+                    >
+                      PM blocked
+                    </span>
+                  )}
+                  {p.pm_preview && p.pm_preview.warnings && p.pm_preview.warnings.length > 0 && (
+                    <span
+                      className="text-[7px] font-[DM_Mono] px-1.5 py-0.5"
+                      style={{ background: "rgba(212,175,55,0.06)", color: "#C5A255" }}
+                      title={p.pm_preview.warnings.join(" · ")}
+                    >
+                      ⚠ {p.pm_preview.warnings.length}
+                    </span>
+                  )}
+                </div>
+              )}
             </button>
             );
           })}

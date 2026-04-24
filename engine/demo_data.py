@@ -373,10 +373,18 @@ def mock_daily_intel() -> dict:
         {"title": "Options Market Signals Unusual Bullish Positioning in Semis", "ticker": "SOXX", "sentiment": "bullish", "score": 0.30, "url": "", "provider": "Benzinga"},
     ]
     ai_picks = [
-        {"ticker": "NVDA", "direction": "bullish", "reason": "AI capex cycle accelerating — datacenter backlog through 2027", "catalyst": "Earnings report next week"},
-        {"ticker": "PLTR", "direction": "bullish", "reason": "Government AI spending inflection + commercial momentum", "catalyst": "$500M contract confirmation"},
-        {"ticker": "META", "direction": "bearish", "reason": "Antitrust overhang caps upside — rotation into pure AI plays", "catalyst": "Court hearing date announcement"},
-        {"ticker": "COIN", "direction": "bullish", "reason": "BTC $90K breakout drives exchange volume surge", "catalyst": "ETF flow data release"},
+        {"ticker": "NVDA", "direction": "bullish", "reason": "AI capex cycle accelerating — datacenter backlog through 2027", "catalyst": "Earnings report next week",
+         "regime": {"regime": "trending", "strategy": "trend_momentum", "source": "heuristic"},
+         "pm_preview": {"approved": True, "scaled_position_pct": 5.6, "reason": "Approved BUY NVDA at 5.6% (conf 75, strength 75)", "warnings": []}},
+        {"ticker": "PLTR", "direction": "bullish", "reason": "Government AI spending inflection + commercial momentum", "catalyst": "$500M contract confirmation",
+         "regime": {"regime": "trending", "strategy": "trend_momentum", "source": "heuristic"},
+         "pm_preview": {"approved": True, "scaled_position_pct": 4.2, "reason": "Approved BUY PLTR at 4.2% (conf 60, strength 60)", "warnings": []}},
+        {"ticker": "META", "direction": "bearish", "reason": "Antitrust overhang caps upside — rotation into pure AI plays", "catalyst": "Court hearing date announcement",
+         "regime": {"regime": "ranging", "strategy": "rsi_reversal", "source": "heuristic"},
+         "pm_preview": {"approved": True, "scaled_position_pct": 3.5, "reason": "Approved SELL META at 3.5% (conf 60, strength 60)", "warnings": []}},
+        {"ticker": "COIN", "direction": "bullish", "reason": "BTC $90K breakout drives exchange volume surge", "catalyst": "ETF flow data release",
+         "regime": {"regime": "volatile", "strategy": "dual_thrust", "source": "heuristic"},
+         "pm_preview": {"approved": True, "scaled_position_pct": 3.0, "reason": "Approved BUY COIN at 3.0% (conf 60, strength 60)", "warnings": ["Volatile regime — consider widened stop"]}},
     ]
     thread = [
         f"🚨 RISK-ON — {today}\n\n$NVDA ripping +5.2% on datacenter demand. Semis leading everything. Money pouring into AI. 👇",
