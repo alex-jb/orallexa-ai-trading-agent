@@ -671,6 +671,14 @@ class TestSignalFusion:
         assert result["n_sources"] >= 1
 
     @patch(
+        "engine.signal_fusion._fetch_earnings_signal",
+        return_value={"available": False, "score": 0},
+    )
+    @patch(
+        "engine.signal_fusion._fetch_social_signal",
+        return_value={"available": False, "score": 0},
+    )
+    @patch(
         "engine.signal_fusion._fetch_options_flow",
         return_value={"available": False},
     )
@@ -678,13 +686,21 @@ class TestSignalFusion:
         "engine.signal_fusion._fetch_institutional_signals",
         return_value={"available": False},
     )
-    def test_fuse_signals_no_sources(self, mock_inst, mock_opt):
+    def test_fuse_signals_no_sources(self, mock_inst, mock_opt, mock_social, mock_earnings):
         from engine.signal_fusion import fuse_signals
 
         result = fuse_signals("NVDA")
         assert result["conviction"] == 0
         assert result["direction"] == "NEUTRAL"
 
+    @patch(
+        "engine.signal_fusion._fetch_earnings_signal",
+        return_value={"available": False, "score": 0},
+    )
+    @patch(
+        "engine.signal_fusion._fetch_social_signal",
+        return_value={"available": False, "score": 0},
+    )
     @patch(
         "engine.signal_fusion._fetch_options_flow",
         return_value={"available": True, "score": 60},
@@ -693,7 +709,9 @@ class TestSignalFusion:
         "engine.signal_fusion._fetch_institutional_signals",
         return_value={"available": True, "score": 40},
     )
-    def test_fuse_signals_all_sources(self, mock_inst, mock_opt):
+    def test_fuse_signals_all_sources(
+        self, mock_inst, mock_opt, mock_social, mock_earnings
+    ):
         from engine.signal_fusion import fuse_signals
 
         summary = {"rsi": 30}
@@ -714,6 +732,14 @@ class TestSignalFusion:
         assert result["direction"] == "BULLISH"
 
     @patch(
+        "engine.signal_fusion._fetch_earnings_signal",
+        return_value={"available": False, "score": 0},
+    )
+    @patch(
+        "engine.signal_fusion._fetch_social_signal",
+        return_value={"available": False, "score": 0},
+    )
+    @patch(
         "engine.signal_fusion._fetch_options_flow",
         return_value={"available": False},
     )
@@ -721,7 +747,9 @@ class TestSignalFusion:
         "engine.signal_fusion._fetch_institutional_signals",
         return_value={"available": False},
     )
-    def test_fuse_signals_custom_weights(self, mock_inst, mock_opt):
+    def test_fuse_signals_custom_weights(
+        self, mock_inst, mock_opt, mock_social, mock_earnings
+    ):
         from engine.signal_fusion import fuse_signals
 
         custom = {
@@ -730,6 +758,8 @@ class TestSignalFusion:
             "news_sentiment": 0,
             "options_flow": 0,
             "institutional": 0,
+            "social_sentiment": 0,
+            "earnings": 0,
         }
         result = fuse_signals("NVDA", summary={"rsi": 25}, weights=custom)
         assert result["n_sources"] >= 1
