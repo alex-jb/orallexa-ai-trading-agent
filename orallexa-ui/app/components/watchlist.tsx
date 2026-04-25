@@ -54,6 +54,30 @@ export function WatchlistGrid({ items, onSelect }: { items: WatchlistItem[]; onS
                   <span className="text-[8px] font-[DM_Mono] text-[#8B8E96]">{item.confidence.toFixed(0)}%</span>
                 </div>
               </div>
+              {/* PM preview (when portfolio supplied) */}
+              {item.pm_preview && (
+                <div className="px-3 pb-1 pt-1 flex items-center gap-2"
+                  style={{ borderTop: "1px dashed rgba(212,175,55,0.10)" }}>
+                  {item.pm_preview.approved && item.pm_preview.scaled_position_pct !== undefined && (
+                    <span className="text-[8px] font-[DM_Mono] px-1 py-0.5"
+                      style={{ background: "rgba(0,107,63,0.10)", color: "#006B3F" }}>
+                      PM ✓ {item.pm_preview.scaled_position_pct.toFixed(1)}%
+                    </span>
+                  )}
+                  {item.pm_preview.approved === false && (
+                    <span className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.12em] font-bold px-1 py-0.5"
+                      style={{ background: "rgba(139,0,0,0.10)", color: "#8B0000" }}>
+                      PM blocked
+                    </span>
+                  )}
+                  {item.pm_preview.warnings && item.pm_preview.warnings.length > 0 && (
+                    <span className="text-[8px] font-[DM_Mono] text-[#C5A255]"
+                      title={item.pm_preview.warnings.join(" · ")}>
+                      ⚠ {item.pm_preview.warnings.length}
+                    </span>
+                  )}
+                </div>
+              )}
               {/* 8-source fusion overlay (when use_fusion=true was sent) */}
               {item.fusion && (
                 <div className="px-3 pb-2 pt-1 border-t" style={{ borderColor: "rgba(212,175,55,0.1)" }}>

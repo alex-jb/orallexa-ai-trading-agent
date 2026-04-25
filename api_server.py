@@ -810,6 +810,8 @@ async def layered_memory_stats(role: str, ticker: str):
 async def watchlist_scan(
     tickers: str = Form("NVDA,AAPL,TSLA"),
     use_fusion: bool = Form(False),
+    portfolio_json: str = Form(""),
+    portfolio_value: float = Form(0.0),
 ):
     """
     Fast parallel scan of multiple tickers — technical signals only.
@@ -818,6 +820,10 @@ async def watchlist_scan(
     signal_fusion (tech + ML + news + options + institutional + social +
     earnings + prediction markets). Network-heavy (~10-30s per ticker),
     so parallelism is capped at 3 and the list at 8 tickers.
+
+    When portfolio_json + portfolio_value are supplied, the Portfolio
+    Manager runs against each scan result so the response includes
+    pre-approved position sizing per ticker (pm_preview field).
     """
     if DEMO_MODE:
         from engine.demo_data import mock_watchlist_scan
@@ -831,6 +837,24 @@ async def watchlist_scan(
     # Tighter cap when fusion is enabled — each call hits Polymarket/Reddit/etc
     max_tickers = 8 if use_fusion else 10
     ticker_list = ticker_list[:max_tickers]
+
+    # Parse portfolio once for PM gating; malformed payload disables PM silently
+    portfolio = None
+    if portfolio_json and portfolio_value > 0:
+        try:
+            from engine.portfolio_manager import Position
+            raw = json.loads(portfolio_json)
+            if isinstance(raw, list):
+                portfolio = [
+                    Position(
+                        ticker=str(p.get("ticker", "")).upper(),
+                        value_usd=float(p.get("value_usd", 0) or 0),
+                        sector=p.get("sector") or None,
+                    )
+                    for p in raw if p.get("ticker")
+                ]
+        except (json.JSONDecodeError, ValueError, TypeError):
+            portfolio = None
 
     def scan_one(tk: str) -> dict:
         out = {"ticker": tk, "price": None, "change_pct": None, "decision": "WAIT",
@@ -862,6 +886,29 @@ async def watchlist_scan(
                 "probabilities": d["probabilities"],
                 "recommendation": d["recommendation"],
             })
+
+            # Optional: PM preview against the supplied portfolio
+            if portfolio is not None:
+                try:
+                    from engine.portfolio_manager import approve_decision
+                    pm_v = approve_decision(
+                        ticker=tk,
+                        decision={
+                            "decision": out["decision"],
+                            "confidence": int(out["confidence"]),
+                            "signal_strength": int(out["signal_strength"]),
+                        },
+                        portfolio=portfolio,
+                        portfolio_value=portfolio_value,
+                    )
+                    out["pm_preview"] = {
+                        "approved": pm_v["approved"],
+                        "scaled_position_pct": pm_v.get("scaled_position_pct"),
+                        "reason": pm_v.get("reason"),
+                        "warnings": pm_v.get("warnings", []),
+                    }
+                except Exception as pe:
+                    out["pm_error"] = str(pe)[:100]
 
             # Optional: 8-source fusion overlay
             if use_fusion:
@@ -914,7 +961,11 @@ async def watchlist_scan(
         return base
 
     results.sort(key=sort_key, reverse=True)
-    return {"tickers": results, "fusion_enabled": use_fusion}
+    return {
+        "tickers": results,
+        "fusion_enabled": use_fusion,
+        "pm_enabled": portfolio is not None,
+    }
 
 
 @app.get("/api/live/{ticker}")
