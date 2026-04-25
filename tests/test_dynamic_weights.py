@@ -242,6 +242,61 @@ class TestFusionIntegration:
             r = fuse_signals(
                 "NVDA",
                 summary={"rsi": 55, "close": 100, "ma20": 98, "ma50": 95},
+                record_for_accuracy=False,
                 # use_dynamic_weights default False
             )
         assert "weight_adjustment" not in r
+
+
+# ── Auto-record into the ledger ────────────────────────────────────────────
+
+
+class TestAutoRecord:
+    def test_fuse_signals_writes_scores_to_ledger(self, tmp_path):
+        """With record_for_accuracy=True (default), every fuse_signals call
+        appends one record per available source to the SourceAccuracy ledger."""
+        from engine.signal_fusion import fuse_signals
+        sa_path = tmp_path / "sa.jsonl"
+
+        with patch("engine.source_accuracy._DEFAULT_PATH", sa_path), \
+             patch("engine.signal_fusion._fetch_options_flow",
+                   return_value={"available": True, "score": 35}), \
+             patch("engine.signal_fusion._fetch_institutional_signals",
+                   return_value={"available": False}), \
+             patch("engine.signal_fusion._fetch_social_signal",
+                   return_value={"available": False, "score": 0}), \
+             patch("engine.signal_fusion._fetch_earnings_signal",
+                   return_value={"available": False, "score": 0}), \
+             patch("engine.signal_fusion._fetch_prediction_markets_signal",
+                   return_value={"available": False, "score": 0}):
+            fuse_signals(
+                "NVDA",
+                summary={"rsi": 55, "close": 100, "ma20": 98, "ma50": 95},
+            )
+
+        assert sa_path.exists()
+        line = sa_path.read_text(encoding="utf-8").strip()
+        rec = json.loads(line)
+        assert rec["ticker"] == "NVDA"
+        assert "technical" in rec["scores"]
+        assert "options_flow" in rec["scores"]
+        # Unavailable sources should NOT be recorded
+        assert "social_sentiment" not in rec["scores"]
+        assert rec["correct"] is None  # not yet evaluated
+
+    def test_record_for_accuracy_false_skips_ledger(self, tmp_path):
+        from engine.signal_fusion import fuse_signals
+        sa_path = tmp_path / "sa.jsonl"
+
+        with patch("engine.source_accuracy._DEFAULT_PATH", sa_path), \
+             patch("engine.signal_fusion._fetch_options_flow", return_value={"available": False}), \
+             patch("engine.signal_fusion._fetch_institutional_signals", return_value={"available": False}), \
+             patch("engine.signal_fusion._fetch_social_signal", return_value={"available": False, "score": 0}), \
+             patch("engine.signal_fusion._fetch_earnings_signal", return_value={"available": False, "score": 0}), \
+             patch("engine.signal_fusion._fetch_prediction_markets_signal", return_value={"available": False, "score": 0}):
+            fuse_signals(
+                "NVDA",
+                summary={"rsi": 55, "close": 100, "ma20": 98, "ma50": 95},
+                record_for_accuracy=False,
+            )
+        assert not sa_path.exists()

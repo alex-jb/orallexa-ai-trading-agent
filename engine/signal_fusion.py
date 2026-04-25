@@ -481,6 +481,7 @@ def fuse_signals(
     news_items: list = None,
     weights: dict = None,
     use_dynamic_weights: bool = False,
+    record_for_accuracy: bool = True,
 ) -> dict:
     """
     Fuse all signal sources into a unified conviction score.
@@ -676,4 +677,21 @@ def fuse_signals(
     }
     if weight_explanation is not None:
         out["weight_adjustment"] = weight_explanation
+
+    # Append per-source scores to the accuracy ledger so update_outcomes can
+    # backfill correctness once the forward window has elapsed. Skipped if
+    # nothing scored or the ledger is unavailable.
+    if record_for_accuracy:
+        try:
+            score_snapshot = {
+                name: int(s["score"])
+                for name, s in sources.items()
+                if s.get("available") and isinstance(s.get("score"), (int, float))
+            }
+            if score_snapshot:
+                from engine.source_accuracy import SourceAccuracy
+                SourceAccuracy().record_scores(ticker, score_snapshot)
+        except Exception as e:
+            logger.debug("Source accuracy record failed for %s: %s", ticker, e)
+
     return out
