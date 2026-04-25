@@ -480,6 +480,7 @@ def fuse_signals(
     ml_result: dict = None,
     news_items: list = None,
     weights: dict = None,
+    use_dynamic_weights: bool = False,
 ) -> dict:
     """
     Fuse all signal sources into a unified conviction score.
@@ -503,6 +504,24 @@ def fuse_signals(
     """
     if weights is None:
         weights = dict(DEFAULT_WEIGHTS)
+
+    # Dynamic re-weighting from rolling per-source accuracy. Falls back
+    # to the supplied weights silently if the ledger is empty or import
+    # fails (so this stays a free upgrade — never blocks the call path).
+    weight_explanation = None
+    if use_dynamic_weights:
+        try:
+            from engine.source_accuracy import SourceAccuracy
+            from engine.dynamic_weights import (
+                compute_dynamic_weights, explain_weight_adjustment,
+            )
+            sa = SourceAccuracy()
+            rolling = sa.get_rolling_accuracy()
+            if rolling:
+                weight_explanation = explain_weight_adjustment(weights, rolling)
+                weights = compute_dynamic_weights(weights, rolling)
+        except Exception as e:
+            logger.debug("Dynamic weights computation failed for %s: %s", ticker, e)
 
     sources = {}
 
@@ -647,7 +666,7 @@ def fuse_signals(
         dir_word = "bullish" if s["score"] > 10 else "bearish" if s["score"] < -10 else "neutral"
         detail_parts.append(f"{label}: {dir_word} ({s['score']:+d})")
 
-    return {
+    out = {
         "conviction": conviction,
         "direction": direction,
         "confidence": min(100, confidence),
@@ -655,3 +674,6 @@ def fuse_signals(
         "sources": sources,
         "fusion_detail": " | ".join(detail_parts),
     }
+    if weight_explanation is not None:
+        out["weight_adjustment"] = weight_explanation
+    return out
