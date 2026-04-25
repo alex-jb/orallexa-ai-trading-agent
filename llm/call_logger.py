@@ -33,16 +33,30 @@ _lock = threading.Lock()
 current_run_id: Optional[str] = None
 
 # ── Pricing (USD per token) ──────────────────────────────────────────────
+# Note on Opus 4.7: API price is unchanged from 4.6 ($5/$25 per 1M tokens),
+# but the new tokenizer uses ~35% more tokens for the same fixed text.
+# Effective cost is therefore higher — track via estimated_cost_usd × 1.35
+# for budget projections.
 PRICING = {
-    "claude-haiku-4-5-20251001": {"input": 0.80 / 1_000_000, "output": 4.00 / 1_000_000},
-    "claude-sonnet-4-5":        {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
-    "claude-sonnet-4-6":        {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
+    "claude-haiku-4-5-20251001": {"input": 0.80 / 1_000_000, "output":  4.00 / 1_000_000},
+    "claude-sonnet-4-5":         {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
+    "claude-sonnet-4-6":         {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
+    "claude-opus-4-7":           {"input": 5.00 / 1_000_000, "output": 25.00 / 1_000_000},
+    "claude-opus-4-6":           {"input": 5.00 / 1_000_000, "output": 25.00 / 1_000_000},
 }
+
+# Models that use the new (Opus 4.7+) tokenizer. Approximate inflation
+# vs the previous tokenizer is +35% per Anthropic release notes.
+NEW_TOKENIZER_MODELS = frozenset({"claude-opus-4-7"})
+NEW_TOKENIZER_INFLATION = 1.35
 
 
 def get_tier(model: str) -> str:
-    if "haiku" in model.lower():
+    name = model.lower()
+    if "haiku" in name:
         return "FAST"
+    if "opus" in name:
+        return "OPUS"
     return "DEEP"
 
 
@@ -194,15 +208,24 @@ def logged_create(
     temperature: Optional[float] = None,
     final_action: Optional[str] = None,
     confidence_score: Optional[float] = None,
+    effort: Optional[str] = None,
 ):
     """
     Drop-in wrapper for client.messages.create() with logging.
+
+    `effort` controls the new Opus 4.7 reasoning depth knob:
+    "low" / "medium" / "high" / "xhigh" / "max". Passed to the SDK
+    via `output_config={"effort": ...}` when set; older SDKs that
+    don't recognize the kwarg silently drop it (we catch the
+    TypeError and retry without).
 
     Returns (response, LLMCallRecord).
     """
     kwargs = {"model": model, "max_tokens": max_tokens, "messages": messages}
     if temperature is not None:
         kwargs["temperature"] = temperature
+    if effort:
+        kwargs["output_config"] = {"effort": effort}
 
     t0 = time.monotonic()
     error_msg = None
@@ -211,7 +234,15 @@ def logged_create(
     retry_count = 0
 
     try:
-        response = client.messages.create(**kwargs)
+        try:
+            response = client.messages.create(**kwargs)
+        except TypeError as te:
+            # Older anthropic SDK doesn't accept output_config — retry without
+            if "output_config" in kwargs and "output_config" in str(te):
+                kwargs.pop("output_config", None)
+                response = client.messages.create(**kwargs)
+            else:
+                raise
         input_tokens = getattr(response.usage, "input_tokens", 0)
         output_tokens = getattr(response.usage, "output_tokens", 0)
     except Exception as e:

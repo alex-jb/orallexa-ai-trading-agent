@@ -157,9 +157,12 @@ Rules:
 - Include ALL tickers from the positions list."""
 
     try:
+        # What-if scenarios benefit from Opus 4.7's deeper reasoning over
+        # historical analogs and second-order effects. xhigh effort.
         response, _ = logged_create(
             client, request_type="scenario_simulation",
-            model=cc.DEEP_MODEL, max_tokens=1200, temperature=0.3,
+            model=cc.OPUS_MODEL, max_tokens=1200, temperature=0.3,
+            effort=cc.DEEP_EFFORT,
             messages=[{"role": "user", "content": prompt}],
         )
         text = _extract_text(response).strip()

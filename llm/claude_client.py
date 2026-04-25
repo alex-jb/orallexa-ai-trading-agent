@@ -1,11 +1,19 @@
 import json
 from anthropic import Anthropic
 
-# ── Dual-tier model routing ───────────────────────────────────────────────
+# ── Tier model routing ─────────────────────────────────────────────────────
 # FAST_MODEL: cheap & fast — structured JSON, quick summaries, parameter gen
 # DEEP_MODEL: quality reasoning — strategy reflection, deep analysis, decisions
+# OPUS_MODEL: highest reasoning — multi-agent debates, judge calls (1M ctx,
+#             xhigh effort, task budgets). Released 2026-04-16.
 FAST_MODEL = "claude-haiku-4-5-20251001"
 DEEP_MODEL = "claude-sonnet-4-6"
+OPUS_MODEL = "claude-opus-4-7"
+
+# Default reasoning effort for deep paths (Bull/Bear debate, judge,
+# perspective panel synthesis). xhigh sits between high and max — the
+# Opus 4.7 release default for Claude Code subscriber plans.
+DEEP_EFFORT = "xhigh"
 
 
 def get_client():

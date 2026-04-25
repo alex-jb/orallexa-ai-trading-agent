@@ -144,9 +144,13 @@ Rules:
 - confidence: 0-100
 - reasoning_detail: 2-3 sentences, be specific"""
 
+    # Judge is the most expensive reasoning hop in the deep-analysis path —
+    # route to Opus 4.7 + xhigh effort. Other debate roles (Bull/Bear) stay
+    # on sonnet to keep cost manageable.
     response, _ = logged_create(
         client, request_type="_call_judge",
-        model=cc.DEEP_MODEL, max_tokens=600, temperature=0,
+        model=cc.OPUS_MODEL, max_tokens=600, temperature=0,
+        effort=cc.DEEP_EFFORT,
         messages=[{"role": "user", "content": prompt}],
     )
     text = _extract_text(response).strip()
