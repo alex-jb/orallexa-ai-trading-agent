@@ -18,6 +18,7 @@ export function SignalToast({ signals, onSelect }: {
 
   // Sync external signals prop → internal toast state (legitimate external-system sync)
   useEffect(() => {
+    const timers: number[] = [];
     for (const sig of signals) {
       const key = `${sig.ticker}-${sig.type}-${sig.timestamp}`;
       if (seenRef.current.has(key)) continue;
@@ -26,19 +27,30 @@ export function SignalToast({ signals, onSelect }: {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing external signal prop to toast queue
       setToasts(prev => [{ id, signal: sig, exiting: false }, ...prev].slice(0, 3));
 
-      // Auto-dismiss after 8s
-      setTimeout(() => {
+      // Auto-dismiss after 8s. Capture timer handles so the cleanup
+      // function can clear them on unmount — otherwise late-firing
+      // setState calls hit a torn-down JSDOM and crash the test runner
+      // with "ReferenceError: window is not defined".
+      const dismissTimer = window.setTimeout(() => {
         setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));
-        setTimeout(() => {
+        const removeTimer = window.setTimeout(() => {
           setToasts(prev => prev.filter(t => t.id !== id));
         }, 300);
+        timers.push(removeTimer);
       }, 8000);
+      timers.push(dismissTimer);
     }
+    return () => {
+      for (const t of timers) window.clearTimeout(t);
+    };
   }, [signals]);
 
   const dismiss = (id: string) => {
     setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
+    // Note: this dismiss is fired by user click, so by definition the component
+    // is still mounted when this runs. The 300ms timer fires before any unmount
+    // would happen in normal flow. No cleanup needed.
+    window.setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
   };
 
   if (toasts.length === 0) return null;
