@@ -214,11 +214,32 @@ def _run_news_analyst(ticker: str) -> tuple[str, list]:
 
 # ── Agent 3: ML Analyst (local, ~2-5s) ────────────────────────────────────────
 
+def _add_kronos_to_ml(ml_result: dict, ticker: str, full_df) -> None:
+    """Mutates ml_result in place: appends a 'kronos' entry if Kronos
+    is installed. Silent no-op otherwise — Kronos is optional."""
+    try:
+        from engine.kronos_signal import KronosSignal
+        sig = KronosSignal()
+        entry = sig.for_ml_ensemble(full_df)
+        if entry.get("status") == "ok":
+            ml_result.setdefault("results", {})["kronos"] = entry
+    except Exception as e:
+        logger.debug("Kronos voter unavailable for %s: %s", ticker, e)
+
+
 def _run_ml_analyst(train_df, test_df, ticker: str) -> tuple[str, Optional[dict]]:
     """Run ML models and generate report. Returns (report, raw_result)."""
     try:
         from engine.ml_signal import run_ml_analysis
         ml_result = run_ml_analysis(train_df=train_df, test_df=test_df, ticker=ticker)
+        # Append Kronos's vote if installed (no-op otherwise). Uses the
+        # full historical df rather than train/test split since Kronos
+        # is autoregressive and wants recent context.
+        if ml_result and not ml_result.get("error"):
+            try:
+                _add_kronos_to_ml(ml_result, ticker, train_df.tail(120) if hasattr(train_df, "tail") else train_df)
+            except Exception:
+                pass
         if ml_result and not ml_result.get("error"):
             lines = [f"## {ticker} ML Model Analysis\n"]
             results = ml_result.get("results", {})
@@ -496,6 +517,18 @@ def run_multi_agent_analysis(
                 ticker=ticker,
                 rag_context=rag_context,
             )
+        # Detect current regime so DyTopo can pick role subset. Cheap —
+        # _detect_regime is pure-pandas. Falls back to None on failure
+        # (which leaves run_perspective_panel in static 4-role mode).
+        detected_regime = None
+        try:
+            from engine.strategies import _detect_regime
+            r_series = _detect_regime(ta)
+            if len(r_series) > 0:
+                detected_regime = str(r_series.iloc[-1])
+        except Exception as e:
+            logger.debug("Regime detection failed for %s: %s", ticker, e)
+
         panel_future = None
         if not skip_panel:
             panel_future = pool.submit(
@@ -504,6 +537,8 @@ def run_multi_agent_analysis(
                 ticker=ticker,
                 news_report=news_report,
                 ml_report=ml_report,
+                regime=detected_regime,
+                dynamic=True,
             )
         fusion_future = pool.submit(
             fuse_signals,

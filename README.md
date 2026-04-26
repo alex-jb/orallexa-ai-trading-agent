@@ -104,9 +104,11 @@ Docker: `docker compose up --build` — that's it.
 | Component | Detail |
 |-----------|--------|
 | **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
-| **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with persistent memory |
+| **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with **regime-aware DyTopo dynamic selection** (subset by regime, ~50% LLM call savings) |
+| **CORAL Shared Memory** | Unified read aggregator over per-role + tiered memory; cross-role consensus injected into prompts |
 | **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
-| **8-Source Signal Fusion** | Technical + ML + News + Options + Institutional + Social (Reddit/X) + Earnings/PEAD + Prediction Markets (Polymarket) |
+| **8-Source Signal Fusion** | Technical + ML + News + Options + Institutional + Social (Reddit/X) + Earnings/PEAD + Prediction Markets (Polymarket + Kalshi) |
+| **10-Model ML Ensemble** | RF, XGB, LR + EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN + **Kronos** (foundation model trained on 45+ global exchanges, 4 sizes) |
 | **Adaptive Source Weights** | Per-source rolling accuracy → dynamic weight scaling. Sources that earn their seat amplify; ones that don't get muted. |
 | **Regime-Conditional Strategies** | Detects trending / ranging / volatile and proposes a tuned strategy + params (heuristic or LLM-backed) |
 | **What-If Scenarios** | Claude Opus 4.7 simulates impact of hypothetical events on your portfolio |
@@ -127,7 +129,7 @@ Docker: `docker compose up --build` — that's it.
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
 | **LLM Observability** | Triple sink: JSONL log + PostHog (`$ai_generation` events) + Langfuse (`generation-create` traces, prompt versioning, evals) |
-| **Multi-Provider LLM** | Anthropic default; OpenAI provider implemented; Gemini/Ollama/Grok scaffolded behind `ORALEXXA_LLM_PROVIDER` env var |
+| **Multi-Provider LLM** | Anthropic (default), OpenAI, Gemini all implemented; Ollama/Grok scaffolded. Switch via `ORALEXXA_LLM_PROVIDER` |
 | **Dashboard** | Next.js 16, Art Deco theme, EN/ZH bilingual |
 | **Desktop Coach** | Floating AI pet with voice input (Whisper) + TTS, API retry + caching |
 
@@ -378,6 +380,9 @@ orallexa/
 │   ├── dynamic_weights.py      # Accuracy → weight scaling for fusion
 │   ├── token_budget.py         # Client-side token + USD budget enforcer
 │   ├── context_compressor.py   # Extractive / LLM compression of chained agent text
+│   ├── kronos_signal.py        # Kronos foundation-model wrapper (10th ML voice)
+│   ├── shared_memory.py        # CORAL-style read aggregator (role + layered memory)
+│   ├── historical_cache.py     # Prices / earnings / options cache schema
 │   ├── news_aggregator.py      # Google News + Yahoo RSS dedupe
 │   ├── layered_memory.py       # FinMem-style short/mid/long memory tiers
 │   ├── regime_strategist.py    # Regime → strategy + params recipe

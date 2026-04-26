@@ -134,7 +134,7 @@ export function SignalFusionCard({ fusion, t, zh }: {
                 {/* Extra details for prediction markets */}
                 {key === "prediction_markets" && (
                   <div className="pl-5 mt-0.5">
-                    <div className="flex gap-3 mb-1">
+                    <div className="flex flex-wrap gap-3 mb-1">
                       {source.n_markets !== undefined && (
                         <span className="text-[8px] font-[DM_Mono] text-[#4A4D55]">
                           {source.n_markets} {zh ? "市场" : "markets"}
@@ -146,6 +146,25 @@ export function SignalFusionCard({ fusion, t, zh }: {
                           Vol 24h: ${(source.total_volume_24hr / 1000).toFixed(1)}k
                         </span>
                       )}
+                      {/* Platform breakdown — Polymarket / Kalshi pills */}
+                      {source.n_by_platform && Object.entries(source.n_by_platform).map(([platform, n]) => (
+                        <span
+                          key={platform}
+                          className="text-[7px] font-[Josefin_Sans] uppercase tracking-[0.12em] px-1 py-[1px]"
+                          style={{
+                            background: platform === "polymarket"
+                              ? "rgba(94,53,177,0.12)"   // Polymarket purple
+                              : platform === "kalshi"
+                              ? "rgba(0,107,63,0.12)"    // Kalshi green
+                              : "rgba(212,175,55,0.10)",
+                            color: platform === "polymarket" ? "#A78BFA"
+                              : platform === "kalshi" ? "#006B3F"
+                              : "#C5A255",
+                          }}
+                        >
+                          {platform} {n}
+                        </span>
+                      ))}
                     </div>
                     {source.markets && source.markets.length > 0 && (
                       <div className="space-y-0.5">
@@ -153,11 +172,23 @@ export function SignalFusionCard({ fusion, t, zh }: {
                           const bullish = m.sign > 0;
                           const bearish = m.sign < 0;
                           const probColor = bullish ? "#006B3F" : bearish ? "#8B0000" : "#8B8E96";
+                          const platformColor = m.platform === "polymarket" ? "#A78BFA"
+                            : m.platform === "kalshi" ? "#006B3F"
+                            : "#6B6E76";
                           return (
                             <div key={i} className="flex items-center gap-2">
                               <span className="text-[10px] font-[DM_Mono] font-medium shrink-0" style={{ color: probColor }}>
                                 {Math.round(m.yes_price * 100)}%
                               </span>
+                              {m.platform && (
+                                <span
+                                  className="text-[6px] font-[Josefin_Sans] uppercase tracking-[0.12em] shrink-0"
+                                  style={{ color: platformColor }}
+                                  title={`Source: ${m.platform}`}
+                                >
+                                  {m.platform.slice(0, 4)}
+                                </span>
+                              )}
                               <span className="text-[8px] font-[Lato] text-[#F5E6CA]/70 truncate" title={m.question}>
                                 {m.question}
                               </span>

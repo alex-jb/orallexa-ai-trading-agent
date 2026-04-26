@@ -2,6 +2,145 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-26] — Phase 10: Kronos, Kalshi, DyTopo, CORAL — and the wiring that made them live
+
+The previous session added scaffolding for adaptive weights, multi-provider
+LLMs, DSPy, and a token budget. This session built on that foundation by
+landing four new external integrations from the latest GitHub trending
+sweep, then **actually wiring them into the runtime paths** so they're not
+dormant infrastructure.
+
+### Added — External integrations
+
+- **Kronos** (shiyu-coder/Kronos, MIT) — first open-source foundation model
+  for financial K-lines, pretrained on 45+ global exchanges. Wrapped in
+  `engine/kronos_signal.py` as a 10th ML model candidate. Lazy-imports the
+  Kronos package; clear RuntimeError with install hint when missing.
+- **Kalshi** prediction markets — `skills/prediction_markets.fetch_kalshi_markets`
+  hits `api.elections.kalshi.com/trade-api/v2` (no auth despite the
+  'elections' subdomain — Kalshi docs confirm it covers all categories).
+  Now merged with Polymarket in `analyze_prediction_markets` for unified
+  multi-platform consensus; `n_by_platform` field surfaces breakdown.
+- **GeminiProvider** (`llm/provider.py`) — symmetric to OpenAIProvider:
+  lazy-imports google-genai, translates Anthropic-style messages to
+  Gemini's `{role, parts:[{text}]}` format, maps system role to
+  system_instruction, pricing table for gemini-3-{pro,flash,flash-lite}
+  + 2.5-pro, thinking_budget heuristic from effort knob.
+
+### Added — Research patterns
+
+- **DyTopo dynamic role selection** — `llm/perspective_panel.select_roles_for_context`
+  picks 2-4 of the 4 perspectives based on detected regime:
+    trending → Aggressive + Quant; ranging → Conservative + Quant;
+    volatile → all 4 (uncertainty deserves diversity); default →
+    Conservative + Macro + Quant. Saves ~50% of LLM calls on routine
+    analysis. Inspired by 2026 'DyTopo: Dynamic Topology Routing' paper.
+- **CORAL shared memory aggregator** (`engine/shared_memory.py`) — read
+  aggregator over RoleMemory + LayeredMemory. `summary_for(role, ticker)`
+  returns one multi-line context fusing per-role accuracy + tier
+  breakdown + cross-role consensus. Inspired by 2026 'CORAL' paper
+  showing shared persistent memory beats fixed baselines 3-10×.
+
+### Changed — Wiring
+
+The infrastructure above was ineffectual until plugged in:
+
+- `engine/multi_agent_analysis._add_kronos_to_ml` — appends Kronos's
+  forecast as `results["kronos"]` to ml_result before fusion. Silent
+  no-op when Kronos isn't installed.
+- `engine/signal_fusion._score_ml` — registry now includes "kronos"
+  alongside the existing 9 ML voices.
+- `llm/perspective_panel.run_perspective_panel` — now consumes
+  `SharedMemory.summary_for()` instead of separately calling
+  RoleMemory and LayeredMemory. The dual-call path was redundant
+  and missed cross-role signal.
+- `engine.multi_agent_analysis` — detects current regime via
+  `engine.strategies._detect_regime` and passes `dynamic=True,
+  regime=...` to `run_perspective_panel`. DyTopo is on by default
+  in deep-analysis now; static 4-role mode preserved as opt-out.
+
+### Added — Decision pipeline polish
+
+- **TokenBudget UI badge** (`orallexa-ui/app/components/token-budget-badge.tsx`)
+  — surfaces the `token_budget` snapshot from `/api/deep-analysis`
+  with a usage bar (token + USD), exhausted pill, and per-skipped-step
+  pills. Wired into page.tsx above SignalFusionCard.
+- **Watchlist portfolio editor** (`orallexa-ui/app/page.tsx`) —
+  collapsible details with `TICKER:value:sector` input + NAV field;
+  state persists to localStorage. When non-empty, watchlist-scan
+  request includes portfolio_json so PM-preview pills actually populate.
+- **Multi-platform UI badges** in `signal-fusion.tsx` — each prediction
+  market shows a Polymarket/Kalshi tag (purple/green pills); top of
+  the prediction-markets section shows aggregated `n_by_platform`.
+
+### Added — DSPy + backtest scaffolds
+
+- `llm/debate.py` — stash full Bull/Bear/Judge text on
+  `decision.extra['debate']` so decision_log captures it. Past records
+  don't have it; future deep-analysis calls will.
+- `scripts/build_dspy_eval_set.py` — extract candidate records, pull
+  yfinance forward returns, label ground_truth via ±2% threshold,
+  emit JSONL. Reports the ≥100-eligible Phase B trigger condition.
+  `judge_metric()` ready to plug into MIPROv2.
+- `engine/historical_cache.py` — file-backed cache schema (parquet for
+  prices, JSON for earnings + options snapshots) with a metadata
+  freshness ledger. Honest about what's cacheable: prices + earnings
+  yes; options point-in-time only; social/polymarket/news no
+  (no public historical APIs).
+- `scripts/eval_context_compression.py` — new `--from-log` flag pulls
+  real (Bull, Bear) pairs from decision_log once accumulated.
+
+### Added — CI
+
+- **Coverage gate** (`.coveragerc` + `--cov-fail-under=70` in
+  `.github/workflows/ci.yml`) — scoped to core logic modules
+  (PM, dynamic_weights, source_accuracy, token_budget, compressor,
+  aggregators, memory, regime, earnings, factor_engine, decision_log,
+  strategies, ensemble, evaluation, backtest, micro_swarm, param
+  optimizer, eval/{daily, regime, monte_carlo, statistical_tests},
+  models/{confidence, decision}). Excludes orchestration / heavy DL /
+  live-data paths. Local: 83.4% on the scoped surface.
+- **Source-outcomes cron** (`.github/workflows/source-outcomes.yml`) —
+  daily at 02:00 UTC, runs `scripts/update_source_outcomes.py` with
+  actions/cache for ledger persistence. workflow_dispatch + dry-run
+  smoke test always at the end.
+
+### Fixed
+
+- `engine/dynamic_weights` removed premature `round(v, 6)` that
+  accumulated to 1.0000010000000001 on Linux float arithmetic, failing
+  the `pytest.approx(..., abs=1e-6)` test that passed locally on Windows.
+- `orallexa-ui/app/components/signal-toast.tsx` had an 8-second
+  setTimeout with no cleanup; late firing after JSDOM teardown showed
+  up as `ReferenceError: window is not defined` and failed CI even
+  though all 245 assertions passed. Cleanup function added.
+- `skills/prediction_markets.fetch_kalshi_markets` initial draft
+  accepted bid/ask outside [0, 100] cents as long as the midpoint
+  landed in [0, 1]; a malformed payload with bid=-50 / ask=200 would
+  pass. Per-leg validation added.
+
+### Tests
+
+- +71 (kronos_signal: 11, shared_memory: 11, kalshi_markets: 9,
+  perspective_panel_dytopo: 7, historical_cache: 21, plus token_budget
+  and provider extensions)
+- 245 UI tests still green
+- All ~800 backend tests pass on Linux CI after the float-rounding fix
+- Scoped coverage 83.4% (≥70% gate)
+
+### Verification
+
+- E2E: `python scripts/demo_pipeline_e2e.py NVDA TSLA AMD` runs the
+  full chain (live data, no mocks) and exits clean
+- Multi-platform prediction markets verified with mocked Kalshi
+  responses; integration test covers the merged shape end-to-end
+- DyTopo: `select_roles_for_context()` returns the right subset for
+  each regime; `run_perspective_panel(dynamic=True)` exercised in unit
+  tests with 7 specific regime cases
+- Coverage gate: `--cov-fail-under=70` enforces locally and in CI
+
+---
+
 ## [2026-04-25] — Phase 9: Adaptive Weights, Opus 4.7, Multi-Provider, DSPy Scaffold
 
 21 commits across two days extending the Phase 7/8 fusion work into a

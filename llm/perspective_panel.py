@@ -269,17 +269,28 @@ def run_perspective_panel(
     client = get_client()
     context = _build_panel_context(summary, ticker, news_report, ml_report)
 
-    # Load role memory for context injection
+    # Unified memory aggregator (CORAL-inspired). SharedMemory.summary_for
+    # returns a multi-line context string that fuses:
+    #   - this role's accuracy stats (from RoleMemory)
+    #   - tier breakdown short/mid/long (from LayeredMemory)
+    #   - cross-role consensus on this ticker (what other roles thought)
+    # If either underlying store is unavailable, summary_for returns an
+    # empty string instead of crashing.
+    try:
+        from engine.shared_memory import SharedMemory
+        shared_mem = SharedMemory()
+    except Exception:
+        shared_mem = None
+
+    # Keep these references for the post-call write-side (unchanged below).
+    # SharedMemory is read-only by design.
     role_mem = None
+    layered_mem = None
     try:
         from engine.role_memory import RoleMemory
         role_mem = RoleMemory()
     except Exception:
         pass
-
-    # Layered (short/mid/long) memory — enriches role_memory with tier-aware
-    # accuracy so prompts can weight toward the role's strongest horizon.
-    layered_mem = None
     try:
         from engine.layered_memory import LayeredMemory
         layered_mem = LayeredMemory()
@@ -292,16 +303,9 @@ def run_perspective_panel(
         futures = {}
         for role in roles:
             mem_ctx = ""
-            if role_mem:
+            if shared_mem:
                 try:
-                    mem_ctx = role_mem.get_role_context(role["name"], ticker)
-                except Exception:
-                    pass
-            if layered_mem:
-                try:
-                    narrative = layered_mem.narrative(role["name"], ticker)
-                    if narrative and "Insufficient" not in narrative:
-                        mem_ctx = (mem_ctx + "\n" if mem_ctx else "") + narrative
+                    mem_ctx = shared_mem.summary_for(role["name"], ticker)
                 except Exception:
                     pass
             futures[pool.submit(

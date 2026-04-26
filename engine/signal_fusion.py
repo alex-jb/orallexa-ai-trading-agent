@@ -317,7 +317,8 @@ def _score_ml(ml_result: Optional[dict]) -> dict:
     scores = []
 
     for name in ("random_forest", "xgboost", "logistic_regression",
-                 "chronos2", "moirai2", "emaformer", "diffusion", "gnn", "rl_ppo"):
+                 "chronos2", "moirai2", "emaformer", "diffusion", "gnn", "rl_ppo",
+                 "kronos"):
         data = results.get(name)
         if data and data.get("status", "ok") == "ok":
             metrics = data["metrics"]

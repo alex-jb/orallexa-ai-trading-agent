@@ -150,6 +150,35 @@ class KronosSignal:
             logger.warning("Kronos predict failed: %s", e)
             return None
 
+    def for_ml_ensemble(self, df, *, pred_len: int = 5) -> dict:
+        """
+        Return a result dict shaped for `engine.signal_fusion._score_ml`.
+        Caller plugs into `ml_result["results"]["kronos"]` before calling
+        fuse_signals.
+
+        Shape: {status: 'ok'|'error', metrics: {sharpe, total_return}}.
+        sharpe is synthesized from forecast monotonicity × magnitude;
+        total_return mirrors expected_return_pct / 100. ml_ensemble
+        consumes both via _score_ml's sign-magnitude logic.
+        """
+        s = self.score_for_fusion(df, pred_len=pred_len)
+        if not s.get("available"):
+            return {"status": "error", "metrics": {"sharpe": 0, "total_return": 0}}
+        ret = s.get("expected_return_pct", 0) / 100.0
+        # Synthesize a sharpe-equivalent: monotonicity (-0.5..+0.5)
+        # scaled by 4 so a fully-monotone forecast contributes ±2.
+        monotone = s.get("monotone_pct", 0.5)
+        sharpe = (monotone - 0.5) * 4
+        if ret < 0:
+            sharpe = -abs(sharpe)
+        return {
+            "status": "ok",
+            "metrics": {
+                "sharpe": round(sharpe, 3),
+                "total_return": round(ret, 4),
+            },
+        }
+
     def score_for_fusion(self, df, *, pred_len: int = 5) -> dict:
         """
         Run a forecast, convert it into a -100..+100 directional vote

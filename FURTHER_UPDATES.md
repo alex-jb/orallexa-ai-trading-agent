@@ -327,3 +327,77 @@ The Phase 7/8 fusion is now self-tuning, vendor-portable, and budget-aware.
 - `decision.confidence is None` crashed PM conversion in brain
 - Polymarket `_yes_index` fallback returned 0 for non-Yes/No binary
   outcomes, flipping signs on ticker-vs-ticker markets
+
+---
+
+## Phase 10: Kronos / Kalshi / DyTopo / CORAL — and the wiring ✅ DONE (2026-04-26)
+
+Built on Phase 9 with four new GitHub-trending integrations, then
+**actually plugged them into the runtime paths**. Phase 9's
+infrastructure landed dormant; Phase 10 makes it fire.
+
+**A. Kronos foundation model** (`engine/kronos_signal.py`)
+- shiyu-coder/Kronos, MIT — pretrained on 45+ global exchanges
+- 4 sizes (mini 4M / small 24M / base 102M / large 499M)
+- `KronosSignal.score_for_fusion()` → directional vote from forecast
+- `KronosSignal.for_ml_ensemble()` → ml_result-shaped entry
+- Lazy-imported; install via `git clone github.com/shiyu-coder/Kronos`
+
+**B. Kalshi prediction markets** (`skills/prediction_markets`)
+- `api.elections.kalshi.com/trade-api/v2` public endpoints, no auth
+- `fetch_kalshi_markets` paginates open markets, filters by ticker,
+  validates per-leg cents in [0, 100]
+- `analyze_prediction_markets` now merges Polymarket + Kalshi
+- `n_by_platform` field surfaces breakdown to callers/UI
+
+**C. GeminiProvider** (`llm/provider.GeminiProvider`)
+- Symmetric to OpenAIProvider — lazy `google-genai` import
+- Anthropic-style `{role, content}` → Gemini `{role, parts:[{text}]}`
+- system role → system_instruction; thinking_budget from effort knob
+- Pricing for gemini-3-{pro,flash,flash-lite} + 2.5-pro
+
+**D. DyTopo dynamic role selection** (`llm/perspective_panel.select_roles_for_context`)
+- Inspired by 2026 'DyTopo' paper
+- Regime → role subset:
+    trending → Aggressive + Quant
+    ranging  → Conservative + Quant
+    volatile → all 4
+    default  → Conservative + Macro + Quant
+- Saves ~50% of LLM calls on routine analysis
+- Wired into `multi_agent_analysis` so it's on by default
+
+**E. CORAL shared memory aggregator** (`engine/shared_memory.SharedMemory`)
+- Inspired by 2026 'CORAL' paper (3-10× improvement with shared memory)
+- Read aggregator over RoleMemory + LayeredMemory
+- `summary_for(role, ticker)` → fused multi-line context
+- `cross_role_consensus(ticker)` → 'Other roles: 8 BULLISH / 2 BEARISH;
+  Aggressive: 75% acc'
+- Replaced the dual call path in `run_perspective_panel`
+
+**F. UI / pipeline polish**
+- `TokenBudgetBadge` component surfaces `token_budget` snapshot
+- Watchlist portfolio editor wires PM-preview to actual scans
+- Multi-platform pills (Polymarket purple / Kalshi green) in
+  signal-fusion card
+- `_add_kronos_to_ml` helper plugs Kronos forecast into ml_result
+  before fusion runs
+
+**G. CI + coverage**
+- `.coveragerc` scoped to core logic; `--cov-fail-under=70` enforced
+- Local scoped coverage: 83.4%
+- New `.github/workflows/source-outcomes.yml` cron for daily
+  dynamic-weights backfill via yfinance forward returns
+
+**H. DSPy Phase B + historical cache scaffolds**
+- `llm/debate.py` now stashes Bull/Bear/Judge text on `decision.extra`
+  so future deep-analysis calls populate the eval set
+- `scripts/build_dspy_eval_set.py` — extractor + ground-truth labeller
+- `engine/historical_cache.py` — schema for prices/earnings/options
+  with honest documentation of what's cacheable
+
+**I. Bug fixes that mattered**
+- Linux float rounding in dynamic_weights — failed CI's 1e-6 tolerance
+- SignalToast 8s timer leak — JSDOM teardown crash showed as
+  `ReferenceError: window is not defined`
+- Kalshi bid/ask validation — bid=-50/ask=200 with mid=0.75 was
+  passing the [0, 1] check; per-leg cent guard added
