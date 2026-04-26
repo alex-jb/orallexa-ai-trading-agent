@@ -30,6 +30,7 @@ export interface BiasProfile { status: string; total_evaluated?: number; minimum
 export interface PredictionMarket { question: string; yes_price: number; volume_24hr: number; end_date: string; sign: number; }
 export interface RegimeProposal { ticker: string; regime: "trending" | "ranging" | "volatile" | "unknown"; strategy: string | null; params: Record<string, number | string>; reasoning: string; source: "heuristic" | "llm" | "none"; }
 export interface PortfolioManagerVerdict { approved: boolean | null; scaled_position_pct?: number; reason?: string; warnings?: string[]; original_confidence?: number; adjusted_confidence?: number; checks?: Record<string, number | string | boolean>; error?: string; }
+export interface TokenBudgetSnapshot { label?: string; n_calls: number; used_tokens: number; used_cost_usd: number; cap_tokens: number | null; cap_usd: number | null; remaining_tokens: number | null; remaining_usd: number | null; exhausted: boolean; }
 export interface SignalSource { score: number; weight: number; normalized_weight: number; available: boolean; signals?: string[]; agreement?: number; n_models?: number; pc_ratio?: number; unusual_calls?: { strike: number; volume: number; oi: number; ratio: number }[]; unusual_puts?: { strike: number; volume: number; oi: number; ratio: number }[]; max_pain?: number; insider_transactions?: { type: string; shares: number; text: string }[]; short_pct?: number; institutional_pct?: number; n_posts?: number; bullish?: number; bearish?: number; engagement?: number; days_until?: number | null; next_date?: string | null; avg_drift_5d?: number | null; positive_rate?: number | null; narrative?: string; n_markets?: number; n_directional?: number; total_volume_24hr?: number; markets?: PredictionMarket[]; }
 export interface SignalFusion { conviction: number; direction: "BULLISH" | "BEARISH" | "NEUTRAL"; confidence: number; n_sources: number; sources: Record<string, SignalSource>; fusion_detail: string; }
 export interface SwarmPath { step: number; avg_position: number; bullish_pct: number; bearish_pct: number; neutral_pct: number; }
@@ -72,6 +73,7 @@ export const T: Record<string, Record<string, string>> = {
     earningsWatch: "Earnings Watch", peadDrift: "PEAD Drift", eps: "EPS", daysLabel: "days", positiveRateLabel: "win rate",
     regimeStrategy: "Regime & Strategy",
     portfolioManager: "Portfolio Manager", pmApproved: "Approved", pmRejected: "Rejected", pmPosition: "Position", pmWarnings: "Warnings",
+    tokenBudget: "Token Budget", budgetUsed: "used", budgetCap: "cap", budgetSkipped: "skipped", budgetExhausted: "exhausted",
     scanFusion: "8-src fusion", scanFusionHint: "pulls Polymarket + Reddit — slower",
     share: "Share", shareX: "Share on X", shareLinkedIn: "Share on LinkedIn", copyLink: "Copy Link", copied: "Copied",
     fearLabel: "Fear", greedLabel: "Greed", unchanged: "unchanged", volumeLabel: "Volume",
@@ -133,6 +135,7 @@ export const T: Record<string, Record<string, string>> = {
     earningsWatch: "财报观察", peadDrift: "财报后漂移", eps: "每股收益", daysLabel: "天", positiveRateLabel: "胜率",
     regimeStrategy: "行情与策略",
     portfolioManager: "组合管理", pmApproved: "已批准", pmRejected: "已拒绝", pmPosition: "仓位", pmWarnings: "警告",
+    tokenBudget: "Token 预算", budgetUsed: "已用", budgetCap: "上限", budgetSkipped: "跳过", budgetExhausted: "超额",
     scanFusion: "8 源融合", scanFusionHint: "拉 Polymarket + Reddit — 较慢",
     share: "分享", shareX: "分享到 X", shareLinkedIn: "分享到 LinkedIn", copyLink: "复制链接", copied: "已复制",
     fearLabel: "恐惧", greedLabel: "贪婪", unchanged: "不变", volumeLabel: "成交量",

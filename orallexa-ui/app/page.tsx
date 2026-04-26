@@ -16,6 +16,7 @@ const PerspectivePanelCard = dynamic(() => import("./components/scenario-panel")
 const SignalFusionCard = dynamic(() => import("./components/signal-fusion").then(m => ({ default: m.SignalFusionCard })), { ssr: false });
 const RegimeCard = dynamic(() => import("./components/regime-card").then(m => ({ default: m.RegimeCard })), { ssr: false });
 const PortfolioManagerCard = dynamic(() => import("./components/portfolio-manager-card").then(m => ({ default: m.PortfolioManagerCard })), { ssr: false });
+const TokenBudgetBadge = dynamic(() => import("./components/token-budget-badge").then(m => ({ default: m.TokenBudgetBadge })), { ssr: false });
 
 /* Art Deco Design Atoms imported from ./components */
 
@@ -47,6 +48,8 @@ export default function Home() {
   const [signalFusion, setSignalFusion] = useState<SignalFusionType | null>(null);
   const [regimeProposal, setRegimeProposal] = useState<import("./types").RegimeProposal | null>(null);
   const [pmVerdict, setPmVerdict] = useState<import("./types").PortfolioManagerVerdict | null>(null);
+  const [tokenBudget, setTokenBudget] = useState<import("./types").TokenBudgetSnapshot | null>(null);
+  const [budgetSkipped, setBudgetSkipped] = useState<string[] | null>(null);
   const [marketSummary, setMarketSummary] = useState<MarketSummary | null>(null);
   const [breakingSignals, setBreakingSignals] = useState<BreakingSignal[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -59,6 +62,17 @@ export default function Home() {
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistUseFusion, setWatchlistUseFusion] = useState(false);
+  // Optional portfolio for PM-preview column. Format: "TICKER:value:sector,…"
+  // e.g. "NVDA:2500:Tech,AAPL:1000:Tech". Stored in localStorage.
+  const [portfolioInput, setPortfolioInput] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("orallexa_portfolio") || "";
+  });
+  const [portfolioValue, setPortfolioValue] = useState(() => {
+    if (typeof window === "undefined") return 10000;
+    const v = localStorage.getItem("orallexa_portfolio_value");
+    return v ? parseFloat(v) : 10000;
+  });
   const [useClaude, setUseClaude] = useState(false);
   const searchParams = useSearchParams();
   const initialView = useMemo(() => {
@@ -366,6 +380,8 @@ export default function Home() {
                 if (data.perspective_panel) setPerspectivePanel(data.perspective_panel);
                 if (data.signal_fusion) setSignalFusion(data.signal_fusion);
                 if (data.portfolio_manager) setPmVerdict(data.portfolio_manager);
+                if (data.token_budget) setTokenBudget(data.token_budget);
+                if (data.budget_skipped) setBudgetSkipped(data.budget_skipped);
                 if (data.breaking_signal) setBreakingSignals(prev => [data.breaking_signal, ...prev].slice(0, 5));
                 // Fetch regime proposal in parallel — non-blocking, ignore failures
                 fetch(`${API}/api/regime/${asset}`)
@@ -422,6 +438,25 @@ export default function Home() {
       const form = new FormData();
       form.append("tickers", watchlistInput);
       if (watchlistUseFusion) form.append("use_fusion", "true");
+      // Parse "NVDA:2500:Tech,AAPL:1000:Tech" → JSON portfolio when present
+      if (portfolioInput.trim() && portfolioValue > 0) {
+        const parsed = portfolioInput
+          .split(/[,;\n]+/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(entry => {
+            const parts = entry.split(":").map(p => p.trim());
+            const ticker = (parts[0] || "").toUpperCase();
+            const value = parseFloat(parts[1] || "0");
+            const sector = parts[2] || undefined;
+            return ticker && value > 0 ? { ticker, value_usd: value, sector } : null;
+          })
+          .filter(Boolean);
+        if (parsed.length > 0) {
+          form.append("portfolio_json", JSON.stringify(parsed));
+          form.append("portfolio_value", String(portfolioValue));
+        }
+      }
       const res = await fetch(`${API}/api/watchlist-scan`, { method: "POST", body: form });
       if (!res.ok) throw new Error("Watchlist scan failed");
       const data = await res.json();
@@ -619,6 +654,42 @@ export default function Home() {
               ({t.scanFusionHint || "slower"})
             </span>
           </label>
+
+          {/* Optional portfolio for PM-preview overlay on each scan result.
+              Format: TICKER:value_usd:sector, comma-separated. */}
+          <details className="mt-2">
+            <summary className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.14em] text-[#6B6E76] cursor-pointer hover:text-[#C5A255]">
+              {lang === "ZH" ? "组合 (用于 PM 预审)" : "Portfolio (for PM preview)"}
+            </summary>
+            <div className="mt-1 space-y-1">
+              <input
+                value={portfolioInput}
+                onChange={(e) => {
+                  setPortfolioInput(e.target.value);
+                  localStorage.setItem("orallexa_portfolio", e.target.value);
+                }}
+                placeholder="NVDA:2500:Tech, AAPL:1000:Tech"
+                className="w-full px-2 py-1 text-[9px] font-[DM_Mono] text-[#F5E6CA] placeholder:text-[#4A4D55] outline-none"
+                style={{ background: "#2A2A3E", border: "1px solid rgba(212,175,55,0.10)" }}
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-[Josefin_Sans] uppercase tracking-[0.14em] text-[#6B6E76]">
+                  NAV $
+                </span>
+                <input
+                  type="number"
+                  value={portfolioValue}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value) || 0;
+                    setPortfolioValue(v);
+                    localStorage.setItem("orallexa_portfolio_value", String(v));
+                  }}
+                  className="flex-1 px-2 py-1 text-[9px] font-[DM_Mono] text-[#F5E6CA] outline-none"
+                  style={{ background: "#2A2A3E", border: "1px solid rgba(212,175,55,0.10)" }}
+                />
+              </div>
+            </div>
+          </details>
         </Mod>
 
         <div className="flex-1" />
@@ -842,6 +913,7 @@ export default function Home() {
 
         {mlModels.length > 0 && <MLScoreboard models={mlModels} zh={lang === "ZH"} />}
 
+        {tokenBudget && <TokenBudgetBadge budget={tokenBudget} skipped={budgetSkipped} t={t} zh={lang === "ZH"} />}
         {signalFusion && <SignalFusionCard fusion={signalFusion} t={t} zh={lang === "ZH"} />}
         {pmVerdict && <PortfolioManagerCard verdict={pmVerdict} t={t} zh={lang === "ZH"} />}
         {regimeProposal && <RegimeCard proposal={regimeProposal} t={t} zh={lang === "ZH"} />}

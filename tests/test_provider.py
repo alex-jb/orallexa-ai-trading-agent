@@ -18,6 +18,7 @@ sys.path.insert(0, str(_ROOT))
 from llm.provider import (
     AnthropicProvider,
     OpenAIProvider,
+    GeminiProvider,
     ChatProvider,
     get_provider,
     current_provider_name,
@@ -42,20 +43,25 @@ class TestRegistry:
             get_provider("nonexistent")
 
     def test_unimplemented_provider_complete_raises(self):
-        p = get_provider("gemini")  # gemini still a placeholder
+        p = get_provider("ollama")  # ollama still a placeholder
         with pytest.raises(NotImplementedError):
             p.complete(model="x", max_tokens=1, messages=[])
 
     def test_env_var_picks_provider(self):
-        with patch.dict(os.environ, {"ORALEXXA_LLM_PROVIDER": "gemini"}):
+        with patch.dict(os.environ, {"ORALEXXA_LLM_PROVIDER": "ollama"}):
             p = get_provider()
-        # Gemini still a placeholder
+        # ollama still a placeholder
         assert p.name == "unimplemented"
 
     def test_openai_provider_resolves(self):
         p = get_provider("openai")
         assert isinstance(p, OpenAIProvider)
         assert p.name == "openai"
+
+    def test_gemini_provider_resolves(self):
+        p = get_provider("gemini")
+        assert isinstance(p, GeminiProvider)
+        assert p.name == "gemini"
 
     def test_protocol_compliance(self):
         p = get_provider("anthropic")
@@ -193,3 +199,41 @@ class TestOpenAIProvider:
         # Default fallback rates are $2/$8 per 1M
         cost = provider._estimate_cost("gpt-future-model", 1_000_000, 1_000_000)
         assert cost == pytest.approx(10.0)
+
+
+class TestGeminiProvider:
+    def test_lazy_import_error_message(self):
+        provider = GeminiProvider()
+        with patch.dict("sys.modules", {"google": None, "google.genai": None}):
+            with pytest.raises(RuntimeError, match="google-genai package not installed"):
+                provider._get_client()
+
+    def test_to_gemini_contents_translation(self):
+        sys_inst, contents = GeminiProvider._to_gemini_contents([
+            {"role": "system", "content": "You are a trader."},
+            {"role": "user", "content": "Analyze NVDA."},
+            {"role": "assistant", "content": "Looks bullish."},
+        ])
+        assert sys_inst == "You are a trader."
+        assert len(contents) == 2
+        assert contents[0]["role"] == "user"
+        assert contents[0]["parts"][0]["text"] == "Analyze NVDA."
+        assert contents[1]["role"] == "model"
+        assert contents[1]["parts"][0]["text"] == "Looks bullish."
+
+    def test_to_gemini_contents_no_system(self):
+        sys_inst, contents = GeminiProvider._to_gemini_contents([
+            {"role": "user", "content": "Hi"},
+        ])
+        assert sys_inst is None
+        assert contents[0]["role"] == "user"
+
+    def test_unknown_model_fallback_pricing(self):
+        # Default fallback $1/$4 per 1M
+        cost = GeminiProvider()._estimate_cost("gemini-future", 1_000_000, 1_000_000)
+        assert cost == pytest.approx(5.0)
+
+    def test_known_model_pricing(self):
+        # gemini-3-flash: 0.30/1.20 per 1M
+        cost = GeminiProvider()._estimate_cost("gemini-3-flash", 1_000_000, 1_000_000)
+        assert cost == pytest.approx(1.50)

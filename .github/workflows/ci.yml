@@ -35,12 +35,15 @@ jobs:
       - name: Run fast tests (unit + integration + API)
         # Skipped tests require GPU (ml_regression), live API (chart/deep_analysis),
         # or LLM calls (evolve). These run locally, not in CI.
+        # Coverage is scoped via .coveragerc to core logic modules; the
+        # threshold (fail_under=70) is enforced inline by --cov-fail-under.
         run: |
           python -m pytest tests/ -v --tb=short \
             -k "not test_ml_regression and not test_chart_analysis and not test_deep_analysis and not test_evolve" \
             --junitxml=test-results.xml \
-            --cov=engine --cov=eval --cov=desktop_agent \
-            --cov-report=xml:coverage.xml --cov-report=term-missing
+            --cov --cov-config=.coveragerc \
+            --cov-report=xml:coverage.xml --cov-report=term-missing \
+            --cov-fail-under=70
 
       - name: Upload test results
         if: always()

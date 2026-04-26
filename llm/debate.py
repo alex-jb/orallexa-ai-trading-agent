@@ -227,7 +227,7 @@ def run_lightweight_debate(
         scaled_conf = scale_confidence(confidence)
         recommendation = make_recommendation(decision, scaled_conf, risk_level)
 
-        return DecisionOutput(
+        out = DecisionOutput(
             decision=decision,
             confidence=scaled_conf,
             risk_level=risk_level,
@@ -237,6 +237,19 @@ def run_lightweight_debate(
             signal_strength=initial_decision.signal_strength,
             recommendation=recommendation,
         )
+        # Stash full Bull/Bear/Judge text on .extra so decision_log captures it.
+        # Used by scripts/build_dspy_eval_set.py to assemble the Phase B
+        # eval set without rerunning the debate pipeline.
+        out.extra["debate"] = {
+            "bull_argument":     bull_argument[:2000],
+            "bear_argument":     bear_argument[:2000],
+            "judge_summary":     judge_summary,
+            "judge_detail":      judge_detail,
+            "judge_decision":    decision,
+            "judge_confidence":  int(confidence),
+            "judge_risk_level":  risk_level,
+        }
+        return out
 
     except Exception:
         # Graceful degradation: return original decision unchanged

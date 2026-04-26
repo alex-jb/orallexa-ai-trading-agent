@@ -146,6 +146,41 @@ def _real_judge(bull: str, bear: str) -> dict:
         return {"decision": "WAIT", "confidence": 0.0, "error": str(e)[:100]}
 
 
+def _load_real_pairs_from_log(limit: int = 50) -> list[tuple[str, str]]:
+    """
+    Pull (bull, bear) pairs from memory_data/decision_log.json — populated
+    by `llm/debate.py` since the 'stash debate text on decision.extra'
+    commit. Returns pairs from the most recent `limit` records that have
+    debate text. Empty list if none available.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    log_path = _Path(__file__).resolve().parent.parent / "memory_data" / "decision_log.json"
+    if not log_path.exists():
+        return []
+    try:
+        records = _json.loads(log_path.read_text(encoding="utf-8"))
+    except (_json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(records, list):
+        return []
+
+    out: list[tuple[str, str]] = []
+    for r in records:
+        extra = r.get("extra") or {}
+        debate = extra.get("debate") if isinstance(extra, dict) else None
+        if not isinstance(debate, dict):
+            continue
+        bull = (debate.get("bull_argument") or "").strip()
+        bear = (debate.get("bear_argument") or "").strip()
+        if len(bull) > 50 and len(bear) > 50:
+            out.append((bull, bear))
+        if len(out) >= limit:
+            break
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", default="extractive",
@@ -154,13 +189,27 @@ def main() -> None:
                         help="number of pair runs (rotates through templates)")
     parser.add_argument("--offline", action="store_true",
                         help="skip real Claude calls, use deterministic mock")
+    parser.add_argument("--from-log", action="store_true",
+                        help="use decision_log.json for real Bull/Bear pairs "
+                             "instead of synthetic templates")
     args = parser.parse_args()
 
     pairs = []
-    for i in range(args.n):
-        bull = _BULL_TEMPLATES[i % len(_BULL_TEMPLATES)]
-        bear = _BEAR_TEMPLATES[i % len(_BEAR_TEMPLATES)]
-        pairs.append(run_pair(i, bull, bear, args.mode, args.offline))
+    if args.from_log:
+        real = _load_real_pairs_from_log(limit=args.n)
+        if not real:
+            print("--from-log: no records with debate text yet. Either:")
+            print("  (a) run /api/deep-analysis a few times to populate the log, or")
+            print("  (b) drop --from-log to fall back to synthetic templates.")
+            sys.exit(1)
+        print(f"Loaded {len(real)} real (Bull, Bear) pairs from decision_log.json\n")
+        for i, (bull, bear) in enumerate(real):
+            pairs.append(run_pair(i, bull, bear, args.mode, args.offline))
+    else:
+        for i in range(args.n):
+            bull = _BULL_TEMPLATES[i % len(_BULL_TEMPLATES)]
+            bear = _BEAR_TEMPLATES[i % len(_BEAR_TEMPLATES)]
+            pairs.append(run_pair(i, bull, bear, args.mode, args.offline))
 
     print()
     print(f"Context Compression Eval — mode={args.mode}, n={args.n}, offline={args.offline}")

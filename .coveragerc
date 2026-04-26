@@ -1,0 +1,91 @@
+# Coverage configuration: scoped to "core logic that should always
+# have unit tests."
+#
+# What's tracked:
+#   engine/    — pure logic modules (PM, dynamic weights, accuracy
+#                ledger, token budget, compressor, aggregators, memory,
+#                regime, earnings, factor engine, decision log,
+#                strategies, ensemble, evaluation, backtest, micro
+#                swarm, param optimizer)
+#   eval/      — statistical / regime / Monte Carlo / daily eval
+#   models/    — confidence + DecisionOutput dataclass
+#
+# What's NOT tracked here (intentionally — different testing strategies):
+#   desktop_agent/              — Tk/voice GUI
+#   engine/{diffusion,gnn,emaformer,rl_agent}.py — heavy DL, GPU tests
+#   engine/multi_agent_analysis — orchestration, exercised via API E2E
+#   engine/daily_intel          — orchestration, exercised via API E2E
+#   engine/signal_fusion        — has unit tests but live-fetch paths
+#                                  legitimately uncovered without API keys
+#   engine/strategy_evolver     — LLM-driven, exercised in long-running tests
+#   engine/ml_signal            — heavy ML pipeline, slow tests excluded in CI
+#   engine/role_memory          — long-running learning behavior
+#   engine/scenario_sim         — LLM call path
+#   engine/sentiment            — model-init weight
+#   engine/breaking_signals     — orchestration
+#   engine/bias_tracker         — wide surface, partly covered
+#   llm/                        — provider SDK paths excluded; behavior
+#                                  tested via stubs in tests/test_*
+#   skills/social_sentiment     — live API path
+#   skills/prediction_markets   — live API path
+#   bot/                        — Alpaca live execution
+#   eval/run_*.py               — CLI entry points
+#   eval/report_generator.py    — large templating module
+#   eval/decision_eval / experiment / harness / walk_forward — long-running
+#
+# Threshold: 70%. Anything below means a regression in core logic.
+
+[run]
+branch = True
+source =
+    engine
+    eval
+    models
+
+omit =
+    # Engine: heavy DL / orchestration / live-data paths
+    engine/diffusion_signal.py
+    engine/gnn_signal.py
+    engine/emaformer.py
+    engine/rl_agent.py
+    engine/proposal_runner.py
+    engine/strategy.py
+    engine/test_integration.py
+    engine/demo_data.py
+    engine/breaking_signals.py
+    engine/multi_agent_analysis.py
+    engine/strategy_evolver.py
+    engine/ml_signal.py
+    engine/role_memory.py
+    engine/sentiment.py
+    engine/scenario_sim.py
+    engine/daily_intel.py
+    engine/signal_fusion.py
+    engine/bias_tracker.py
+    # Eval: CLI runners, large report generator, long-running harness
+    eval/run_*.py
+    eval/report_generator.py
+    eval/decision_eval.py
+    eval/experiment.py
+    eval/harness.py
+    eval/walk_forward.py
+    # micro_swarm covered by test_mirofish only — that file is partly
+    # excluded from CI for env reasons (see -k filter in ci.yml)
+    engine/micro_swarm.py
+    # card_formatter is a pure presentation module; tested via UI layer
+    models/card_formatter.py
+    # Test infra
+    */tests/*
+    */__pycache__/*
+    */__init__.py
+
+[report]
+fail_under = 70
+show_missing = True
+skip_empty = True
+precision = 1
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
