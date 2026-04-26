@@ -49,6 +49,8 @@ class MultiAgentResult:
     summary:            dict = None       # technical indicator summary
     perspective_panel:  dict = None       # role-based multi-perspective analysis
     signal_fusion:      dict = None       # multi-source signal fusion result
+    token_budget:       dict = None       # final budget snapshot (used/cap/exhausted)
+    budget_skipped:     list = None       # names of steps skipped due to budget exhaustion
 
 
 # ── Agent 1: Market Analyst (local, instant) ──────────────────────────────────
@@ -402,6 +404,7 @@ def run_multi_agent_analysis(
     ml_evidence: Optional[dict] = None,
     backtest_evidence: Optional[dict] = None,
     brain=None,
+    token_budget=None,
 ) -> MultiAgentResult:
     """
     Run self-contained multi-agent pipeline.
@@ -414,6 +417,11 @@ def run_multi_agent_analysis(
     ml_evidence  : unused, kept for API compatibility
     backtest_evidence : unused, kept for API compatibility
     brain        : optional OrallexaBrain instance (avoids re-init)
+    token_budget : optional engine.token_budget.TokenBudget — when
+                   exhausted, downstream LLM-heavy steps (debate, market
+                   report, scenario sim) are SKIPPED and the result
+                   carries the partial output it has so far. The final
+                   budget snapshot is attached as result.token_budget.
 
     Returns
     -------
@@ -453,6 +461,9 @@ def run_multi_agent_analysis(
             recommendation=make_recommendation("WAIT", 40.0, "MEDIUM"),
         )
 
+    # ── Track which LLM-heavy steps were skipped due to token-budget exhaustion
+    skipped: list[str] = []
+
     # ── Agent 4: Debate + Panel + Signal Fusion (parallel) ──
     rag_context = f"{ml_report}\n\n{news_report}"
     from llm.debate import run_lightweight_debate
@@ -460,21 +471,31 @@ def run_multi_agent_analysis(
     from engine.signal_fusion import fuse_signals
     from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
+    # Budget-gated debate: only run if there's headroom. fuse_signals doesn't
+    # call the LLM so it always runs. Perspective panel makes 4 fast calls,
+    # so it's cheap enough to run unless budget already exhausted.
+    skip_debate = bool(token_budget) and not token_budget.allow()
+    skip_panel = bool(token_budget) and not token_budget.allow()
+
     with ThreadPoolExecutor(max_workers=3) as pool:
-        debate_future = pool.submit(
-            run_lightweight_debate,
-            initial_decision=initial_decision,
-            summary=summary,
-            ticker=ticker,
-            rag_context=rag_context,
-        )
-        panel_future = pool.submit(
-            run_perspective_panel,
-            summary=summary,
-            ticker=ticker,
-            news_report=news_report,
-            ml_report=ml_report,
-        )
+        debate_future = None
+        if not skip_debate:
+            debate_future = pool.submit(
+                run_lightweight_debate,
+                initial_decision=initial_decision,
+                summary=summary,
+                ticker=ticker,
+                rag_context=rag_context,
+            )
+        panel_future = None
+        if not skip_panel:
+            panel_future = pool.submit(
+                run_perspective_panel,
+                summary=summary,
+                ticker=ticker,
+                news_report=news_report,
+                ml_report=ml_report,
+            )
         fusion_future = pool.submit(
             fuse_signals,
             ticker=ticker,
@@ -483,20 +504,32 @@ def run_multi_agent_analysis(
             news_items=news_items,
         )
 
-        try:
-            debate_decision = debate_future.result(timeout=90)
-        except (FuturesTimeout, Exception) as e:
-            logger.warning("Debate timed out: %s", e)
+        if debate_future is not None:
+            try:
+                debate_decision = debate_future.result(timeout=90)
+            except (FuturesTimeout, Exception) as e:
+                logger.warning("Debate timed out: %s", e)
+                debate_decision = initial_decision
+        else:
             debate_decision = initial_decision
+            skipped.append("debate")
+            logger.info("Skipped debate due to token budget exhaustion")
 
-        try:
-            panel_result = panel_future.result(timeout=45)
-        except (FuturesTimeout, Exception) as e:
-            logger.warning("Perspective panel timed out: %s", e)
+        if panel_future is not None:
+            try:
+                panel_result = panel_future.result(timeout=45)
+            except (FuturesTimeout, Exception) as e:
+                logger.warning("Perspective panel timed out: %s", e)
+                panel_result = {
+                    "consensus": "NEUTRAL", "avg_score": 0, "agreement": 0,
+                    "perspectives": [], "panel_summary": "",
+                }
+        else:
             panel_result = {
                 "consensus": "NEUTRAL", "avg_score": 0, "agreement": 0,
-                "perspectives": [], "panel_summary": "",
+                "perspectives": [], "panel_summary": "(skipped: budget)",
             }
+            skipped.append("perspective_panel")
 
         try:
             fusion_result = fusion_future.result(timeout=30)
@@ -517,36 +550,51 @@ def run_multi_agent_analysis(
 
     LLM_TIMEOUT = 60  # seconds — fail gracefully instead of hanging
 
+    skip_risk = bool(token_budget) and not token_budget.allow()
+    skip_report = bool(token_budget) and not token_budget.allow()
+
     with ThreadPoolExecutor(max_workers=2) as pool:
         risk_future = pool.submit(
             _run_risk_manager, client, debate_decision,
             market_report, news_report,
             f"{ml_report}\n\n{panel_summary}\n\nSignal Fusion: {fusion_summary}",
             ticker, summary,
-        )
+        ) if not skip_risk else None
         report_future = pool.submit(
             _run_llm_market_report, client,
             market_report, news_report, ml_report, ticker, summary,
-        )
+        ) if not skip_report else None
 
-        # Timeout guard: if LLM hangs, use fallback instead of blocking forever
-        try:
-            risk_data = risk_future.result(timeout=LLM_TIMEOUT)
-        except (FuturesTimeout, Exception) as e:
-            logger.warning("Risk manager timed out or failed: %s", e)
-            close = summary.get("close", 0) if summary else 0
+        close = summary.get("close", 0) if summary else 0
+        if risk_future is not None:
+            try:
+                risk_data = risk_future.result(timeout=LLM_TIMEOUT)
+            except (FuturesTimeout, Exception) as e:
+                logger.warning("Risk manager timed out or failed: %s", e)
+                risk_data = {
+                    "position_pct": 3, "entry": close, "stop_loss": close * 0.97,
+                    "take_profit": close * 1.05, "risk_reward": "1:1.7",
+                    "key_risks": ["Risk assessment timed out"],
+                    "plan_summary": "Risk assessment unavailable due to timeout.",
+                }
+        else:
             risk_data = {
                 "position_pct": 3, "entry": close, "stop_loss": close * 0.97,
                 "take_profit": close * 1.05, "risk_reward": "1:1.7",
-                "key_risks": ["Risk assessment timed out"],
-                "plan_summary": "Risk assessment unavailable due to timeout.",
+                "key_risks": ["Skipped — token budget exhausted"],
+                "plan_summary": "Risk plan skipped (token budget exhausted).",
             }
+            skipped.append("risk_manager")
 
-        try:
-            deep_market_report = report_future.result(timeout=LLM_TIMEOUT)
-        except (FuturesTimeout, Exception) as e:
-            logger.warning("Deep market report timed out or failed: %s", e)
-            deep_market_report = market_report  # fallback to local analysis
+        if report_future is not None:
+            try:
+                deep_market_report = report_future.result(timeout=LLM_TIMEOUT)
+            except (FuturesTimeout, Exception) as e:
+                logger.warning("Deep market report timed out or failed: %s", e)
+                deep_market_report = market_report  # fallback to local analysis
+        else:
+            deep_market_report = market_report
+            skipped.append("deep_market_report")
 
     # ── Apply edge guards ──
     from models.confidence import guard_decision
@@ -625,4 +673,6 @@ def run_multi_agent_analysis(
         summary=summary,
         perspective_panel=panel_result,
         signal_fusion=fusion_result,
+        token_budget=token_budget.report() if token_budget else None,
+        budget_skipped=skipped if skipped else None,
     )

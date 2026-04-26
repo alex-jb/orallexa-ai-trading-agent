@@ -261,10 +261,18 @@ async def analyze(
 @app.post("/api/deep-analysis")
 async def deep_analysis(
     ticker: str = Form("NVDA"),
+    token_cap: int = Form(0),
+    cost_cap_usd: float = Form(0.0),
 ):
     """
     Lightweight deep analysis: ML models + technical analysis + news sentiment
     + Bull/Bear debate.  ~15-30 seconds.
+
+    Optional token_cap / cost_cap_usd enforce a client-side budget
+    across the multi-agent pipeline. When exhausted, downstream
+    LLM-heavy steps (debate, perspective panel, risk manager, deep
+    market report) are SKIPPED gracefully and the partial result is
+    returned with `token_budget` + `budget_skipped` fields populated.
     """
     if DEMO_MODE:
         from engine.demo_data import mock_deep_analysis
@@ -287,8 +295,16 @@ async def deep_analysis(
     def _run_deep(tk: str):
         from core.brain import OrallexaBrain
         from engine.multi_agent_analysis import run_multi_agent_analysis
+        budget = None
+        if token_cap > 0 or cost_cap_usd > 0:
+            from engine.token_budget import TokenBudget
+            budget = TokenBudget(
+                cap_tokens=token_cap if token_cap > 0 else None,
+                cap_usd=cost_cap_usd if cost_cap_usd > 0 else None,
+                label="deep-analysis",
+            )
         brain = OrallexaBrain(tk)
-        return run_multi_agent_analysis(ticker=tk, brain=brain)
+        return run_multi_agent_analysis(ticker=tk, brain=brain, token_budget=budget)
 
     try:
         result = await asyncio.wait_for(
@@ -333,6 +349,11 @@ async def deep_analysis(
                 out["portfolio_manager"] = decision_extra["portfolio_manager"]
         except Exception:
             pass
+        # Token budget snapshot (only present if caller supplied a cap)
+        if getattr(result, "token_budget", None):
+            out["token_budget"] = result.token_budget
+        if getattr(result, "budget_skipped", None):
+            out["budget_skipped"] = result.budget_skipped
         if breaking:
             out["breaking_signal"] = breaking
         return out
