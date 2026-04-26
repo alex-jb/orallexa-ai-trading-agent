@@ -1,0 +1,73 @@
+name: Source Outcomes — Dynamic Weights Backfill
+
+# Closes the dynamic-weights feedback loop:
+# scripts/update_source_outcomes.py reads pending records from
+# memory_data/source_accuracy.jsonl, pulls forward returns from
+# yfinance, and fills in per-source hit/miss verdicts.
+#
+# Note on persistence: the ledger is local state, so this workflow
+# uses actions/cache to carry it between runs. This is a low-volume
+# convenience for the repo CI itself — production deployments should
+# run the script via their platform's native cron (Railway / Fly /
+# Vercel cron / systemd timer / k8s CronJob) against their own
+# persistent volume.
+
+on:
+  schedule:
+    # Daily at 02:00 UTC (after US market close, before pre-market)
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Forward window in trading days"
+        required: false
+        default: "5"
+      dry_run:
+        description: "Preview without writing"
+        type: boolean
+        default: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  update-outcomes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          # Just what update_source_outcomes.py needs — yfinance + stdlib
+          pip install yfinance pandas numpy
+
+      - name: Restore source_accuracy ledger from cache
+        uses: actions/cache@v4
+        with:
+          path: memory_data/source_accuracy.jsonl
+          # Single-key cache — newer runs always overwrite the previous
+          # snapshot. We want last-write-wins, not append.
+          key: source-accuracy-ledger-v1
+
+      - name: Run update_source_outcomes
+        run: |
+          python scripts/update_source_outcomes.py \
+            --days "${{ github.event.inputs.days || '5' }}" \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+
+      - name: Smoke test (dry-run, always)
+        # Sanity check: even if the schedule run had no pending records,
+        # ensure the script executes cleanly. Catches breakage between
+        # schedule fires.
+        run: python scripts/update_source_outcomes.py --dry-run
