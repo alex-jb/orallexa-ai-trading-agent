@@ -4,19 +4,21 @@
 
 <br>
 
-### AI Trading Operating System
+### Self-tuning multi-agent AI trading system
 
-**9 ML models. Adversarial debate. One-click execution.**<br>
-Don't guess the market. Let AI argue about it first.
+**8-source signal fusion · 10 ML models incl. Kronos · Bull/Bear/Judge debate on Claude Opus 4.7**<br>
+Polymarket + Kalshi prediction markets vote alongside ML models. Weights adapt to per-source accuracy automatically.
 
 <br>
 
 [![Stars](https://img.shields.io/github/stars/alex-jb/orallexa-ai-trading-agent?style=for-the-badge&logo=github&color=D4AF37&logoColor=white)](https://github.com/alex-jb/orallexa-ai-trading-agent)
 [![Python](https://img.shields.io/badge/Python-3.11+-1A1A2E?style=for-the-badge&logo=python&logoColor=D4AF37)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
-[![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
-[![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI%20—%20Tests%20%26%20Build&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/698_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Claude](https://img.shields.io/badge/Claude_Opus_4.7-1A1A2E?style=for-the-badge&logo=anthropic&logoColor=D4AF37)](https://anthropic.com)
+[![Multi-Provider](https://img.shields.io/badge/Anthropic_·_OpenAI_·_Gemini-1A1A2E?style=for-the-badge&logoColor=D4AF37)](docs/NEW_MODULES.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/~800_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Coverage](https://img.shields.io/badge/Coverage-83%25-22c55e?style=for-the-badge)](.coveragerc)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
