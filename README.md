@@ -107,7 +107,9 @@ Docker: `docker compose up --build` — that's it.
 | **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with persistent memory |
 | **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
 | **8-Source Signal Fusion** | Technical + ML + News + Options + Institutional + Social (Reddit/X) + Earnings/PEAD + Prediction Markets (Polymarket) |
-| **What-If Scenarios** | Claude simulates impact of hypothetical events on your portfolio |
+| **Adaptive Source Weights** | Per-source rolling accuracy → dynamic weight scaling. Sources that earn their seat amplify; ones that don't get muted. |
+| **Regime-Conditional Strategies** | Detects trending / ranging / volatile and proposes a tuned strategy + params (heuristic or LLM-backed) |
+| **What-If Scenarios** | Claude Opus 4.7 simulates impact of hypothetical events on your portfolio |
 | **20-Agent Micro Swarm** | Rule-based Monte Carlo convergence simulation |
 | **Bias Self-Correction** | Tracks prediction accuracy, auto-adjusts confidence |
 | **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
@@ -120,10 +122,12 @@ Docker: `docker compose up --build` — that's it.
 
 | Component | Detail |
 |-----------|--------|
-| **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing |
+| **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing — runs on `analyze`, `deep-analysis`, AND `alpaca/execute` (rejected trades never hit the broker) |
+| **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
-| **LLM Observability** | Dual-write to PostHog + Langfuse (cost, latency, prompts, evals) |
+| **LLM Observability** | Triple sink: JSONL log + PostHog (`$ai_generation` events) + Langfuse (`generation-create` traces, prompt versioning, evals) |
+| **Multi-Provider LLM** | Anthropic default; OpenAI provider implemented; Gemini/Ollama/Grok scaffolded behind `ORALEXXA_LLM_PROVIDER` env var |
 | **Dashboard** | Next.js 16, Art Deco theme, EN/ZH bilingual |
 | **Desktop Coach** | Floating AI pet with voice input (Whisper) + TTS, API retry + caching |
 
@@ -368,11 +372,18 @@ orallexa/
 ├── docker-compose.yml          # One-click deployment
 │
 ├── engine/                     # Trading engine (9 models + intelligence)
-│   ├── multi_agent_analysis.py # Multi-agent pipeline (debate + panel + fusion)
+│   ├── multi_agent_analysis.py # Multi-agent pipeline (debate + panel + fusion + token-budget gates)
 │   ├── signal_fusion.py        # 8-source signal fusion (tech/ML/news/options/institutional/social/earnings/polymarket)
+│   ├── source_accuracy.py      # Per-source accuracy ledger (JSONL)
+│   ├── dynamic_weights.py      # Accuracy → weight scaling for fusion
+│   ├── token_budget.py         # Client-side token + USD budget enforcer
+│   ├── context_compressor.py   # Extractive / LLM compression of chained agent text
+│   ├── news_aggregator.py      # Google News + Yahoo RSS dedupe
+│   ├── layered_memory.py       # FinMem-style short/mid/long memory tiers
+│   ├── regime_strategist.py    # Regime → strategy + params recipe
 │   ├── portfolio_manager.py    # Final approval gate — concentration, sector, sizing
 │   ├── earnings.py             # Earnings calendar + PEAD drift stats
-│   ├── scenario_sim.py         # What-if scenario simulation
+│   ├── scenario_sim.py         # What-if scenario simulation (Opus 4.7 + xhigh)
 │   ├── bias_tracker.py         # Prediction bias self-correction
 │   ├── role_memory.py          # Persistent role memory & learning
 │   ├── micro_swarm.py          # 20-agent Monte Carlo swarm
@@ -386,18 +397,32 @@ orallexa/
 │   └── sentiment.py            # FinBERT / VADER
 │
 ├── llm/                        # AI reasoning
-│   ├── claude_client.py        # Dual-tier model routing
-│   ├── debate.py               # Bull/Bear debate (with bias injection)
-│   └── perspective_panel.py    # 4-role analyst panel with memory
+│   ├── claude_client.py        # Tier routing (FAST/DEEP/OPUS) + DEEP_EFFORT=xhigh
+│   ├── call_logger.py          # JSONL log + PostHog + Langfuse triple sink
+│   ├── provider.py             # Multi-provider abstraction (Anthropic + OpenAI)
+│   ├── debate.py               # Bull/Bear debate (Judge on Opus 4.7 + xhigh)
+│   ├── perspective_panel.py    # 4-role analyst panel with memory
+│   ├── regime_llm.py           # Claude-backed regime strategy llm_fn
+│   └── dspy_judge.py           # DSPy Phase A scaffold (lazy import, no compile)
 │
 ├── orallexa-ui/                # Dashboard (Next.js 16)
-│   ├── app/components/         # 11 UI components
-│   ├── app/__tests__/          # 200 unit tests (vitest)
+│   ├── app/components/         # 13 UI components (incl. RegimeCard, PortfolioManagerCard)
+│   ├── app/__tests__/          # 245 unit tests (vitest)
 │   └── e2e/                    # 14 E2E tests (Playwright)
 ├── desktop_agent/              # Desktop AI coach
 ├── bot/                        # Execution layer (Alpaca)
-├── tests/                      # ~180 backend tests
-└── .github/workflows/          # CI/CD (lint, test, build, E2E)
+├── tests/                      # ~800 backend tests
+├── scripts/                    # Demo + eval + cron utilities
+│   ├── demo_pipeline_e2e.py    # Live fusion → decision → PM smoke test
+│   ├── compare_fusion_variants.py  # 5-src vs 8-src on identical inputs
+│   ├── backtest_fusion_partial.py  # Synthetic time-series weight-policy A/B
+│   ├── eval_context_compression.py # Compression safety harness
+│   └── update_source_outcomes.py   # Daily forward-return backfill
+├── docs/                       # Architecture + module catalogs
+│   ├── NEW_MODULES.md          # 11+ Phase 7/8/9 modules with enable steps
+│   ├── DSPY_MIGRATION.md       # 3-phase plan to compile prompts via MIPROv2
+│   └── SESSION_2026-04-24.md   # Resumable state for continuation work
+└── .github/workflows/          # CI (lint/test/build/E2E) + source-outcomes cron
 ```
 
 </details>

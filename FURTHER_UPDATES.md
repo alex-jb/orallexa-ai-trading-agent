@@ -270,3 +270,60 @@ Three Tier-1 borrowings shipped, each as an independent module:
   metadata (ticker, action, confidence)
 - Opt-in via `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`;
   `LANGFUSE_HOST` overrides for self-hosted / EU cloud
+
+---
+
+## Phase 9: Adaptive Weights, Opus 4.7, Multi-Provider, DSPy Scaffold ✅ DONE (2026-04-25)
+
+The Phase 7/8 fusion is now self-tuning, vendor-portable, and budget-aware.
+
+**A. Adaptive feedback loop**
+- `engine/source_accuracy.py` — JSONL ledger records every fuse_signals
+  call; `update_outcomes(ticker, forward_return)` fills per-source hit/miss
+- `engine/dynamic_weights.py` — accuracy → multiplier (0.30→0.10×, 0.50→1×,
+  0.70→2×, 0.90+→3×); preserves total weight via renormalization
+- `scripts/update_source_outcomes.py` + GitHub Action cron at 02:00 UTC
+- Opt-in: `fuse_signals(use_dynamic_weights=True)`. Default static.
+
+**B. Claude Opus 4.7 selective routing**
+- New `OPUS_MODEL = "claude-opus-4-7"` alongside FAST/DEEP. Only
+  Judge synthesis + scenario_sim upgrade — Bull/Bear stay on Sonnet
+  to keep cost manageable
+- `effort="xhigh"` plumbing in `logged_create` with TypeError fallback
+  for older SDKs
+- $5/$25 pricing + `NEW_TOKENIZER_INFLATION = 1.35` constant for
+  budget projections (new tokenizer uses ~35% more tokens)
+
+**C. TokenBudget enforcer (`engine/token_budget.py`)**
+- Thread-safe; both token + USD ceilings; `consume(record)` charges any
+  logged_create result; `guarded_call(budget, fn)` short-circuits on
+  exhaustion
+- Wired into `multi_agent_analysis` — debate / panel / risk / report
+  steps SKIPPED gracefully when cap hits
+- `/api/deep-analysis` form params `token_cap` + `cost_cap_usd`
+
+**D. Multi-provider LLM (`llm/provider.py`)**
+- `ChatProvider` Protocol + `AnthropicProvider` (existing path) +
+  `OpenAIProvider` (full implementation, lazy `openai` import)
+- Effort kwarg portable: xhigh/max → OpenAI `reasoning_effort=high`
+- `ORALEXXA_LLM_PROVIDER` env var picks active; default anthropic
+
+**E. Context engineering (`engine/context_compressor.py`)**
+- Three modes: extractive / llm / auto (gate at 1500 chars)
+- Opt-in `compress_context` on `run_multi_agent_analysis`
+- `scripts/eval_context_compression.py` — A/B safety harness; defined
+  threshold (≥95% agreement, ≤5pt conf delta) before enabling
+
+**F. DSPy Phase A scaffold (`llm/dspy_judge.py` + `docs/DSPY_MIGRATION.md`)**
+- One Signature for Judge, lazy-import dspy, head-to-head compare helper
+- No eval set, no compile yet — Phase B/C still pending
+- dspy intentionally NOT a project dependency
+
+**G. Bug fixes that mattered**
+- Float-rounding accumulation in dynamic_weights tripping CI on Linux
+- SignalToast useEffect leaked an 8s timer → JSDOM-teardown crash
+- ADX calc had unsatisfiable ternary (`= 0 if False else …`) — symmetric
+  zeroing was a no-op, biased ADX upward
+- `decision.confidence is None` crashed PM conversion in brain
+- Polymarket `_yes_index` fallback returned 0 for non-Yes/No binary
+  outcomes, flipping signs on ticker-vs-ticker markets

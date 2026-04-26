@@ -2,6 +2,158 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-25] — Phase 9: Adaptive Weights, Opus 4.7, Multi-Provider, DSPy Scaffold
+
+21 commits across two days extending the Phase 7/8 fusion work into a
+self-tuning, observable, vendor-portable system. None of it adds new
+hard dependencies — every adapter and feature is either lazy-imported,
+opt-in via env var, or gated behind a runtime flag.
+
+### Added — Adaptive feedback loop
+
+- **`engine/source_accuracy.py`** — append-only JSONL ledger that
+  records every fuse_signals call's per-source scores, then has them
+  filled in with hit/miss verdicts once a forward window passes.
+  Append on read at fusion time, no extra calls.
+- **`engine/dynamic_weights.py`** — maps each source's rolling
+  accuracy to a multiplier (0.30→0.10×, 0.50→1.00×, 0.70→2.00×,
+  0.90+→3.00×) and rebuilds the weights dict so total preservation
+  holds. Result of integration: under-performing sources get muted,
+  consistent winners get amplified.
+- **`scripts/update_source_outcomes.py`** — daily backfill job that
+  pulls forward returns from yfinance and calls update_outcomes on
+  pending records; exposes `--dry-run` and `--days` knobs.
+- **`.github/workflows/source-outcomes.yml`** — scheduled cron at
+  02:00 UTC + workflow_dispatch with optional dry-run; uses
+  `actions/cache` to persist the ledger across runs since it's
+  local state. Production deployments run their own cron.
+- `fuse_signals(use_dynamic_weights=True, record_for_accuracy=True)`
+  knobs to opt into adaptive weights and ledger writes; default
+  remains static + recording so existing callers see the same
+  behavior with one extra side effect.
+
+### Added — Claude Opus 4.7 selective routing (released 2026-04-16)
+
+- New `OPUS_MODEL = "claude-opus-4-7"` constant in `llm/claude_client`
+  alongside FAST_MODEL (haiku) and DEEP_MODEL (sonnet 4-6). Only the
+  highest-value reasoning hops upgrade — Bull/Bear stay on sonnet, but
+  Judge synthesis (`llm/debate._call_judge`) and what-if scenario
+  simulation (`engine/scenario_sim`) jump to Opus 4.7 + xhigh effort.
+- `logged_create(effort=...)` plumbing — passes `output_config={"effort": ...}`
+  to the Anthropic SDK with a TypeError fallback for older SDKs that
+  don't recognize the kwarg.
+- PRICING table updated: claude-opus-4-7 at $5/$25 per 1M, plus a
+  `NEW_TOKENIZER_INFLATION = 1.35` constant since the Opus 4.7 tokenizer
+  uses ~35% more tokens for the same fixed text.
+- `get_tier()` now returns `OPUS` / `DEEP` / `FAST` (was DEEP/FAST).
+
+### Added — Token & cost ceilings
+
+- **`engine/token_budget.py`** — thread-safe TokenBudget with both
+  token and USD ceilings. `consume(record)` charges any logged_create
+  result; `allow()` checks remaining headroom; `report()` returns a
+  full snapshot. `guarded_call(budget, fn, *args)` helper short-circuits
+  when exhausted.
+- Wired into `engine.multi_agent_analysis.run_multi_agent_analysis` —
+  when budget is exhausted, debate / perspective panel / risk manager /
+  deep market report are SKIPPED gracefully and the partial pipeline
+  finishes with `result.budget_skipped` listing what was dropped.
+- `/api/deep-analysis` form params `token_cap` + `cost_cap_usd`
+  surface this control to API callers; response gains `token_budget`
+  + `budget_skipped` fields.
+
+### Added — Multi-provider LLM abstraction
+
+- **`llm/provider.py`** — `ChatProvider` Protocol + concrete
+  `AnthropicProvider` (delegates to existing `logged_create`) and
+  `OpenAIProvider` (full implementation: lazy imports `openai` SDK,
+  translates response shape to Anthropic-compatible
+  `.content[0].text` / `.usage.input_tokens` form, builds
+  `LLMCallRecord` so PostHog + Langfuse exporters fire identically).
+  Includes 2026 OpenAI pricing table for gpt-5/4.1/o3/o4-mini and
+  fallback rates for unknown models.
+- Effort kwarg portability: `effort="xhigh"` maps to OpenAI
+  `reasoning_effort="high"` on o-series; falls back without when the
+  SDK rejects the param.
+- `gemini` / `ollama` / `grok` keep `_UnimplementedProvider` sentinels
+  so attempts fail loud with an install hint, not silently return
+  Anthropic.
+- `ORALEXXA_LLM_PROVIDER` env var picks the active provider (default
+  `anthropic`, no behavior change for existing deployments).
+
+### Added — Context engineering
+
+- **`engine/context_compressor.py`** — three modes:
+    - `extractive`: pure-Python sentence selection (first/last + numbers
+      + directional keywords); zero cost, deterministic
+    - `llm`: single FAST_MODEL summary call (~$0.0005); falls back to
+      original on any error
+    - `auto`: extractive < 1500 chars, llm above
+- Optional `compress_context` parameter on
+  `run_multi_agent_analysis` and `/api/deep-analysis` (default off);
+  shrinks market_report / news_report / ml_report before Risk Manager
+  consumes them.
+- **`scripts/eval_context_compression.py`** — A/B safety harness with
+  --offline (mock Judge) and live modes. Documented threshold:
+  agreement ≥ 95% AND mean |conf delta| ≤ 5 pts before enabling. The
+  offline run on synthetic prompts revealed extractive compression can
+  flip 50% of decisions when prompts are keyword-padded — exactly the
+  reason it's off by default.
+
+### Added — DSPy Phase A scaffold (no compile yet)
+
+- **`docs/DSPY_MIGRATION.md`** — three-phase plan to migrate the 15+
+  hand-tuned prompts to DSPy Signatures with MIPROv2 optimizer. Phase
+  A scope kept tight: bootstrap one Signature for Judge, run head-to-
+  head, no eval set yet, no compile yet.
+- **`llm/dspy_judge.py`** — `JudgeSignature` + `judge_dspy()` predictor
+  + `compare_judges()` head-to-head. Lazy-imports `dspy`; raises a
+  clear RuntimeError pointing at `pip install dspy-ai>=2.5` when
+  missing. dspy is intentionally NOT a project dependency.
+
+### Fixed
+
+- **engine/dynamic_weights.py**: removed premature `round(v, 6)` in the
+  per-value normalization step. Linux's float arithmetic accumulated
+  to 1.0000010000000001 vs Windows landing on the safe side of the
+  1e-6 tolerance — classic platform-dependent test fragility. Internal
+  math now stays full-precision; display layers handle rounding.
+- **orallexa-ui/app/components/signal-toast.tsx**: 8-second auto-dismiss
+  setTimeout had no cleanup. After test teardown the late-firing
+  callback poked into a torn-down JSDOM, surfacing as `ReferenceError:
+  window is not defined` and failing CI even though all 245 assertions
+  passed. Captured timer handles, return cleanup function from the
+  useEffect.
+- **engine/multi_agent_analysis**: same fix-pattern applied to track
+  which steps the budget gate skipped, so the response doesn't lie
+  about why a section is empty.
+
+### Tests
+
+- +29 dynamic_weights + source_accuracy
+- +12 token_budget + effort kwarg + pricing
+- +29 context_compressor + provider
+- +13 dspy_judge (with sys.modules['dspy'] stub)
+- +5 OpenAIProvider (response translation, effort mapping, lazy
+  import, fallback pricing)
+- All 245 UI tests still green; all ~800 backend tests pass on Linux
+  CI after the float-rounding fix.
+
+### Verification
+
+- Live `fuse_signals("NVDA")` end-to-end: 6/8 sources active, conviction
+  +9 NEUTRAL, all eight new modules connect cleanly
+- E2E pipeline test (`tests/test_pipeline_e2e.py`, 8 tests): brain →
+  PM → executor seam, including PM rejection blocking executor entirely
+- Synthetic fusion backtest (`scripts/backtest_fusion_partial.py`):
+  honest result that 8-source weights underperform 5-source legacy
+  under the SNR assumptions tested — flagged in commit message rather
+  than buried, since the SNRs are guesses
+- `scripts/compare_fusion_variants.py`: NVDA flips BULLISH+21 → NEUTRAL+8
+  going from 5-src to 8-src on identical live inputs
+
+---
+
 ## [2026-04-24] — 8-Source Signal Fusion + Portfolio Manager + LLM Observability
 
 Two back-to-back upgrade phases (Phase 7 + Phase 8 in FURTHER_UPDATES.md)
