@@ -99,14 +99,17 @@ def compute_dynamic_weights(
         adjusted[src] = base * factor
 
     if not preserve_total:
-        return {k: round(v, 6) for k, v in adjusted.items()}
+        return adjusted
 
     new_sum = sum(adjusted.values())
     if new_sum <= 0:
         # Degenerate: every source bombed. Fall back to base.
         return dict(base_weights)
     scale = base_sum / new_sum
-    return {k: round(v * scale, 6) for k, v in adjusted.items()}
+    # No per-value rounding here — that's a presentation concern. Rounding
+    # each entry then summing accumulates float error (saw 1e-6 drift in CI
+    # on a 4-source case). Display layers can format as needed.
+    return {k: v * scale for k, v in adjusted.items()}
 
 
 def explain_weight_adjustment(
