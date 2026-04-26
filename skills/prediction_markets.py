@@ -1,20 +1,24 @@
 """
 skills/prediction_markets.py
 ──────────────────────────────────────────────────────────────────
-Polymarket prediction-market signal aggregator.
+Multi-platform prediction-market signal aggregator.
 
 Prediction markets are an independent alpha source — they reflect
 "smart money's probability estimate" in binary outcomes. Especially
 useful for event-driven tickers (earnings, policy, M&A).
 
-Uses the Gamma public-search endpoint (no auth). Filters to active,
-open markets with meaningful liquidity.
+Sources:
+  - Polymarket (Gamma public-search, no auth)
+  - Kalshi (api.elections.kalshi.com public markets, no auth despite
+    the 'elections' subdomain — covers all categories per Kalshi docs)
+
+Both filtered to active, open markets with meaningful liquidity.
 
 Usage:
     from skills.prediction_markets import analyze_prediction_markets
     r = analyze_prediction_markets("NVDA")
     print(r["score"])    # -100..+100 (+ = bullish consensus)
-    print(r["markets"])  # list of dicts (question, yes_price, volume, endDate)
+    print(r["markets"])  # list of dicts; 'platform' field tags origin
 """
 from __future__ import annotations
 
@@ -25,6 +29,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _GAMMA_SEARCH_URL = "https://gamma-api.polymarket.com/public-search"
+_KALSHI_MARKETS_URL = "https://api.elections.kalshi.com/trade-api/v2/markets"
 _BULLISH_KEYWORDS = (
     "beat", "beats", "above", "exceed", "exceeds", "surge", "rally",
     "hit", "reach", "reaches", "up", "rise", "rises", "high", "breakout",
@@ -114,10 +119,101 @@ def fetch_polymarket_markets(ticker: str, limit: int = 8) -> list[dict]:
                 "liquidity": _safe_float(m.get("liquidity") or m.get("liquidityNum"), 0.0),
                 "end_date": str(end_iso or ""),
                 "sign": _bullish_sign(question),
+                "platform": "polymarket",
             })
             if len(out) >= limit:
                 return out
     return out
+
+
+def fetch_kalshi_markets(ticker: str, limit: int = 8) -> list[dict]:
+    """
+    Search Kalshi's public market list for entries mentioning the ticker.
+    No authentication required (per Kalshi public docs as of 2026-04).
+
+    Kalshi's API doesn't have a free-text search like Polymarket; we paginate
+    open markets and filter client-side by title/subtitle/ticker fields.
+    Stops once we have `limit` matches or run out of open markets.
+    """
+    try:
+        import requests
+    except ImportError:
+        return []
+
+    needle = ticker.lower()
+    matches: list[dict] = []
+    cursor: Optional[str] = None
+    pages_scanned = 0
+    MAX_PAGES = 5  # cap to avoid pagination loops
+
+    try:
+        while pages_scanned < MAX_PAGES and len(matches) < limit:
+            params: dict = {"limit": 200, "status": "open"}
+            if cursor:
+                params["cursor"] = cursor
+            resp = requests.get(_KALSHI_MARKETS_URL, params=params, timeout=5.0)
+            if resp.status_code != 200:
+                break
+            data = resp.json()
+            page_markets = data.get("markets", [])
+            if not page_markets:
+                break
+
+            now = datetime.now(timezone.utc)
+            for m in page_markets:
+                blob = " ".join(str(m.get(k, "")) for k in
+                                ("title", "subtitle", "ticker", "yes_sub_title",
+                                 "no_sub_title", "rules_primary"))
+                if needle not in blob.lower():
+                    continue
+
+                # Kalshi prices are in cents (0-100); convert to 0-1
+                try:
+                    yes_bid = float(m.get("yes_bid", 0))
+                    yes_ask = float(m.get("yes_ask", 100))
+                except (ValueError, TypeError):
+                    continue
+                # Validate per-leg cent range — guards against bad payloads
+                # whose midpoint happens to land in [0,1] but with nonsense
+                # individual quotes (e.g. bid=-50, ask=200 → mid=0.75).
+                if not (0 <= yes_bid <= 100 and 0 <= yes_ask <= 100):
+                    continue
+                yes_mid = (yes_bid + yes_ask) / 200.0  # cents → prob
+
+                # Skip already-closed markets
+                close_time = m.get("close_time")
+                try:
+                    close_dt = (datetime.fromisoformat(str(close_time).replace("Z", "+00:00"))
+                                if close_time else None)
+                except Exception:
+                    close_dt = None
+                if close_dt is not None and close_dt < now:
+                    continue
+
+                question = str(m.get("title") or m.get("yes_sub_title") or "")
+                if not question:
+                    continue
+
+                matches.append({
+                    "question": question,
+                    "yes_price": yes_mid,
+                    "volume_24hr": _safe_float(m.get("volume_24h") or m.get("volume"), 0.0),
+                    "liquidity": _safe_float(m.get("liquidity"), 0.0),
+                    "end_date": str(close_time or ""),
+                    "sign": _bullish_sign(question),
+                    "platform": "kalshi",
+                })
+                if len(matches) >= limit:
+                    break
+
+            cursor = data.get("cursor")
+            if not cursor:
+                break
+            pages_scanned += 1
+    except Exception as e:
+        logger.debug("Kalshi fetch failed for %s: %s", ticker, e)
+
+    return matches
 
 
 def _parse_json_list(v) -> list:
@@ -156,15 +252,26 @@ def _safe_float(v, default: float) -> float:
         return default
 
 
-def analyze_prediction_markets(ticker: str, limit: int = 8) -> dict:
+def analyze_prediction_markets(
+    ticker: str,
+    limit: int = 8,
+    *,
+    include_kalshi: bool = True,
+) -> dict:
     """
-    Aggregate Polymarket signals for a ticker into a fusion-compatible dict.
+    Aggregate prediction-market signals across Polymarket + Kalshi for a
+    ticker into a fusion-compatible dict.
 
     Score logic: for each market with a clear bullish/bearish sign, take the
     deviation of yes_price from 0.5 and multiply by the sign. Weight each
     market by log(volume) so liquid markets dominate noise.
     """
     markets = fetch_polymarket_markets(ticker, limit=limit)
+    if include_kalshi:
+        try:
+            markets = markets + fetch_kalshi_markets(ticker, limit=limit)
+        except Exception as e:
+            logger.debug("Kalshi merge failed for %s: %s", ticker, e)
     if not markets:
         return {"available": False, "score": 0, "n_markets": 0, "markets": []}
 
@@ -196,12 +303,17 @@ def analyze_prediction_markets(ticker: str, limit: int = 8) -> dict:
     score = int(max(-100, min(100, w_avg * 200)))
 
     total_volume = sum(m["volume_24hr"] for m in markets)
+    by_platform: dict[str, int] = {}
+    for m in markets:
+        p = m.get("platform", "unknown")
+        by_platform[p] = by_platform.get(p, 0) + 1
     return {
         "available": True,
         "score": score,
         "weighted_deviation": round(w_avg, 4),
         "n_markets": len(markets),
         "n_directional": directional,
+        "n_by_platform": by_platform,
         "total_volume_24hr": round(total_volume, 2),
         "markets": markets[:5],
     }

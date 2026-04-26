@@ -181,27 +181,90 @@ def _build_panel_context(
     return "\n".join(lines)
 
 
+def select_roles_for_context(
+    summary: dict,
+    *,
+    regime: Optional[str] = None,
+    min_roles: int = 2,
+) -> list[dict]:
+    """
+    DyTopo-inspired dynamic role selection.
+
+    Instead of always running all 4 perspectives, pick the 2-3 whose
+    expertise matches the current market context. Saves ~50% of LLM
+    calls on routine analysis while keeping all 4 voices available
+    when the context is genuinely uncertain.
+
+    Heuristic:
+        trending market → Aggressive + Quant (momentum + signal)
+        ranging market  → Conservative + Quant (caution + statistical edge)
+        volatile market → all 4 (high-stakes — get all opinions)
+        neutral / unknown → Conservative + Macro + Quant (default-prudent)
+
+    Override the static list by passing roles= explicitly to
+    run_perspective_panel.
+    """
+    by_name = {r["name"]: r for r in ROLES}
+    regime_l = (regime or "").lower()
+
+    if "volatile" in regime_l:
+        return list(ROLES)  # full panel — uncertainty deserves diversity
+    if "trend" in regime_l:
+        picked = ["Aggressive Trader", "Quant Researcher"]
+    elif "rang" in regime_l or "mean_revert" in regime_l:
+        picked = ["Conservative Analyst", "Quant Researcher"]
+    else:
+        # Default-prudent triple
+        picked = ["Conservative Analyst", "Macro Strategist", "Quant Researcher"]
+
+    # Honor min_roles by topping up with the missing one if needed
+    while len(picked) < min_roles:
+        for r in ROLES:
+            if r["name"] not in picked:
+                picked.append(r["name"])
+                break
+        else:
+            break
+
+    return [by_name[n] for n in picked if n in by_name]
+
+
 def run_perspective_panel(
     summary: dict,
     ticker: str,
     news_report: str = "",
     ml_report: str = "",
     roles: Optional[list[dict]] = None,
+    regime: Optional[str] = None,
+    dynamic: bool = False,
 ) -> dict:
     """
-    Run 4 role-based perspectives in parallel and aggregate consensus.
+    Run role-based perspectives in parallel and aggregate consensus.
+
+    Parameters
+    ----------
+    roles    : explicit role list — overrides everything else.
+    regime   : "trending" / "ranging" / "volatile" / "neutral" — used by
+               dynamic role selection when `dynamic=True`.
+    dynamic  : when True, pick a subset of ROLES based on regime via
+               select_roles_for_context. Default False to preserve the
+               existing 4-role behavior.
 
     Returns
     -------
     dict with keys:
-        consensus     : "BULLISH" / "BEARISH" / "NEUTRAL"
-        avg_score     : -100 to +100
-        agreement     : 0-100% (how much roles agree)
-        perspectives  : list of PerspectiveResult as dicts
-        panel_summary : formatted text summary for LLM context
+        consensus      : "BULLISH" / "BEARISH" / "NEUTRAL"
+        avg_score      : -100 to +100
+        agreement      : 0-100% (how much roles agree)
+        perspectives   : list of PerspectiveResult as dicts
+        panel_summary  : formatted text summary for LLM context
+        roles_selected : names of roles actually run (debug)
     """
     if roles is None:
-        roles = ROLES
+        if dynamic:
+            roles = select_roles_for_context(summary, regime=regime)
+        else:
+            roles = ROLES
 
     client = get_client()
     context = _build_panel_context(summary, ticker, news_report, ml_report)
@@ -328,4 +391,5 @@ def run_perspective_panel(
             for r in results
         ],
         "panel_summary": "\n".join(panel_lines),
+        "roles_selected": [r["name"] for r in roles],
     }
