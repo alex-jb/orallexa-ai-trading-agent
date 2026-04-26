@@ -405,6 +405,7 @@ def run_multi_agent_analysis(
     backtest_evidence: Optional[dict] = None,
     brain=None,
     token_budget=None,
+    compress_context: str = "off",
 ) -> MultiAgentResult:
     """
     Run self-contained multi-agent pipeline.
@@ -422,6 +423,14 @@ def run_multi_agent_analysis(
                    report, scenario sim) are SKIPPED and the result
                    carries the partial output it has so far. The final
                    budget snapshot is attached as result.token_budget.
+    compress_context : how to compress chained agent text before Risk
+                   Manager / Deep Market Report. One of:
+                       "off"        — pass full text (default, safe)
+                       "extractive" — pure-Python summary (zero cost)
+                       "llm"        — FAST_MODEL summary (~$0.0005/call)
+                       "auto"       — extractive < 1.5k chars else llm
+                   Run scripts/eval_context_compression.py to verify
+                   decision agreement before enabling in production.
 
     Returns
     -------
@@ -547,6 +556,20 @@ def run_multi_agent_analysis(
     # Enrich context with panel consensus + fusion for risk manager
     panel_summary = panel_result.get("panel_summary", "")
     fusion_summary = fusion_result.get("fusion_detail", "")
+
+    # Optional context compression on chained reports before Risk Manager
+    # consumes them. Default "off" to avoid silently changing decisions —
+    # see scripts/eval_context_compression.py for verification workflow.
+    if compress_context and compress_context != "off":
+        try:
+            from engine.context_compressor import compress
+            market_report = compress(market_report, mode=compress_context,
+                                       ticker=ticker)
+            news_report = compress(news_report, mode=compress_context,
+                                    ticker=ticker)
+            ml_report = compress(ml_report, mode=compress_context, ticker=ticker)
+        except Exception as e:
+            logger.debug("Context compression failed for %s: %s", ticker, e)
 
     LLM_TIMEOUT = 60  # seconds — fail gracefully instead of hanging
 

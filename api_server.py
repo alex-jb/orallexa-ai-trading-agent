@@ -263,6 +263,7 @@ async def deep_analysis(
     ticker: str = Form("NVDA"),
     token_cap: int = Form(0),
     cost_cap_usd: float = Form(0.0),
+    compress_context: str = Form("off"),
 ):
     """
     Lightweight deep analysis: ML models + technical analysis + news sentiment
@@ -273,6 +274,11 @@ async def deep_analysis(
     LLM-heavy steps (debate, perspective panel, risk manager, deep
     market report) are SKIPPED gracefully and the partial result is
     returned with `token_budget` + `budget_skipped` fields populated.
+
+    compress_context (off / extractive / llm / auto, default off):
+    if non-off, intermediate reports are compressed before Risk Manager
+    sees them — saves tokens at the cost of nuance. Verify decision
+    parity with scripts/eval_context_compression.py before enabling.
     """
     if DEMO_MODE:
         from engine.demo_data import mock_deep_analysis
@@ -304,7 +310,11 @@ async def deep_analysis(
                 label="deep-analysis",
             )
         brain = OrallexaBrain(tk)
-        return run_multi_agent_analysis(ticker=tk, brain=brain, token_budget=budget)
+        return run_multi_agent_analysis(
+            ticker=tk, brain=brain,
+            token_budget=budget,
+            compress_context=compress_context,
+        )
 
     try:
         result = await asyncio.wait_for(
