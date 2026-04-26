@@ -64,3 +64,9 @@ logs/
 
 # Tools
 .gstack/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
