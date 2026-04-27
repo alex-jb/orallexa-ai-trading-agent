@@ -18,12 +18,19 @@ RUN pip install --no-cache-dir \
 # App code
 COPY . .
 
-RUN mkdir -p memory_data results logs
+RUN mkdir -p memory_data results logs \
+    && adduser --disabled-password --gecos "" --uid 10001 orallexa \
+    && chown -R orallexa:orallexa /app
+
+USER orallexa
 
 EXPOSE 8002
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 ENV DEMO_MODE=true
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/healthz', timeout=3).status == 200 else 1)" || exit 1
 
 CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8002"]

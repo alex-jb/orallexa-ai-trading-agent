@@ -248,8 +248,8 @@ class TestSimpleBacktest:
 class TestStrategyRegistry:
     """Tests for engine/strategies.py :: STRATEGY_REGISTRY and helpers."""
 
-    def test_registry_has_nine_entries(self) -> None:
-        assert len(STRATEGY_REGISTRY) == 9
+    def test_registry_has_ten_entries(self) -> None:
+        assert len(STRATEGY_REGISTRY) == 10
 
     def test_registry_keys(self) -> None:
         expected = {
@@ -262,6 +262,7 @@ class TestStrategyRegistry:
             "dual_thrust",
             "ensemble_vote",
             "regime_ensemble",
+            "vwap_reversion",
         }
         assert set(STRATEGY_REGISTRY.keys()) == expected
 

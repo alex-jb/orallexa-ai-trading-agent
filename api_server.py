@@ -47,6 +47,12 @@ async def _warmup():
         logging.getLogger("api").info("🎭 DEMO MODE — all endpoints return mock data, no API keys needed")
 
 
+@app.get("/healthz")
+async def healthz() -> dict[str, bool | str]:
+    """Liveness probe for Docker / K8s. No auth, no I/O."""
+    return {"ok": True, "service": "orallexa-api"}
+
+
 _cors_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [
     "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001",
     "https://orallexa-ui.vercel.app",

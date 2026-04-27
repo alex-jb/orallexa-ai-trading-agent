@@ -26,6 +26,21 @@ def has_api_key():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# HEALTHZ — liveness probe used by Docker / K8s
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestHealthz:
+    def test_healthz_returns_200(self, client):
+        resp = client.get("/healthz")
+        assert resp.status_code == 200
+
+    def test_healthz_payload(self, client):
+        data = client.get("/healthz").json()
+        assert data["ok"] is True
+        assert data["service"] == "orallexa-api"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # ANALYZE ENDPOINT
 # ═══════════════════════════════════════════════════════════════════════════
 

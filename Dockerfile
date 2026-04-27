@@ -32,15 +32,19 @@ COPY api_server.py .
 COPY app.py .
 COPY app_ui.py .
 
-# Ensure data dirs exist
-RUN mkdir -p memory_data results logs rag_data
+# Ensure data dirs exist and grant ownership to the non-root runtime user
+RUN mkdir -p memory_data results logs rag_data \
+    && adduser --disabled-password --gecos "" --uid 10001 orallexa \
+    && chown -R orallexa:orallexa /app
+
+USER orallexa
 
 EXPOSE 8002
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/profile')" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/healthz', timeout=3).status == 200 else 1)" || exit 1
 
 CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8002"]

@@ -2,6 +2,70 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-27] — Good first issue cleanup: Docker hardening, VWAP strategy, sentiment tests, Japanese i18n
+
+Knocked out the four open `good first issue` tickets that had been sitting on
+the tracker since mid-April. Each is small but ships real value, and closing
+them all in one pass removes the "looks abandoned" smell from the issues page.
+
+### Added — Docker hardening (closes #3)
+
+- `/healthz` liveness endpoint on the FastAPI server — no auth, no I/O, returns
+  `{"ok": true, "service": "orallexa-api"}`. Suitable for Docker, K8s, and
+  Railway/Vercel health probes that don't want to hit `/api/profile` (which
+  loads behavior memory from disk).
+- `Dockerfile` + `Dockerfile.railway` now create a non-root `orallexa` user
+  (uid 10001), `chown -R` the app dir, and `USER orallexa` before `CMD`.
+  `HEALTHCHECK` swapped from `/api/profile` (heavy) to `/healthz` (cheap),
+  with a `--start-period=15s` so first-boot warmup doesn't flap the status.
+- Tests: `TestHealthz` in `tests/test_api_e2e.py` covers status + payload.
+
+### Added — VWAP mean-reversion strategy (closes #2)
+
+- New 10th rule-based strategy in `engine/strategies.py`:
+  `vwap_reversion(df, params) -> pd.Series`. Computes VWAP from typical price
+  × volume (or reuses `df["VWAP"]` from the indicator pipeline if present),
+  then emits `+1` when close < VWAP × (1 − threshold) and RSI < `rsi_oversold`,
+  `-1` symmetrically on the upside, `0` otherwise. Defaults: `threshold=0.01`,
+  `rsi_oversold=35`, `rsi_overbought=65`.
+- Registered in `STRATEGY_REGISTRY`, `STRATEGY_DEFAULT_PARAMS`,
+  `STRATEGY_DESCRIPTIONS`, **and** `engine/param_optimizer.SEARCH_SPACES` —
+  the latter is what kept it from being an Optuna second-class citizen.
+- Tests: `tests/test_vwap_reversion.py` (13 cases) — registry membership,
+  signal shape, BUY/SELL gates, threshold band, RSI gate, the existing-VWAP
+  override, zero-volume → no-crash, and missing-column raises.
+
+### Added — sentiment.py test coverage (closes #4)
+
+- New `tests/test_sentiment.py` (21 cases) covers `score_text`,
+  `_score_keywords` (the always-available keyword fallback),
+  `score_news_items`, `aggregate_sentiment`, `analyze_ticker_sentiment`
+  (rag-only path, news-skill fallback, rag-throws-then-news-fallback,
+  news-skill-throws → graceful neutral, `limit` honored), and
+  `get_scorer_type`. All paths are mocked — no network, no model download.
+
+### Added — Japanese i18n (closes #1)
+
+- `desktop_agent/i18n.py` — every entry in `_STRINGS` now has a `ja`
+  translation alongside `en` and `zh`. Idiomatic Japanese for the trading
+  vocabulary (銘柄/スキャル/デイ/スイング/エントリー/ストップ/ターゲット), greetings
+  follow the time-of-day register the existing zh strings use.
+- Tests: `tests/test_i18n.py` (14 cases) — full coverage parametrized over
+  `(en, zh, ja)`: every key has a non-empty translation, format placeholders
+  (`{ticker}`, `{pct}`) are consistent across languages so `.format(...)` never
+  silently drops a value, and `t()` lookup behavior is asserted (Japanese
+  hits, unknown key returns the key, unknown lang falls back to English,
+  `set_lang` / `get_lang` round-trip).
+
+### Changed — registry count assertions
+
+- `tests/test_engine_core.py::TestStrategyRegistry` — expected count bumped
+  from 9 to 10 to include `vwap_reversion`. A `len() == N` assertion will
+  always be a thorn when adding strategies; the keyset test catches the
+  same bug more precisely.
+
+---
+
 ## [2026-04-26] — Phase 10: Kronos, Kalshi, DyTopo, CORAL — and the wiring that made them live
 
 The previous session added scaffolding for adaptive weights, multi-provider

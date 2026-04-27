@@ -83,6 +83,11 @@ SEARCH_SPACES = {
         "range_min_agree": ("int", 3, 6),
         "adx_trend": ("int", 15, 30),
     },
+    "vwap_reversion": {
+        "threshold":      ("float", 0.003, 0.03),
+        "rsi_oversold":   ("int", 20, 40),
+        "rsi_overbought": ("int", 60, 80),
+    },
 }
 
 

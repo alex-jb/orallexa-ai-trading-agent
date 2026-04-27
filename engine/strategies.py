@@ -22,6 +22,7 @@ Strategies included:
     7. alpha_combo        — Multi-factor composite signal
     8. ensemble_vote      — Majority vote across all strategies (noise filter)
     9. regime_ensemble    — Ensemble vote + regime filter (only trade in trending markets)
+   10. vwap_reversion     — VWAP mean reversion gated by RSI extremes
 """
 
 import numpy as np
@@ -540,6 +541,58 @@ def regime_ensemble(df: pd.DataFrame, params: Dict[str, Any] = None) -> pd.Serie
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# STRATEGY 10 — VWAP Mean Reversion (Volume-Weighted Average Price)
+# ══════════════════════════════════════════════════════════════════════════
+
+def vwap_reversion(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    """
+    Mean reversion to VWAP gated by RSI extremes.
+
+    VWAP = cumsum(typical_price * volume) / cumsum(volume)
+    where typical_price = (High + Low + Close) / 3
+
+    Signals (issue #2 spec):
+        +1 BUY   when close < VWAP * (1 - threshold) and RSI < rsi_oversold
+        -1 SELL  when close > VWAP * (1 + threshold) and RSI > rsi_overbought
+         0 otherwise
+
+    params:
+        threshold       (float): VWAP deviation gate, default 0.01 (1%)
+        rsi_oversold    (int):   RSI must be below this to BUY, default 35
+        rsi_overbought  (int):   RSI must be above this to SELL, default 65
+    """
+    _check_columns(df, ["High", "Low", "Close", "Volume"], "vwap_reversion")
+
+    threshold      = params.get("threshold", 0.01)
+    rsi_oversold   = params.get("rsi_oversold", 35)
+    rsi_overbought = params.get("rsi_overbought", 65)
+
+    # Prefer the indicator-pipeline VWAP if present; otherwise compute from OHLCV.
+    if "VWAP" in df.columns:
+        vwap = df["VWAP"]
+    else:
+        typical_price = (df["High"] + df["Low"] + df["Close"]) / 3.0
+        cum_pv = (typical_price * df["Volume"]).cumsum()
+        cum_v  = df["Volume"].cumsum().replace(0, np.nan)
+        vwap = cum_pv / cum_v
+
+    rsi = df["RSI"] if "RSI" in df.columns else pd.Series(50.0, index=df.index)
+    close = df["Close"]
+
+    lower_band = vwap * (1.0 - threshold)
+    upper_band = vwap * (1.0 + threshold)
+
+    signal = pd.Series(0, index=df.index)
+    signal[(close < lower_band) & (rsi < rsi_oversold)] = 1
+    signal[(close > upper_band) & (rsi > rsi_overbought)] = -1
+
+    # NaN VWAP rows (zero-volume edge case) → no signal
+    signal[vwap.isna()] = 0
+
+    return signal
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # STRATEGY REGISTRY
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -553,6 +606,7 @@ STRATEGY_REGISTRY = {
     "dual_thrust":        dual_thrust,
     "ensemble_vote":      ensemble_vote,
     "regime_ensemble":    regime_ensemble,
+    "vwap_reversion":     vwap_reversion,
 }
 
 STRATEGY_DEFAULT_PARAMS = {
@@ -584,6 +638,9 @@ STRATEGY_DEFAULT_PARAMS = {
     "regime_ensemble": {
         "trend_min_agree": 2, "range_min_agree": 4, "adx_trend": 20
     },
+    "vwap_reversion": {
+        "threshold": 0.01, "rsi_oversold": 35, "rsi_overbought": 65
+    },
 }
 
 STRATEGY_DESCRIPTIONS = {
@@ -596,6 +653,7 @@ STRATEGY_DESCRIPTIONS = {
     "dual_thrust":        "Opening range breakout — high-frequency classic using N-day range triggers",
     "ensemble_vote":      "Majority vote across 6 base strategies — noise filter, only trades when 3+ agree",
     "regime_ensemble":    "Regime-aware ensemble — easier entry in trends, stricter in ranges, sits out volatile markets",
+    "vwap_reversion":     "VWAP mean reversion — fade close vs VWAP gated by RSI extremes",
 }
 
 
