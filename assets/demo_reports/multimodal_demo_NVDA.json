@@ -1,0 +1,90 @@
+{
+  "consensus": "BULLISH",
+  "avg_score": 38.7,
+  "agreement": 75,
+  "perspectives": [
+    {
+      "role": "Conservative Analyst",
+      "icon": "🛡️",
+      "bias": "NEUTRAL",
+      "score": 5,
+      "conviction": 50,
+      "reasoning": "Above MA50 with healthy R/R, but extended past +2σ Bollinger. Drawdown risk if FOMC surprises hawkish.",
+      "key_factor": "Position size below 5% recommended.",
+      "modality": "text"
+    },
+    {
+      "role": "Aggressive Trader",
+      "icon": "⚡",
+      "bias": "BULLISH",
+      "score": 60,
+      "conviction": 70,
+      "reasoning": "Volume 2.4× average, MACD histogram positive 6 sessions, RSI 62. Breakout looks real; trail stop under MA20.",
+      "key_factor": "Momentum confirmed across volume and MACD.",
+      "modality": "text"
+    },
+    {
+      "role": "Macro Strategist",
+      "icon": "🌍",
+      "bias": "BULLISH",
+      "score": 35,
+      "conviction": 60,
+      "reasoning": "Semis sector relative strength rising vs SPY. AI capex cycle still supportive. Watch 10Y if it spikes past 4.5%.",
+      "key_factor": "Sector rotation favors continued long.",
+      "modality": "text"
+    },
+    {
+      "role": "Quant Researcher",
+      "icon": "📊",
+      "bias": "BULLISH",
+      "score": 45,
+      "conviction": 65,
+      "reasoning": "8/10 ML models lean long, fusion conviction +52, PEAD avg drift +1.8% post-earnings, social sentiment +0.31.",
+      "key_factor": "Multi-source signal alignment.",
+      "modality": "text"
+    },
+    {
+      "role": "Quant Researcher",
+      "icon": "📊",
+      "bias": "BEARISH",
+      "score": -25,
+      "conviction": 60,
+      "reasoning": "Chart shows a head-and-shoulders top forming over 8 weeks; right shoulder at $215 is rolling over. Volume on the recent rally was lighter than the left-shoulder advance — classic distribution. MA20 slope flattening.",
+      "key_factor": "H&S pattern + declining volume on rally.",
+      "modality": "vision"
+    }
+  ],
+  "panel_summary": "## Perspective Panel — NVDA\n\n**Consensus: BULLISH** (score: +39, agreement: 75%)\n\n🛡️ **Conservative Analyst** — NEUTRAL (score: +5, conviction: 50%)\n   Above MA50 with healthy R/R, but extended past +2σ Bollinger. Drawdown risk if FOMC surprises hawkish.\n   Key: Position size below 5% recommended.\n\n⚡ **Aggressive Trader** — BULLISH (score: +60, conviction: 70%)\n   Volume 2.4× average, MACD histogram positive 6 sessions, RSI 62. Breakout looks real; trail stop under MA20.\n   Key: Momentum confirmed across volume and MACD.\n\n🌍 **Macro Strategist** — BULLISH (score: +35, conviction: 60%)\n   Semis sector relative strength rising vs SPY. AI capex cycle still supportive. Watch 10Y if it spikes past 4.5%.\n   Key: Sector rotation favors continued long.\n\n📊 **Quant Researcher** — BULLISH (score: +45, conviction: 65%)\n   8/10 ML models lean long, fusion conviction +52, PEAD avg drift +1.8% post-earnings, social sentiment +0.31.\n   Key: Multi-source signal alignment.\n",
+  "roles_selected": [
+    "Conservative Analyst",
+    "Aggressive Trader",
+    "Macro Strategist",
+    "Quant Researcher"
+  ],
+  "multimodal_diff": {
+    "pairs": [
+      {
+        "role": "Quant Researcher",
+        "text": {
+          "bias": "BULLISH",
+          "score": 45,
+          "conviction": 65,
+          "reasoning": "8/10 ML models lean long, fusion conviction +52, PEAD avg drift +1.8% post-earnings, social sentiment +0.31."
+        },
+        "vision": {
+          "bias": "BEARISH",
+          "score": -25,
+          "conviction": 60,
+          "reasoning": "Chart shows a head-and-shoulders top forming over 8 weeks; right shoulder at $215 is rolling over. Volume on the recent rally was lighter than the left-shoulder advance — classic distribution. MA20 slope flattening."
+        },
+        "agree": false,
+        "score_delta": -70,
+        "conviction_delta": -5
+      }
+    ],
+    "agreement_rate": 0.0,
+    "avg_score_delta": -70.0,
+    "avg_conviction_delta": -5.0,
+    "n_pairs": 1
+  }
+}

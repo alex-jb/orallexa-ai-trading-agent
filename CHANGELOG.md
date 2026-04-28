@@ -2,6 +2,76 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-28] — Multi-modal debate Day 8-9: demo orchestrator + cron eval workflow
+
+The pipeline can now produce demos for the 5/4 interview without API
+keys, and an autonomous loop tracks vision-vs-text lift on the GitHub
+side every night.
+
+### Added — `scripts/demo_multimodal_debate.py`
+
+Single command runs the entire multi-modal pipeline end-to-end:
+
+* Renders the K-line via `engine.chart_render` (or reuses
+  `assets/demo_kline_NVDA.png` in mock mode)
+* Runs `run_perspective_panel(multimodal=True)`
+* Prints a side-by-side text/vision report — table of all perspectives
+  + per-pair diff with reasoning
+* `--report` flag also writes UTF-8 markdown + JSON to
+  `assets/demo_reports/`
+
+Two modes:
+
+* **Live** (default): hits Anthropic, ~$0.005 per run.
+* **`--mock`**: zero API calls. Canned responses are designed to surface
+  the killer demo moment — text says BULLISH on momentum, vision says
+  BEARISH on a head-and-shoulders pattern. Saves the same shape as the
+  live mode so a recorded demo looks identical to the real thing.
+
+The mock report committed at `assets/demo_reports/multimodal_demo_NVDA.md`
+is what the 5/4 interview demo plays from.
+
+### Added — `.github/workflows/multimodal-lift.yml`
+
+Daily cron at 03:00 UTC (staggered after the source-outcomes 02:00 UTC
+backfill so forward returns are fresh). Three steps:
+
+1. Build / refresh the eval set from `decision_log`
+2. Run the lift evaluator → JSON report
+3. Post the verdict to the workflow summary + upload artifact
+
+Robustness contract:
+
+* Runs unconditionally — when `decision_log` has no multimodal records
+  yet, the build step writes an empty file and the evaluator reports
+  `status: no_eval_data`. Exit 0. The day data accumulates, the same
+  cron starts producing real verdicts without any code change.
+* `actions/cache` carries the eval set between runs (same pattern as
+  `source-outcomes.yml`).
+* Always-run synthetic-mode smoke test at the end so the harness can't
+  silently break between schedule fires regardless of decision_log
+  state.
+* Manual trigger via `workflow_dispatch` with overridable `days`,
+  `threshold`, and `min_n` inputs.
+
+### Tests — `tests/test_demo_multimodal.py` (12 cases)
+
+* Bias-emoji helper for known + unknown values.
+* Mock perspective dispatcher: text vs vision returns different canned
+  responses (the demo's whole point), unknown role falls back to neutral.
+* `render_side_by_side`: includes ticker/consensus header, every
+  perspective row, diff section when pairs present, "No vision pairs
+  available" branch when not, UTF-8 round-trip safe (the `—` em-dash
+  plus `[+]/[-]/[0]` ASCII bias indicators don't crash any encoder).
+* End-to-end: `run_demo(mock=True, save_report=True)` writes both
+  markdown + JSON reports; `--report` skipped path doesn't touch disk.
+
+### Suite
+
+990 passed (978 → +12).
+
+---
+
 ## [2026-04-28] — Multi-modal debate Day 7: lift evaluator + eval-set extractor
 
 Day 6 made every multimodal-enabled deep-analysis stash its diff on

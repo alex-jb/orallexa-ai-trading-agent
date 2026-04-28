@@ -17,7 +17,7 @@ Polymarket + Kalshi prediction markets vote alongside ML models. Weights adapt t
 [![Claude](https://img.shields.io/badge/Claude_Opus_4.7-1A1A2E?style=for-the-badge&logo=anthropic&logoColor=D4AF37)](https://anthropic.com)
 [![Multi-Provider](https://img.shields.io/badge/Anthropic_·_OpenAI_·_Gemini-1A1A2E?style=for-the-badge&logoColor=D4AF37)](docs/NEW_MODULES.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/920%2B_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/990%2B_Tests-Passing-22c55e?style=for-the-badge)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-83%25-22c55e?style=for-the-badge)](.coveragerc)
 [![Issues](https://img.shields.io/badge/Open_Issues-0-22c55e?style=for-the-badge)](https://github.com/alex-jb/orallexa-ai-trading-agent/issues)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
@@ -120,6 +120,7 @@ Docker: `docker compose up --build` — that's it.
 | **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
 | **10 Rule-Based Strategies** | Double MA, MACD, Bollinger, RSI reversal, trend-momentum, alpha combo, dual thrust, ensemble vote, regime ensemble, **VWAP reversion** |
 | **DSPy Phase B harness** | Compile pipeline ready: synthetic eval set → MIPROv2 → A/B vs hand-tuned baseline → 5%-gate ship/reject. Awaits 100 production debates worth of training data. |
+| **Multi-modal Debate** | Quant persona reads the K-line image alongside the numbers via Claude Vision. Lift harness compares vision-vs-text decision agreement against forward returns; cron runs nightly. Off by default (vision ~5× text cost) until ≥50 production pairs clear the +5% absolute-lift gate. |
 | **Daily Intel** | 50+ tickers, sector rotation, volume spikes, earnings watchlist, AI morning brief |
 
 </td>

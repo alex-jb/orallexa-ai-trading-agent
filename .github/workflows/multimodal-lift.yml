@@ -1,0 +1,121 @@
+name: Multimodal Lift — Vision vs Text Eval
+
+# Day 9 of the multi-modal debate spike. Autonomous loop:
+#   1. Pull every decision_log record with extra.multimodal_diff.
+#   2. Attach 5d forward returns -> ground-truth labels.
+#   3. Run the lift evaluator: vision_accuracy vs text_accuracy.
+#   4. Surface the verdict (ship | reject_no_lift | reject_text_better |
+#      below_threshold | no_eval_data) as a workflow artifact + summary.
+#
+# Same persistence pattern as source-outcomes.yml — actions/cache carries
+# the eval set between runs so the JSONL grows over time. Production
+# deployments should run this via their own scheduler against persistent
+# storage; the GitHub-hosted run is a convenience for the repo CI.
+#
+# This workflow runs ALWAYS — when there's no data yet it cleanly reports
+# `status: no_eval_data` and exits 0. The day data accumulates, the same
+# cron starts producing real verdicts without any code change.
+
+on:
+  schedule:
+    # Daily at 03:00 UTC — staggered after source-outcomes (02:00 UTC) so
+    # the multimodal eval picks up freshly-labelled forward returns.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Forward return window (trading days)"
+        required: false
+        default: "5"
+      threshold:
+        description: "Absolute lift required to ship vision"
+        required: false
+        default: "0.05"
+      min_n:
+        description: "Minimum eligible pairs for a meaningful verdict"
+        required: false
+        default: "50"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          # Eval scripts only need yfinance + stdlib — keep CI image slim.
+          pip install yfinance pandas numpy
+
+      - name: Restore decision_log + eval-set caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            memory_data/decision_log.json
+            memory_data/multimodal_eval_set.jsonl
+          # Single-key cache — last-write-wins so each run starts from the
+          # most recent snapshot.
+          key: multimodal-eval-data-v1
+
+      - name: Build / refresh the multimodal eval set
+        # Always runs. When the decision log has no multimodal_diff records
+        # yet, the script writes an empty file and exits 0.
+        run: |
+          python scripts/build_multimodal_eval_set.py \
+            --days "${{ github.event.inputs.days || '5' }}"
+
+      - name: Evaluate vision vs text lift
+        id: eval
+        run: |
+          python scripts/eval_multimodal_lift.py \
+            --threshold "${{ github.event.inputs.threshold || '0.05' }}" \
+            --min-n "${{ github.event.inputs.min_n || '50' }}" \
+            | tee multimodal_lift_report.json
+          # Parse the verdict into a step output for the summary block.
+          STATUS=$(grep -oE '"status": "[^"]+"' multimodal_lift_report.json | head -1 | cut -d'"' -f4)
+          echo "status=${STATUS:-unknown}" >> "$GITHUB_OUTPUT"
+
+      - name: Write GitHub Step Summary
+        run: |
+          {
+            echo "# Multimodal Lift Verdict"
+            echo ""
+            echo "**Status:** \`${{ steps.eval.outputs.status }}\`"
+            echo ""
+            echo '```json'
+            cat multimodal_lift_report.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload eval artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: multimodal-lift-${{ github.run_id }}
+          path: |
+            multimodal_lift_report.json
+            memory_data/multimodal_eval_set.jsonl
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Smoke test (synthetic mode)
+        # Even when the schedule run has no data, prove the harness still
+        # works end-to-end on synthetic input. Catches breakage between
+        # schedule fires regardless of decision_log state.
+        run: |
+          python scripts/build_multimodal_eval_set.py --synthesize 200 \
+            --output /tmp/mm_smoke.jsonl
+          python scripts/eval_multimodal_lift.py --eval-set /tmp/mm_smoke.jsonl
