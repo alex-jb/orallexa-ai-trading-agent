@@ -446,7 +446,12 @@ class TestMarketDataSkillWiring:
 
 class TestGnnSignalWiring:
     """GNN signal scans many tickers per call — caching this is the biggest
-    single round-trip saving in the codebase."""
+    single round-trip saving in the codebase. Skips when torch isn't
+    installed; CI doesn't ship torch (too heavy)."""
+
+    @pytest.fixture(autouse=True)
+    def _require_torch(self):
+        pytest.importorskip("torch")
 
     def test_cache_serves_all_tickers_when_pre_populated(self, monkeypatch, cache):
         import pandas as pd
