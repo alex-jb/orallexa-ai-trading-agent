@@ -2,6 +2,67 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-27] — Historical cache wired into engine/earnings.py
+
+The `engine/historical_cache.py` scaffold has been sitting since Phase 10
+with `populate_*` / `load_*` methods but no cache-aware fetch path and no
+production callers. This change closes both gaps.
+
+### Added — cache-aware fetchers
+
+- `HistoricalCache.get_prices(ticker, *, start, end, max_age_hours=24)` —
+  serves cached parquet when (a) freshness < `max_age_hours` and (b)
+  cached range is a superset of `[start, end]`. Otherwise refetches and
+  rewrites. Returns None on all-source failure (caller falls back).
+- `HistoricalCache.get_earnings_dates(ticker, max_age_hours=24)` —
+  cache-aware fetch of the *raw* yfinance earnings_dates DataFrame, with
+  EPS Estimate / Reported EPS / Surprise(%) columns intact. Distinct
+  from `populate_earnings` (simplified JSON) which is kept for the
+  daily-intel consumer that wants normalized fields.
+- `_is_fresh` / `_covers_range` private helpers compute the cache-or-fetch
+  decision from the existing metadata ledger — no new schema needed.
+
+### Added — module-level convenience
+
+- `get_default_cache()` — module-level singleton so callers don't have to
+  construct a `HistoricalCache` instance per call. Tests use a tmp_path
+  instance via `monkeypatch.setattr(hc, "_DEFAULT_INSTANCE", ...)`.
+- `cache_enabled()` — reads `ORALLEXA_USE_CACHE` env var. Cache is opt-in
+  so CI stays deterministic. Set `ORALLEXA_USE_CACHE=1` in local dev or
+  long-running prod containers to save round-trips.
+
+### Changed — engine/earnings.py wiring
+
+- Both `fetch_earnings_calendar` and `compute_pead_stats` previously
+  called `tk.earnings_dates` directly — back-to-back yfinance hits when
+  both run in the same scan. Now route through `_earnings_dates_for(ticker)`
+  which checks the cache first when `ORALLEXA_USE_CACHE=1`, else falls
+  through to yfinance (preserves backward compatibility).
+- `compute_pead_stats` price history fetch (~2 years of daily bars per
+  call) now serves from `get_prices` when the cache is enabled.
+- All cache lookups are wrapped in try/except so a corrupt cache file
+  never blocks the signal — the existing yfinance path is the floor.
+
+### Tests
+
+- `tests/test_historical_cache.py` (+11 cases): cache-aware get_prices
+  freshness gate, range-coverage gate, refetch-on-stale, refetch-on-extend,
+  None on empty yfinance; get_earnings_dates serves-fresh / refetches-stale;
+  module helpers (singleton, `cache_enabled` env-var parse for `1` /
+  `true` / unset / `0`); engine.earnings wiring (cache-on serves without
+  yfinance call, cache-off falls through to yfinance).
+
+### Operational notes
+
+- The cache lives at `memory_data/historical_cache/`. Already in
+  `.gitignore` via `memory_data/`. First populate cost (per ticker) is
+  one yfinance round-trip per source.
+- `max_age_hours` is per-call, not global — earnings dates default 24h
+  is fine since they only change quarterly; price freshness should match
+  intraday vs daily caller expectations (caller chooses).
+
+---
+
 ## [2026-04-27] — DSPy Phase B compile harness (data-ready, awaiting eligibility)
 
 The Phase A scaffold from 2026-04-25 left the actual MIPROv2 compile path

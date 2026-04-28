@@ -182,3 +182,175 @@ class TestOptionsSnapshot:
         fake_ticker.options = []
         with patch("yfinance.Ticker", return_value=fake_ticker):
             assert cache.populate_options_snapshot("XYZ") is False
+
+
+# ── Cache-aware get_prices ─────────────────────────────────────────────────
+
+
+class TestGetPrices:
+    def _fake_ticker(self, df):
+        ticker = MagicMock()
+        ticker.history.return_value = df
+        return ticker
+
+    def test_serves_cache_when_fresh_and_covers_range(self, cache):
+        import pandas as pd
+        df = pd.DataFrame(
+            {"Open": [1], "High": [1], "Low": [1], "Close": [1], "Volume": [1]},
+            index=pd.date_range("2024-01-01", periods=1),
+        )
+        with patch("yfinance.Ticker", return_value=self._fake_ticker(df)) as mock_yf:
+            cache.populate_prices("NVDA", start="2024-01-01", end="2024-12-31")
+            assert mock_yf.call_count == 1
+            # Second call within cached range and 24h freshness → no refetch.
+            out = cache.get_prices("NVDA", start="2024-06-01", end="2024-09-30",
+                                    max_age_hours=24)
+            assert mock_yf.call_count == 1
+        assert out is not None
+        assert len(out) == 1
+
+    def test_refetches_when_stale(self, cache):
+        import pandas as pd
+        df = pd.DataFrame(
+            {"Open": [1], "High": [1], "Low": [1], "Close": [1], "Volume": [1]},
+            index=pd.date_range("2024-01-01", periods=1),
+        )
+        with patch("yfinance.Ticker", return_value=self._fake_ticker(df)) as mock_yf:
+            cache.populate_prices("NVDA", start="2024-01-01", end="2024-12-31")
+            # max_age_hours=0 → cache is always stale → refetch.
+            cache.get_prices("NVDA", start="2024-06-01", end="2024-09-30",
+                              max_age_hours=0)
+            assert mock_yf.call_count == 2
+
+    def test_refetches_when_range_extends_past_cache(self, cache):
+        import pandas as pd
+        df = pd.DataFrame(
+            {"Open": [1], "High": [1], "Low": [1], "Close": [1], "Volume": [1]},
+            index=pd.date_range("2024-01-01", periods=1),
+        )
+        with patch("yfinance.Ticker", return_value=self._fake_ticker(df)) as mock_yf:
+            cache.populate_prices("NVDA", start="2024-06-01", end="2024-09-30")
+            # Range start before cached start → refetch.
+            cache.get_prices("NVDA", start="2024-01-01", end="2024-09-30",
+                              max_age_hours=24)
+            assert mock_yf.call_count == 2
+
+    def test_returns_none_when_yfinance_returns_empty(self, cache):
+        import pandas as pd
+        with patch("yfinance.Ticker", return_value=self._fake_ticker(pd.DataFrame())):
+            out = cache.get_prices("XYZ", start="2024-01-01", end="2024-12-31")
+        assert out is None
+
+
+# ── Cache-aware get_earnings_dates ─────────────────────────────────────────
+
+
+class TestGetEarningsDates:
+    def _fake_ticker_with_earnings(self, df):
+        ticker = MagicMock()
+        ticker.earnings_dates = df
+        return ticker
+
+    def test_serves_cache_when_fresh(self, cache):
+        import pandas as pd
+        ed = pd.DataFrame(
+            {"EPS Estimate": [1.5], "Reported EPS": [1.6], "Surprise(%)": [6.7]},
+            index=pd.date_range("2024-01-15", periods=1),
+        )
+        with patch("yfinance.Ticker", return_value=self._fake_ticker_with_earnings(ed)) as mock_yf:
+            cache.populate_earnings_dates_raw("NVDA")
+            assert mock_yf.call_count == 1
+            out = cache.get_earnings_dates("NVDA", max_age_hours=24)
+            # No second yfinance call — served from cache.
+            assert mock_yf.call_count == 1
+        assert out is not None
+        assert "Surprise(%)" in out.columns
+
+    def test_refetches_when_stale(self, cache):
+        import pandas as pd
+        ed = pd.DataFrame(
+            {"EPS Estimate": [1.5], "Reported EPS": [1.6], "Surprise(%)": [6.7]},
+            index=pd.date_range("2024-01-15", periods=1),
+        )
+        with patch("yfinance.Ticker", return_value=self._fake_ticker_with_earnings(ed)) as mock_yf:
+            cache.populate_earnings_dates_raw("NVDA")
+            cache.get_earnings_dates("NVDA", max_age_hours=0)
+            assert mock_yf.call_count == 2
+
+    def test_returns_none_on_no_data(self, cache):
+        ticker = MagicMock()
+        ticker.earnings_dates = None
+        with patch("yfinance.Ticker", return_value=ticker):
+            assert cache.get_earnings_dates("XYZ") is None
+
+
+# ── Module-level helpers ───────────────────────────────────────────────────
+
+
+class TestModuleHelpers:
+    def test_default_cache_is_singleton(self):
+        from engine.historical_cache import get_default_cache
+        a = get_default_cache()
+        b = get_default_cache()
+        assert a is b
+
+    def test_cache_enabled_reads_env(self, monkeypatch):
+        from engine.historical_cache import cache_enabled
+        monkeypatch.delenv("ORALLEXA_USE_CACHE", raising=False)
+        assert cache_enabled() is False
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "0")
+        assert cache_enabled() is False
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+        assert cache_enabled() is True
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "true")
+        assert cache_enabled() is True
+
+
+# ── Wiring: engine/earnings.py routes through the cache when enabled ──────
+
+
+class TestEarningsModuleWiring:
+    """The integration point that actually saves yfinance round-trips."""
+
+    def test_uses_cache_when_env_set(self, monkeypatch, cache):
+        import pandas as pd
+        ed = pd.DataFrame(
+            {"EPS Estimate": [1.5], "Reported EPS": [1.6], "Surprise(%)": [6.7]},
+            index=pd.date_range((pd.Timestamp.utcnow().tz_localize(None) +
+                                  pd.Timedelta(days=10)).strftime("%Y-%m-%d"),
+                                 periods=1),
+        )
+        # Pre-populate the cache instance so the wiring serves from it.
+        ticker = MagicMock()
+        ticker.earnings_dates = ed
+        with patch("yfinance.Ticker", return_value=ticker):
+            cache.populate_earnings_dates_raw("NVDA")
+
+        # Force engine.earnings to use this cache instance + flip the env flag.
+        import engine.historical_cache as hc
+        monkeypatch.setattr(hc, "_DEFAULT_INSTANCE", cache)
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+
+        # No yfinance.Ticker call expected — entirely from cache.
+        with patch("yfinance.Ticker") as mock_yf:
+            from engine.earnings import fetch_earnings_calendar
+            out = fetch_earnings_calendar("NVDA", days_ahead=60)
+            assert mock_yf.call_count == 0
+        assert isinstance(out, list)
+
+    def test_falls_through_to_yfinance_when_env_unset(self, monkeypatch):
+        import pandas as pd
+        monkeypatch.delenv("ORALLEXA_USE_CACHE", raising=False)
+        ed = pd.DataFrame(
+            {"EPS Estimate": [1.5]},
+            index=pd.date_range((pd.Timestamp.utcnow().tz_localize(None) +
+                                  pd.Timedelta(days=5)).strftime("%Y-%m-%d"),
+                                 periods=1),
+        )
+        ticker = MagicMock()
+        ticker.earnings_dates = ed
+        with patch("yfinance.Ticker", return_value=ticker) as mock_yf:
+            from engine.earnings import fetch_earnings_calendar
+            fetch_earnings_calendar("NVDA")
+            # Direct yfinance call when cache is off — backward compatible.
+            assert mock_yf.call_count >= 1

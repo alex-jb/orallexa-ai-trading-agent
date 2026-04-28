@@ -23,6 +23,28 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+def _earnings_dates_for(ticker: str):
+    """
+    Return the raw yfinance earnings_dates DataFrame, optionally cached.
+
+    Cache is opt-in: only used when ORALLEXA_USE_CACHE=1. This keeps CI and
+    test runs deterministic and isolated from any cached state on disk.
+    Without the env var, this falls through to a direct yfinance call —
+    same behavior as before the cache was wired in.
+    """
+    try:
+        from engine.historical_cache import get_default_cache, cache_enabled
+        if cache_enabled():
+            cached = get_default_cache().get_earnings_dates(ticker)
+            if cached is not None and not cached.empty:
+                return cached
+    except Exception as e:  # cache problems must never block the signal
+        logger.debug("Earnings cache lookup failed for %s: %s", ticker, e)
+
+    import yfinance as yf
+    return yf.Ticker(ticker).earnings_dates
+
+
 def _to_utc_naive(ts) -> datetime:
     """Normalize a pandas Timestamp (tz-aware or naive) to naive UTC."""
     dt = ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts
@@ -38,9 +60,7 @@ def fetch_earnings_calendar(ticker: str, days_ahead: int = 60) -> list[dict]:
     Each entry: {date, days_until, eps_estimate}.
     """
     try:
-        import yfinance as yf
-        tk = yf.Ticker(ticker)
-        ed = tk.earnings_dates
+        ed = _earnings_dates_for(ticker)
         if ed is None or ed.empty:
             return []
 
@@ -76,12 +96,10 @@ def compute_pead_stats(ticker: str, lookback_years: int = 2) -> dict:
         available          : whether enough data to compute
     """
     try:
-        import yfinance as yf
         import pandas as pd
         import numpy as np
 
-        tk = yf.Ticker(ticker)
-        ed = tk.earnings_dates
+        ed = _earnings_dates_for(ticker)
         if ed is None or ed.empty:
             return {"available": False}
 
@@ -102,10 +120,21 @@ def compute_pead_stats(ticker: str, lookback_years: int = 2) -> dict:
         if len(past) < 2:
             return {"available": False, "n_events": len(past)}
 
-        # Pull price history spanning oldest earnings to now
+        # Pull price history spanning oldest earnings to now. Cache-aware
+        # when ORALLEXA_USE_CACHE=1 — saves a yfinance round-trip on
+        # repeat scans (PEAD lookback is ~2 years of daily bars per call).
         oldest = min(p["date"] for p in past)
         start = (oldest - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
-        hist = tk.history(start=start, auto_adjust=True)
+        hist = None
+        try:
+            from engine.historical_cache import get_default_cache, cache_enabled
+            if cache_enabled():
+                hist = get_default_cache().get_prices(ticker, start=start)
+        except Exception as e:
+            logger.debug("Price cache lookup failed for %s: %s", ticker, e)
+        if hist is None or hist.empty:
+            import yfinance as yf
+            hist = yf.Ticker(ticker).history(start=start, auto_adjust=True)
         if hist.empty:
             return {"available": False, "n_events": len(past)}
 

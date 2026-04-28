@@ -249,6 +249,127 @@ class HistoricalCache:
         )
         return True
 
+    # ── Cache-aware high-level fetchers ───────────────────────────────────
+    # These are the methods production paths should call. They serve cache
+    # when fresh + sufficient, else fall through to a yfinance round-trip
+    # and write the result back. Returns the same shape yfinance would.
+
+    def _is_fresh(self, source: str, ticker: str, max_age_hours: float) -> bool:
+        meta = self._load_meta().get(source, {}).get(ticker.upper())
+        if not meta or not meta.get("updated_at"):
+            return False
+        try:
+            updated = datetime.fromisoformat(meta["updated_at"].replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if updated.tzinfo is None:
+            updated = updated.replace(tzinfo=timezone.utc)
+        age_seconds = (datetime.now(timezone.utc) - updated).total_seconds()
+        return age_seconds < max_age_hours * 3600
+
+    def _covers_range(self, source: str, ticker: str, start: str, end: str) -> bool:
+        """Is the cached range a superset of [start, end]?"""
+        meta = self._load_meta().get(source, {}).get(ticker.upper())
+        if not meta:
+            return False
+        cached_start = meta.get("start")
+        cached_end = meta.get("end")
+        if not (cached_start and cached_end):
+            return False
+        return cached_start <= start and cached_end >= end
+
+    def get_prices(
+        self,
+        ticker: str,
+        *,
+        start: str,
+        end: Optional[str] = None,
+        max_age_hours: float = 24.0,
+    ):
+        """
+        Cache-aware price fetch. Returns a pandas DataFrame or None.
+
+        Serves the cached parquet when:
+          (1) the cache is fresher than `max_age_hours`, AND
+          (2) the cached range is a superset of [start, end].
+
+        Otherwise fetches from yfinance, writes the result, then serves it.
+        Failures (network, parquet) leak as None — callers should fall back
+        to their existing path.
+        """
+        end = end or datetime.now().strftime("%Y-%m-%d")
+        if self._is_fresh("prices", ticker, max_age_hours) and self._covers_range("prices", ticker, start, end):
+            cached = self.load_prices(ticker)
+            if cached is not None and not cached.empty:
+                return cached
+        n = self.populate_prices(ticker, start=start, end=end)
+        if n == 0:
+            return None
+        return self.load_prices(ticker)
+
+    def populate_earnings_dates_raw(self, ticker: str) -> int:
+        """
+        Cache the *raw* yfinance earnings_dates DataFrame. Different from
+        populate_earnings (simplified JSON) — this preserves all columns
+        (EPS Estimate, Reported EPS, Surprise(%)) and the DatetimeIndex,
+        so downstream stats code can use it without reshaping.
+        """
+        try:
+            import yfinance as yf
+            import pandas as pd  # noqa: F401
+        except ImportError:
+            return 0
+        try:
+            ed = yf.Ticker(ticker).earnings_dates
+        except Exception as e:
+            logger.warning("earnings_dates fetch failed for %s: %s", ticker, e)
+            return 0
+        if ed is None or ed.empty:
+            return 0
+        path = self._file_for("earnings_raw", ticker)
+        try:
+            ed.to_parquet(path)
+        except Exception as e:
+            logger.warning("Parquet write failed (%s) — falling back to CSV", e)
+            ed.to_csv(path.with_suffix(".csv"))
+        self._record_freshness("earnings_raw", ticker, n_events=len(ed))
+        return len(ed)
+
+    def load_earnings_dates_raw(self, ticker: str):
+        try:
+            import pandas as pd
+        except ImportError:
+            return None
+        path = self._file_for("earnings_raw", ticker)
+        if path.exists():
+            try:
+                return pd.read_parquet(path)
+            except Exception:
+                pass
+        csv_path = path.with_suffix(".csv")
+        if csv_path.exists():
+            try:
+                return pd.read_csv(csv_path, index_col=0, parse_dates=True)
+            except Exception:
+                pass
+        return None
+
+    def get_earnings_dates(self, ticker: str, *, max_age_hours: float = 24.0):
+        """
+        Cache-aware earnings_dates fetch. Returns the raw yfinance DataFrame.
+
+        Serves cache when fresher than `max_age_hours`. Earnings dates only
+        change ~quarterly, so 24h is plenty conservative for most consumers.
+        Returns None on all-source failure.
+        """
+        if self._is_fresh("earnings_raw", ticker, max_age_hours):
+            cached = self.load_earnings_dates_raw(ticker)
+            if cached is not None and not cached.empty:
+                return cached
+        if self.populate_earnings_dates_raw(ticker) == 0:
+            return None
+        return self.load_earnings_dates_raw(ticker)
+
     # ── Status / inspection ───────────────────────────────────────────────
 
     def status(self) -> dict:
@@ -262,3 +383,24 @@ class HistoricalCache:
             source in meta
             and ticker.upper() in meta[source]
         )
+
+
+# ── Module-level convenience -------------------------------------------------
+# A single shared instance is good enough for production (the cache is just a
+# directory). Tests should construct their own instance with a tmp_path base.
+
+_DEFAULT_INSTANCE: Optional[HistoricalCache] = None
+
+
+def get_default_cache() -> HistoricalCache:
+    """Module-level singleton for callers that don't want to manage state."""
+    global _DEFAULT_INSTANCE
+    if _DEFAULT_INSTANCE is None:
+        _DEFAULT_INSTANCE = HistoricalCache()
+    return _DEFAULT_INSTANCE
+
+
+def cache_enabled() -> bool:
+    """Read-time toggle. CI keeps cache off so tests stay deterministic."""
+    import os
+    return os.environ.get("ORALLEXA_USE_CACHE", "").lower() in ("1", "true", "yes")
