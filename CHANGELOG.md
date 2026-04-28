@@ -2,6 +2,47 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-27] — Historical cache extended to daily_intel hot paths
+
+Building on the earnings.py wiring earlier today, this round adds two more
+high-frequency call sites and the period-based fetch helper they need.
+
+### Added — `get_prices_by_period`
+
+- `HistoricalCache.get_prices_by_period(ticker, *, period, max_age_hours)`
+  translates the relative `period` string ("1mo", "6mo", etc.) to absolute
+  start/end dates so the existing range-coverage gate handles it. Daily
+  granularity only — period="1d", interval="1m" intraday calls remain on
+  yfinance (real-time, no useful cache benefit at 24h freshness).
+- `_PERIOD_DAYS` covers the standard yfinance shorthands: 1d, 5d, 1mo,
+  3mo, 6mo, 1y, 2y, 5y, 10y. Unknown periods return None (caller falls back).
+
+### Changed — engine/daily_intel.py wiring
+
+- `_fetch_price_with_volume` — the 20-day average volume lookup
+  (`tk.history(period="1mo")`) now serves from cache when
+  `ORALLEXA_USE_CACHE=1`. This is the hottest call site in the codebase
+  because it runs across every watchlist ticker every morning scan
+  (~20-50 round-trips → 0 on cache hits).
+- `_calc_fear_greed` SPY 6-month history — same pattern. Single call per
+  scan, but the data barely changes intra-day so cache hits are nearly
+  100% within a 24h window. The follow-up VIX `fast_info` and
+  gold `fast_info` reads stay direct (real-time prices, not cacheable).
+- All cache lookups use the same try/except + fall-through-to-yfinance
+  pattern as earnings.py, so a corrupt cache file never blocks the signal.
+
+### Tests
+
+- `tests/test_historical_cache.py` (+5 cases): `get_prices_by_period`
+  serves from cache on second call within freshness window, returns None
+  on unknown period without hitting yfinance, and `_PERIOD_DAYS` carries
+  the standard shorthands. Wiring tests prove `_fetch_price_with_volume`
+  skips yfinance.history when cache covers the period (with `fast_info`
+  still mocked as the real-time path), and falls through normally when
+  the env var is unset.
+
+---
+
 ## [2026-04-27] — Historical cache wired into engine/earnings.py
 
 The `engine/historical_cache.py` scaffold has been sitting since Phase 10

@@ -284,6 +284,108 @@ class TestGetEarningsDates:
             assert cache.get_earnings_dates("XYZ") is None
 
 
+# ── get_prices_by_period (relative-period helper) ─────────────────────────
+
+
+class TestGetPricesByPeriod:
+    def _fake_ticker(self, df):
+        ticker = MagicMock()
+        ticker.history.return_value = df
+        return ticker
+
+    def test_translates_period_to_dates_and_caches(self, cache):
+        import pandas as pd
+        df = pd.DataFrame(
+            {"Open": [1, 2], "High": [2, 3], "Low": [1, 2], "Close": [2, 3], "Volume": [100, 200]},
+            index=pd.date_range("2026-04-01", periods=2),
+        )
+        with patch("yfinance.Ticker", return_value=self._fake_ticker(df)) as mock_yf:
+            out1 = cache.get_prices_by_period("NVDA", period="1mo")
+            out2 = cache.get_prices_by_period("NVDA", period="1mo")
+            # Second call within 24h freshness → no second yfinance hit.
+            assert mock_yf.call_count == 1
+        assert out1 is not None and out2 is not None
+        assert len(out1) == 2
+
+    def test_unsupported_period_returns_none(self, cache):
+        # No yfinance call should be triggered for unknown period strings.
+        with patch("yfinance.Ticker") as mock_yf:
+            assert cache.get_prices_by_period("NVDA", period="4w") is None
+            assert mock_yf.call_count == 0
+
+    def test_supports_common_periods(self, cache):
+        from engine.historical_cache import HistoricalCache
+        assert {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y"}.issubset(
+            HistoricalCache._PERIOD_DAYS.keys()
+        )
+
+
+# ── Wiring: engine/daily_intel.py routes through cache when enabled ──────
+
+
+class TestDailyIntelWiring:
+    """The 20-day-volume and SPY-6mo lookups are the highest-frequency
+    yfinance hits in production. Both should serve from cache when on."""
+
+    def test_volume_history_uses_cache_when_env_set(self, monkeypatch, cache):
+        import pandas as pd
+        # Pre-populate via get_prices_by_period itself so the cached range
+        # exactly matches what the wired call will request later.
+        df = pd.DataFrame(
+            {"Open": [1] * 25, "High": [1] * 25, "Low": [1] * 25,
+             "Close": [1] * 25, "Volume": list(range(1_000_000, 1_000_000 + 25 * 1000, 1000))},
+            index=pd.date_range("2026-04-01", periods=25),
+        )
+        with patch("yfinance.Ticker") as mock_seed:
+            mock_seed.return_value.history.return_value = df
+            cache.get_prices_by_period("NVDA", period="1mo")
+
+        import engine.historical_cache as hc
+        monkeypatch.setattr(hc, "_DEFAULT_INSTANCE", cache)
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+
+        # Now drive _fetch_price_with_volume — fast_info needs to be mocked,
+        # the history call should NOT hit yfinance because the cache covers it.
+        from engine import daily_intel
+        fast = MagicMock()
+        fast.last_price = 100.0
+        fast.previous_close = 99.0
+        fast.last_volume = 50_000
+        fake_ticker = MagicMock()
+        fake_ticker.fast_info = fast
+        # If the wiring works, history() on this ticker is never called.
+        fake_ticker.history.side_effect = AssertionError("should not hit yfinance.history")
+
+        with patch("yfinance.Ticker", return_value=fake_ticker):
+            out = daily_intel._fetch_price_with_volume("NVDA")
+
+        assert out is not None
+        assert out["ticker"] == "NVDA"
+        # avg_volume was derived from the cached 25 bars (last 20 mean).
+        assert out["avg_volume"] > 0
+
+    def test_volume_history_falls_through_when_env_unset(self, monkeypatch):
+        import pandas as pd
+        monkeypatch.delenv("ORALLEXA_USE_CACHE", raising=False)
+        df = pd.DataFrame(
+            {"Open": [1] * 5, "High": [1] * 5, "Low": [1] * 5,
+             "Close": [1] * 5, "Volume": [1_000_000] * 5},
+            index=pd.date_range("2026-04-22", periods=5),
+        )
+        fast = MagicMock(last_price=100.0, previous_close=99.0, last_volume=50_000)
+        fake_ticker = MagicMock()
+        fake_ticker.fast_info = fast
+        fake_ticker.history.return_value = df
+
+        from engine import daily_intel
+        with patch("yfinance.Ticker", return_value=fake_ticker):
+            out = daily_intel._fetch_price_with_volume("NVDA")
+
+        assert out is not None
+        # history() must be called when cache is off — backward compatible.
+        assert fake_ticker.history.called
+
+
 # ── Module-level helpers ───────────────────────────────────────────────────
 
 

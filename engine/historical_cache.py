@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -353,6 +353,36 @@ class HistoricalCache:
             except Exception:
                 pass
         return None
+
+    _PERIOD_DAYS = {
+        "1d": 1, "5d": 5, "1mo": 31, "3mo": 93, "6mo": 186,
+        "1y": 366, "2y": 732, "5y": 1830, "10y": 3660,
+    }
+
+    def get_prices_by_period(
+        self,
+        ticker: str,
+        *,
+        period: str,
+        max_age_hours: float = 24.0,
+    ):
+        """
+        Cache-aware version of `yf.Ticker(t).history(period=period)`.
+
+        Translates the relative `period` string to absolute start/end dates so
+        the existing range-coverage gate can be reused. Daily granularity only
+        — intraday intervals (period="1d", interval="1m") aren't cacheable at
+        24h freshness and should hit yfinance directly.
+
+        Returns a pandas DataFrame or None.
+        """
+        days = self._PERIOD_DAYS.get(period)
+        if days is None:
+            logger.debug("Unsupported period %r — falling through", period)
+            return None
+        end = datetime.now().strftime("%Y-%m-%d")
+        start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        return self.get_prices(ticker, start=start, end=end, max_age_hours=max_age_hours)
 
     def get_earnings_dates(self, ticker: str, *, max_age_hours: float = 24.0):
         """

@@ -74,10 +74,20 @@ def _fetch_price_with_volume(ticker: str) -> Optional[dict]:
         change_pct = round((price - prev) / prev * 100, 2) if prev and prev > 0 else 0.0
         volume = int(getattr(info, "last_volume", 0) or 0)
 
-        # Get 20-day average volume for spike detection
+        # Get 20-day average volume for spike detection. Cache-aware when
+        # ORALLEXA_USE_CACHE=1 — saves a yfinance call per watchlist ticker
+        # per scan (this loop runs across ~20-50 tickers every morning).
         avg_volume = 0
         try:
-            hist = tk.history(period="1mo", interval="1d")
+            hist = None
+            try:
+                from engine.historical_cache import get_default_cache, cache_enabled
+                if cache_enabled():
+                    hist = get_default_cache().get_prices_by_period(ticker, period="1mo")
+            except Exception:
+                pass
+            if hist is None or hist.empty:
+                hist = tk.history(period="1mo", interval="1d")
             if hist is not None and len(hist) >= 5:
                 avg_volume = int(hist["Volume"].tail(20).mean())
         except Exception:
@@ -799,10 +809,20 @@ def _calc_fear_greed(gainers: list[dict], losers: list[dict], sectors: list[dict
     try:
         components = []
 
-        # 1. Market Momentum: SPY vs 125-day MA
+        # 1. Market Momentum: SPY vs 125-day MA. Cache-aware fetch — fear/greed
+        # runs once per scan, but the 6-month SPY history barely changes
+        # intra-day; 24h cache freshness saves the round-trip on repeat scans.
         try:
             spy = yf.Ticker("SPY")
-            hist = spy.history(period="6mo", interval="1d")
+            hist = None
+            try:
+                from engine.historical_cache import get_default_cache, cache_enabled
+                if cache_enabled():
+                    hist = get_default_cache().get_prices_by_period("SPY", period="6mo")
+            except Exception:
+                pass
+            if hist is None or hist.empty:
+                hist = spy.history(period="6mo", interval="1d")
             if hist is not None and len(hist) >= 125:
                 current = float(hist["Close"].iloc[-1])
                 ma125 = float(hist["Close"].tail(125).mean())
