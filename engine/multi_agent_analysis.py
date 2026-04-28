@@ -427,6 +427,9 @@ def run_multi_agent_analysis(
     brain=None,
     token_budget=None,
     compress_context: str = "off",
+    *,
+    multimodal: bool = False,
+    multimodal_roles: Optional[list[str]] = None,
 ) -> MultiAgentResult:
     """
     Run self-contained multi-agent pipeline.
@@ -539,6 +542,8 @@ def run_multi_agent_analysis(
                 ml_report=ml_report,
                 regime=detected_regime,
                 dynamic=True,
+                multimodal=multimodal,
+                multimodal_roles=multimodal_roles,
             )
         fusion_future = pool.submit(
             fuse_signals,
@@ -673,6 +678,14 @@ def run_multi_agent_analysis(
     )
     plan_summary = risk_data.get("plan_summary", "")
     final_decision.reasoning.append(f"Risk Plan: {plan_summary[:200]}")
+
+    # Stash multimodal_diff on .extra so the eval-set extractor can rebuild
+    # (text_decision, vision_decision, ground_truth) tuples without rerunning
+    # the LLM pipeline. Same pattern as decision.extra["debate"] for DSPy.
+    # No-op when multimodal=False or when the panel ran with no vision pairs.
+    mm_diff = panel_result.get("multimodal_diff")
+    if mm_diff and mm_diff.get("n_pairs", 0) > 0:
+        final_decision.extra["multimodal_diff"] = mm_diff
 
     # Build ML model summary for frontend
     ml_models = []

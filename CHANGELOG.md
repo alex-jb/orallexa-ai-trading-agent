@@ -2,6 +2,59 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-28] — Multi-modal debate Day 6: stash diff on decision_log
+
+The diff is now produced (Day 3-5) but not yet *persisted* — every
+`/api/deep-analysis` call with `multimodal=True` should leave behind
+a row in `decision_log` carrying the text-vs-vision comparison, just
+like the Phase B debate stash. This change closes that gap.
+
+### Changed — `run_multi_agent_analysis`
+
+- Two new keyword arguments: `multimodal=False`, `multimodal_roles=None`.
+  Both pass-through to `run_perspective_panel`. Default off — strict
+  backward compat (verified by 72/72 perspective + integration +
+  stash tests still passing).
+- After `final_decision` is built, the panel's `multimodal_diff` is
+  stashed onto `final_decision.extra["multimodal_diff"]` whenever it
+  has at least one paired comparison. Empty diffs (render failed, no
+  vision results) are intentionally NOT stashed so decision_log isn't
+  polluted with no-information rows.
+
+### Why this matters
+
+Same principle as the debate stash from Phase 10:
+
+> Past records don't have it; future deep-analysis calls will.
+
+Once a few hundred multimodal-enabled deep-analyses accumulate, we can
+build a Phase-B-style eval set: pull every record with `extra.multimodal_diff`,
+attach the 5-day forward return as ground truth, and ask whether the
+vision modality's bias predicted the outcome better than the text
+modality's. If yes → flip vision-on-by-default for the Quant role. If
+no → document the negative result and remove the wiring.
+
+### Tests — `tests/test_multimodal_stash.py` (6 cases)
+
+Mirrors `test_debate_stash.py` so future refactors of
+`multi_agent_analysis` or `DecisionOutput.to_dict()` can't silently
+break the eval-set data source:
+
+* Stash logic: copies diff onto `extra` when `n_pairs > 0`, no-op when
+  diff missing or empty (render failure / multimodal=False).
+* `DecisionOutput.to_dict()` carries the nested diff intact.
+* `save_decision` round-trips the diff through disk — full pair detail
+  (role, scores, reasoning, agree flag) survives JSON serialize/load.
+* Extractor-eligibility gate finds only records with non-empty diffs
+  and skips vanilla deep-analysis records, so the future
+  `scripts/build_multimodal_eval_set.py` can filter cleanly.
+
+The full multi-agent pipeline isn't run end-to-end here (slow + needs
+yfinance + LLM); the stash snippet is replicated inline in the test
+class, exactly as it appears in `multi_agent_analysis.py`.
+
+---
+
 ## [2026-04-28] — Multi-modal debate Day 3-5: vision-enabled perspective panel
 
 Day 1-2 shipped the renderer; this completes the wiring so `run_perspective_panel`
