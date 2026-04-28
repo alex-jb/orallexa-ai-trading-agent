@@ -17,8 +17,9 @@ Polymarket + Kalshi prediction markets vote alongside ML models. Weights adapt t
 [![Claude](https://img.shields.io/badge/Claude_Opus_4.7-1A1A2E?style=for-the-badge&logo=anthropic&logoColor=D4AF37)](https://anthropic.com)
 [![Multi-Provider](https://img.shields.io/badge/Anthropic_·_OpenAI_·_Gemini-1A1A2E?style=for-the-badge&logoColor=D4AF37)](docs/NEW_MODULES.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/~800_Tests-Passing-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/920%2B_Tests-Passing-22c55e?style=for-the-badge)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-83%25-22c55e?style=for-the-badge)](.coveragerc)
+[![Issues](https://img.shields.io/badge/Open_Issues-0-22c55e?style=for-the-badge)](https://github.com/alex-jb/orallexa-ai-trading-agent/issues)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -108,7 +109,7 @@ Docker: `docker compose up --build` — that's it.
 | **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
 | **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with **regime-aware DyTopo dynamic selection** (subset by regime, ~50% LLM call savings) |
 | **CORAL Shared Memory** | Unified read aggregator over per-role + tiered memory; cross-role consensus injected into prompts |
-| **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku |
+| **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku, full text stashed on `decision.extra` for offline eval-set assembly |
 | **8-Source Signal Fusion** | Technical + ML + News + Options + Institutional + Social (Reddit/X) + Earnings/PEAD + Prediction Markets (Polymarket + Kalshi) |
 | **10-Model ML Ensemble** | RF, XGB, LR + EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN + **Kronos** (foundation model trained on 45+ global exchanges, 4 sizes) |
 | **Adaptive Source Weights** | Per-source rolling accuracy → dynamic weight scaling. Sources that earn their seat amplify; ones that don't get muted. |
@@ -117,6 +118,8 @@ Docker: `docker compose up --build` — that's it.
 | **20-Agent Micro Swarm** | Rule-based Monte Carlo convergence simulation |
 | **Bias Self-Correction** | Tracks prediction accuracy, auto-adjusts confidence |
 | **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
+| **10 Rule-Based Strategies** | Double MA, MACD, Bollinger, RSI reversal, trend-momentum, alpha combo, dual thrust, ensemble vote, regime ensemble, **VWAP reversion** |
+| **DSPy Phase B harness** | Compile pipeline ready: synthetic eval set → MIPROv2 → A/B vs hand-tuned baseline → 5%-gate ship/reject. Awaits 100 production debates worth of training data. |
 | **Daily Intel** | 50+ tickers, sector rotation, volume spikes, earnings watchlist, AI morning brief |
 
 </td>
@@ -234,6 +237,8 @@ Not every task needs the expensive model:
 
 **One full analysis: ~$0.005.** One daily intel report: ~$0.05.
 
+`ORALLEXA_USE_CACHE=1` short-circuits every daily-grain yfinance call (earnings calendar, PEAD stats, watchlist volume, SPY 6-month, GNN per-ticker features, MarketDataSkill). Cache hits cost nothing and complete in milliseconds. Intraday and `fast_info` paths intentionally bypass — those need real-time data.
+
 > Two patterns from this repo have been extracted as standalone Python packages + Claude Code skills:
 > - **[claude-tier-router](https://github.com/alex-jb/claude-tier-router)** — the Haiku/Sonnet dual-tier routing (`pip install claude-tier-router`)
 > - **[claude-debate](https://github.com/alex-jb/claude-debate)** — the Bull/Bear/Judge adversarial decision pattern, generalized (`pip install claude-debate`)
@@ -283,7 +288,7 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 <tr><td><b>Backend</b></td><td>FastAPI, Python 3.11, WebSocket</td></tr>
 <tr><td><b>AI</b></td><td>Claude Sonnet 4.6 + Haiku 4.5 (dual-tier routing)</td></tr>
 <tr><td><b>ML</b></td><td>scikit-learn, XGBoost, PyTorch (EMAformer, DDPM, GAT, PPO)</td></tr>
-<tr><td><b>Data</b></td><td>yfinance (real-time + historical)</td></tr>
+<tr><td><b>Data</b></td><td>yfinance (real-time + historical), parquet cache layer (`ORALLEXA_USE_CACHE=1`)</td></tr>
 <tr><td><b>NLP</b></td><td>FinBERT, VADER, TextBlob</td></tr>
 <tr><td><b>Trading</b></td><td>Alpaca paper trading (bracket orders)</td></tr>
 <tr><td><b>Orchestration</b></td><td>LangGraph (stateful debate pipeline)</td></tr>
@@ -294,10 +299,10 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 
 ## Testing
 
-698 automated tests. 0 failures. CI on every push.
+**922 backend tests + 245 frontend = 1,167 total.** 0 failures. CI on every push. 0 open issues.
 
 ```bash
-python -m pytest tests/ -v             # Backend (390 tests)
+python -m pytest tests/ -v             # Backend (922 tests)
 cd orallexa-ui && npm test             # Frontend (245 unit tests)
 cd orallexa-ui && npm run test:coverage # Frontend with coverage
 cd orallexa-ui && npx playwright test   # E2E (16+ specs)
@@ -308,19 +313,26 @@ cd orallexa-ui && npx playwright test   # E2E (16+ specs)
 
 | Suite | Tests | Coverage |
 |-------|-------|----------|
-| Engine Core | 62 | Backtest, 9 strategies, market analyst |
+| Engine Core | 62 | Backtest, 10 strategies, market analyst |
 | Engine Integration | 34 | TA indicators, strategies, backtest, brain routing |
 | ML/RL Signals | 20 | Feature extraction, RL env, PPO trainer |
 | ML Regression | 13 | All 9 models — ensures upgrades don't degrade |
-| API E2E | 19 | Every endpoint via FastAPI TestClient |
+| API E2E + Healthz | 21 | Every endpoint via FastAPI TestClient + liveness probe |
 | Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk, scalping |
 | Desktop Agent | 30 | Intent detection, ticker/mode/TF extraction |
+| i18n (en/zh/ja) | 14 | Trilingual coverage + placeholder consistency |
 | Daily Intel | 10 | Price fetch, constants, cache path |
+| Sentiment | 21 | FinBERT/VADER fallbacks, rag/news mocks |
+| VWAP Reversion | 13 | Signal gates, threshold band, edge cases |
+| Historical Cache | 37 | get_prices, period helper, 4 wired call sites |
+| Debate Stash | 7 | Bull/Bear/Judge → decision_log → eval-set extraction |
+| DSPy Phase B Harness | 24 | Synthesizer, splitter, evaluator, readiness gates, loader |
+| DSPy Judge | 13 | Phase A + load_compiled_judge with stubbed dspy |
 | Backend Other | 67 | Monte Carlo, walk-forward, regime, ensemble, statistics |
-| Backend Misc | 88 | Param optimizer, strategy evolver, breaking signals |
+| Backend Misc | 488 | Param optimizer, strategy evolver, breaking signals, … |
 | UI Components | 245 | All 14 component suites + hooks + mock data |
 | Playwright E2E | 16+ | Dashboard, components, responsive, offline |
-| **Total** | **635** | **437 backend + 245 frontend** |
+| **Total** | **1,167** | **922 backend + 245 frontend** |
 
 </details>
 
@@ -349,6 +361,7 @@ cd orallexa-ui && npx playwright test   # E2E (16+ specs)
 | `GET` | `/api/alpaca/account` | Paper trading account |
 | `POST` | `/api/alpaca/execute` | Execute signal as paper order |
 | `WS` | `/ws/live` | Real-time price + signal stream |
+| `GET` | `/healthz` | Liveness probe for Docker / K8s (no auth, no I/O) |
 
 </details>
 
