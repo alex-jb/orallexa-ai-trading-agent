@@ -4,6 +4,7 @@ yfinance
 pandas
 numpy
 matplotlib
+mplfinance
 scikit-learn
 xgboost
 

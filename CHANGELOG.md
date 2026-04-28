@@ -2,6 +2,60 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-27] — Multi-modal debate spike: K-line renderer
+
+Day 1-2 of the multi-modal debate proposal — the rendering layer that
+turns OHLCV data into a PNG suitable for Claude Vision (or any
+vision-capable LLM). Pure infrastructure, no LLM wiring yet — that's
+Day 3-5 once we eyeball that the chart is good enough to reason on.
+
+### Added — `engine/chart_render.py`
+
+- `render_kline(df, *, ticker, mavs=(20,), show_volume=True, ...)` —
+  takes an OHLCV DataFrame, returns PNG bytes. Defaults: 1100×800 at
+  100 DPI, yahoo style, 20-day MA overlay, volume subpanel. Output is
+  ~40-150KB — well under Anthropic's 5MB image limit.
+- `render_kline_for(ticker, period="3mo", use_cache=None, ...)` —
+  convenience wrapper that pulls OHLCV via the historical cache (when
+  `ORALLEXA_USE_CACHE=1` or `use_cache=True`), falls through to a
+  yfinance call on miss. Returns None on data fetch failure so callers
+  fall back to text-only debate cleanly.
+- `save_kline_to(path, ticker, ...)` — file helper for the demo script.
+- Forces `matplotlib.use("Agg")` at module import time so the renderer
+  works in headless contexts (CI, server, subprocess) without Tk errors.
+- mplfinance is lazy-imported; it's added to `requirements.txt` so the
+  install path is clear, but a slim env that never calls these
+  functions doesn't pay the import cost.
+
+### Added — `scripts/demo_chart_render.py`
+
+CLI for the eyeball check: `python scripts/demo_chart_render.py NVDA
+--period 3mo` produces a 40KB PNG. Verified output: 62 candles legible,
+20-day MA blue line clearly visible, volume bars distinct (green/red
+matched to candle direction), date axis clean. Sample committed to
+`assets/demo_kline_NVDA.png` so reviewers don't need yfinance running.
+
+### Tests — `tests/test_chart_render.py` (15 cases)
+
+- PNG signature on output, size in 10KB-500KB band, deterministic for
+  same input (matters for A/B comparisons).
+- Edge cases: missing columns raise, empty DataFrame raises, extra
+  indicator columns ignored (cached frames have RSI/MACD added).
+- `render_kline_for` cache-on / fallthrough / None-on-empty / None-on-
+  exception / `use_cache=False` overrides env.
+- `save_kline_to` writes PNG, creates parent dirs, returns False on
+  no-data.
+
+### What this unblocks
+
+Day 3-5 (next): wire the rendered PNG into the Quant persona as a
+parallel call alongside the text-only debate, stash both decisions
+on `decision.extra["multimodal_diff"]`, measure the gap.
+Default off behind a flag — vision ~5× cost of text — until the
+agreement-vs-ground-truth metric proves the visual signal earns its seat.
+
+---
+
 ## [2026-04-27] — Historical cache extended to GNN signal + MarketDataSkill
 
 Continuation of the daily_intel wiring earlier today. Two more high-value
