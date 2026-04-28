@@ -2,6 +2,75 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-28] — Multi-modal debate Day 7: lift evaluator + eval-set extractor
+
+Day 6 made every multimodal-enabled deep-analysis stash its diff on
+decision_log. Day 7 closes the feedback loop with the same pattern as
+DSPy Phase B: extract → label with forward returns → evaluate → ship/reject
+verdict against an absolute-lift gate.
+
+### Added — `scripts/build_multimodal_eval_set.py`
+
+- Reads `memory_data/decision_log.json`, pulls every record with
+  `extra.multimodal_diff` populated, attaches an N-day forward return via
+  `_forward_return` (reused from `build_dspy_eval_set.py` so the labelling
+  rule is identical), labels each pair as `BUY`/`SELL`/`WAIT` ground truth.
+- One row per (role, ticker, timestamp) — a single decision_log record
+  with N pairs becomes N eval-set lines.
+- Same `--synthesize N` mode as `build_dspy_eval_set.py`: deterministic,
+  label-balanced (40% agree-correct / 30% vision-wins / 30% text-wins) so
+  the lift evaluator can be smoke-tested without waiting for production
+  data.
+- Stable threshold gate: prints "Phase B-style threshold met (>=50 pairs)"
+  when ready, "Need N more eligible pairs" otherwise.
+
+### Added — `scripts/eval_multimodal_lift.py`
+
+The actual ship/reject decision script. Three numbers drive it:
+
+  text_accuracy   = pairs where text_bias matched ground_truth
+  vision_accuracy = pairs where vision_bias matched ground_truth
+  absolute_lift   = vision_accuracy − text_accuracy
+
+- Default ship gate: `absolute_lift >= 0.05` AND `vision_acc > text_acc`
+  on at least 50 eligible pairs. `--threshold` and `--min-n` override.
+- Stable status field for cron / CI grep:
+  `no_eval_data | below_threshold | dry_run | reject_no_lift |
+  reject_text_better | ship`.
+- Per-class accuracy breakdown (BUY/SELL/WAIT) so we can see whether
+  vision wins uniformly or only on, e.g., the WAIT class.
+- Smoke test on 200 synthetic pairs (seed=7): text=0.660, vision=0.775,
+  lift=+0.115 → SHIP. The synthesizer is rigged so vision genuinely
+  carries signal; the harness correctly recovers it.
+
+### Tests — `tests/test_multimodal_eval_harness.py` (23 cases)
+
+Covers both scripts end-to-end without yfinance / LLM:
+
+* `synthesize_eval_set`: count, determinism, distribution, eligibility,
+  bias values valid, both agree+disagree buckets present.
+* `extract_pairs_from_log`: one row per pair (multi-pair records expand
+  correctly), skips records without diff, respects cutoff date,
+  handles malformed `extra` and empty text/vision blocks.
+* `load_eval_set` + `filter_eligible`: blank/malformed line skipping,
+  drops ineligible / missing-truth / missing-bias / invalid-truth rows.
+* `evaluate`: empty zero-shape, all-correct → lift 0, vision-wins-when-
+  text-wrong → lift > 0.5, per-class breakdown math.
+* `decide`: every status branch (no_eval_data, below_threshold,
+  reject_text_better, reject_no_lift, ship) plus the inclusive-threshold
+  edge case.
+* End-to-end: synthesizer → filter → evaluate → decide all wired together
+  produces a `ship` verdict on the rigged synthetic data.
+
+### Ops note
+
+Both scripts are runnable today via synthetic mode; real-data mode
+unblocks once decision_log accumulates ≥50 multimodal-enabled deep-analyses.
+The output JSONL goes to `memory_data/multimodal_eval_set.jsonl`
+(already in `.gitignore` via `memory_data/`).
+
+---
+
 ## [2026-04-28] — Multi-modal debate Day 6: stash diff on decision_log
 
 The diff is now produced (Day 3-5) but not yet *persisted* — every
