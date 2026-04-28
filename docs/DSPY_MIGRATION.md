@@ -46,7 +46,7 @@ evaluation metric we provide. Two practical wins:
   decision_log. Compare confidence calibration, decision agreement,
   reasoning quality.
 
-### Phase B — eval set + first compile (1 session)
+### Phase B — eval set + first compile (1 session) — **harness shipped 2026-04-27**
 - Build the eval dataset: 100 (Bull, Bear, ticker, "ground truth"
   decision) examples drawn from `decision_log.jsonl` where the eventual
   5-day return clearly favored BUY/SELL/WAIT.
@@ -59,6 +59,34 @@ evaluation metric we provide. Two practical wins:
                                       trainset=train, valset=val)
   ```
   Expected cost: 100-500 LLM calls, ~$5-20 one-time.
+
+**Phase B status (as of 2026-04-27):** the *harness* is shipped and tested
+end-to-end against synthetic data. It cannot be run on real data yet — the
+debate-text stash on `decision.extra` only started in Phase 10, so the
+294-record `decision_log.json` has 0 rows with bull/bear arguments. The
+harness short-circuits with `Phase B status: below_threshold` until the
+production runtime accumulates 100 eligible records.
+
+What's already in:
+- `scripts/build_dspy_eval_set.py --synthesize N` — deterministic, label-balanced
+  synthetic rows for harness validation. Each ground_truth has matching narrative
+  strength so a working compile should improve on the baseline.
+- `scripts/compile_judge_dspy.py` — load eval set → filter eligible → 80/20
+  split → MIPROv2 compile (when ≥100 records and dspy installed) → evaluate
+  baseline vs compiled on holdout → save artifact + ship-or-reject verdict
+  against the 5% gate. Status field stable: `no_eval_data | below_threshold |
+  dry_run | dspy_not_installed | compiled`.
+- `llm.dspy_judge.load_compiled_judge(path)` — production hook that loads a
+  saved artifact and returns a predictor matching `judge_dspy`'s API. Per-path
+  cache; `reset_compiled_cache()` for tests.
+
+What still triggers Phase B's real run:
+- 100 production deep-analyses with `extra.debate` populated (each new
+  `multi_agent_analysis` call adds one).
+- Then: `pip install dspy-ai>=2.5`, `export ANTHROPIC_API_KEY=...`,
+  `python scripts/build_dspy_eval_set.py --days 5`,
+  `python scripts/compile_judge_dspy.py --auto medium`. The harness handles
+  the rest.
 
 ### Phase C — broaden + ship (1 session)
 - Convert remaining high-value prompts in priority order:

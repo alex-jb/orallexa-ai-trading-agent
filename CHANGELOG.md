@@ -2,6 +2,75 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-27] — DSPy Phase B compile harness (data-ready, awaiting eligibility)
+
+The Phase A scaffold from 2026-04-25 left the actual MIPROv2 compile path
+unimplemented. This change ships the full harness, parameterized so it just
+runs when the eval set hits the 100-record threshold. Until then it
+short-circuits with a clear status — no silent data loss, no half-built code
+sitting in the repo.
+
+### Added — synthetic eval set generator
+
+- `scripts/build_dspy_eval_set.py --synthesize N` — emits N deterministic
+  Bull/Bear/ground_truth rows seeded on direction templates. Distribution
+  is ~40/40/20 BUY/SELL/WAIT to match the production decision_log mix; each
+  row's `forward_return` sign matches `ground_truth` so a working compile
+  has a learnable signal. Synthetic rows carry `synthetic=true` so the
+  filter in `compile_judge_dspy` doesn't mix them with real data.
+- Two narrative templates each for bull/bear, with parameterized strength
+  knobs (volume multiple, RSI level, MACD streak, sector rotation, etc.)
+  so the synthetic text isn't a single repeated string.
+
+### Added — compile harness
+
+- `scripts/compile_judge_dspy.py` — full Phase B pipeline:
+  * `load_eval_set` (JSONL, malformed-line tolerant)
+  * `filter_eligible` (drops rows missing truth/arguments/eligible flag)
+  * `split_train_holdout` (deterministic seeded shuffle, 80/20)
+  * `evaluate_predictor` (per-class accuracy + mean confidence delta)
+  * `run_compile` (MIPROv2 when ready, otherwise short-circuit)
+  * Stable status field for cron / CI grep:
+    `no_eval_data | below_threshold | dry_run | dspy_not_installed | compiled`
+  * Emits the 5% absolute-improvement ship-or-reject verdict from
+    `docs/DSPY_MIGRATION.md` against the baseline JudgeSignature on
+    holdout, saves the compiled artifact to
+    `memory_data/dspy_judge_compiled.json`.
+
+### Added — `load_compiled_judge` runtime loader
+
+- `llm.dspy_judge.load_compiled_judge(path)` returns a callable matching
+  `judge_dspy(bull, bear, *, ticker)` that runs the compiled program from
+  disk. Per-path cache; `reset_compiled_cache()` exposed for tests.
+- The production hot path remains unchanged. When the holdout improvement
+  clears the 5% gate, swap in the compiled judge by calling
+  `load_compiled_judge(...)` from `llm/debate.py`.
+
+### Added — tests
+
+- `tests/test_dspy_compile_harness.py` (24 cases) covers the full Phase B
+  surface with a stubbed `dspy` module:
+  * Synthetic generator: row count, determinism, label-balance, eligibility,
+    forward-return / ground-truth coupling.
+  * Eval set loader: missing files, malformed lines, blank lines.
+  * Filter + split + class distribution: drop rules, deterministic split,
+    disjoint partitions.
+  * Evaluator: perfect predictor → 1.0, constant BUY → partial, raising
+    predictor → 0 with full row count, None return → miss.
+  * Readiness gates: `no_eval_data`, `below_threshold`, `dry_run`,
+    `dspy_not_installed` all surface with the documented status string.
+  * `load_compiled_judge`: returns None on missing path, loads + invokes a
+    fake compiled program with field normalization (decision uppercased,
+    confidence clamped, source tagged), and caches per path.
+
+### Documented
+
+- `docs/DSPY_MIGRATION.md` Phase B section now reflects ship status, what
+  triggers a real compile run, and the exact command sequence: install
+  `dspy-ai`, set `ANTHROPIC_API_KEY`, build eval set, run compile script.
+
+---
+
 ## [2026-04-27] — Good first issue cleanup: Docker hardening, VWAP strategy, sentiment tests, Japanese i18n
 
 Knocked out the four open `good first issue` tickets that had been sitting on

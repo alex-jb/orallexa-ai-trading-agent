@@ -28,11 +28,20 @@ Phase B trigger condition (per docs/DSPY_MIGRATION.md):
   - Compiled prompt must score >5% absolute improvement on holdout
     against the hand-tuned baseline (decision agreement metric)
 
+Synthetic mode (--synthesize N):
+  Until production runs accumulate 100 eligible records with debate
+  text + forward outcomes, the compile harness is unrunnable on real
+  data. `--synthesize 200` emits 200 plausible (bull, bear, truth)
+  rows seeded on direction templates so the harness can be end-to-end
+  validated. Synthetic rows carry `synthetic=True` so they're easy to
+  filter out later.
+
 Usage:
     python scripts/build_dspy_eval_set.py                    # 5-day window
     python scripts/build_dspy_eval_set.py --days 3
     python scripts/build_dspy_eval_set.py --output /tmp/x.jsonl
     python scripts/build_dspy_eval_set.py --dry-run          # count only
+    python scripts/build_dspy_eval_set.py --synthesize 200   # synthetic eval set
 """
 from __future__ import annotations
 
@@ -96,6 +105,132 @@ def _ground_truth(forward_return: float, threshold: float = 0.02) -> str:
     return "WAIT"
 
 
+# ── Synthetic eval-set generation ─────────────────────────────────────────
+# Used for end-to-end harness validation when production data is sparse.
+# Each template returns a realistic-looking debate paragraph keyed off a
+# numeric "strength" so the harness can verify the compiled judge picks up
+# on the lopsided cases.
+
+_BULL_TEMPLATES = [
+    "{ticker} is breaking out of a multi-week consolidation on volume {vol:.1f}× the 30-day average. "
+    "RSI at {rsi} confirms momentum without overextension. The MACD histogram has been positive for "
+    "{streak} consecutive sessions while institutional accumulation showed a net inflow of "
+    "${flow:.0f}M last week. Sector rotation favors this name as {sector} regains relative strength "
+    "vs the broader index. Earnings revisions trended {revision_dir} for three consecutive quarters, "
+    "a leading signal historically associated with multi-month returns of +{ret:.1f}%.",
+
+    "Strong fundamental backdrop for {ticker}: revenue growth of {growth:.1f}% YoY, gross margin "
+    "expansion of {margin:.1f} percentage points, and a fortress balance sheet with ${cash:.1f}B in "
+    "net cash. The chart shows a textbook cup-and-handle with measured-move target {ret:.0f}% above "
+    "current price. Options flow leans bullish with put/call at {pc:.2f} and unusual call volume "
+    "concentrated in the {strike} strike for next month. Risk/reward at current levels is "
+    "asymmetric to the upside.",
+]
+
+_BEAR_TEMPLATES = [
+    "{ticker} just broke the {ma}-day moving average on {vol:.1f}× volume — the first decisive break "
+    "since {month}. RSI at {rsi} suggests the move has further to fall before becoming oversold. "
+    "Sector breadth is deteriorating and the relative strength line versus {sector} has rolled over. "
+    "Insider transactions over the trailing six months show {insider_count} sales worth ${insider:.0f}M "
+    "and zero buys. Forward guidance was cut at the last earnings call, and the stock has bled "
+    "{drawdown:.1f}% from its 52-week high.",
+
+    "The bull case ignores three structural headwinds for {ticker}: (1) {ticker}'s key end-market is "
+    "decelerating, with channel checks showing order books down {orders:.0f}% sequentially. "
+    "(2) Margin compression is accelerating as input costs rise faster than pricing power. "
+    "(3) The stock trades at {pe}× forward earnings versus a 5-year median of {median_pe}×, leaving "
+    "no cushion for a multiple compression scenario. Technicals show a head-and-shoulders top with a "
+    "measured-move target {ret:.0f}% lower.",
+]
+
+
+def _synth_bull(rng, ticker: str, strength: float) -> str:
+    template = _BULL_TEMPLATES[rng.randrange(len(_BULL_TEMPLATES))]
+    sectors = ["semiconductors", "cloud infra", "consumer discretionary", "biotech", "energy"]
+    revision_dirs = ["up", "higher", "positively"]
+    return template.format(
+        ticker=ticker,
+        vol=1.5 + strength * 2.5,
+        rsi=55 + int(strength * 10),
+        streak=2 + int(strength * 4),
+        flow=50 + strength * 200,
+        sector=sectors[rng.randrange(len(sectors))],
+        revision_dir=revision_dirs[rng.randrange(len(revision_dirs))],
+        ret=3 + strength * 12,
+        growth=8 + strength * 25,
+        margin=0.5 + strength * 4,
+        cash=1.0 + strength * 20,
+        pc=0.55 + strength * 0.20,
+        strike=int(100 + strength * 50),
+    )
+
+
+def _synth_bear(rng, ticker: str, strength: float) -> str:
+    template = _BEAR_TEMPLATES[rng.randrange(len(_BEAR_TEMPLATES))]
+    sectors = ["semis", "software", "consumer staples", "REITs", "industrials"]
+    months = ["August", "October", "March", "January", "September"]
+    return template.format(
+        ticker=ticker,
+        ma=rng.choice([20, 50, 100, 200]),
+        vol=1.3 + strength * 2.0,
+        month=months[rng.randrange(len(months))],
+        rsi=45 - int(strength * 12),
+        sector=sectors[rng.randrange(len(sectors))],
+        insider_count=2 + int(strength * 4),
+        insider=8 + strength * 40,
+        drawdown=10 + strength * 25,
+        orders=5 + int(strength * 30),
+        pe=int(35 + strength * 25),
+        median_pe=int(20 + strength * 5),
+        ret=4 + strength * 12,
+    )
+
+
+def synthesize_eval_set(n: int, seed: int = 42) -> list[dict]:
+    """
+    Build N synthetic (bull, bear, ground_truth) rows for harness testing.
+
+    Distribution: ~40% BUY, ~40% SELL, ~20% WAIT — matches what we observe in
+    the 294-record decision_log so the metric stays representative. Each row's
+    ground_truth is determined by which side has the stronger narrative; the
+    harness should learn to recover this signal.
+    """
+    import random
+
+    rng = random.Random(seed)
+    tickers = ["NVDA", "AAPL", "MSFT", "GOOG", "META", "TSLA", "AMD", "AVGO", "CRWD", "NET"]
+    rows = []
+    for i in range(n):
+        roll = rng.random()
+        if roll < 0.40:
+            ground_truth = "BUY"
+            bull_strength, bear_strength = 0.7 + rng.random() * 0.3, 0.1 + rng.random() * 0.2
+            forward_return = 0.025 + rng.random() * 0.05
+        elif roll < 0.80:
+            ground_truth = "SELL"
+            bull_strength, bear_strength = 0.1 + rng.random() * 0.2, 0.7 + rng.random() * 0.3
+            forward_return = -(0.025 + rng.random() * 0.05)
+        else:
+            ground_truth = "WAIT"
+            bull_strength, bear_strength = 0.4 + rng.random() * 0.2, 0.4 + rng.random() * 0.2
+            forward_return = (rng.random() - 0.5) * 0.03
+
+        ticker = tickers[rng.randrange(len(tickers))]
+        rows.append({
+            "ticker": ticker,
+            "timestamp": None,
+            "bull_argument":   _synth_bull(rng, ticker, bull_strength),
+            "bear_argument":   _synth_bear(rng, ticker, bear_strength),
+            "hand_decision":   None,
+            "hand_confidence": None,
+            "forward_return":  round(forward_return, 4),
+            "ground_truth":    ground_truth,
+            "eligible":        True,
+            "synthetic":       True,
+        })
+    return rows
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--days", type=int, default=5,
@@ -105,7 +240,25 @@ def main() -> None:
                         help="count eligible records without writing")
     parser.add_argument("--threshold", type=float, default=0.02,
                         help="±return threshold for direction labelling")
+    parser.add_argument("--synthesize", type=int, default=0,
+                        help="emit N synthetic rows instead of reading the log")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="RNG seed for synthetic mode (deterministic)")
     args = parser.parse_args()
+
+    if args.synthesize > 0:
+        rows = synthesize_eval_set(args.synthesize, seed=args.seed)
+        out_lines = [json.dumps(r, ensure_ascii=False) for r in rows]
+        gt_counts = {gt: sum(1 for r in rows if r["ground_truth"] == gt) for gt in ("BUY", "SELL", "WAIT")}
+        print(f"Synthesized {len(rows)} rows (seed={args.seed})")
+        print(f"  ground_truth distribution: {gt_counts}")
+        if args.dry_run:
+            print(f"--dry-run: would have written {len(out_lines)} lines to {args.output}")
+            return
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+        print(f"Wrote {len(out_lines)} synthetic lines to {args.output}")
+        return
 
     if not _DECISION_LOG.exists():
         print(f"Decision log not found at {_DECISION_LOG}")

@@ -1,7 +1,7 @@
 """
 llm/dspy_judge.py
 ──────────────────────────────────────────────────────────────────
-DSPy Phase A bootstrap — single Signature wrapping the Judge call.
+DSPy Phase A bootstrap + Phase B artifact loader.
 
 Phase A scope (per docs/DSPY_MIGRATION.md):
   - Define ONE Signature (`JudgeSignature`)
@@ -9,10 +9,15 @@ Phase A scope (per docs/DSPY_MIGRATION.md):
   - Provide a side-by-side comparison helper to A/B against the
     hand-tuned `_call_judge` from llm/debate.py
 
-What's NOT in Phase A:
-  - No eval set yet (Phase B)
-  - No MIPROv2 / COPRO compile yet (Phase B)
-  - No production hot path uses the DSPy version (toggle stays off)
+Phase B additions:
+  - `load_compiled_judge(path)` — load a compiled artifact from disk
+    and return a callable matching `judge_dspy`'s signature. Powered
+    by `scripts/compile_judge_dspy.py` running MIPROv2 over the eval
+    set produced by `scripts/build_dspy_eval_set.py`.
+
+What's NOT in Phase B yet:
+  - No production hot path swap. The compiled artifact ships when
+    holdout improvement is ≥5% absolute (see DSPY_MIGRATION.md gate).
 
 dspy is intentionally lazy-imported. The project doesn't take dspy-ai
 as a hard dep — install it manually when you actually want to run
@@ -135,6 +140,87 @@ def judge_dspy(
     except Exception as e:
         logger.warning("judge_dspy failed for %s: %s", ticker, e)
         return None
+
+
+def load_compiled_judge(path: str | "Path"):
+    """
+    Phase B: load a compiled MIPROv2 artifact and return a callable matching
+    `judge_dspy(bull, bear, *, ticker)` — i.e. produces a dict with decision,
+    confidence, risk_level, reasoning_detail, source.
+
+    Returns None when:
+      - the file doesn't exist (so callers can fall back to the hand-tuned path)
+      - dspy isn't installed (RuntimeError surfaces with the install hint)
+
+    Loaded programs are cached per-path so the dspy.LM client isn't rebuilt
+    on every call.
+    """
+    from pathlib import Path as _Path
+
+    path = _Path(path)
+    if not path.exists():
+        return None
+
+    cache = _compiled_cache_get(str(path))
+    if cache is not None:
+        return cache
+
+    base_predict_cls = _ensure_dspy()
+    JudgeSignature = base_predict_cls.signature
+
+    import dspy
+
+    program = dspy.Predict(JudgeSignature)
+    try:
+        program.load(str(path))
+    except Exception as e:
+        logger.warning("Failed to load compiled judge from %s: %s", path, e)
+        return None
+
+    def predict(bull: str, bear: str, *, ticker: str = "UNKNOWN") -> Optional[dict]:
+        try:
+            out = program(ticker=ticker, bull_argument=bull, bear_argument=bear)
+            decision = str(getattr(out, "decision", "WAIT")).upper().strip()
+            if decision not in ("BUY", "SELL", "WAIT"):
+                decision = "WAIT"
+            try:
+                confidence = max(0, min(100, int(float(getattr(out, "confidence", 50)))))
+            except (TypeError, ValueError):
+                confidence = 50
+            risk_level = str(getattr(out, "risk_level", "MEDIUM")).upper().strip()
+            if risk_level not in ("LOW", "MEDIUM", "HIGH"):
+                risk_level = "MEDIUM"
+            reasoning_detail = str(getattr(out, "reasoning_detail", ""))[:600]
+            return {
+                "decision":         decision,
+                "confidence":       confidence,
+                "risk_level":       risk_level,
+                "reasoning_detail": reasoning_detail,
+                "source":           "dspy_compiled",
+            }
+        except Exception as e:
+            logger.warning("compiled judge failed for %s: %s", ticker, e)
+            return None
+
+    _compiled_cache_set(str(path), predict)
+    return predict
+
+
+# Per-path cache so reloads are cheap. Keyed on absolute path string.
+_compiled_cache: dict[str, callable] = {}
+
+
+def _compiled_cache_get(key: str):
+    return _compiled_cache.get(key)
+
+
+def _compiled_cache_set(key: str, value) -> None:
+    _compiled_cache[key] = value
+
+
+def reset_compiled_cache() -> None:
+    """Test helper: drop the per-path compiled-program cache."""
+    _compiled_cache.clear()
 
 
 def compare_judges(
