@@ -2,6 +2,81 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-28] — Multi-modal debate Day 3-5: vision-enabled perspective panel
+
+Day 1-2 shipped the renderer; this completes the wiring so `run_perspective_panel`
+can fire a vision call alongside the text call for a given role and report
+the gap. Off by default — vision ~5× the text cost — until the agreement-vs-
+ground-truth metric proves the visual signal earns its seat.
+
+### Added — vision path in `_call_perspective`
+
+- `_call_perspective(..., chart_png=bytes)` switches to the Anthropic
+  vision content shape: `[{type: "image", source: {...base64...}},
+  {type: "text", text: prompt}]`. Same JSON output contract — text-only
+  and vision results are shape-compatible so callers can A/B without
+  parsing differences.
+- New `PerspectiveResult.modality` field, default `"text"`. Vision-mode
+  results are tagged `"vision"`, including the failure path so the diff
+  pairing still finds them.
+- Vision request_type gets a `_vision` suffix so PostHog / Langfuse
+  cost dashboards can break out vision spend separately.
+- `max_tokens` bumped to 400 for vision (300 for text) — vision answers
+  tend to spend more tokens describing the visual signal before JSON.
+
+### Added — `run_perspective_panel(multimodal=True)`
+
+- `multimodal=False` (default): unchanged. Strict backward compat —
+  17/17 existing perspective_panel tests + 60/60 mirofish tests still
+  pass without modification.
+- `multimodal=True`: renders the K-line via `engine.chart_render`,
+  fires a parallel vision call for each role in `multimodal_roles`
+  (default just `["Quant Researcher"]` — the most pattern-oriented persona),
+  stashes the diff at `result["multimodal_diff"]`.
+- `multimodal_roles=...` overrides the role subset.
+- `chart_period="3mo"` controls the rendered window.
+- Headline `consensus` / `avg_score` / `agreement` / `panel_summary`
+  are computed from text-only modality so the apples-to-apples
+  comparison with the historical baseline holds. Vision results are
+  surfaced in the full `perspectives` list and the dedicated diff.
+- Render-failure path: if `render_kline_for` returns None, the panel
+  silently runs text-only and the diff comes back with `n_pairs=0`.
+  No crash, no fallback API hit.
+
+### Added — `compare_text_vs_vision(results)`
+
+Pairs text and vision PerspectiveResults by role and reports:
+`agreement_rate` (% of pairs whose bias matches), `avg_score_delta`
+(mean of `vision.score - text.score`), `avg_conviction_delta`,
+per-pair detail at `pairs[i]`. Returns a stable shape with
+`n_pairs=0` when nothing pairs — callers don't need a special case.
+
+### Tests — `tests/test_perspective_panel_multimodal.py` (12 cases)
+
+- `_call_perspective` text path keeps content as a string (legacy
+  shape preserved), vision path emits the `[image, text]` block list,
+  base64 round-trips, request_type carries the `_vision` suffix,
+  failure path keeps `modality="vision"` so pairing still works.
+- `compare_text_vs_vision` math: empty-result no-pair shape, single-pair
+  agreement, two-pair disagreement, unmatched-role drop.
+- `run_perspective_panel` multimodal flag: off → no chart render, on
+  → vision call for default role, render-failure → silent text-only
+  fallthrough with empty diff, role-override, consensus stays
+  text-only when vision results disagree.
+
+### What this unblocks (next, if the diff turns out to carry signal)
+
+* Add `multimodal_diff` rollup to `decision_log` so we can compute
+  agreement rate + mean score delta across a few hundred deep-analyses,
+  with forward-return labels — same eval-set pattern as DSPy Phase B.
+* If the vision results consistently lead the eventual outcome, flip
+  the default for the Quant role and write up the comparison in
+  `docs/MULTIMODAL_DEBATE.md`.
+* If they don't, document the negative result and pull the wiring out
+  of the hot path. Either way, the metric runs autonomously in CI.
+
+---
+
 ## [2026-04-27] — Multi-modal debate spike: K-line renderer
 
 Day 1-2 of the multi-modal debate proposal — the rendering layer that

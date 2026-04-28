@@ -90,6 +90,10 @@ class PerspectiveResult:
     conviction: int    # 0-100 confidence in their own view
     reasoning: str     # 2-3 sentence explanation
     key_factor: str    # single most important factor
+    # "text" (default) | "vision" — set when the same role was called with
+    # a rendered chart image alongside the data context. Used by
+    # compare_text_vs_vision to compute the multimodal diff.
+    modality: str = "text"
 
 
 def _call_perspective(
@@ -98,13 +102,29 @@ def _call_perspective(
     context: str,
     ticker: str,
     role_memory_context: str = "",
+    *,
+    chart_png: Optional[bytes] = None,
 ) -> PerspectiveResult:
-    """Run a single role's analysis. Returns PerspectiveResult."""
+    """
+    Run a single role's analysis. Returns PerspectiveResult.
+
+    When `chart_png` is provided (bytes), the call switches to vision mode:
+    the same prompt text is sent alongside a base64-encoded image block.
+    Anthropic's vision API expects content as a list of `{type: "image" |
+    "text"}` blocks. The output JSON contract is unchanged so callers can
+    A/B compare text vs vision results without parsing differences.
+    """
     memory_block = f"\n{role_memory_context}\n" if role_memory_context else ""
+    chart_hint = (
+        "\nCHART: A K-line chart with 20-day MA overlay and volume subpanel "
+        "is attached. Read price action, candle patterns, MA slope, and volume "
+        "alongside the numerical data below.\n"
+        if chart_png else ""
+    )
     prompt = f"""{role['system']}
 
 Analyze {ticker} from your perspective. Focus on: {role['focus']}
-{memory_block}
+{memory_block}{chart_hint}
 MARKET DATA:
 {context}
 
@@ -124,11 +144,37 @@ Rules:
 - reasoning: reference specific indicator values from the data
 - key_factor: one concise phrase"""
 
+    if chart_png:
+        import base64
+        image_b64 = base64.standard_b64encode(chart_png).decode("ascii")
+        content = [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": image_b64,
+                },
+            },
+            {"type": "text", "text": prompt},
+        ]
+        modality = "vision"
+        # Vision calls cost ~5× text. Bump max_tokens slightly so the model
+        # can describe the visual signal without truncating the JSON.
+        max_tokens = 400
+    else:
+        content = prompt
+        modality = "text"
+        max_tokens = 300
+
     try:
+        request_type = f"perspective_{role['name'].lower().replace(' ', '_')}"
+        if modality == "vision":
+            request_type += "_vision"
         response, _ = logged_create(
-            client, request_type=f"perspective_{role['name'].lower().replace(' ', '_')}",
-            model=cc.FAST_MODEL, max_tokens=300, temperature=0.2,
-            messages=[{"role": "user", "content": prompt}],
+            client, request_type=request_type,
+            model=cc.FAST_MODEL, max_tokens=max_tokens, temperature=0.2,
+            messages=[{"role": "user", "content": content}],
         )
         text = _extract_text(response).strip()
         text = text.replace("```json", "").replace("```", "").strip()
@@ -149,13 +195,15 @@ Rules:
             conviction=max(0, min(100, int(data.get("conviction", 50)))),
             reasoning=str(data.get("reasoning", "")),
             key_factor=str(data.get("key_factor", "")),
+            modality=modality,
         )
     except Exception as e:
-        logger.warning("Perspective %s failed: %s", role["name"], e)
+        logger.warning("Perspective %s (%s) failed: %s", role["name"], modality, e)
         return PerspectiveResult(
             role=role["name"], icon=role["icon"],
             bias="NEUTRAL", score=0, conviction=0,
             reasoning="Analysis unavailable.", key_factor="N/A",
+            modality=modality,
         )
 
 
@@ -237,6 +285,10 @@ def run_perspective_panel(
     roles: Optional[list[dict]] = None,
     regime: Optional[str] = None,
     dynamic: bool = False,
+    *,
+    multimodal: bool = False,
+    multimodal_roles: Optional[list[str]] = None,
+    chart_period: str = "3mo",
 ) -> dict:
     """
     Run role-based perspectives in parallel and aggregate consensus.
@@ -249,16 +301,28 @@ def run_perspective_panel(
     dynamic  : when True, pick a subset of ROLES based on regime via
                select_roles_for_context. Default False to preserve the
                existing 4-role behavior.
+    multimodal : when True, also run a vision-augmented call for the roles
+               named in `multimodal_roles` (default: ["Quant Researcher"]).
+               Both text-only and vision results are returned in
+               `perspectives`; `multimodal_diff` summarizes the gap.
+               Vision is ~5× cost of text — keep this off by default.
+    multimodal_roles : subset of role names to also run with vision.
+               Default: just Quant (most pattern-oriented persona).
+    chart_period : period string for `render_kline_for` ("1mo", "3mo", …).
 
     Returns
     -------
     dict with keys:
-        consensus      : "BULLISH" / "BEARISH" / "NEUTRAL"
-        avg_score      : -100 to +100
-        agreement      : 0-100% (how much roles agree)
-        perspectives   : list of PerspectiveResult as dicts
-        panel_summary  : formatted text summary for LLM context
-        roles_selected : names of roles actually run (debug)
+        consensus       : "BULLISH" / "BEARISH" / "NEUTRAL"
+        avg_score       : -100 to +100
+        agreement       : 0-100% (how much roles agree)
+        perspectives    : list of PerspectiveResult as dicts (text-only modes
+                          aggregate into consensus; vision results are
+                          informational and excluded from the headline math)
+        panel_summary   : formatted text summary for LLM context
+        roles_selected  : names of roles actually run (debug)
+        multimodal_diff : present iff multimodal=True — see
+                          compare_text_vs_vision() for shape.
     """
     if roles is None:
         if dynamic:
@@ -268,6 +332,24 @@ def run_perspective_panel(
 
     client = get_client()
     context = _build_panel_context(summary, ticker, news_report, ml_report)
+
+    # Render the chart once and feed the bytes to every multimodal role —
+    # it's a deterministic function of (ticker, period) so caching here
+    # doesn't matter. None means "render failed; skip vision calls cleanly".
+    chart_png: Optional[bytes] = None
+    if multimodal:
+        try:
+            from engine.chart_render import render_kline_for
+            chart_png = render_kline_for(ticker, period=chart_period)
+        except Exception as e:
+            logger.warning("Chart render for %s failed: %s", ticker, e)
+        if chart_png is None:
+            logger.info("Multimodal requested but chart unavailable for %s; "
+                        "running text-only.", ticker)
+
+    if multimodal_roles is None:
+        multimodal_roles = ["Quant Researcher"]
+    multimodal_role_set = {r for r in multimodal_roles}
 
     # Unified memory aggregator (CORAL-inspired). SharedMemory.summary_for
     # returns a multi-line context string that fuses:
@@ -311,6 +393,14 @@ def run_perspective_panel(
             futures[pool.submit(
                 _call_perspective, client, role, context, ticker, mem_ctx
             )] = role
+            # When multimodal is on AND we have a chart AND this role opted
+            # in, fire a parallel vision call. The text-only result still
+            # drives consensus; the vision result is informational diff data.
+            if chart_png is not None and role["name"] in multimodal_role_set:
+                futures[pool.submit(
+                    _call_perspective, client, role, context, ticker, mem_ctx,
+                    chart_png=chart_png,
+                )] = role
 
         for future in futures:
             try:
@@ -348,8 +438,12 @@ def run_perspective_panel(
                 except Exception:
                     pass
 
-    # Aggregate consensus
-    valid = [r for r in results if r.conviction > 0]
+    # Headline consensus is built only from text-only modality so the
+    # comparison is apples-to-apples with the historical baseline. Vision
+    # results are surfaced separately via multimodal_diff and the full
+    # `perspectives` list.
+    consensus_pool = [r for r in results if r.modality == "text"]
+    valid = [r for r in consensus_pool if r.conviction > 0]
     if valid:
         # Conviction-weighted average score
         total_weight = sum(r.conviction for r in valid)
@@ -371,10 +465,12 @@ def run_perspective_panel(
     else:
         consensus = "NEUTRAL"
 
-    # Build text summary for feeding into judge/risk manager
+    # Build text summary for feeding into judge/risk manager (text modality
+    # only — keeps the prompt consistent with what the judge has seen
+    # historically).
     panel_lines = [f"## Perspective Panel — {ticker}\n"]
     panel_lines.append(f"**Consensus: {consensus}** (score: {avg_score:+.0f}, agreement: {agreement}%)\n")
-    for r in results:
+    for r in consensus_pool:
         panel_lines.append(
             f"{r.icon} **{r.role}** — {r.bias} (score: {r.score:+d}, "
             f"conviction: {r.conviction}%)"
@@ -382,7 +478,7 @@ def run_perspective_panel(
         panel_lines.append(f"   {r.reasoning}")
         panel_lines.append(f"   Key: {r.key_factor}\n")
 
-    return {
+    out = {
         "consensus": consensus,
         "avg_score": round(avg_score, 1),
         "agreement": agreement,
@@ -391,9 +487,82 @@ def run_perspective_panel(
                 "role": r.role, "icon": r.icon, "bias": r.bias,
                 "score": r.score, "conviction": r.conviction,
                 "reasoning": r.reasoning, "key_factor": r.key_factor,
+                "modality": r.modality,
             }
             for r in results
         ],
         "panel_summary": "\n".join(panel_lines),
         "roles_selected": [r["name"] for r in roles],
+    }
+
+    if multimodal:
+        out["multimodal_diff"] = compare_text_vs_vision(results)
+
+    return out
+
+
+def compare_text_vs_vision(results: list[PerspectiveResult]) -> dict:
+    """
+    Pair text-only and vision PerspectiveResults by role name and report
+    per-pair gaps. Result shape:
+
+        {
+          "pairs": [
+            {"role": "Quant Researcher",
+             "text":   {"bias": "BULLISH", "score": 35, "conviction": 60},
+             "vision": {"bias": "BEARISH", "score": -20, "conviction": 55},
+             "agree":          False,
+             "score_delta":    -55,
+             "conviction_delta": -5},
+            ...
+          ],
+          "agreement_rate": 0.0,    # fraction of pairs whose bias matches
+          "avg_score_delta": -55.0, # mean(vision.score - text.score)
+          "avg_conviction_delta": -5.0,
+          "n_pairs": 1,
+        }
+
+    Returns a stable shape with `n_pairs=0` when no vision results are
+    present, so callers don't need to special-case the no-vision path.
+    """
+    by_role: dict[str, dict[str, PerspectiveResult]] = {}
+    for r in results:
+        by_role.setdefault(r.role, {})[r.modality] = r
+
+    pairs = []
+    for role, by_modality in by_role.items():
+        text = by_modality.get("text")
+        vision = by_modality.get("vision")
+        if text is None or vision is None:
+            continue
+        score_delta = vision.score - text.score
+        conviction_delta = vision.conviction - text.conviction
+        pairs.append({
+            "role": role,
+            "text": {
+                "bias": text.bias, "score": text.score,
+                "conviction": text.conviction, "reasoning": text.reasoning,
+            },
+            "vision": {
+                "bias": vision.bias, "score": vision.score,
+                "conviction": vision.conviction, "reasoning": vision.reasoning,
+            },
+            "agree": text.bias == vision.bias,
+            "score_delta": score_delta,
+            "conviction_delta": conviction_delta,
+        })
+
+    if not pairs:
+        return {
+            "pairs": [], "agreement_rate": 0.0,
+            "avg_score_delta": 0.0, "avg_conviction_delta": 0.0,
+            "n_pairs": 0,
+        }
+
+    return {
+        "pairs": pairs,
+        "agreement_rate": round(sum(1 for p in pairs if p["agree"]) / len(pairs), 3),
+        "avg_score_delta": round(sum(p["score_delta"] for p in pairs) / len(pairs), 1),
+        "avg_conviction_delta": round(sum(p["conviction_delta"] for p in pairs) / len(pairs), 1),
+        "n_pairs": len(pairs),
     }
