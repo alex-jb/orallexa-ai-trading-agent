@@ -184,14 +184,35 @@ class StockGNN(nn.Module):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _fetch_features(tickers: list[str], period: str = "6mo") -> dict[str, pd.DataFrame]:
-    """Fetch OHLCV + compute basic indicators for each ticker."""
+    """
+    Fetch OHLCV + compute basic indicators for each ticker.
+
+    Cache-aware on the historical OHLCV pull when ORALLEXA_USE_CACHE=1 —
+    the GNN signal scans ~10-50 tickers per call so the savings here
+    compound across the full inference. Indicators are recomputed from
+    the cached frame each time (cheap and lets us evolve the indicator
+    pipeline without invalidating the cache).
+    """
     import yfinance as yf
     from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2
+
+    try:
+        from engine.historical_cache import get_default_cache, cache_enabled
+        _cache = get_default_cache() if cache_enabled() else None
+    except Exception:
+        _cache = None
 
     data = {}
     for t in tickers:
         try:
-            df = yf.Ticker(t).history(period=period, interval="1d")
+            df = None
+            if _cache is not None:
+                try:
+                    df = _cache.get_prices_by_period(t, period=period)
+                except Exception:
+                    df = None
+            if df is None or df.empty:
+                df = yf.Ticker(t).history(period=period, interval="1d")
             if df.empty or len(df) < 30:
                 continue
             ta = TechnicalAnalysisSkillV2(df)

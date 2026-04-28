@@ -386,6 +386,118 @@ class TestDailyIntelWiring:
         assert fake_ticker.history.called
 
 
+# ── Wiring: skills/market_data.py and engine/gnn_signal.py ────────────────
+
+
+class TestMarketDataSkillWiring:
+    """MarketDataSkill is the canonical OHLCV fetch entry point — wiring
+    here saves round-trips wherever it's used."""
+
+    def test_daily_interval_uses_cache_when_env_set(self, monkeypatch, cache):
+        import pandas as pd
+        df = pd.DataFrame(
+            {"Open": [1] * 25, "High": [1] * 25, "Low": [1] * 25,
+             "Close": [1] * 25, "Volume": [100_000] * 25},
+            index=pd.date_range("2026-04-01", periods=25),
+        )
+        # Pre-populate via the period helper so the cache exactly covers
+        # what MarketDataSkill will request.
+        with patch("yfinance.Ticker") as mock_seed:
+            mock_seed.return_value.history.return_value = df
+            cache.get_prices_by_period("NVDA", period="1mo")
+
+        import engine.historical_cache as hc
+        monkeypatch.setattr(hc, "_DEFAULT_INSTANCE", cache)
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+
+        from skills.market_data import MarketDataSkill
+        with patch("yfinance.download") as mock_dl:
+            out = MarketDataSkill("NVDA").execute(period="1mo", interval="1d")
+            # Cache hit → yf.download is never called.
+            assert mock_dl.call_count == 0
+        assert out is not None and len(out) == 25
+
+    def test_intraday_interval_always_hits_yfinance(self, monkeypatch):
+        # Even with cache enabled, 5m bars must skip the cache (they're not
+        # cacheable at 24h freshness).
+        import pandas as pd
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+        df = pd.DataFrame(
+            {"Open": [1], "High": [1], "Low": [1], "Close": [1], "Volume": [1]},
+            index=pd.date_range("2026-04-27 09:30", periods=1, freq="5min"),
+        )
+        with patch("yfinance.download", return_value=df) as mock_dl:
+            from skills.market_data import MarketDataSkill
+            MarketDataSkill("NVDA").execute(period="5d", interval="5m")
+            assert mock_dl.call_count == 1
+
+    def test_falls_through_when_env_unset(self, monkeypatch):
+        import pandas as pd
+        monkeypatch.delenv("ORALLEXA_USE_CACHE", raising=False)
+        df = pd.DataFrame(
+            {"Open": [1], "High": [1], "Low": [1], "Close": [1], "Volume": [1]},
+            index=pd.date_range("2026-04-01", periods=1),
+        )
+        with patch("yfinance.download", return_value=df) as mock_dl:
+            from skills.market_data import MarketDataSkill
+            MarketDataSkill("NVDA").execute(period="1mo", interval="1d")
+            assert mock_dl.call_count == 1
+
+
+class TestGnnSignalWiring:
+    """GNN signal scans many tickers per call — caching this is the biggest
+    single round-trip saving in the codebase."""
+
+    def test_cache_serves_all_tickers_when_pre_populated(self, monkeypatch, cache):
+        import pandas as pd
+        # Synthesize a long enough series so add_indicators() doesn't drop the row.
+        df = pd.DataFrame(
+            {"Open": list(range(100, 140)), "High": list(range(101, 141)),
+             "Low": list(range(99, 139)), "Close": list(range(100, 140)),
+             "Volume": [1_000_000] * 40},
+            index=pd.date_range("2026-03-01", periods=40),
+        )
+        # Seed the cache for two tickers via the period helper.
+        with patch("yfinance.Ticker") as mock_seed:
+            mock_seed.return_value.history.return_value = df
+            cache.get_prices_by_period("NVDA", period="6mo")
+            cache.get_prices_by_period("AAPL", period="6mo")
+
+        import engine.historical_cache as hc
+        monkeypatch.setattr(hc, "_DEFAULT_INSTANCE", cache)
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+
+        # Now the GNN fetch should NOT hit yfinance for these tickers.
+        with patch("yfinance.Ticker") as mock_yf:
+            mock_yf.return_value.history.side_effect = AssertionError(
+                "should not hit yfinance.history"
+            )
+            from engine.gnn_signal import _fetch_features
+            features = _fetch_features(["NVDA", "AAPL"], period="6mo")
+
+        assert "NVDA" in features and "AAPL" in features
+
+    def test_falls_through_per_ticker_on_cache_miss(self, monkeypatch, cache):
+        import pandas as pd
+        # Cache empty → every ticker must hit yfinance.
+        df = pd.DataFrame(
+            {"Open": list(range(100, 140)), "High": list(range(101, 141)),
+             "Low": list(range(99, 139)), "Close": list(range(100, 140)),
+             "Volume": [1_000_000] * 40},
+            index=pd.date_range("2026-03-01", periods=40),
+        )
+        import engine.historical_cache as hc
+        monkeypatch.setattr(hc, "_DEFAULT_INSTANCE", cache)
+        monkeypatch.setenv("ORALLEXA_USE_CACHE", "1")
+
+        fake_ticker = MagicMock()
+        fake_ticker.history.return_value = df
+        with patch("yfinance.Ticker", return_value=fake_ticker):
+            from engine.gnn_signal import _fetch_features
+            features = _fetch_features(["NVDA"], period="6mo")
+        assert "NVDA" in features
+
+
 # ── Module-level helpers ───────────────────────────────────────────────────
 
 

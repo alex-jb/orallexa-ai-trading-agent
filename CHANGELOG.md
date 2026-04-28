@@ -2,6 +2,61 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-04-27] — Historical cache extended to GNN signal + MarketDataSkill
+
+Continuation of the daily_intel wiring earlier today. Two more high-value
+call sites — one was a per-ticker loop (multiplied savings) and the other
+is the canonical OHLCV entry point used across multiple consumers.
+
+### Changed — engine/gnn_signal.py wiring
+
+- `_fetch_features` is the per-ticker loop inside the GNN signal generator.
+  Each scan can pull 6mo of daily bars across 10-50 tickers — that's the
+  biggest single round-trip count in the codebase. Now serves from cache
+  when `ORALLEXA_USE_CACHE=1`; falls through to yfinance per-ticker on
+  cache miss. Indicators are recomputed from the cached frame each time
+  (cheap, and lets the indicator pipeline evolve without invalidating
+  the cache).
+
+### Changed — skills/market_data.py wiring
+
+- `MarketDataSkill.execute` is the canonical OHLCV entry point used by
+  several consumers (`core/brain.py`, the research mode, etc.). For
+  `interval="1d"` (the dominant case), it now serves from cache when
+  enabled. Intraday intervals (5m, 1m, 15m, 1h) intentionally bypass —
+  not worth a 24h freshness gate.
+- The skill remains a thin wrapper over `yf.download` rather than
+  `yf.Ticker(...).history()`, but the cache is shape-compatible since
+  both produce the same OHLCV layout.
+
+### Tests
+
+- `tests/test_historical_cache.py` (+5 cases):
+  * `MarketDataSkill` daily interval serves from cache, intraday always
+    hits yfinance, env-unset falls through.
+  * GNN signal serves all pre-populated tickers without yfinance hits;
+    cache-miss path falls through per-ticker without crashing the loop.
+
+### Coverage of the cache wiring overall
+
+After today's work, every daily-grain yfinance call site in the
+production runtime is cache-aware:
+
+| File | Function | Status |
+|------|----------|--------|
+| engine/earnings.py | fetch_earnings_calendar | wired |
+| engine/earnings.py | compute_pead_stats (earnings + price) | wired |
+| engine/daily_intel.py | _fetch_price_with_volume | wired |
+| engine/daily_intel.py | _calc_fear_greed (SPY 6mo) | wired |
+| engine/gnn_signal.py | _fetch_features | wired |
+| skills/market_data.py | MarketDataSkill.execute | wired |
+| _macro / fast_info / intraday | — | intentionally direct |
+
+`ORALLEXA_USE_CACHE=1` is now the single switch that turns all of these
+on. Default off in CI for determinism.
+
+---
+
 ## [2026-04-27] — Historical cache extended to daily_intel hot paths
 
 Building on the earnings.py wiring earlier today, this round adds two more
