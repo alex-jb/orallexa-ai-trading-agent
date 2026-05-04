@@ -189,8 +189,13 @@ def main() -> int:
         return 0
 
     if not _DECISION_LOG.exists():
-        print(f"Decision log not found at {_DECISION_LOG}")
-        return 1
+        # No decision log yet (first cron run, or multimodal feature not
+        # exercised in this environment). Honor the workflow's contract:
+        # "no data → exits 0" so the smoke-test step downstream can still run.
+        print(f"Decision log not found at {_DECISION_LOG} — writing empty eval set")
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text("", encoding="utf-8")
+        return 0
 
     raw = json.loads(_DECISION_LOG.read_text(encoding="utf-8"))
     if not isinstance(raw, list):

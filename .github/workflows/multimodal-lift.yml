@@ -67,9 +67,14 @@ jobs:
           path: |
             memory_data/decision_log.json
             memory_data/multimodal_eval_set.jsonl
-          # Single-key cache — last-write-wins so each run starts from the
+          # actions/cache@v4 only saves on a primary-key MISS. A static key
+          # would freeze the cache after run #1 (restore hits, save no-ops),
+          # so the eval set could never accumulate. Rotate per run, restore
+          # from the v1 prefix → each run saves fresh, but starts from the
           # most recent snapshot.
-          key: multimodal-eval-data-v1
+          key: multimodal-eval-data-v1-${{ github.run_id }}
+          restore-keys: |
+            multimodal-eval-data-v1-
 
       - name: Build / refresh the multimodal eval set
         # Always runs. When the decision log has no multimodal_diff records
