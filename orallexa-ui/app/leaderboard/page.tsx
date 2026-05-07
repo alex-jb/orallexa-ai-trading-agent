@@ -279,6 +279,27 @@ export default async function LeaderboardPage() {
             Full report ↗
           </a>
         </footer>
+
+        <p
+          style={{
+            marginTop: 16,
+            fontSize: 11,
+            fontFamily: "Lato, sans-serif",
+            color: "var(--text-dim, #4A4D55)",
+            textAlign: "center",
+          }}
+        >
+          Same author also shipped{" "}
+          <a
+            href="https://www.vibexforge.com/?ref=orallexa"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--gold-muted, #C5A255)" }}
+          >
+            VibeXForge
+          </a>{" "}
+          — Product Hunt where Claude is the judge.
+        </p>
       </div>
     </main>
   );
