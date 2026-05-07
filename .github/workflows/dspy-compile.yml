@@ -1,0 +1,116 @@
+name: DSPy Phase B Compile (monthly)
+
+# Phase B compile harness gated on production debate accumulation.
+# Eligibility: memory_data/decision_log.json must have ≥100 records
+# with extra.debate populated AND ≥5 trading days of forward return
+# data available.
+#
+# Below threshold: workflow exits 0 with a clean "below threshold"
+# summary. Compile only fires when eligible >= 100 AND
+# ANTHROPIC_API_KEY is configured. Compiled artifact uploaded so
+# Alex can pull it down + ship as the new production judge prompt
+# if the +5% holdout gate clears.
+#
+# Why monthly cron: building 100 prod debates takes ~14 days at
+# 7 tickers/day from the Alpaca paper pilot. Monthly gives 2 attempts
+# after the threshold first clears, so any "no lift" verdict can
+# retry next month with a larger eval set without ad-hoc dispatch.
+
+on:
+  schedule:
+    - cron: "0 4 1 * *"  # 1st of month, 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      auto_mode:
+        description: "MIPROv2 mode (light = cheaper, medium = default)"
+        required: false
+        default: "light"
+      synthesize:
+        description: "Number of synthetic rows to add (for harness validation only)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (incl. dspy-ai)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dspy-ai
+
+      - name: Build eval set from production decision log
+        id: build
+        run: |
+          SYN="${{ github.event.inputs.synthesize || '0' }}"
+          if [ "$SYN" -gt "0" ]; then
+            python scripts/build_dspy_eval_set.py --days 5 --synthesize "$SYN"
+          else
+            python scripts/build_dspy_eval_set.py --days 5
+          fi
+
+      - name: Check eligibility (≥100)
+        id: gate
+        run: |
+          ELIG=$(python -c "
+          import json
+          from pathlib import Path
+          p = Path('memory_data/dspy_eval_set.jsonl')
+          if not p.exists():
+              print(0); exit
+          n = 0
+          for line in p.read_text().splitlines():
+              if not line.strip(): continue
+              try:
+                  if json.loads(line).get('eligible'): n += 1
+              except Exception: pass
+          print(n)
+          ")
+          echo "Eligible: $ELIG"
+          echo "eligible=$ELIG" >> "$GITHUB_OUTPUT"
+          if [ "$ELIG" -ge 100 ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compile (eligible >= 100 only)
+        if: steps.gate.outputs.go == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          AUTO="${{ github.event.inputs.auto_mode || 'light' }}"
+          python scripts/compile_judge_dspy.py --auto "$AUTO" | tee compile_output.txt
+          STATUS=$(grep "^Phase B status:" compile_output.txt | tail -1 || echo "Phase B status: UNKNOWN")
+          echo "$STATUS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip notice (below threshold)
+        if: steps.gate.outputs.go == 'false'
+        run: |
+          ELIG="${{ steps.gate.outputs.eligible }}"
+          echo "## DSPy Phase B compile: SKIPPED" >> "$GITHUB_STEP_SUMMARY"
+          echo "Eligible debate rows: **$ELIG / 100**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Compile gates open at 100. Daily Alpaca pilot is the bottleneck — see docs/UNBLOCK_30_DAYS.md." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload compiled artifact
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dspy-judge-compiled-${{ github.run_id }}
+          path: |
+            memory_data/dspy_judge_compiled.json
+            compile_output.txt
+          retention-days: 90

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  com.alexji.orallexa-paper-daily.plist
+  ─────────────────────────────────────────────────────────────────
+  Daily Alpaca paper-trading pilot. Fires 9:35 AM Eastern (≈ 6:35 AM
+  Pacific outside DST, 7:35 AM during DST). 5 minutes after US
+  market open so the first-bar volatility settles.
+
+  Install:
+    cp scripts/launchd/com.alexji.orallexa-paper-daily.plist \
+       ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist
+    launchctl list | grep orallexa-paper-daily   # verify
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist
+    rm ~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist
+
+  Edit watchlist / confidence gate via run_daily_pilot.py CLI args
+  inside the StringValue below.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alexji.orallexa-paper-daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-c</string>
+        <string>cd $HOME/Desktop/orallexa-ai-trading-agent &amp;&amp; [ -f .env ] &amp;&amp; set -a &amp;&amp; source .env &amp;&amp; set +a; /usr/bin/env python3 scripts/run_daily_pilot.py 2>&amp;1 | tee -a logs/pilot.log</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>35</integer>
+        <key>Weekday</key>
+        <array>
+            <dict><key>Weekday</key><integer>1</integer></dict>
+            <dict><key>Weekday</key><integer>2</integer></dict>
+            <dict><key>Weekday</key><integer>3</integer></dict>
+            <dict><key>Weekday</key><integer>4</integer></dict>
+            <dict><key>Weekday</key><integer>5</integer></dict>
+        </array>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/alexji/Desktop/orallexa-ai-trading-agent/logs/pilot.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/alexji/Desktop/orallexa-ai-trading-agent/logs/pilot.stderr.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
