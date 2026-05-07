@@ -240,6 +240,8 @@ Not every task needs the expensive model:
 
 `ORALLEXA_USE_CACHE=1` short-circuits every daily-grain yfinance call (earnings calendar, PEAD stats, watchlist volume, SPY 6-month, GNN per-ticker features, MarketDataSkill). Cache hits cost nothing and complete in milliseconds. Intraday and `fast_info` paths intentionally bypass — those need real-time data.
 
+`ORALLEXA_MULTIMODAL_SAMPLE=0.0..1.0` controls vision-augmented debate sampling. Default `0` is off (zero behavior change vs text-only). Setting e.g. `0.2` runs the Quant Researcher with both text and a K-line chart on ~20% of deep-analysis calls; the per-call diff is stashed on `decision_log.extra.multimodal_diff` and the nightly **Multimodal Lift — Vision vs Text Eval** workflow rolls it into a ship/reject verdict. Vision adds ~5× cost per sampled call, so `0.1`–`0.2` is the recommended prod range.
+
 > Two patterns from this repo have been extracted as standalone Python packages + Claude Code skills:
 > - **[claude-tier-router](https://github.com/alex-jb/claude-tier-router)** — the Haiku/Sonnet dual-tier routing (`pip install claude-tier-router`)
 > - **[claude-debate](https://github.com/alex-jb/claude-debate)** — the Bull/Bear/Judge adversarial decision pattern, generalized (`pip install claude-debate`)

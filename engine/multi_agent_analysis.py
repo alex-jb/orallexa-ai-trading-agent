@@ -23,11 +23,41 @@ Usage:
 from __future__ import annotations
 
 import logging
+import os
+import random
 from datetime import date as _date
 from typing import Optional
 from dataclasses import dataclass
 
 from models.decision import DecisionOutput
+
+
+def _sample_multimodal(explicit: bool, env_value: Optional[str] = None) -> bool:
+    """
+    Decide whether to enable the vision-augmented perspective panel for this
+    run. If the caller already opted in (`explicit=True`), honor it. Otherwise
+    read ORALLEXA_MULTIMODAL_SAMPLE (a float in [0.0, 1.0]) and roll the dice.
+
+    Default unset / 0 → never sampled (zero behavior change vs pre-Day-9).
+    Production setting 0.1-0.2 makes ~10% of deep-analysis runs stash a
+    multimodal_diff on decision.extra, so the nightly multimodal-lift cron
+    (.github/workflows/multimodal-lift.yml) accumulates real eval pairs
+    without paying the ~5× vision cost on every call.
+    """
+    if explicit:
+        return True
+    raw = env_value if env_value is not None else os.environ.get(
+        "ORALLEXA_MULTIMODAL_SAMPLE", "0"
+    )
+    try:
+        rate = float(raw)
+    except (TypeError, ValueError):
+        return False
+    if rate <= 0:
+        return False
+    if rate >= 1:
+        return True
+    return random.random() < rate
 
 logger = logging.getLogger(__name__)
 
@@ -462,6 +492,10 @@ def run_multi_agent_analysis(
     """
     if trade_date is None:
         trade_date = _date.today().isoformat()
+
+    # Sample-based multimodal opt-in: lets prod accumulate vision-vs-text
+    # eval data without forcing every call to pay the ~5× vision cost.
+    multimodal = _sample_multimodal(multimodal)
 
     # ── Initialize brain if not provided ──
     if brain is None:

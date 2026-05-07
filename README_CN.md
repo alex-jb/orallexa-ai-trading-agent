@@ -225,6 +225,8 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 **单次完整分析：~$0.005。** 每日情报报告：~$0.05。
 
+`ORALLEXA_MULTIMODAL_SAMPLE=0.0..1.0` 控制视觉增强辩论的采样率。默认 `0` 关闭(行为完全等同纯文本)。设为 `0.2` 时,~20% 的深度分析调用会让 Quant Researcher 同时跑文本和 K 线图;每次调用的差异会被存到 `decision_log.extra.multimodal_diff`,夜间 **Multimodal Lift — Vision vs Text Eval** workflow 据此聚合出 ship/reject 结论。被采样的调用 ~5× 成本,推荐生产值 `0.1`–`0.2`。
+
 ---
 
 ## 为什么选这个架构
