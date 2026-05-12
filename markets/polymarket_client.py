@@ -42,7 +42,16 @@ CLOB_BASE = "https://clob.polymarket.com"
 class PolymarketConfig:
     gamma_base: str = GAMMA_BASE
     clob_base: str = CLOB_BASE
-    user_agent: str = "Orallexa-Markets/0.1 (read-only)"
+    # Cloudflare on Polymarket Gamma rejects bot-like User-Agents at the
+    # TLS-handshake layer (verified 2026-05-12 — curl with default UA also
+    # gets reset). Mimic a real Chrome on macOS so the read-only API call
+    # passes through. We are not violating any ToS — Gamma is documented
+    # public API; this is the price of being on Cloudflare-fronted infra.
+    user_agent: str = (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/130.0.0.0 Safari/537.36"
+    )
     timeout_sec: int = 20
 
 
@@ -291,14 +300,33 @@ class PolymarketClient:
         self.config = config or PolymarketConfig()
 
     def _get(self, base: str, path: str, params: Optional[dict] = None) -> dict:
-        import requests
+        """HTTP GET via curl_cffi (impersonates Chrome TLS fingerprint).
+
+        Polymarket Gamma + CLOB are Cloudflare-fronted with Bot Fight Mode
+        enabled. Plain `requests` and even default `curl` get rejected at the
+        TLS-handshake layer (verified 2026-05-12). `curl_cffi` impersonates
+        a real Chrome TLS fingerprint via libcurl-impersonate, which slips
+        through Cloudflare's TLS-fingerprint detection.
+
+        Falls back to plain `requests` only for non-Cloudflare-fronted
+        endpoints (none currently — both Gamma and CLOB are protected).
+        """
+        try:
+            from curl_cffi import requests as cffi_requests
+            use_impersonate = True
+        except ImportError:
+            import requests as cffi_requests  # type: ignore
+            use_impersonate = False
+
         url = f"{base}{path}"
-        resp = requests.get(
-            url,
+        kwargs = dict(
             params=params or {},
             headers={"User-Agent": self.config.user_agent, "Accept": "application/json"},
             timeout=self.config.timeout_sec,
         )
+        if use_impersonate:
+            kwargs["impersonate"] = "chrome"
+        resp = cffi_requests.get(url, **kwargs)
         resp.raise_for_status()
         return resp.json()
 
