@@ -28,6 +28,11 @@ from markets.polymarket_client import PolymarketClient
 from markets.event_debate import run_event_debate
 from markets.queue import QueueWriter, QueueEntry
 from markets.sizing import SizingConfig, size_position
+from markets.pnl_tracker import (
+    harvest_decided_dir, PositionLedger, compute_pnl,
+)
+from markets.retro import run_retro, make_lookup_from_clients
+from markets.scheduler import SchedulerConfig, install as scheduler_install
 
 
 def _print_market_row(m: BinaryMarket) -> None:
@@ -183,6 +188,81 @@ def cmd_queue(args) -> int:
     return 0
 
 
+def cmd_pnl(args) -> int:
+    """Harvest decided cards + print PnL summary against live outcomes."""
+    decisions = harvest_decided_dir()
+    ledger = PositionLedger.default()
+    new_rows = ledger.append(decisions)
+    if new_rows:
+        print(f"Appended {new_rows} new decisions to {ledger.path}")
+    all_decisions = ledger.load_all()
+    if not all_decisions:
+        print("Ledger empty. Move some decided/*.md cards into the decided/ dir first.")
+        return 0
+    lookup = make_lookup_from_clients(
+        kalshi_client=KalshiClient(KalshiConfig.prod() if args.prod else KalshiConfig.demo()),
+        polymarket_client=PolymarketClient(),
+    )
+    rows = compute_pnl(all_decisions, outcome_lookup=lookup)
+    total = sum(r.realized_pnl_usd for r in rows if r.settled)
+    n_settled = sum(1 for r in rows if r.settled)
+    n_open = sum(1 for r in rows if not r.settled and r.decision.decision != "PASS")
+    print(f"\nLedger: {len(all_decisions)} decisions | settled={n_settled} open={n_open}")
+    print(f"Realized PnL cumulative: ${total:+,.2f}")
+    print()
+    for r in rows:
+        d = r.decision
+        outcome_str = "YES" if r.outcome == 1 else "NO" if r.outcome == 0 else "—"
+        pnl_str = f"${r.realized_pnl_usd:+,.2f}" if r.settled else "(open)"
+        brier_str = f"brier={r.brier:.3f}" if r.brier is not None else ""
+        print(
+            f"  [{d.platform[:10]}] {d.ticker[:40]:40s} {d.decision:11s} "
+            f"side={d.side or '—':3s} ${d.position_usd:6.2f}  "
+            f"outcome={outcome_str:3s} {pnl_str:>10s}  {brier_str}"
+        )
+    return 0
+
+
+def cmd_retro(args) -> int:
+    lookup = make_lookup_from_clients(
+        kalshi_client=KalshiClient(KalshiConfig.prod() if args.prod else KalshiConfig.demo()),
+        polymarket_client=PolymarketClient(),
+    )
+    path, summary = run_retro(
+        bankroll_start=args.bankroll, outcome_lookup=lookup, date=args.date
+    )
+    print(f"Wrote retro to {path}")
+    print(f"  decisions today: {summary.n_decisions_today}")
+    print(f"  settled / open:  {summary.n_settled} / {summary.n_open}")
+    print(f"  PnL today:       ${summary.realized_pnl_today:+,.2f}")
+    print(f"  PnL cumulative:  ${summary.realized_pnl_cumulative:+,.2f}")
+    if summary.brier_mean is not None:
+        baseline = (
+            f"{summary.brier_market_baseline:.4f}"
+            if summary.brier_market_baseline is not None else "—"
+        )
+        print(f"  Brier (LLM):     {summary.brier_mean:.4f}")
+        print(f"  Brier (mkt):     {baseline}")
+    if summary.kill_conditions_tripped:
+        print("\n  ⚠️ kill conditions tripped:")
+        for k in summary.kill_conditions_tripped:
+            print(f"    - {k}")
+    return 0
+
+
+def cmd_scheduler_install(args) -> int:
+    config = SchedulerConfig(
+        queue_hour=args.queue_hour,
+        retro_hour=args.retro_hour,
+        platform=args.platform,
+        bankroll=args.bankroll,
+        queue_limit=args.queue_limit,
+        repo_path=args.repo_path or "",
+    )
+    print(scheduler_install(config))
+    return 0
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="orallexa-markets")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -227,6 +307,25 @@ def main(argv: Optional[list[str]] = None) -> int:
     q.add_argument("--include-memes", action="store_true",
                    help="Polymarket only: include meme umbrella events")
     q.set_defaults(func=cmd_queue)
+
+    pnl = sub.add_parser("pnl", help="Harvest decided cards + print PnL summary")
+    pnl.add_argument("--prod", action="store_true", help="Use Kalshi prod for outcome lookup")
+    pnl.set_defaults(func=cmd_pnl)
+
+    rt = sub.add_parser("retro", help="Write evening retro markdown to ~/.orallexa/markets/retro/")
+    rt.add_argument("--bankroll", type=float, default=300.0)
+    rt.add_argument("--date", default=None, help="YYYY-MM-DD (defaults to today UTC)")
+    rt.add_argument("--prod", action="store_true")
+    rt.set_defaults(func=cmd_retro)
+
+    sch = sub.add_parser("scheduler-install", help="Install daily launchd jobs (macOS) or print crontab")
+    sch.add_argument("--queue-hour", type=int, default=9)
+    sch.add_argument("--retro-hour", type=int, default=21)
+    sch.add_argument("--platform", choices=["kalshi", "polymarket"], default="polymarket")
+    sch.add_argument("--bankroll", type=float, default=300.0)
+    sch.add_argument("--queue-limit", type=int, default=5)
+    sch.add_argument("--repo-path", default=None, help="Defaults to CWD at install time")
+    sch.set_defaults(func=cmd_scheduler_install)
 
     args = parser.parse_args(argv)
     return args.func(args)
