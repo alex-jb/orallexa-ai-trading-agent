@@ -91,20 +91,58 @@ def render_entry(entry: QueueEntry) -> str:
         "\n".join(f"  - {e}" for e in d.evidence_against) or "  - (none)"
     )
 
+    # Critic verdict surface — only render block when Critic exists.
+    if d.critic is not None:
+        c = d.critic
+        verdict_emoji = {"OK": "✓", "CAVEAT": "⚠", "REJECT": "✗"}.get(c.verdict, "?")
+        critic_summary_row = f"| Critic | **{verdict_emoji} {c.verdict}** — {c.summary or '(no summary)'} |"
+        critic_section_parts: list[str] = []
+        if c.verdict != "OK" or c.failure_modes or c.unverifiable_claims:
+            critic_section_parts.append(f"\n## Critic audit ({verdict_emoji} {c.verdict})\n")
+            if c.failure_modes:
+                critic_section_parts.append("**Failure modes flagged:**")
+                critic_section_parts.extend(f"  - {f}" for f in c.failure_modes)
+            checks = []
+            if c.same_source_overlap:
+                checks.append("• same-source bias detected (Bull/Bear cite same source)")
+            if c.missing_base_rate:
+                checks.append("• missing historical base-rate anchor")
+            if c.confirmation_drift:
+                checks.append("• confirmation drift (Judge leaned toward more verbose argument)")
+            if checks:
+                critic_section_parts.append("\n**Structural flags:**")
+                critic_section_parts.extend(f"  {c}" for c in checks)
+            if c.unverifiable_claims:
+                critic_section_parts.append("\n**Unverifiable claims in debate:**")
+                critic_section_parts.extend(f"  - {u}" for u in c.unverifiable_claims)
+            if c.summary:
+                critic_section_parts.append(f"\n*{c.summary}*")
+        critic_section = "\n".join(critic_section_parts)
+    else:
+        critic_summary_row = ""
+        critic_section = ""
+
+    field_table = (
+        f"| Field | Value |\n"
+        f"|---|---|\n"
+        f"| Platform | `{m.platform}` |\n"
+        f"| Market | `{m.ticker}` |\n"
+        f"| Category | {m.category} |\n"
+        f"| Resolves | {m.close_time or 'TBD'} |\n"
+        f"| Market YES price | **{mkt_price}** |\n"
+        f"| Our p_yes | **{d.p_yes:.3f}** |\n"
+        f"| Edge | **{edge_str}** |\n"
+        f"| Suggested side | {side} |\n"
+        f"| Suggested position | ${entry.suggested_position_usd:.2f} |\n"
+        f"| Trade URL | {_trade_url(m) or '(manual)'} |"
+    )
+    if critic_summary_row:
+        field_table += "\n" + critic_summary_row
+
     return f"""# {m.question}
 
-| Field | Value |
-|---|---|
-| Platform | `{m.platform}` |
-| Market | `{m.ticker}` |
-| Category | {m.category} |
-| Resolves | {m.close_time or 'TBD'} |
-| Market YES price | **{mkt_price}** |
-| Our p_yes | **{d.p_yes:.3f}** |
-| Edge | **{edge_str}** |
-| Suggested side | {side} |
-| Suggested position | ${entry.suggested_position_usd:.2f} |
-| Trade URL | {_trade_url(m) or '(manual)'} |
+{field_table}
+{critic_section}
 
 ## Judge reasoning
 
