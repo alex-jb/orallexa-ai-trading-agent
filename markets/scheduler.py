@@ -45,20 +45,24 @@ class SchedulerConfig:
     log_dir: Path = Path.home() / ".orallexa" / "markets" / "logs"
 
 
-def _plist_xml(
+def _plist_xml_script(
     label: str,
     hour: int,
     minute: int,
-    python_path: str,
+    script_path: str,
     repo_path: str,
-    cli_args: list[str],
+    env_vars: dict[str, str],
     log_dir: Path,
 ) -> str:
+    """Plist that runs a shell script wrapper (so post-run actions like
+    `open Finder` can be chained after the Python step succeeds).
+    """
     log_dir.mkdir(parents=True, exist_ok=True)
     stdout = log_dir / f"{label}.out.log"
     stderr = log_dir / f"{label}.err.log"
-    args_xml = "\n      ".join(
-        f"<string>{a}</string>" for a in [python_path, "-m", "markets", *cli_args]
+    env_xml = "".join(
+        f"\n        <key>{k}</key>\n        <string>{v}</string>"
+        for k, v in env_vars.items()
     )
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -69,7 +73,8 @@ def _plist_xml(
     <string>{label}</string>
     <key>ProgramArguments</key>
     <array>
-      {args_xml}
+      <string>/bin/bash</string>
+      <string>{script_path}</string>
     </array>
     <key>WorkingDirectory</key>
     <string>{repo_path}</string>
@@ -87,7 +92,7 @@ def _plist_xml(
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>{env_xml}
     </dict>
 </dict>
 </plist>
@@ -106,34 +111,43 @@ def _crontab_snippet(config: SchedulerConfig) -> str:
 
 
 def install_launchd(config: SchedulerConfig) -> tuple[Path, Path]:
-    """Write + load both plists. Returns (queue_plist_path, retro_plist_path)."""
+    """Write + load both plists. Wraps shell scripts so cron can `open
+    Finder` / `open retro.md` after the Python step completes.
+    Returns (queue_plist_path, retro_plist_path).
+    """
     if not config.repo_path:
         config.repo_path = str(Path.cwd())
 
     PLIST_DIR.mkdir(parents=True, exist_ok=True)
 
+    morning_script = str(Path(config.repo_path) / "scripts" / "markets-morning.sh")
+    evening_script = str(Path(config.repo_path) / "scripts" / "markets-evening.sh")
+
+    shared_env = {
+        "REPO_ROOT": config.repo_path,
+        "PYTHON_BIN": config.python_path,
+        "MARKETS_PLATFORM": config.platform,
+        "MARKETS_QUEUE_LIMIT": str(config.queue_limit),
+        "MARKETS_BANKROLL": str(config.bankroll),
+    }
+
     queue_plist = PLIST_DIR / f"{QUEUE_LABEL}.plist"
     retro_plist = PLIST_DIR / f"{RETRO_LABEL}.plist"
 
-    queue_plist.write_text(_plist_xml(
+    queue_plist.write_text(_plist_xml_script(
         label=QUEUE_LABEL,
         hour=config.queue_hour, minute=config.queue_minute,
-        python_path=config.python_path,
+        script_path=morning_script,
         repo_path=config.repo_path,
-        cli_args=[
-            "queue",
-            "--platform", config.platform,
-            "--limit", str(config.queue_limit),
-            "--bankroll", str(config.bankroll),
-        ],
+        env_vars=shared_env,
         log_dir=config.log_dir,
     ))
-    retro_plist.write_text(_plist_xml(
+    retro_plist.write_text(_plist_xml_script(
         label=RETRO_LABEL,
         hour=config.retro_hour, minute=config.retro_minute,
-        python_path=config.python_path,
+        script_path=evening_script,
         repo_path=config.repo_path,
-        cli_args=["retro", "--bankroll", str(config.bankroll)],
+        env_vars=shared_env,
         log_dir=config.log_dir,
     ))
 
