@@ -47,32 +47,37 @@ class KalshiConfig:
 def _category_from_event_ticker(event_ticker: str) -> str:
     """Best-effort category bucket from Kalshi's event-ticker prefix.
 
-    Kalshi groups markets under event tickers like POTUS-2028, KXFED, HIGHNY,
-    INXD-Y, etc. Their public categorization is on the website, not in the
-    JSON. We approximate so the rest of the pipeline can filter by category.
+    Kalshi prefixes with `KX` for most markets in their post-2024 schema
+    (e.g. KXNBAGAME, KXMLBRFI, KXFED, KXNFL). Older series use bare prefixes
+    (POTUS, SENATE). We use substring match on the first dash-segment to
+    catch both forms.
     """
     pref = event_ticker.upper().split("-")[0]
-    politics = {"POTUS", "SENATE", "HOUSE", "PRES", "ELECT", "GOV", "MAYOR"}
-    geopolitics = {"WAR", "NATO", "UN", "RUS", "CHINA", "IRAN", "ISRAEL"}
-    economics = {"KXFED", "CPI", "GDP", "NFP", "UNRATE", "PCE", "FOMC"}
-    science = {"NASA", "WHO", "AI", "OPENAI", "ANTHRO"}
-    weather = {"HIGH", "LOW", "RAIN", "SNOW", "HURRICANE"}
-    sports = {"NBA", "NFL", "MLB", "NHL", "TENNIS", "GOLF", "UFC", "F1"}
-    crypto = {"BTC", "ETH", "SOL", "DOGE"}
+    politics = ("POTUS", "SENATE", "HOUSE", "PRES", "ELECT", "GOV", "MAYOR")
+    geopolitics = ("WAR", "NATO", "UN", "RUS", "CHINA", "IRAN", "ISRAEL")
+    economics = ("FED", "CPI", "GDP", "NFP", "UNRATE", "PCE", "FOMC")
+    science = ("NASA", "WHO", "AI", "OPENAI", "ANTHRO")
+    weather = ("HIGH", "LOW", "RAIN", "SNOW", "HURRICANE", "TEMP")
+    sports = ("NBA", "NFL", "MLB", "NHL", "TENNIS", "GOLF", "UFC", "F1",
+              "GAME", "MLBGAME", "MLBRFI", "NBAGAME", "NFLGAME")
+    crypto = ("BTC", "ETH", "SOL", "DOGE")
 
-    if any(pref.startswith(p) for p in politics):
+    def hit(kws) -> bool:
+        return any(kw in pref for kw in kws)
+
+    if hit(politics):
         return "politics"
-    if any(pref.startswith(p) for p in geopolitics):
+    if hit(geopolitics):
         return "geopolitics"
-    if any(pref.startswith(p) for p in economics):
+    if hit(economics):
         return "economics"
-    if any(pref.startswith(p) for p in science):
+    if hit(science):
         return "science"
-    if any(pref.startswith(p) for p in weather):
+    if hit(weather):
         return "weather"
-    if any(pref.startswith(p) for p in sports):
+    if hit(sports):
         return "sports"
-    if any(pref.startswith(p) for p in crypto):
+    if hit(crypto):
         return "crypto"
     return "other"
 
@@ -110,32 +115,62 @@ def _normalize_outcome(raw: dict) -> Optional[int]:
 def parse_market(raw: dict) -> BinaryMarket:
     """Pure function: Kalshi JSON record → BinaryMarket. Fixture-tested.
 
-    Field map (Kalshi → BinaryMarket):
-      ticker          → market_id, ticker
-      event_ticker    → category (heuristic)
-      title           → question
-      status          → status (normalized)
-      open_time       → open_time
-      close_time      → close_time
-      expiration_time → expiration_time
-      last_price      → yes_price        (Kalshi quotes in cents; we divide)
-      yes_bid         → yes_bid
-      yes_ask         → yes_ask
-      volume          → volume
-      open_interest   → open_interest
-      result          → outcome (YES=1, NO=0, unresolved=None)
+    Field map (Kalshi 2024+ schema → BinaryMarket):
+      ticker                → market_id, ticker
+      event_ticker          → category (heuristic)
+      title                 → question
+      status                → status (normalized)
+      last_price_dollars    → yes_price (already in 0..1 USD, no division)
+      yes_bid_dollars       → yes_bid
+      yes_ask_dollars       → yes_ask
+      notional_value_dollars→ volume    (Kalshi reports notional, not contracts)
+      open_interest_fp      → open_interest
+      result                → outcome (YES=1, NO=0, unresolved=None)
+
+    The pre-2024 schema used `last_price` in cents; we still accept those
+    via a fallback so fixtures and older recordings continue parsing.
     """
     ticker = raw["ticker"]
     event_ticker = raw.get("event_ticker", "")
     status = _normalize_status(raw.get("status", ""))
 
+    def dollars(x) -> Optional[float]:
+        """Field already in dollars (0..1 range), pass through."""
+        if x is None:
+            return None
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+
     def cents_to_unit(x) -> Optional[float]:
+        """Legacy: field in cents (0..100), divide by 100."""
         if x is None:
             return None
         try:
             return float(x) / 100.0
         except (TypeError, ValueError):
             return None
+
+    yes_price = dollars(raw.get("last_price_dollars"))
+    if yes_price is None:
+        yes_price = cents_to_unit(raw.get("last_price"))
+    yes_bid = dollars(raw.get("yes_bid_dollars"))
+    if yes_bid is None:
+        yes_bid = cents_to_unit(raw.get("yes_bid"))
+    yes_ask = dollars(raw.get("yes_ask_dollars"))
+    if yes_ask is None:
+        yes_ask = cents_to_unit(raw.get("yes_ask"))
+
+    volume = (
+        raw.get("notional_value_dollars")
+        or raw.get("volume_24h_dollars")
+        or raw.get("volume")
+        or 0
+    )
+    open_interest = (
+        raw.get("open_interest_fp") or raw.get("open_interest") or 0
+    )
 
     return BinaryMarket(
         platform="kalshi",
@@ -148,11 +183,11 @@ def parse_market(raw: dict) -> BinaryMarket:
         close_time=raw.get("close_time"),
         expiration_time=raw.get("expiration_time"),
         settled_at=raw.get("settle_time") or raw.get("settled_time"),
-        yes_price=cents_to_unit(raw.get("last_price")),
-        yes_bid=cents_to_unit(raw.get("yes_bid")),
-        yes_ask=cents_to_unit(raw.get("yes_ask")),
-        volume=float(raw.get("volume") or 0),
-        open_interest=float(raw.get("open_interest") or 0),
+        yes_price=yes_price,
+        yes_bid=yes_bid,
+        yes_ask=yes_ask,
+        volume=float(volume) if volume else 0.0,
+        open_interest=float(open_interest) if open_interest else 0.0,
         outcome=_normalize_outcome(raw),
         description=raw.get("rules_primary") or raw.get("subtitle") or "",
         raw=raw,
