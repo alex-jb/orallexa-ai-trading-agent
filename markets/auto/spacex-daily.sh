@@ -211,6 +211,66 @@ def earnings_warning(ticker: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────
+# Correlation matrix — 30-day rolling pairwise correlation across
+# the 14 watchlist tickers. Flags "diversification illusion": when
+# two Trend setups are >70% correlated, sizing them both Full is
+# actually 1.4x leverage on a single bet, not a hedged position.
+# ─────────────────────────────────────────────────────────────
+def compute_correlations(period_days: int = 30):
+    """Return (correlation_dict, high_corr_pairs).
+    correlation_dict[(a, b)] = pearson corr coefficient.
+    high_corr_pairs = [(a, b, corr), ...] sorted desc, where corr > 0.7.
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        return {}, []
+
+    # Batch download for efficiency
+    try:
+        df = yf.download(
+            tickers=" ".join(WATCHLIST),
+            period=f"{period_days + 10}d",
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+        )
+        # df has MultiIndex columns: (price, ticker)
+        if "Close" in df.columns.get_level_values(0):
+            closes = df["Close"]
+        else:
+            return {}, []
+    except Exception:
+        return {}, []
+
+    # Daily returns
+    returns = closes.pct_change().dropna()
+    if len(returns) < 10:
+        return {}, []
+
+    corr_matrix = returns.corr()
+    corr_dict = {}
+    high_pairs = []
+    tickers_in_df = list(corr_matrix.columns)
+    for i, a in enumerate(tickers_in_df):
+        for b in tickers_in_df[i + 1:]:
+            try:
+                c = float(corr_matrix.loc[a, b])
+                if __import__("math").isnan(c):
+                    continue
+            except Exception:
+                continue
+            corr_dict[(a, b)] = c
+            if c > 0.7:
+                high_pairs.append((a, b, c))
+    high_pairs.sort(key=lambda x: x[2], reverse=True)
+    return corr_dict, high_pairs
+
+
+_CORR_DICT, _HIGH_CORR_PAIRS = compute_correlations()
+
+
+# ─────────────────────────────────────────────────────────────
 # Technical setup classifier — parses reasoning[] lines from Orallexa
 # decision log and adds 3 enrichment fields the brief renders:
 #
@@ -423,6 +483,51 @@ if sector_avg:
                      "Mild rotation — single-day noise vs trend not yet separable." if spread > 0.20 else
                      "No clear rotation — sectors moving together."))
 lines.append("")
+
+
+# ─────────────────────────────────────────────────────────────
+# Diversification audit — find Trend setups whose tickers are
+# heavily correlated. If both rated 'Half', combining them is closer
+# to 1.4x leverage than 2× hedged diversification.
+# ─────────────────────────────────────────────────────────────
+ticker_to_setup = {}
+for d in ranked:
+    setup, sizing, stop = classify_setup(d)
+    ticker_to_setup[d['ticker']] = (setup, sizing, d['decision'])
+
+trend_pairs_warning = []
+for a, b, c in _HIGH_CORR_PAIRS:
+    sa = ticker_to_setup.get(a)
+    sb = ticker_to_setup.get(b)
+    if not sa or not sb:
+        continue
+    setup_a, sizing_a, dec_a = sa
+    setup_b, sizing_b, dec_b = sb
+    if "Trend" in setup_a and "Trend" in setup_b and "Pass" not in sizing_a and "Pass" not in sizing_b:
+        trend_pairs_warning.append((a, b, c, sizing_a, sizing_b))
+
+lines.append("\n## Diversification audit — 30d rolling correlation\n")
+if not _CORR_DICT:
+    lines.append("_yfinance batch download failed — correlation skipped._\n")
+else:
+    lines.append("**Top 5 highest-correlation pairs in watchlist:**\n")
+    lines.append("| Pair | Corr | Setup A | Setup B | Risk note |")
+    lines.append("|---|---|---|---|---|")
+    for a, b, c in _HIGH_CORR_PAIRS[:5]:
+        sa = ticker_to_setup.get(a, ("—", "—", "—"))
+        sb = ticker_to_setup.get(b, ("—", "—", "—"))
+        risk = "⚠ both Trend — sizing both = leverage" if ("Trend" in sa[0] and "Trend" in sb[0]) else "—"
+        lines.append(f"| **{a}** ↔ **{b}** | {c:.2f} | {sa[0]}/{sa[1]} | {sb[0]}/{sb[1]} | {risk} |")
+    lines.append("")
+    if trend_pairs_warning:
+        lines.append("**🚨 Diversification illusion alert:**")
+        for a, b, c, sza, szb in trend_pairs_warning[:3]:
+            lines.append(f"- **{a}** ({sza}) + **{b}** ({szb}) are **{c:.2f} correlated**. "
+                          f"Combined exposure ≈ 1+{c:.2f} = **{1+c:.2f}× leverage** on the same factor, "
+                          f"not hedged diversification. Either downsize one to Tiny, or accept the leverage knowingly.")
+        lines.append("")
+    else:
+        lines.append("_No Trend-Trend pairs with corr > 0.7 — current sizing is genuinely diversified._\n")
 
 lines.append("\n## Per-ticker Claude reasoning\n")
 for d in ranked:
