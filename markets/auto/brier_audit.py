@@ -229,6 +229,30 @@ def main(lookahead_days: int = 1) -> int:
         body.append(f"| {label} | {len(group)} | {hit_rate:.1%} | {avg_p:.1%} | {cal} (gap {gap:+.1%}) |")
     body.append("")
 
+    # Drift detection — compare last-7-days Brier to prior-7-days
+    today = datetime.now(timezone.utc)
+    recent_7 = [r for r in results if datetime.fromisoformat(r["timestamp"].replace("Z","+00:00")).replace(tzinfo=timezone.utc) >= today - timedelta(days=7)]
+    prior_7 = [r for r in results if today - timedelta(days=14) <= datetime.fromisoformat(r["timestamp"].replace("Z","+00:00")).replace(tzinfo=timezone.utc) < today - timedelta(days=7)]
+    body.append("## Drift detection — last-7d vs prior-7d Brier\n")
+    if recent_7 and prior_7:
+        recent_b = sum(r["brier"] for r in recent_7) / len(recent_7)
+        prior_b = sum(r["brier"] for r in prior_7) / len(prior_7)
+        drift = recent_b - prior_b
+        drift_label = "🟢 stable" if abs(drift) < 0.03 else "🟡 minor drift" if abs(drift) < 0.05 else "🔴 DEGRADING" if drift > 0 else "🟢 IMPROVING"
+        body.append(f"- Last 7 days: Brier = **{recent_b:.4f}** (n={len(recent_7)})")
+        body.append(f"- Prior 7 days: Brier = **{prior_b:.4f}** (n={len(prior_7)})")
+        body.append(f"- Delta: **{drift:+.4f}** → {drift_label}")
+        if drift > 0.05:
+            body.append("")
+            body.append("> 🚨 **CALIBRATION DRIFT DETECTED.** Model is worse this week. "
+                        "Likely causes: (a) prompt drift in extract.py, (b) regime change "
+                        "(market behavior shifted), (c) data quality issue. "
+                        "Action: surface this in tomorrow's news-morning brief and audit the "
+                        "highest-Brier ticker's recent Claude reasoning.")
+    else:
+        body.append(f"_Not enough history yet — need both 7d windows populated (have last={len(recent_7)}, prior={len(prior_7)})._")
+    body.append("")
+
     body.append("## Sample resolved decisions (latest 10)\n")
     body.append("| Date | Ticker | Decision | Forecast | Actual | Move | Brier |")
     body.append("|---|---|---|---|---|---|---|")

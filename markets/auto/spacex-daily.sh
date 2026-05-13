@@ -132,6 +132,85 @@ _FTD_ACTIVE, _FTD_NOTE = detect_ftd()
 
 
 # ─────────────────────────────────────────────────────────────
+# VIX regime detector — complementary to FTD
+#   VIX < 15  → calm regime, no adjustment
+#   VIX 15-20 → mildly elevated, no adjustment
+#   VIX 20-30 → elevated, downgrade Trend sizing one tier
+#   VIX > 30  → panic regime, all setups go Pass except Tiny
+# ─────────────────────────────────────────────────────────────
+def detect_vix():
+    """Return (vix_value: float, regime: str, downgrade_tiers: int)."""
+    try:
+        import yfinance as yf
+        df = yf.Ticker("^VIX").history(period="5d")
+        if df is None or len(df) == 0:
+            return None, "unknown", 0
+        vix = float(df["Close"].iloc[-1])
+    except Exception:
+        return None, "unknown", 0
+    if vix > 30:
+        return vix, "🔴 panic (Pass all but Tiny)", 99  # special: force Pass
+    elif vix > 20:
+        return vix, "🟡 elevated (downgrade Trend one tier)", 1
+    elif vix > 15:
+        return vix, "🟢 mildly elevated (no change)", 0
+    else:
+        return vix, "🟢 calm (no change)", 0
+
+
+_VIX_VALUE, _VIX_REGIME, _VIX_DOWNGRADE = detect_vix()
+
+
+# ─────────────────────────────────────────────────────────────
+# Earnings calendar — yfinance gives upcoming earnings_dates per
+# ticker. Anything within 5 trading days = high binary-event risk.
+# When a ticker has earnings ≤ 3 days, force sizing to Tiny
+# regardless of setup (don't take Trend exposure into a binary).
+# ─────────────────────────────────────────────────────────────
+_EARNINGS_BY_TICKER = {}
+
+def fetch_earnings_calendar():
+    """Build {ticker: days_until_earnings} for the 14 watchlist tickers."""
+    try:
+        import yfinance as yf
+        from datetime import datetime, timezone
+    except ImportError:
+        return
+    now = datetime.now(timezone.utc).date()
+    for t in WATCHLIST:
+        try:
+            tk = yf.Ticker(t)
+            df = tk.get_earnings_dates(limit=4) if hasattr(tk, "get_earnings_dates") else None
+            if df is None or len(df) == 0:
+                continue
+            # Find next future date
+            future_dates = [d.date() for d in df.index if d.date() >= now]
+            if not future_dates:
+                continue
+            next_earn = min(future_dates)
+            days = (next_earn - now).days
+            if 0 <= days <= 14:
+                _EARNINGS_BY_TICKER[t] = days
+        except Exception:
+            continue
+
+fetch_earnings_calendar()
+
+
+def earnings_warning(ticker: str) -> str:
+    """Return '⚠ N d' string if earnings within 14 days, else '—'."""
+    days = _EARNINGS_BY_TICKER.get(ticker)
+    if days is None:
+        return "—"
+    if days <= 3:
+        return f"🔴 {days}d"
+    elif days <= 7:
+        return f"🟡 {days}d"
+    else:
+        return f"🟢 {days}d"
+
+
+# ─────────────────────────────────────────────────────────────
 # Technical setup classifier — parses reasoning[] lines from Orallexa
 # decision log and adds 3 enrichment fields the brief renders:
 #
@@ -150,6 +229,7 @@ def classify_setup(d):
     reasoning = d.get("reasoning", [])
     decision = d.get("decision", "")
     confidence = d.get("confidence", 0) or 0
+    earnings_days = _EARNINGS_BY_TICKER.get(d.get("ticker"))
 
     def parse_rsi():
         for r in reasoning:
@@ -191,16 +271,38 @@ def classify_setup(d):
 
     # Position sizing — paper-trade tier per 1-2% risk rule
     # FTD active = regime-confirming day → upgrade Trend setups by one tier
-    if setup == "Trend" and (confidence >= 65 or _FTD_ACTIVE):
+    # VIX > 30 = panic → force everything below Short-half to Pass
+    # VIX 20-30 = elevated → downgrade Trend one tier
+    if _VIX_DOWNGRADE >= 99:
+        # Panic — only allow Tiny BUY (no Full/Half exposure)
+        if decision == "BUY":
+            sizing = "Tiny"
+        elif setup == "Breakdown" and confidence >= 50:
+            sizing = "Short-half"
+        else:
+            sizing = "Pass"
+    elif setup == "Trend" and (confidence >= 65 or _FTD_ACTIVE):
         sizing = "Full" + ("🔥" if _FTD_ACTIVE else "")
+        if _VIX_DOWNGRADE == 1:
+            sizing = "Half⚠"  # VIX elevated → downgrade
     elif setup in ("Trend", "MR-bounce") and confidence >= 50:
         sizing = "Half" + ("🔥" if _FTD_ACTIVE and setup == "MR-bounce" else "")
+        if _VIX_DOWNGRADE == 1:
+            sizing = "Tiny⚠"
     elif decision == "BUY":
         sizing = "Tiny"
     elif setup == "Breakdown" and confidence >= 50:
         sizing = "Short-half"
     else:
         sizing = "Pass"
+
+    # Earnings override — within 3 trading days, force down to Tiny (or Pass for SELL)
+    # to avoid taking Trend exposure into a binary event
+    if earnings_days is not None and earnings_days <= 3:
+        if decision == "BUY" and sizing not in ("Pass", "Tiny"):
+            sizing = "Tiny📅"  # 📅 = earnings within 3 days, sizing overridden
+        elif decision == "SELL" and "half" in sizing.lower():
+            sizing = "Pass📅"
 
     # Stop-loss hint based on BB% + setup
     if setup == "Trend" and bb_pct is not None:
@@ -244,10 +346,12 @@ lines.append(f"{', '.join(tag(t) for t in WATCHLIST)}\n")
 lines.append("")
 lines.append(f"**Regime — FTD (Follow-Through Day):** {'🔥 ACTIVE — Trend setups upgraded one tier' if _FTD_ACTIVE else 'inactive'}")
 lines.append(f"_{_FTD_NOTE}_\n")
+vix_str = f"{_VIX_VALUE:.2f}" if _VIX_VALUE else "n/a"
+lines.append(f"**Regime — VIX:** {vix_str} — {_VIX_REGIME}")
 lines.append("")
 lines.append("## Ranked by signal direction (p_up - p_down)\n")
-lines.append("| Rank | Sector | Ticker | Decision | Conf | Setup | Sizing | Price | RSI | Stop | Δ probs |")
-lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
+lines.append("| Rank | Sector | Ticker | Decision | Conf | Setup | Sizing | Earn | Price | RSI | Stop | Δ probs |")
+lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
 
 for i, d in enumerate(ranked, 1):
     rsi_line = [r for r in d.get("reasoning", []) if "RSI" in r]
@@ -260,9 +364,10 @@ for i, d in enumerate(ranked, 1):
     delta_str = f"{delta:+.2f}"
     emoji = SECTOR_EMOJI.get(d['ticker'], '·')
     setup, sizing, stop = classify_setup(d)
+    earn = earnings_warning(d['ticker'])
     lines.append(
         f"| {i} | {emoji} | **{d['ticker']}** | {d['decision']} | {d['confidence']}% | "
-        f"{setup} | {sizing} | \${price} | {rsi} | {stop} | {delta_str} |"
+        f"{setup} | {sizing} | {earn} | \${price} | {rsi} | {stop} | {delta_str} |"
     )
 
 # Setup legend + position sizing playbook (so the brief is self-documenting)
@@ -279,6 +384,44 @@ lines.append("- **Full** (\$1k-2k notional) — only Trend + conf ≥ 65%")
 lines.append("- **Half** (\$500-1k) — Trend or MR-bounce + conf ≥ 50%")
 lines.append("- **Short-half** — Breakdown + conf ≥ 50%, only with stop above swing high")
 lines.append("- **Tiny / Pass** — paper trade or skip")
+lines.append("")
+
+
+# ─────────────────────────────────────────────────────────────
+# Sector rotation tracker — aggregate Δ probs (p_up - p_down) by
+# sector. Tells us which of the 4 sectors leads/lags today.
+# ─────────────────────────────────────────────────────────────
+sector_totals = {"🛰 Space": [], "🤖 Physical AI": [], "🧠 AI Infra": [], "🚁 Drones": []}
+for d in ranked:
+    emoji = SECTOR_EMOJI.get(d['ticker'], '·')
+    name = SECTOR_NAME.get(emoji, "Other")
+    full_label = f"{emoji} {name}"
+    if full_label in sector_totals:
+        p_up = d["probabilities"].get("up", 0)
+        p_down = d["probabilities"].get("down", 0)
+        sector_totals[full_label].append(p_up - p_down)
+
+lines.append("\n## Sector rotation — aggregate Δ probs (p_up - p_down) by sector\n")
+lines.append("| Sector | N | Avg Δ probs | Verdict |")
+lines.append("|---|---|---|---|")
+sector_avg = []
+for label, deltas in sector_totals.items():
+    if deltas:
+        avg = sum(deltas) / len(deltas)
+        sector_avg.append((label, len(deltas), avg))
+sector_avg.sort(key=lambda x: x[2], reverse=True)
+for label, n, avg in sector_avg:
+    verdict = "🟢 leading" if avg > 0.20 else "🟡 neutral" if avg > -0.10 else "🔴 lagging"
+    lines.append(f"| {label} | {n} | {avg:+.3f} | {verdict} |")
+lines.append("")
+if sector_avg:
+    top = sector_avg[0]
+    bot = sector_avg[-1]
+    spread = top[2] - bot[2]
+    lines.append(f"**Rotation read:** {top[0]} (Δ {top[2]:+.2f}) leading {bot[0]} (Δ {bot[2]:+.2f}) by **{spread:.2f}** today. "
+                  + ("Strong rotation signal — concentrate position adds on leading sector." if spread > 0.40 else
+                     "Mild rotation — single-day noise vs trend not yet separable." if spread > 0.20 else
+                     "No clear rotation — sectors moving together."))
 lines.append("")
 
 lines.append("\n## Per-ticker Claude reasoning\n")
