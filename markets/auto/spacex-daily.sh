@@ -81,6 +81,57 @@ ranked = sorted(
 )
 
 # ─────────────────────────────────────────────────────────────
+# FTD (Follow-Through Day) detector — William O'Neil / IBD signal
+# that confirms a market bottom. When fired, all 'Trend' setups get
+# upgraded sizing because the bigger-picture regime just turned.
+#
+# FTD criteria (any major index):
+#   1. We're 4-7 trading days past a recent low (≤ 14d lookback)
+#   2. Today's gain > 1.7% on the index
+#   3. Today's volume > yesterday's (institutional confirmation)
+#
+# Reference: tradermonty/claude-trading-skills (2026-05-13 research scan)
+# ─────────────────────────────────────────────────────────────
+def detect_ftd():
+    """Return (active: bool, summary: str). Caches yfinance fetch, fails open
+    to active=False if data unavailable (safer than false-positive upgrade)."""
+    try:
+        import yfinance as yf
+    except ImportError:
+        return False, "yfinance not installed — FTD check skipped"
+
+    results = []
+    for index_symbol, name in (("^GSPC", "S&P 500"), ("^IXIC", "NASDAQ")):
+        try:
+            df = yf.Ticker(index_symbol).history(period="30d")
+            if df is None or len(df) < 8:
+                continue
+            last_14 = df.tail(14)
+            low_idx = last_14["Low"].idxmin()
+            days_since = len(df.loc[low_idx:]) - 1  # trading days since low
+            if not (4 <= days_since <= 7):
+                results.append(f"{name}: not in FTD window (D+{days_since} since low)")
+                continue
+            today_close = float(df["Close"].iloc[-1])
+            yest_close = float(df["Close"].iloc[-2])
+            today_vol = float(df["Volume"].iloc[-1])
+            yest_vol = float(df["Volume"].iloc[-2])
+            gain_pct = (today_close - yest_close) / yest_close * 100
+            vol_confirms = today_vol > yest_vol
+            if gain_pct >= 1.7 and vol_confirms:
+                results.append(f"✅ {name}: FTD CONFIRMED (D+{days_since}, +{gain_pct:.2f}%, vol up)")
+                return True, " | ".join(results)
+            else:
+                results.append(f"{name}: D+{days_since}, +{gain_pct:.2f}% (need ≥1.7% + vol up)")
+        except Exception as e:
+            results.append(f"{name}: fetch error ({e!r})")
+    return False, " | ".join(results) if results else "no index data"
+
+
+_FTD_ACTIVE, _FTD_NOTE = detect_ftd()
+
+
+# ─────────────────────────────────────────────────────────────
 # Technical setup classifier — parses reasoning[] lines from Orallexa
 # decision log and adds 3 enrichment fields the brief renders:
 #
@@ -139,10 +190,11 @@ def classify_setup(d):
         setup = "—"
 
     # Position sizing — paper-trade tier per 1-2% risk rule
-    if setup == "Trend" and confidence >= 65:
-        sizing = "Full"
+    # FTD active = regime-confirming day → upgrade Trend setups by one tier
+    if setup == "Trend" and (confidence >= 65 or _FTD_ACTIVE):
+        sizing = "Full" + ("🔥" if _FTD_ACTIVE else "")
     elif setup in ("Trend", "MR-bounce") and confidence >= 50:
-        sizing = "Half"
+        sizing = "Half" + ("🔥" if _FTD_ACTIVE and setup == "MR-bounce" else "")
     elif decision == "BUY":
         sizing = "Tiny"
     elif setup == "Breakdown" and confidence >= 50:
@@ -189,6 +241,9 @@ lines.append(f"# SpaceX Pure-Play Daily Brief — {DATE}\n")
 lines.append(f"**Run time (UTC)**: {datetime.utcnow().isoformat()}Z\n")
 lines.append(f"**Watchlist (14 tickers, 4 sectors)**: 🛰 Space · 🤖 Physical AI · 🧠 AI Infra · 🚁 Drones\n")
 lines.append(f"{', '.join(tag(t) for t in WATCHLIST)}\n")
+lines.append("")
+lines.append(f"**Regime — FTD (Follow-Through Day):** {'🔥 ACTIVE — Trend setups upgraded one tier' if _FTD_ACTIVE else 'inactive'}")
+lines.append(f"_{_FTD_NOTE}_\n")
 lines.append("")
 lines.append("## Ranked by signal direction (p_up - p_down)\n")
 lines.append("| Rank | Sector | Ticker | Decision | Conf | Setup | Sizing | Price | RSI | Stop | Δ probs |")
