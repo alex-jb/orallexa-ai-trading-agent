@@ -255,6 +255,92 @@ def polymarket_heartbeat() -> dict:
     return status
 
 
+def fetch_insider_transactions(days_back: int = 14) -> list[dict]:
+    """For each watchlist ticker, pull insider Form 4 transactions via
+    yfinance (cleaner than parsing SEC EDGAR XML directly). Filter to
+    material trades: last `days_back` days + position is Director / CEO /
+    CFO / 10%+ owner. Returns list of dicts ready for brief rendering.
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        return []
+
+    cutoff = datetime.now(timezone.utc).date() - __import__("datetime").timedelta(days=days_back)
+    MATERIAL_POSITIONS = ("Director", "Chief Executive", "Chief Financial", "President",
+                          "10% Owner", "Beneficial Owner")
+
+    rows = []
+    for ticker in WATCHLIST:
+        try:
+            df = yf.Ticker(ticker).insider_transactions
+        except Exception:
+            continue
+        if df is None or len(df) == 0:
+            continue
+
+        for _, r in df.iterrows():
+            try:
+                start = r.get("Start Date")
+                if start is None:
+                    continue
+                # yfinance returns timezone-naive Timestamp
+                if hasattr(start, "date"):
+                    txn_date = start.date()
+                else:
+                    txn_date = datetime.fromisoformat(str(start)[:10]).date()
+                if txn_date < cutoff:
+                    continue
+                position = str(r.get("Position", "")).strip()
+                if not any(mp.lower() in position.lower() for mp in MATERIAL_POSITIONS):
+                    continue
+                text = str(r.get("Text", "")).strip()
+                shares = r.get("Shares", 0) or 0
+                value = r.get("Value", 0) or 0
+                try:
+                    value = float(value) if not __import__("math").isnan(float(value)) else 0
+                except Exception:
+                    value = 0
+                insider = str(r.get("Insider", "")).strip()
+                direction = "🔴 SELL" if "sale" in text.lower() else \
+                             "🟢 BUY" if "purchase" in text.lower() or "buy" in text.lower() else \
+                             "🟡 OTHER"
+                rows.append({
+                    "ticker": ticker,
+                    "date": txn_date.isoformat(),
+                    "insider": insider,
+                    "position": position,
+                    "direction": direction,
+                    "shares": int(shares) if shares else 0,
+                    "value_usd": float(value) if value else 0,
+                    "text": text[:100],
+                })
+            except Exception:
+                continue
+
+    # Sort: most recent first, then by value desc
+    rows.sort(key=lambda x: (x["date"], x["value_usd"]), reverse=True)
+    return rows
+
+
+def render_insider_section(rows: list[dict]) -> str:
+    """Markdown section for the brief."""
+    if not rows:
+        return ""
+    out = ["", "## 📋 Recent insider activity (last 14d, watchlist, material positions only)", ""]
+    out.append("| Date | Dir | Ticker | Insider | Position | Shares | Value | Note |")
+    out.append("|---|---|---|---|---|---|---|---|")
+    for r in rows[:15]:
+        val_str = f"${r['value_usd']/1e6:.2f}M" if r["value_usd"] >= 1e6 else \
+                  f"${r['value_usd']/1e3:.0f}K" if r["value_usd"] >= 1000 else "—"
+        position_short = r["position"][:30] + "…" if len(r["position"]) > 30 else r["position"]
+        out.append(
+            f"| {r['date']} | {r['direction']} | **{r['ticker']}** | {r['insider'][:25]} | "
+            f"{position_short} | {r['shares']:,} | {val_str} | {r['text'][:50]} |"
+        )
+    return "\n".join(out) + "\n"
+
+
 def render_polymarket_alert(status: dict) -> str:
     """Return a 1-line markdown alert for the brief, or '' if no change."""
     if status["reachable"]:
@@ -300,12 +386,19 @@ def main() -> int:
 
     table = claude_tag_impact(filtered)
 
+    # Pull insider Form 4 transactions for the watchlist
+    print(f"[news-morning] fetching insider transactions (14d)...")
+    insider_rows = fetch_insider_transactions(days_back=14)
+    print(f"[news-morning]   {len(insider_rows)} material insider trades")
+    insider_section = render_insider_section(insider_rows)
+
     body = f"""---
 date: {today_str}
 generated_at: {datetime.now(timezone.utc).isoformat()}
 sources: {len(FEEDS)}
 raw_items: {len(all_items)}
 filtered_items: {len(filtered)}
+insider_trades: {len(insider_rows)}
 polymarket_reachable: {poly_status['reachable']}
 ---
 
@@ -316,6 +409,7 @@ Watchlist: 14 tickers across 4 sectors (太空 / 物理AI / AI infra / 无人机
 
 {table}
 {render_polymarket_alert(poly_status)}
+{insider_section}
 
 ---
 
