@@ -1,0 +1,120 @@
+# 90-day 大语言模型 (LLM) 学习日记
+# 设计原则:从绝对零基础开始,15 天后才碰数学。每天一个 atomic concept。
+# Claude 用 ~400 字中文展开 + 直觉 example + 1 个反思问题。
+#
+# Phase 0: 朋友也能听懂的 LLM 基础 (Day 1-15) — 无数学,先建立直觉
+# Phase 1: Transformer 内部 (Day 16-30) — 打开数学,但是从直觉先行
+# Phase 2: Training 训练 (Day 31-50)
+# Phase 3: Inference & Production 推理与生产 (Day 51-70)
+# Phase 4: Frontier & Agents 前沿与智能体 (Day 71-90)
+
+phases:
+  - name: "Phase 0 — 朋友也能听懂的 LLM"
+    range: [1, 15]
+    topics:
+      - "什么是大语言模型 (LLM)?为什么 2022 年突然火了"
+      - "Token 是什么:为什么 LLM 看的不是字,而是 token"
+      - "Embedding 是什么:把文字变成一串数字的直觉"
+      - "神经网络在做什么:输入 → 层层加工 → 输出的故事"
+      - "LLM 为什么比之前的 NLP 强这么多:从 RNN 到 Transformer"
+      - "Prompt 是什么:为什么 prompt engineering 成了一个职业"
+      - "Temperature 是什么:为什么调高让 LLM 更有创意"
+      - "Context window 是什么:为什么 GPT-3 是 2k 而 Claude 是 200k"
+      - "Hallucination 现象:LLM 为什么会一本正经地胡说八道"
+      - "Pre-training vs Fine-tuning:学通识 vs 学专业的区别"
+      - "RLHF 直觉:人类反馈如何塑形 LLM 的性格"
+      - "训练数据从哪来:Common Crawl / 书 / 代码 / 对话"
+      - "Inference 是什么:用模型 vs 训模型的本质差别"
+      - "为什么用 LLM 这么贵:tokens per second 与单位经济学"
+      - "Open source vs 闭源:Llama / DeepSeek / Claude / GPT 的格局"
+
+  - name: "Phase 1 — Transformer 内部"
+    range: [16, 30]
+    topics:
+      - "Attention 直觉:为什么 attention 取代了 RNN"
+      - "Self-attention 数学:Q / K / V 三矩阵到底在算什么"
+      - "Multi-head attention:多个角度看同一句话"
+      - "Positional encoding:LLM 怎么知道词的顺序"
+      - "Tokenization 算法:BPE / SentencePiece 怎么训练出来的"
+      - "Softmax 与概率:LLM 输出层在干什么"
+      - "Cross-entropy loss:next-token prediction 的目标函数"
+      - "Residual connection:深网络训练为什么没崩"
+      - "Layer normalization:让训练稳定的关键"
+      - "Feed-forward 网络 (FFN):attention 之外的另一半"
+      - "Causal masking:decoder 为什么看不到未来"
+      - "Greedy / top-k / top-p / beam search:采样策略"
+      - "RoPE (Rotary Position Embedding):为什么取代绝对 PE"
+      - "GQA (Grouped Query Attention):MHA 与 MQA 之间"
+      - "SwiGLU 激活函数:为什么取代 ReLU/GeLU"
+
+  - name: "Phase 2 — Training 训练"
+    range: [31, 50]
+    topics:
+      - "预训练 (pretraining) 全流程:next-token prediction 的本质"
+      - "数据集准备:Common Crawl / C4 / RedPajama 流程"
+      - "Learning rate schedule:warmup + cosine decay"
+      - "AdamW optimizer:为什么是 LLM 的 default"
+      - "Gradient clipping:防 exploding gradient"
+      - "Mixed precision training:FP16 + FP32 master weights"
+      - "Data parallelism:多 GPU 复制模型"
+      - "Tensor parallelism:Megatron-LM 怎么切矩阵"
+      - "Pipeline parallelism:GPipe / 1F1B 调度"
+      - "ZeRO 优化:DeepSpeed Stage 1/2/3 区别"
+      - "Loss curve 解读:正常 vs grokking vs divergence"
+      - "Continued pretraining:domain adaptation 的窗口期"
+      - "Supervised fine-tuning (SFT):instruction tuning"
+      - "Prompt template:Alpaca / Llama-2 / ChatML 格式"
+      - "RLHF:reward model + PPO 完整 pipeline"
+      - "DPO (Direct Preference Optimization):RLHF 的 simpler alternative"
+      - "GRPO (Group Relative Policy Optimization):DeepSeek R1 用的"
+      - "Constitutional AI:Anthropic 的 self-critique 路线"
+      - "LoRA:low-rank adaptation 数学直觉"
+      - "QLoRA:4-bit quantization + LoRA 联用"
+
+  - name: "Phase 3 — Inference & Production"
+    range: [51, 70]
+    topics:
+      - "KV cache:为什么 decoder generation 需要它"
+      - "Speculative decoding:小模型 draft + 大模型 verify"
+      - "Quantization:INT8 / INT4 / NF4 数学"
+      - "GGUF format:llama.cpp 推理生态"
+      - "vLLM:PagedAttention + 连续 batching"
+      - "Triton inference server:NVIDIA 生产 stack"
+      - "TensorRT-LLM:NVIDIA 闭源高性能推理引擎"
+      - "Continuous batching:动态请求拼接"
+      - "Tokens per second:推理性能的核心指标"
+      - "Time to first token (TTFT):用户体验关键"
+      - "Throughput vs latency trade-off:batch size 调节"
+      - "Prefix caching:多请求共享 system prompt"
+      - "Function calling:LLM 调用外部工具的协议"
+      - "Structured outputs:JSON schema 强制"
+      - "Tool use chaining:LLM 多步推理的工程"
+      - "RAG (Retrieval-Augmented Generation):向量检索 + LLM"
+      - "向量数据库选择:Pinecone / Weaviate / pgvector"
+      - "Chunking 策略:文档切片对 RAG 准确率的影响"
+      - "Re-ranking:cross-encoder 提升 retrieval 精度"
+      - "LLM-as-judge:用 LLM 评估 LLM 输出"
+
+  - name: "Phase 4 — Frontier & Agents"
+    range: [71, 90]
+    topics:
+      - "Chain-of-Thought prompting:让 LLM 显式推理"
+      - "Self-Consistency:多次 sample + majority vote"
+      - "Tree of Thoughts:推理路径搜索"
+      - "ReAct framework:reasoning + action 交替"
+      - "Reflexion:agent 失败后自我反思"
+      - "Voyager:agent 长期 skill library"
+      - "Multi-agent debate:Bull / Bear / Judge 架构"
+      - "MoE (Mixture of Experts):稀疏激活的 scaling"
+      - "Switch Transformer:Google 的早期 MoE"
+      - "Mixtral / DeepSeek-V3:开源 MoE 代表作"
+      - "MLA (Multi-Latent Attention) 工程实现"
+      - "FlashAttention-3:H100 / B200 上的优化"
+      - "Reasoning models:o1 / DeepSeek R1 / Claude Sonnet 4.6 的差异"
+      - "Test-time compute scaling:推理时多 token = 更准"
+      - "Long context:1M / 2M / 10M tokens 的工程挑战"
+      - "Multimodal LLM:vision encoder + LLM decoder 融合"
+      - "JEPA architecture:LeCun 的 schema > pixels 路线"
+      - "World models:Genie / Sora / Veo 的内在差异"
+      - "Agentic workflows:LangGraph / Anthropic SDK / OpenAI Agents"
+      - "MCP (Model Context Protocol):2025-2026 platform play"

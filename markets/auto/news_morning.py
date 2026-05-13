@@ -201,12 +201,90 @@ def _stub_render(items: list[dict], reason: str) -> str:
     return "\n".join(out)
 
 
+POLYMARKET_STATUS_FILE = Path.home() / ".orallexa" / "markets" / ".polymarket_status.json"
+
+
+def polymarket_heartbeat() -> dict:
+    """Try a lightweight reach to Polymarket's public Gamma API.
+    Writes status JSON to disk. Returns the status dict.
+
+    OK now = Cloudflare IP ban is lifted, we can re-enable markets cron.
+    """
+    status = {
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "reachable": False,
+        "http_code": None,
+        "error": None,
+        "last_ok_at": None,
+    }
+    # Preserve historical last_ok_at across runs
+    if POLYMARKET_STATUS_FILE.exists():
+        try:
+            prev = json.loads(POLYMARKET_STATUS_FILE.read_text())
+            status["last_ok_at"] = prev.get("last_ok_at")
+        except Exception:
+            pass
+
+    try:
+        # Try curl_cffi if installed (matches markets/polymarket_client.py
+        # TLS-fingerprint pattern); fall back to urllib otherwise.
+        try:
+            from curl_cffi import requests as cf_requests
+            r = cf_requests.get(
+                "https://gamma-api.polymarket.com/markets?limit=1",
+                impersonate="chrome", timeout=10,
+            )
+            status["reachable"] = (r.status_code == 200)
+            status["http_code"] = r.status_code
+        except ImportError:
+            req = urllib.request.Request(
+                "https://gamma-api.polymarket.com/markets?limit=1",
+                headers={"User-Agent": "polymarket-heartbeat/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                status["reachable"] = (resp.status == 200)
+                status["http_code"] = resp.status
+    except Exception as exc:
+        status["error"] = repr(exc)[:200]
+
+    if status["reachable"]:
+        status["last_ok_at"] = status["checked_at"]
+
+    POLYMARKET_STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    POLYMARKET_STATUS_FILE.write_text(json.dumps(status, indent=2), encoding="utf-8")
+    return status
+
+
+def render_polymarket_alert(status: dict) -> str:
+    """Return a 1-line markdown alert for the brief, or '' if no change."""
+    if status["reachable"]:
+        return (
+            f"\n## 🟢 Polymarket IP UNBANNED — back online ({status['http_code']})\n\n"
+            f"Reached Gamma API at {status['checked_at']}. **Action:** "
+            f"re-enable `com.orallexa.polymarket-daily` cron + start logging "
+            f"event picks for Brier audit.\n"
+        )
+    elif status.get("last_ok_at"):
+        return (
+            f"\n_Polymarket still offline (last OK: {status['last_ok_at']}). "
+            f"Error: {status.get('error', 'http ' + str(status.get('http_code')))}._\n"
+        )
+    else:
+        return (
+            f"\n_Polymarket still IP-banned ({status.get('error') or status.get('http_code')})._\n"
+        )
+
+
 def main() -> int:
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     BRAIN_DIR.mkdir(parents=True, exist_ok=True)
     out_path = BRAIN_DIR / f"{today_str}.md"
 
     print(f"[news-morning] {today_str} starting...")
+
+    # Heartbeat poll — every 09:00 run checks if Polymarket IP-ban lifted
+    poly_status = polymarket_heartbeat()
+    print(f"[news-morning] polymarket reachable={poly_status['reachable']} (last OK: {poly_status.get('last_ok_at')})")
     all_items = []
     for label, url in FEEDS:
         items = fetch_feed(url, max_items=30)
@@ -228,6 +306,7 @@ generated_at: {datetime.now(timezone.utc).isoformat()}
 sources: {len(FEEDS)}
 raw_items: {len(all_items)}
 filtered_items: {len(filtered)}
+polymarket_reachable: {poly_status['reachable']}
 ---
 
 # Markets pre-market news — {today_str}
@@ -236,6 +315,7 @@ Sources: {', '.join(label for label, _ in FEEDS)}.
 Watchlist: 14 tickers across 4 sectors (太空 / 物理AI / AI infra / 无人机).
 
 {table}
+{render_polymarket_alert(poly_status)}
 
 ---
 
