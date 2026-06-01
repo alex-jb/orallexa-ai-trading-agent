@@ -34,6 +34,14 @@
     "volume_24h_min": 1000,
     "days_to_resolution_min": 14
   },
+  "subscribers": [
+    {
+      "_note": "Add your Telegram chat_id here. Get it by /start to your bot then GET https://api.telegram.org/bot$TOKEN/getUpdates",
+      "chat_id": "TBD_REPLACE_WITH_REAL_CHAT_ID",
+      "tier": "pro",
+      "email": "xji1@mail.yu.edu"
+    }
+  ],
   "plans": {
     "free": {
       "max_events": 2,
