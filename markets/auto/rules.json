@@ -1,0 +1,56 @@
+{
+  "_doc": "PolyAlert events config. Borrowed from TradingView MCP rules.json pattern. Sub-question filter is optional; if set, picks the first market starting with that question.",
+  "_updated": "2026-05-31",
+  "watchlist": [
+    {
+      "slug": "will-china-invade-taiwan-before-2027",
+      "friendly": "china_taiwan_2026",
+      "sub_question_filter": null,
+      "tier": "free"
+    },
+    {
+      "slug": "which-company-has-best-ai-model-end-of-june",
+      "friendly": "ai_model_google_jun",
+      "sub_question_filter": "Will Google have the best AI model",
+      "tier": "free"
+    },
+    {
+      "slug": "how-many-fed-rate-cuts-in-2026",
+      "friendly": "fed_cuts_2_in_2026",
+      "sub_question_filter": "2 fed rate cuts",
+      "tier": "starter"
+    },
+    {
+      "slug": "will-openais-valuation-hit-by-december-31",
+      "friendly": "openai_500b_eoy",
+      "sub_question_filter": "500",
+      "tier": "starter"
+    }
+  ],
+  "alert_thresholds": {
+    "mispricing_strong": 0.10,
+    "mispricing_weak": 0.05,
+    "persistence_days_min": 3,
+    "volume_24h_min": 1000,
+    "days_to_resolution_min": 14
+  },
+  "plans": {
+    "free": {
+      "max_events": 2,
+      "alert_channels": ["email_digest_weekly"]
+    },
+    "starter": {
+      "max_events": 5,
+      "alert_channels": ["email_daily", "telegram_realtime"]
+    },
+    "pro": {
+      "max_events": -1,
+      "alert_channels": ["email_daily", "telegram_realtime", "discord_webhook"]
+    }
+  },
+  "claude_estimation": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 400,
+    "_note": "Per event $0.0003. 4 events × 365 days = $0.44/year. Scale to 100 events × 365 = $11/year. Negligible vs $10/mo plan revenue."
+  }
+}

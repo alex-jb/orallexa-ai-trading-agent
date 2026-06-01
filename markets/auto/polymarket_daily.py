@@ -26,6 +26,12 @@ HOME = Path.home()
 HISTORY = HOME / ".orallexa" / "markets" / "polymarket_history.jsonl"
 HISTORY.parent.mkdir(parents=True, exist_ok=True)
 
+# PolyAlert (project #2 2026-05-31): rules.json declarative config.
+# Borrowed pattern from TradingView MCP (greenpeas007/tradingview-mcp-jackson).
+# When rules.json exists, it overrides hardcoded EVENTS below. Allows scaling
+# from 4 → 100+ events without editing code.
+RULES_PATH = HOME / ".orallexa" / "markets" / "rules.json"
+
 # 2026-05-27 (Phase A #1): per-event own probability estimation via Claude.
 # Without our own estimate we can't Brier-score Polymarket predictions; without
 # Brier scores we can't satisfy the Phase 1 ($300 real money) entry gate.
@@ -119,7 +125,7 @@ Output strictly JSON: {{"p_yes": 0.XX, "conviction": "high"|"medium"|"low", "rat
 #     "exactly 2 cuts" sub-market as a proxy for consensus path
 #   - OpenAI valuation hit $X by Dec 31 — AI-cycle thermometer (proxy
 #     for NVDA/AVGO premium expansion)
-EVENTS = [
+EVENTS_HARDCODED = [
     ("will-china-invade-taiwan-before-2027",        "china_taiwan_2026", None),
     ("which-company-has-best-ai-model-end-of-june", "ai_model_google_jun",
                                                     "Will Google have the best AI model"),
@@ -128,6 +134,30 @@ EVENTS = [
     ("will-openais-valuation-hit-by-december-31",   "openai_500b_eoy",
                                                     "500"),
 ]
+
+
+def load_events() -> list[tuple[str, str, str | None]]:
+    """Read events from rules.json if present, else fall back to EVENTS_HARDCODED.
+    PolyAlert (project #2): lets user grow event list to 100+ without editing code."""
+    if not RULES_PATH.exists():
+        return EVENTS_HARDCODED
+    try:
+        rules = json.loads(RULES_PATH.read_text())
+        watchlist = rules.get("watchlist", [])
+        if not watchlist:
+            return EVENTS_HARDCODED
+        return [
+            (e["slug"], e["friendly"], e.get("sub_question_filter"))
+            for e in watchlist
+            if "slug" in e and "friendly" in e
+        ]
+    except Exception as exc:
+        print(f"[polymarket-daily] rules.json parse failed: {exc!r}, using hardcoded",
+              file=sys.stderr)
+        return EVENTS_HARDCODED
+
+
+EVENTS = load_events()
 
 
 _HTTP = None
