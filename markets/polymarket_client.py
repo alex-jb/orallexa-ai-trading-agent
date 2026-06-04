@@ -311,6 +311,7 @@ class PolymarketClient:
         Falls back to plain `requests` only for non-Cloudflare-fronted
         endpoints (none currently — both Gamma and CLOB are protected).
         """
+        import time as _t
         try:
             from curl_cffi import requests as cffi_requests
             use_impersonate = True
@@ -326,9 +327,44 @@ class PolymarketClient:
         )
         if use_impersonate:
             kwargs["impersonate"] = "chrome"
-        resp = cffi_requests.get(url, **kwargs)
-        resp.raise_for_status()
-        return resp.json()
+
+        # DNS retry: markets.queue 09:00 ET fires before WiFi/networkd
+        # finishes resolving. Same root cause as polymarket_daily 09:35
+        # `Could not resolve host: gamma-api.polymarket.com` pattern.
+        # 5 attempts, 30→45→67→100→120s backoff (~6 min total).
+        delay = 30.0
+        last_exc: Exception | None = None
+        for attempt in range(5):
+            try:
+                resp = cffi_requests.get(url, **kwargs)
+                resp.raise_for_status()
+                return resp.json()
+            except Exception as exc:
+                last_exc = exc
+                msg = str(exc).lower()
+                transient = (
+                    "could not resolve" in msg
+                    or "could not connect" in msg
+                    or "name resolution" in msg
+                    or "no address" in msg
+                    or "timed out" in msg
+                    or "connection refused" in msg
+                    or "failed to connect" in msg
+                )
+                if not transient or attempt == 4:
+                    raise
+                import sys as _sys
+                print(
+                    f"[polymarket-client] transient fetch error "
+                    f"(attempt {attempt + 1}/5): {exc!r} — "
+                    f"waiting {delay:.0f}s",
+                    file=_sys.stderr,
+                )
+                _t.sleep(delay)
+                delay = min(delay * 1.5, 120)
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("unreachable")
 
     def list_markets(
         self,
