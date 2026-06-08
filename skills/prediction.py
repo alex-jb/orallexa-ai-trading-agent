@@ -125,13 +125,20 @@ class PredictionSkill(BaseFinancialSkill):
                 reasoning.append(f"  Price below MA20 — weak short-term trend")
 
         # RSI
+        # 2026-06-08 fix: RSI >= 70 was +3 (treated as continuation); now -10
+        # (treated as exhaustion). 6/01 paper trades had 9 BUYs all stopped at
+        # -5% because system bought at RSI > 60. See
+        # research/2026-06-08-markets-stack-deep-diagnosis.md root cause #2.
         if rsi is not None:
-            if 50 < rsi < 70:
+            if 55 <= rsi < 70:
+                score += 6
+                reasoning.append(f"  RSI {rsi:.1f} — bullish momentum, near-overbought (downweighted)")
+            elif 50 < rsi < 55:
                 score += 10
-                reasoning.append(f"  RSI {rsi:.1f} — bullish momentum, not overbought")
+                reasoning.append(f"  RSI {rsi:.1f} — bullish momentum, healthy zone")
             elif rsi >= 70:
-                score += 3
-                reasoning.append(f"  RSI {rsi:.1f} — overbought, momentum strong but risky")
+                score -= 10
+                reasoning.append(f"  RSI {rsi:.1f} — overbought / momentum exhaustion (bug fix 2026-06-08)")
             elif 30 < rsi <= 50:
                 score -= 5
                 reasoning.append(f"  RSI {rsi:.1f} — below midline, mild bearish pressure")
@@ -174,6 +181,29 @@ class PredictionSkill(BaseFinancialSkill):
             if vol_ratio > 1.5:
                 score += 5
                 reasoning.append(f"  Volume ratio {vol_ratio:.2f}x — institutional participation likely")
+
+        # 2026-06-08 ANTI-EXTENSION GATE (P0.1)
+        # Reject BUY scores if multiple momentum indicators are simultaneously
+        # extended. The 6/01 paper basket had 9 BUYs all stopped -5% because
+        # RSI > 60 + BB% > 0.7 simultaneously = top-of-momentum trap.
+        # See research/2026-06-08-markets-stack-deep-diagnosis.md cause #2.
+        ext_signals = 0
+        ext_notes = []
+        if rsi is not None and rsi > 60:
+            ext_signals += 1
+            ext_notes.append(f"RSI {rsi:.1f}>60")
+        if bb_pct is not None and bb_pct > 0.7:
+            ext_signals += 1
+            ext_notes.append(f"BB% {bb_pct:.2f}>0.7")
+        if macd_hist is not None and macd_hist > 0 and adx is not None and adx > 25:
+            # MACD positive + ADX strong = late in trend
+            ext_signals += 1
+            ext_notes.append(f"MACD+ADX>25")
+        if ext_signals >= 2 and score > 50:
+            # 2+ extension signals AND would otherwise be BUY → cap at WAIT zone
+            old_score = score
+            score = min(score, 55)
+            reasoning.append(f"  🚫 ANTI-EXTENSION: {ext_signals} extension signals [{', '.join(ext_notes)}] — score capped {old_score:.0f}→{score:.0f}")
 
         score = float(max(0.0, min(100.0, score)))
         return score, reasoning
