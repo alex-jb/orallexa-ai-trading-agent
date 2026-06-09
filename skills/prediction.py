@@ -167,14 +167,40 @@ class PredictionSkill(BaseFinancialSkill):
                 score += 3
                 reasoning.append(f"  BB%: {bb_pct:.2f} — near lower band, mean reversion possible")
 
-        # ADX (trend strength)
+        # ADX (trend strength) — 2026-06-09: now also used as REGIME GATE (P1.1)
+        # Regimes:
+        #   adx >= 25  → TRENDING — momentum signals valid (this scoring stays)
+        #   adx < 18   → RANGING  — momentum signals are anti-edge; clamp BUY
+        #   18 ≤ adx < 25 → UNCERTAIN — heavy down-weight, prefer WAIT
+        # The walk-forward verdict on 2026-06-09 was FAIL (mean OOS Sharpe -3.08)
+        # mostly because the rule ran momentum scoring during June ranging market.
+        # See research/2026-06-08-markets-stack-deep-diagnosis.md cause #3.
         if adx is not None:
-            if adx > 25:
+            if adx >= 25:
                 score += 7
-                reasoning.append(f"  ADX {adx:.1f} — strong trend in play")
-            elif adx < 15:
-                score -= 5
-                reasoning.append(f"  ADX {adx:.1f} — weak/choppy market")
+                reasoning.append(f"  ADX {adx:.1f} — TRENDING regime, momentum valid (+7)")
+            elif adx < 18:
+                # Ranging — momentum signals are noise. Clamp upper score.
+                if score > 50:
+                    old = score
+                    score = min(score, 50)
+                    reasoning.append(
+                        f"  🚫 ADX {adx:.1f} — RANGING regime — clamped {old:.0f}→{score:.0f}"
+                    )
+                else:
+                    score -= 5
+                    reasoning.append(f"  ADX {adx:.1f} — RANGING regime (no BUY) -5")
+            else:
+                # Uncertain — heavy down-weight
+                if score > 55:
+                    old = score
+                    score = min(score, 55)
+                    reasoning.append(
+                        f"  ⚠️ ADX {adx:.1f} — UNCERTAIN regime — capped {old:.0f}→{score:.0f}"
+                    )
+                else:
+                    score -= 2
+                    reasoning.append(f"  ADX {adx:.1f} — UNCERTAIN regime (-2)")
 
         # Volume
         if vol_ratio is not None:
