@@ -8,6 +8,39 @@
 # Phase 3: Inference & Production 推理与生产 (Day 51-70)
 # Phase 4: Frontier & Agents 前沿与智能体 (Day 71-90)
 
+# Karpathy zero-to-hero canonical references. compile_brief() injects matching
+# entries when today's curriculum topic contains any of the keywords. Loaded
+# defensively — if this block is missing or malformed, compile_brief falls back
+# to topic-only context (no daily-brief breakage).
+karpathy_references:
+  - keywords: ["神经网络", "neural network", "backprop", "gradient"]
+    title: "Karpathy — Neural Networks: Zero to Hero (ep1: micrograd)"
+    url: "https://www.youtube.com/watch?v=VMj-3S1tku0"
+  - keywords: ["bigram", "makemore", "character-level", "字符级"]
+    title: "Karpathy — makemore (ep2-ep4)"
+    url: "https://www.youtube.com/watch?v=PaCmpygFfXo"
+  - keywords: ["transformer", "self-attention", "attention", "Q / K / V", "QKV", "GPT 内部"]
+    title: "Karpathy — Let's build GPT from scratch (ep7, nanoGPT walkthrough)"
+    url: "https://www.youtube.com/watch?v=kCc8FmEb1nY"
+  - keywords: ["tokenization", "BPE", "tokenizer", "SentencePiece"]
+    title: "Karpathy — Let's build the GPT Tokenizer (ep9)"
+    url: "https://www.youtube.com/watch?v=zduSFxRajkE"
+  - keywords: ["LLM 是什么", "大语言模型", "intro to LLM", "1h intro"]
+    title: "Karpathy — Intro to Large Language Models (1h talk)"
+    url: "https://www.youtube.com/watch?v=zjkBMFhNj_g"
+  - keywords: ["pretraining", "预训练", "next-token prediction", "ChatGPT clone", "$100 4h"]
+    title: "Karpathy — nanochat (60K+ stars, $100/4h end-to-end ChatGPT clone)"
+    url: "https://github.com/karpathy/nanochat"
+  - keywords: ["nanoGPT", "minimal GPT", "from scratch"]
+    title: "Karpathy — nanoGPT repo (minimal, hackable GPT-2 reimplementation)"
+    url: "https://github.com/karpathy/nanoGPT"
+  - keywords: ["state of GPT", "RLHF intuition", "training stages"]
+    title: "Karpathy — State of GPT (MSBuild 2023, 40min)"
+    url: "https://www.youtube.com/watch?v=bZQun8Y4L2A"
+  - keywords: ["AI Builders Stack", "software 3.0", "agent engineering", "prompting as programming"]
+    title: "Karpathy — Software 3.0 / AI Builders Stack (2026)"
+    url: "https://karpathy.bearblog.dev/"
+
 phases:
   - name: "Phase 0 — 朋友也能听懂的 LLM"
     range: [1, 15]
