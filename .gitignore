@@ -70,3 +70,6 @@ logs/
 .coverage.*
 coverage.xml
 htmlcov/
+
+# gstack-installed Claude Code skills are user-local, not committed
+.claude/skills/
