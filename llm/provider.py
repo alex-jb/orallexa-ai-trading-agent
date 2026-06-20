@@ -458,6 +458,61 @@ class GeminiProvider:
         return response, record
 
 
+class GlmProvider(OpenAIProvider):
+    """
+    Adapter for ZhipuAI GLM models via the OpenAI-compatible endpoint.
+
+    GLM exposes /v4/chat/completions matching OpenAI's chat-completions
+    shape, so we reuse OpenAIProvider's .complete() and ._wrap_response()
+    unchanged and override only (a) the client construction (custom
+    base_url + GLM_API_KEY), (b) pricing for the glm-* models, (c) the
+    registry name.
+
+    Effort mapping inherits OpenAIProvider's logic. GLM ignores
+    reasoning_effort silently for non-reasoning models; the TypeError
+    fallback in OpenAIProvider.complete() handles the older-SDK case.
+
+    Setup:
+        pip install openai
+        export GLM_API_KEY=...   # https://open.bigmodel.cn/usercenter/apikeys
+        export ORALEXXA_LLM_PROVIDER=glm
+
+    Models confirmed working as of 2026-06 (council-runner v23 tests):
+        glm-4.6   — general-purpose chat
+        glm-5.2   — reasoning, code, longer context
+    """
+
+    name = "glm"
+
+    _BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+
+    # USD per token — keep in sync with open.bigmodel.cn/pricing
+    _PRICING: dict[str, dict] = {
+        "glm-4.6":          {"input": 0.60 / 1_000_000, "output": 2.20 / 1_000_000},
+        "glm-5.2":          {"input": 0.90 / 1_000_000, "output": 3.60 / 1_000_000},
+        "glm-zero-preview": {"input": 0.30 / 1_000_000, "output": 1.20 / 1_000_000},
+    }
+
+    def _get_client(self):
+        if self._client is None:
+            try:
+                from openai import OpenAI
+            except ImportError as e:
+                raise RuntimeError(
+                    "openai package not installed. Run `pip install openai` "
+                    "to enable GlmProvider (uses the OpenAI-compatible client)."
+                ) from e
+            api_key = os.environ.get("GLM_API_KEY")
+            if not api_key:
+                raise RuntimeError(
+                    "GLM_API_KEY env var not set. Get a key from "
+                    "https://open.bigmodel.cn/usercenter/apikeys then "
+                    "`export GLM_API_KEY=...` before invoking GlmProvider."
+                )
+            self._client = OpenAI(api_key=api_key, base_url=self._BASE_URL)
+        return self._client
+
+
 # Future placeholders — instantiating these raises NotImplementedError until
 # someone actually needs the provider. Registered so that get_provider(name)
 # fails LOUD instead of silently returning Anthropic.
@@ -472,7 +527,7 @@ class _UnimplementedProvider:
         raise NotImplementedError(
             f"Provider '{self.real_name}' is registered but not yet implemented. "
             f"See llm/provider.py for the AnthropicProvider/OpenAIProvider/"
-            f"GeminiProvider templates."
+            f"GeminiProvider/GlmProvider templates."
         )
 
 
@@ -480,6 +535,7 @@ _REGISTRY: dict[str, "type | callable"] = {
     "anthropic": AnthropicProvider,
     "openai":    OpenAIProvider,
     "gemini":    GeminiProvider,
+    "glm":       GlmProvider,
     "ollama":    lambda: _UnimplementedProvider("ollama"),
     "grok":      lambda: _UnimplementedProvider("grok"),
 }

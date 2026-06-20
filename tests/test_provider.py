@@ -19,6 +19,7 @@ from llm.provider import (
     AnthropicProvider,
     OpenAIProvider,
     GeminiProvider,
+    GlmProvider,
     ChatProvider,
     get_provider,
     current_provider_name,
@@ -62,6 +63,14 @@ class TestRegistry:
         p = get_provider("gemini")
         assert isinstance(p, GeminiProvider)
         assert p.name == "gemini"
+
+    def test_glm_provider_resolves(self):
+        p = get_provider("glm")
+        assert isinstance(p, GlmProvider)
+        assert p.name == "glm"
+        assert "bigmodel.cn" in p._BASE_URL
+        assert "glm-4.6" in p._PRICING
+        assert "glm-5.2" in p._PRICING
 
     def test_protocol_compliance(self):
         p = get_provider("anthropic")
