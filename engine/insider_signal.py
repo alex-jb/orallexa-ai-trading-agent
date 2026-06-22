@@ -285,3 +285,85 @@ def apply_insider_adjustment(
     if clamp_to_unit:
         p = max(0.0, min(1.0, p))
     return p
+
+
+# ────────────────────────────────────────────────────────────────────
+# Integration wrapper — opt-in, additive, no upstream breakage
+# ────────────────────────────────────────────────────────────────────
+
+def wrap_signal_with_insider(
+    signal_dict: dict,
+    insider_events: Iterable[dict | InsiderEvent],
+    ticker: str,
+    *,
+    window_days: int = DEFAULT_WINDOW_DAYS,
+    today: Optional[date] = None,
+    up_key: str = "up_probability",
+    down_key: str = "down_probability",
+) -> dict:
+    """Decorator-style integration: take any signal generator's output
+    dict (diffusion_signal.predict / debate judge / multi-agent verdict
+    — all of these emit a dict with `up_probability` + `down_probability`
+    that sum to ≤ 1) and apply the insider adjustment without touching
+    the upstream code.
+
+    Returns a NEW dict (does not mutate input) with:
+      - up_probability + down_probability adjusted (still sum to original
+        total, preserving the neutral residual if any)
+      - new field `insider_adjustment` containing the InsiderSignal as
+        a serialized dict so downstream loggers / reports can render
+        the rationale
+
+    If no insider events qualify, returns a shallow copy with
+    insider_adjustment.p_up_delta = 0.
+
+    Designed to wrap call sites like:
+
+        result = diffusion_signal.predict(df, ticker)
+        result = wrap_signal_with_insider(result, insider_events, ticker)
+
+    Or in the judge path:
+
+        verdict = llm.debate.judge(...)
+        verdict = wrap_signal_with_insider(verdict, insider_events, ticker)
+
+    The neutral-residual preservation is intentional: if the upstream
+    emits p_up=0.55, p_down=0.30, neutral=0.15, an insider sale should
+    move probability mass from up → down (and proportionally from
+    neutral if it exists), NOT introduce new probability total > 1.
+    """
+    if not isinstance(signal_dict, dict):
+        raise TypeError(f"signal_dict must be dict, got {type(signal_dict).__name__}")
+
+    sig = compute_insider_signal(
+        ticker=ticker,
+        events=insider_events,
+        window_days=window_days,
+        today=today,
+    )
+
+    out = dict(signal_dict)  # shallow copy
+    out["insider_adjustment"] = {
+        "ticker": sig.ticker,
+        "p_up_delta": sig.p_up_delta,
+        "events_considered": sig.events_considered,
+        "cluster_bonus_applied": sig.cluster_bonus_applied,
+        "rationale": list(sig.rationale),
+    }
+
+    if sig.p_up_delta == 0:
+        return out
+
+    p_up = float(signal_dict.get(up_key, 0.0))
+    p_down = float(signal_dict.get(down_key, 0.0))
+    delta = sig.p_up_delta
+
+    # Move mass from one side to the other; preserve sum.
+    new_p_up = max(0.0, min(1.0, p_up + delta))
+    actual_shift = new_p_up - p_up  # may be smaller than delta due to clamp
+    new_p_down = max(0.0, min(1.0, p_down - actual_shift))
+
+    # If clamps prevented full shift, residual goes to neutral side (1 - up - down)
+    out[up_key] = round(new_p_up, 4)
+    out[down_key] = round(new_p_down, 4)
+    return out

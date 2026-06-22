@@ -21,6 +21,7 @@ from engine.insider_signal import (  # noqa: E402
     InsiderEvent,
     apply_insider_adjustment,
     compute_insider_signal,
+    wrap_signal_with_insider,
 )
 
 
@@ -179,3 +180,97 @@ class TestApplyAdjustment:
         sig = compute_insider_signal("X", events, today=TODAY)
         adj = apply_insider_adjustment(0.10, sig, clamp_to_unit=False)
         assert adj == 0.10 + sig.p_up_delta
+
+
+# ────────────────────────────────────────────────────────────────────
+# Integration wrapper — wrap_signal_with_insider
+# ────────────────────────────────────────────────────────────────────
+
+class TestWrapSignalWithInsider:
+    """Decorator-style integration into any signal-emitter's dict output."""
+
+    def test_no_events_passthrough(self):
+        base = {"up_probability": 0.55, "down_probability": 0.30}
+        out = wrap_signal_with_insider(base, [], "ASTS", today=TODAY)
+        assert out["up_probability"] == 0.55
+        assert out["down_probability"] == 0.30
+        assert out["insider_adjustment"]["p_up_delta"] == 0
+        assert out["insider_adjustment"]["events_considered"] == 0
+
+    def test_negative_signal_shifts_mass_up_to_down(self):
+        base = {"up_probability": 0.55, "down_probability": 0.30}
+        events = [_ev("ASTS", 11, "CFO", "sale", 430_000, "Andrew Johnson")]
+        out = wrap_signal_with_insider(base, events, "ASTS", today=TODAY)
+        # CFO sale → p_up should drop, p_down should rise by same magnitude
+        assert out["up_probability"] < 0.55
+        assert out["down_probability"] > 0.30
+        delta = out["up_probability"] - 0.55
+        # Sum preserved (mass conservation)
+        assert abs((out["up_probability"] + out["down_probability"])
+                   - (0.55 + 0.30)) < 1e-6
+        # Delta matches signal
+        assert abs(delta - out["insider_adjustment"]["p_up_delta"]) < 1e-6
+
+    def test_positive_signal_shifts_mass_down_to_up(self):
+        base = {"up_probability": 0.40, "down_probability": 0.45}
+        events = [_ev("X", 3, "CEO", "purchase", 1_000_000)]
+        out = wrap_signal_with_insider(base, events, "X", today=TODAY)
+        assert out["up_probability"] > 0.40
+        assert out["down_probability"] < 0.45
+
+    def test_does_not_mutate_input(self):
+        base = {"up_probability": 0.55, "down_probability": 0.30}
+        original_keys = set(base.keys())
+        events = [_ev("ASTS", 11, "CFO", "sale", 430_000)]
+        wrap_signal_with_insider(base, events, "ASTS", today=TODAY)
+        # Original dict unchanged
+        assert base["up_probability"] == 0.55
+        assert base["down_probability"] == 0.30
+        assert set(base.keys()) == original_keys
+
+    def test_preserves_other_fields(self):
+        base = {
+            "up_probability": 0.55,
+            "down_probability": 0.30,
+            "signal": 1,
+            "confidence": 67.5,
+            "expected_return": 0.012,
+        }
+        events = [_ev("ASTS", 11, "CFO", "sale", 430_000)]
+        out = wrap_signal_with_insider(base, events, "ASTS", today=TODAY)
+        # All non-probability fields pass through unchanged
+        assert out["signal"] == 1
+        assert out["confidence"] == 67.5
+        assert out["expected_return"] == 0.012
+
+    def test_rationale_attached(self):
+        base = {"up_probability": 0.55, "down_probability": 0.30}
+        events = [_ev("ASTS", 11, "CFO", "sale", 430_000, "Andrew Johnson")]
+        out = wrap_signal_with_insider(base, events, "ASTS", today=TODAY)
+        assert out["insider_adjustment"]["events_considered"] == 1
+        assert len(out["insider_adjustment"]["rationale"]) >= 1
+        assert "CFO" in out["insider_adjustment"]["rationale"][0] \
+            or "Financial" in out["insider_adjustment"]["rationale"][0]
+
+    def test_clamp_at_zero(self):
+        # Baseline near zero + large negative delta should clamp
+        base = {"up_probability": 0.01, "down_probability": 0.95}
+        events = [_ev("X", i, "CEO", "sale", 1_000_000) for i in range(10)]
+        out = wrap_signal_with_insider(base, events, "X", today=TODAY)
+        assert out["up_probability"] >= 0
+        assert out["down_probability"] <= 1
+
+    def test_rejects_non_dict(self):
+        with pytest.raises(TypeError):
+            wrap_signal_with_insider("not a dict", [], "X", today=TODAY)  # type: ignore[arg-type]
+
+    def test_custom_field_names(self):
+        """Some signal generators use different key names."""
+        base = {"p_up": 0.55, "p_down": 0.30}
+        events = [_ev("ASTS", 11, "CFO", "sale", 430_000)]
+        out = wrap_signal_with_insider(
+            base, events, "ASTS", today=TODAY,
+            up_key="p_up", down_key="p_down",
+        )
+        assert out["p_up"] < 0.55
+        assert out["p_down"] > 0.30
