@@ -50,9 +50,9 @@ keyboard
 alpaca-py
 
 # ── Sports prediction (2026-06-29) ─────────────────────────────
-# Football/soccer Dixon-Coles + bivariate Poisson + devig + Kelly.
-# Replaces Haiku our_p_yes uniform-0.15 trap for sports legs.
-penaltyblog>=1.4.0
+# penaltyblog dropped 2026-06-29 — aesara/numpy ABI incompat.
+# Our engine/sports_pricer.py uses pure-Python Dixon-Coles; the
+# package was only needed for the v0.2 full-Bayesian fit, deferred.
 
 # Unified scraper for FBref/ClubElo/Understat/Sofascore/WhoScored.
 # Feeds penaltyblog with today's xG / Elo / lineup data.
