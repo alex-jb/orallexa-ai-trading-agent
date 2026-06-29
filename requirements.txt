@@ -48,3 +48,18 @@ Pillow
 pygame
 keyboard
 alpaca-py
+
+# ── Sports prediction (2026-06-29) ─────────────────────────────
+# Football/soccer Dixon-Coles + bivariate Poisson + devig + Kelly.
+# Replaces Haiku our_p_yes uniform-0.15 trap for sports legs.
+penaltyblog>=1.4.0
+
+# Unified scraper for FBref/ClubElo/Understat/Sofascore/WhoScored.
+# Feeds penaltyblog with today's xG / Elo / lineup data.
+soccerdata>=1.8.0
+
+# Fallback scraper layer when soccerdata blocks. GPL-3 = local cron only.
+ScraperFC>=3.0.0
+
+# StatsBomb open-data streamer — for eval/backtest_sports.py ground truth.
+statsbombpy>=1.0.4
