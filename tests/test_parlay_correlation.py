@@ -168,3 +168,31 @@ def test_btts_predicate_runs():
     marg = result["leg_marginals"]["qf1 BTTS"]
     # Real-football BTTS hovers 45-55% for balanced matches
     assert 0.20 < marg < 0.80, f"BTTS marginal {marg} outside plausible range"
+
+
+def test_mixed_parlay_with_independent_legs():
+    """7-leg WC parlay use case: 5 MC legs + 2 corners/cards independent."""
+    from engine.parlay_correlation import p_joint_parlay_mixed
+    mc_legs = [
+        leg_team_advances_to("Spain", "SF"),
+        leg_team_advances_to("Brazil", "SF"),
+        leg_match_under("qf1", line=3.5),
+    ]
+    independent = [
+        ("Germany cards U4.5", 0.745),
+        ("Norway corners U11.5", 0.74),
+    ]
+    result = p_joint_parlay_mixed(
+        mc_legs, independent,
+        elo_lookup=ELO_LOOKUP, bracket=SIMPLE_BRACKET,
+        n=2_000, seed=31,
+    )
+    # Output shape sanity
+    for key in ("mc_joint_prob", "independent_legs_prob", "joint_prob",
+                "independent_baseline", "model_gap_warning"):
+        assert key in result
+    # Joint must be ≤ each independent leg's marginal (axiom)
+    for label, p in independent:
+        assert result["joint_prob"] <= p + 0.01
+    # Multiplied probs sanity: 0.745 * 0.74 = 0.5513
+    assert 0.54 < result["independent_legs_prob"] < 0.56

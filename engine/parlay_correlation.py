@@ -330,3 +330,91 @@ def leg_match_btts(match_id: str) -> ParlayLeg:
             return False
         return scores[0] >= 1 and scores[1] >= 1
     return ParlayLeg(label=f"{match_id} BTTS", predicate=pred)
+
+
+def p_joint_parlay_mixed(
+    mc_legs: list[ParlayLeg],
+    independent_legs: list[tuple[str, float]],
+    *,
+    elo_lookup: dict[str, float],
+    bracket: list[BracketMatch],
+    n: int = 100_000,
+    seed: Optional[int] = None,
+) -> dict:
+    """Joint parlay probability for legs we can MC-correlate + legs we
+    can't (corners / cards / fouls / props the Dixon-Coles goal model
+    doesn't cover).
+
+    Args:
+        mc_legs: parlay legs the MC simulator can evaluate
+                 (team-advance / over-under / BTTS — anything based on
+                 goals or bracket structure).
+        independent_legs: list of (label, prob) tuples for legs we
+                 treat as independent of the MC outcomes. Use bookmaker
+                 implied probability OR your own prop-specific model.
+        elo_lookup / bracket / n / seed: same as p_joint_parlay.
+
+    Returns:
+      {
+        "mc_joint_prob": float,            # MC over mc_legs only
+        "independent_legs_prob": float,    # product of (label, prob) tuples
+        "joint_prob": float,               # mc_joint × independent product
+        "independent_baseline": float,     # naive ALL-independent multiplication
+        "leg_marginals": {label: p, ...},  # MC legs only
+        "independent_legs": {label: p, ...},
+        "n_iterations": n,
+        "edge_vs_naive_independent": float,
+        "model_gap_warning":
+          "independent_legs uses naive multiplication — implies zero "
+          "correlation with the MC outcomes. Defensible when the prop "
+          "is uncorrelated with goal scoreline (corners, cards, fouls), "
+          "but trust < the pure MC number on the 5-leg core."
+      }
+
+    Use case (2026-06-29 7-leg WC parlay):
+      mc_legs = [
+        leg_team_advances_to("Spain",   "R16"),
+        leg_team_advances_to("England", "R16"),
+        leg_team_advances_to("Mexico",  "R16"),
+        leg_match_under("ned_mar", line=3.5),
+        leg_match_under("bra_x",   line=3.5),
+      ]
+      independent_legs = [
+        ("Germany cards U4.5", 0.745),
+        ("Norway corners U11.5", 0.74),
+      ]
+    """
+    mc_result = p_joint_parlay(
+        mc_legs, elo_lookup=elo_lookup, bracket=bracket,
+        n=n, seed=seed,
+    )
+
+    indep_prob = 1.0
+    indep_marginals = {}
+    for label, p in independent_legs:
+        indep_prob *= max(0.0, min(1.0, float(p)))
+        indep_marginals[label] = round(float(p), 4)
+
+    mc_joint = mc_result["joint_prob"]
+    joint = mc_joint * indep_prob
+
+    # Naive baseline = product of EVERY leg's marginal (the wrong-but-
+    # common math we're correcting for the MC-able part).
+    naive = mc_result["independent_prob"] * indep_prob
+
+    return {
+        "mc_joint_prob": mc_joint,
+        "independent_legs_prob": round(indep_prob, 5),
+        "joint_prob": round(joint, 5),
+        "independent_baseline": round(naive, 5),
+        "leg_marginals": mc_result["leg_marginals"],
+        "independent_legs": indep_marginals,
+        "n_iterations": n,
+        "edge_vs_naive_independent": round(joint - naive, 5),
+        "model_gap_warning": (
+            "independent_legs uses naive multiplication — implies zero "
+            "correlation with the MC outcomes. Defensible when the prop "
+            "is uncorrelated with goal scoreline (corners, cards, fouls), "
+            "but trust < the pure MC number on the MC core."
+        ),
+    }
