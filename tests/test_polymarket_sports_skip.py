@@ -124,6 +124,60 @@ def test_estimate_returns_skip_payload_for_sports_market(monkeypatch):
     assert "sports_market" in result["rationale"]
 
 
+def test_world_cup_slug_returns_real_p_yes_via_tournament_mc():
+    """A 'will-uzbekistan-win-the-2026-fifa-world-cup' slug must now
+    route through predict_tournament_winner_elo_only and return a real
+    probability, not None. Uzbekistan is not in top-32 Elo so returns
+    None there — use a top-tier team to assert the wire-in works."""
+    result = estimate_p_yes(
+        event_title="Will Argentina win the 2026 FIFA World Cup",
+        question="Will Argentina win the 2026 FIFA World Cup?",
+        current_market_p=0.15,
+        event_slug="will-argentina-win-the-2026-fifa-world-cup-100",
+    )
+    assert result["p_yes"] is not None, (
+        f"top-tier team Argentina should get a real p_yes, got {result}"
+    )
+    # Argentina at Elo 2147 with round-strength bias should land in
+    # 15-35% range — bookmaker typically prices the WC favorite in
+    # this zone. Without bias the simplified MC overshoots to ~50%;
+    # the bias correction is what brings us into the calibration zone.
+    assert 0.15 < result["p_yes"] < 0.35, f"sanity bounds: {result['p_yes']}"
+    assert "tournament_winner_elo_only" in result["rationale"]
+    assert result["conviction"] == "medium"
+
+
+def test_small_country_falls_through_to_skip():
+    """Uzbekistan is not in the 32-team NATIONAL_TEAM_ELO snapshot
+    (small federation). The wire-in should detect the team-name doesn't
+    resolve + fall through to the existing skip payload, not crash."""
+    result = estimate_p_yes(
+        event_title="Will Uzbekistan win the 2026 FIFA World Cup",
+        question="Will Uzbekistan win the 2026 FIFA World Cup?",
+        current_market_p=0.012,
+        event_slug="will-uzbekistan-win-the-2026-fifa-world-cup-773",
+    )
+    assert result["p_yes"] is None, (
+        f"small-country teams should skip not estimate, got {result}"
+    )
+    assert result["conviction"] == "skip"
+    assert "sports_market" in result["rationale"]
+
+
+def test_unparseable_sports_slug_falls_through_to_skip():
+    """Sports markets that don't match the WC-winner regex (NBA / NFL /
+    tennis / generic 'wins championship') still hit skip — only WC
+    tournament-winner is wired in for v1."""
+    result = estimate_p_yes(
+        event_title="Will the Lakers win NBA Finals 2027",
+        question="Will the Lakers win NBA Finals 2027?",
+        current_market_p=0.05,
+        event_slug="nba-finals-2027-lakers",
+    )
+    assert result["p_yes"] is None
+    assert result["conviction"] == "skip"
+
+
 def test_estimate_falls_through_to_anthropic_for_non_sports(monkeypatch):
     """Non-sports markets must STILL flow to Haiku — the skip is sports-only.
     Mock the SDK to assert it's reached + return a deterministic value."""

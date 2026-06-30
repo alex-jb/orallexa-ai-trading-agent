@@ -108,6 +108,54 @@ def _is_sports_market(slug: str, question: str) -> bool:
     return False
 
 
+# Tournament-winner market routing (2026-06-30 wire-in):
+# 126/173 historical sports markets are "Will <country> win the 2026 FIFA
+# World Cup". Extract the country, look it up in NATIONAL_TEAM_ELO,
+# delegate to engine.sports_pricer.predict_tournament_winner_elo_only.
+# If extraction fails or team not in Elo dict (small federations not in
+# top-32 snapshot), fall through to the existing `sports_skip` path.
+
+# Lazy import so this module is still testable without engine/ being on
+# the Python path (tests for the LLM call shouldn't transitively pull in
+# sports_pricer's stack).
+def _tournament_winner_p_yes(slug: str, question: str) -> dict | None:
+    """Returns {'p_yes', 'rationale', 'team'} or None if not extractable."""
+    s = (slug or "").lower()
+    # Pattern: "will-<TEAM>-win-the-2026-fifa-world-cup" + trailing-id
+    m = re.match(r"^will-([a-z][a-z-]+?)-win-the-2026-fifa-world-cup(?:-\d+)?$", s)
+    if not m:
+        return None
+    raw_team = m.group(1)  # e.g. "new-zealand"
+    # Normalize "new-zealand" → "New Zealand", "south-korea" → "South Korea"
+    team = " ".join(w.capitalize() for w in raw_team.split("-"))
+
+    try:
+        from engine.sports_pricer import predict_tournament_winner_elo_only
+        from markets.auto.sports_morning import NATIONAL_TEAM_ELO
+    except ImportError as exc:
+        # If engine layer isn't importable, log + bail (caller skips).
+        print(f"[polymarket-daily] sports_pricer import failed: {exc}",
+              file=sys.stderr)
+        return None
+
+    p_yes = predict_tournament_winner_elo_only(
+        team, NATIONAL_TEAM_ELO,
+        n_rounds=4,          # WC R16→QF→SF→F path
+        n_sims=3000,
+        seed=42,             # deterministic for daily reproducibility
+    )
+    if p_yes is None:
+        return None  # team not in Elo dict
+    return {
+        "p_yes": round(p_yes, 4),
+        "rationale": (
+            f"tournament_winner_elo_only(team={team}, n_rounds=4, "
+            f"n_sims=3000, seed=42) — Elo-based MC, no bracket structure"
+        ),
+        "team": team,
+    }
+
+
 def estimate_p_yes(event_title: str, question: str, current_market_p: float | None,
                    event_slug: str = "") -> dict:
     """Return {'p_yes', 'conviction', 'rationale'} or None values if unavailable.
@@ -122,6 +170,16 @@ def estimate_p_yes(event_title: str, question: str, current_market_p: float | No
     v0.2 work.
     """
     if _is_sports_market(event_slug, f"{event_title} {question}"):
+        # 2026-06-30 wire-in: try tournament-winner Elo MC first; if the
+        # team is extractable + in NATIONAL_TEAM_ELO, return a real prob.
+        # Only fall through to skip if extraction or Elo lookup fails.
+        tw = _tournament_winner_p_yes(event_slug, question)
+        if tw is not None:
+            return {
+                "p_yes": tw["p_yes"],
+                "conviction": "medium",
+                "rationale": tw["rationale"],
+            }
         return {
             "p_yes": None,
             "conviction": "skip",
