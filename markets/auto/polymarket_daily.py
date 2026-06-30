@@ -58,12 +58,75 @@ def _load_anthropic_key() -> str:
     return ""
 
 
-def estimate_p_yes(event_title: str, question: str, current_market_p: float | None) -> dict:
+# Sports-market routing (2026-06-30 fix):
+#   queue_consumer.py first fire surfaced 173 historical Polymarket decisions,
+#   126 (73%) of them were sports markets ("Will X win the 2026 FIFA World Cup")
+#   where Haiku had been returning a default-ish ~0.5 p_yes for every row —
+#   producing a fake mean edge of +0.472 across the entire sports tape. If we
+#   had been real-money trading, that's 126 sized positions all on noise.
+#
+#   The proper fix is a Monte Carlo bracket simulator over Elo
+#   (engine.parlay_correlation.simulate_tournament_advance), but that needs the
+#   2026 World Cup bracket structure as data + a full Elo lookup, which is its
+#   own ship. Until then: DETECT sports markets and refuse to estimate. Better
+#   to write our_p_yes=None than to write a wrong number that looks edged.
+_SPORTS_TOKENS = (
+    "world-cup", "champions-league", "premier-league", "la-liga",
+    "serie-a", "bundesliga", "ligue-1", "mls", "nba", "nfl", "nhl",
+    "mlb", "tennis", "atp", "wta", "f1-", "formula-1", "nascar",
+    "olympics", "euro-202", "copa-america", "fifa", "uefa",
+    "wimbledon", "us-open", "french-open", "australian-open",
+    "super-bowl", "world-series", "stanley-cup",
+)
+_SPORTS_PHRASES = (
+    # Sport-specific titles only. "win the 2028" was tried initially but
+    # false-positived on "Bernie Sanders win the 2028 Democratic
+    # Presidential nomination" — that pattern belongs to politics, Haiku
+    # is fine with it.
+    "wins the world cup", "win the world cup",
+    "wins the world series", "win the world series",
+    "wins the super bowl", "win the super bowl",
+    "advance to ", "reach the final", "win the championship",
+    "win the cup", "win the title", "win the league",
+)
+
+
+def _is_sports_market(slug: str, question: str) -> bool:
+    """True if this Polymarket event is a sports market that our Haiku
+    pricer cannot reliably estimate. Conservative detection: false-positive
+    (skipping a non-sports market) costs us 1 estimate; false-negative
+    (Haiku rates a sports market) re-introduces the +0.5 default bug.
+    """
+    s = (slug or "").lower()
+    q = (question or "").lower()
+    if any(tok in s for tok in _SPORTS_TOKENS):
+        return True
+    if any(tok in q for tok in _SPORTS_TOKENS):
+        return True
+    if any(phrase in q for phrase in _SPORTS_PHRASES):
+        return True
+    return False
+
+
+def estimate_p_yes(event_title: str, question: str, current_market_p: float | None,
+                   event_slug: str = "") -> dict:
     """Return {'p_yes', 'conviction', 'rationale'} or None values if unavailable.
 
     Calls Claude Haiku once per event. Cost ~$0.0003 per call (200 input + 150
     output tokens). 4 events/day → $0.0012/day → $0.44/year. Negligible.
+
+    Sports markets are routed to a `sports_skip` no-estimate response (see
+    _is_sports_market) because Haiku defaults to ~0.5 on them, which created
+    the fake +0.472 mean-edge bug surfaced 2026-06-30. Real bracket-MC for
+    tournament-win markets is engine/sports_pricer.py + parlay_correlation
+    v0.2 work.
     """
+    if _is_sports_market(event_slug, f"{event_title} {question}"):
+        return {
+            "p_yes": None,
+            "conviction": "skip",
+            "rationale": "sports_market_skip_v1_no_bracket_mc_yet",
+        }
     api_key = _load_anthropic_key()
     if not api_key:
         return {"p_yes": None, "conviction": "n/a", "rationale": "no-api-key"}
@@ -261,10 +324,13 @@ def main() -> int:
         except Exception:
             vol = 0.0
         # Phase A #1 (2026-05-27): our own probability estimate via Haiku.
+        # 2026-06-30: sports markets short-circuit to skip — see estimate_p_yes
+        # docstring for the 73%-of-tape-was-noise bug we just stopped.
         est = estimate_p_yes(
             event_title=m.get("_event_title") or "",
             question=m.get("question") or "",
             current_market_p=yes,
+            event_slug=slug or m.get("slug") or "",
         )
         mispricing_delta = None
         mispricing_flag = None
