@@ -126,19 +126,64 @@ def _load_today_matches() -> list[dict]:
 
 
 def _fit_dixon_coles(matches: list[dict]):
-    """Wrap penaltyblog Dixon-Coles fit. Returns model or None."""
-    try:
-        import penaltyblog as pb  # type: ignore
-    except ImportError:
-        return None
+    """Fit a Dixon-Coles model on historical match scorelines.
+
+    Uses the vendored MLE fit at engine.dixon_coles_fit (not penaltyblog,
+    which has a broken dep chain on scipy>=1.13 via arviz). Same math,
+    same paper, ~80 lines instead of 40 MB of transitive imports.
+
+    Returns None if fewer than 20 matches or fewer than 4 unique teams
+    — signals caller to fall back to the Elo-based approximation in
+    predict_match_from_fit / predict_match.
+    """
     if not matches:
         return None
-    # penaltyblog wants a DataFrame with cols: home_team, away_team,
-    # home_goals, away_goals, date. We use FBref historical match results
-    # via soccerdata for training, NOT the upcoming-fixture rows.
-    # For now, this is a stub call site — the caller should pass a
-    # training dataframe. Returns the fit model or None.
-    return None
+    try:
+        from engine.dixon_coles_fit import fit as _dc_fit
+        return _dc_fit(matches)
+    except (ValueError, ImportError):
+        return None
+
+
+def predict_match_from_fit(
+    home: str,
+    away: str,
+    dc_fit,
+    *,
+    ou_line: float = DEFAULT_OU_LINE,
+) -> Optional[MatchPrediction]:
+    """Produce a match prediction from a fitted DixonColesFit.
+
+    Preferred over predict_match() when a fit is available — uses actual
+    per-team attack/defense strengths from historical scorelines rather
+    than the Elo→λ approximation.
+
+    Returns None if either team is not in the fit's team set (caller
+    should fall back to predict_match(elo, xg) or Haiku our_p_yes).
+    """
+    from engine.dixon_coles_fit import match_probabilities
+
+    lam_h, lam_a = dc_fit.expected_goals(home, away)
+    if lam_h <= 0 or lam_a <= 0:
+        return None
+    probs = match_probabilities(lam_h, lam_a, dc_fit.rho, ou_line=ou_line)
+    return MatchPrediction(
+        p_home_win=round(probs["p_home_win"], 4),
+        p_draw=round(probs["p_draw"], 4),
+        p_away_win=round(probs["p_away_win"], 4),
+        p_over_n=round(probs["p_over_n"], 4),
+        p_under_n=round(probs["p_under_n"], 4),
+        p_btts=round(probs["p_btts"], 4),
+        lambda_home=round(lam_h, 3),
+        lambda_away=round(lam_a, 3),
+        ou_line=ou_line,
+        model="dixon_coles_mle_v2",
+        trained_on=(
+            f"MLE fit on n={dc_fit.n_matches} historical scorelines, "
+            f"ρ={dc_fit.rho:.3f}, γ={dc_fit.home_advantage:.3f}"
+        ),
+        fetched_at=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 def predict_match(
