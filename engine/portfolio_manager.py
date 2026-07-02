@@ -95,6 +95,7 @@ def approve_decision(
     recent_decisions: Optional[list[dict]] = None,
     rules: Optional[dict] = None,
     insider_events: Optional[list[dict]] = None,
+    portfolio_state: Optional[dict] = None,
 ) -> dict:
     """
     Apply portfolio-level gates on a single ticker decision.
@@ -142,6 +143,50 @@ def approve_decision(
             checks={"confidence": False},
         ).to_dict()
     checks["confidence"] = True
+
+    # 1.25. Kill-conditions gate (Tier-1 #10 wire-up, 2026-07-02).
+    # If portfolio_state is provided AND check_kill_conditions returns
+    # can_trade=False, we short-circuit REJECT before any other gate.
+    # An active kill is stronger than any signal. Optional to preserve
+    # back-compat for callers that don't track portfolio_state yet.
+    if portfolio_state is not None:
+        try:
+            from engine.kill_conditions import (
+                PortfolioState, check_kill_conditions,
+            )
+            state = PortfolioState(
+                cumulative_pnl_usd=float(portfolio_state.get("cumulative_pnl_usd", 0.0)),
+                rolling_14d_sharpe=portfolio_state.get("rolling_14d_sharpe"),
+                max_drawdown_pct=float(portfolio_state.get("max_drawdown_pct", 0.0)),
+                rolling_30d_brier=portfolio_state.get("rolling_30d_brier"),
+                paper_trade_days=int(portfolio_state.get("paper_trade_days", 0)),
+                real_money_mode=bool(portfolio_state.get("real_money_mode", False)),
+            )
+            kill = check_kill_conditions(state)
+            checks["kill_state"] = kill.state
+            checks["kill_can_trade"] = kill.can_trade
+            checks["kill_triggered_gates"] = list(kill.triggered_gates)
+            if not kill.can_trade:
+                return ApprovalResult(
+                    approved=False,
+                    scaled_position_pct=0.0,
+                    reason=(
+                        f"Kill condition {kill.state}: {kill.trigger_reason}"
+                        f" (cooldown until {kill.cooldown_until_utc})"
+                        if kill.cooldown_until_utc else
+                        f"Kill condition {kill.state}: {kill.trigger_reason}"
+                    ),
+                    warnings=warnings,
+                    original_confidence=confidence,
+                    adjusted_confidence=confidence,
+                    checks=checks,
+                ).to_dict()
+        except Exception:
+            # Fail-open on kill-check crash: better to let one trade
+            # through than block all trading because the audit layer
+            # broke. The kill gate is safety-in-depth, not the only
+            # safety mechanism.
+            checks["kill_state"] = "error"
 
     # 1.5. Insider-signal gate (Tier-2 #13). Only relevant to BUY.
     # SELL against insider-buying is *not* auto-blocked — Alex might
