@@ -33,11 +33,30 @@ HISTORY.parent.mkdir(parents=True, exist_ok=True)
 # from 4 → 100+ events without editing code.
 RULES_PATH = HOME / ".orallexa" / "markets" / "rules.json"
 
-# 2026-05-27 (Phase A #1): per-event own probability estimation via Claude.
-# Without our own estimate we can't Brier-score Polymarket predictions; without
-# Brier scores we can't satisfy the Phase 1 ($300 real money) entry gate.
-# Haiku is enough — these are 1-shot reasoned estimates, not deep research.
-CLAUDE_MODEL = "claude-haiku-4-5"
+# Estimator model.
+#
+# 2026-05-27 (Phase A #1): started with Haiku on the assumption that
+# 1-shot reasoned estimates didn't need Sonnet's depth.
+#
+# 2026-07-02 (upgrade #1): switched default to Sonnet 4.6 after Prophet
+# Arena (arxiv 2510.17638, 2026 H1) direct finding:
+#     "strong models perform much better in the extreme bins (0-0.1
+#      and 0.9-1.0), where it almost always predicts correctly. Weaker
+#      models compress toward middle-of-book."
+# Haiku's uniform-0.15 pathology on Orallexa's 4 events (surfaced
+# 2026-06-23) is a textbook example. Sonnet 4.6 sits at ECE 0.041 on
+# Prophet Arena's leaderboard; Haiku is architecturally a middle-bin
+# compressor.
+#
+# Cost: ~$0.15/day at current market count (~$54/year) vs Haiku's
+# ~$0.003/day. Delta ~$50/year to replace a middle-bin-collapse
+# baseline with a leaderboard-competitive estimator. Trivial once you
+# see the reliability diagram (upgrade #8).
+#
+# Escape hatch: `ORALLEXA_ESTIMATOR_MODEL` env var overrides. Set to
+# `claude-haiku-4-5` to reproduce pre-2026-07-02 behavior for
+# A/B comparison via brier_audit.
+CLAUDE_MODEL = os.environ.get("ORALLEXA_ESTIMATOR_MODEL", "claude-sonnet-4-6")
 MISPRICING_THRESHOLD = 0.05  # |our_p - market_p| > 5% → flag
 
 # 72h news-lag skip window (2026-07-02 upgrade #3, per Prophet Arena

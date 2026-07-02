@@ -253,7 +253,11 @@ def test_estimate_p_yes_returns_audit_block(monkeypatch):
     )
     assert "audit" in result
     audit = result["audit"]
-    assert audit["model_id"] == "claude-haiku-4-5"
+    # Model ID pins whichever estimator is default at the time. As of
+    # 2026-07-02 that's Sonnet 4.6; test doesn't hardcode so an
+    # env-override or default-change doesn't false-fail.
+    from markets.auto.polymarket_daily import CLAUDE_MODEL
+    assert audit["model_id"] == CLAUDE_MODEL
     # SHA-256 hex is exactly 64 chars
     assert len(audit["prompt_sha256"]) == 64
     assert all(c in "0123456789abcdef" for c in audit["prompt_sha256"])
@@ -321,6 +325,49 @@ def test_audit_null_on_skip_paths():
         event_slug="will-uzbekistan-win-the-2026-fifa-world-cup-773",
     )
     assert result.get("audit") is None
+
+
+# ═════════════════════════════════════════════════════════════════
+# #1 — Sonnet 4.6 as default estimator (Haiku demoted)
+# ═════════════════════════════════════════════════════════════════
+
+def test_default_estimator_is_sonnet_4_6():
+    """The default estimator is Sonnet 4.6 as of 2026-07-02. If this
+    ever flips back to Haiku without an intentional decision + review,
+    the Prophet Arena middle-bin-collapse pathology returns."""
+    import importlib
+    import markets.auto.polymarket_daily as pd
+    # Force reload with clean env to pin the true default
+    import os
+    saved = os.environ.pop("ORALLEXA_ESTIMATOR_MODEL", None)
+    try:
+        importlib.reload(pd)
+        assert pd.CLAUDE_MODEL == "claude-sonnet-4-6"
+    finally:
+        if saved is not None:
+            os.environ["ORALLEXA_ESTIMATOR_MODEL"] = saved
+        importlib.reload(pd)
+
+
+def test_estimator_env_override_reproduces_pre_2026_07_02_haiku():
+    """The escape hatch: setting ORALLEXA_ESTIMATOR_MODEL should let
+    Alex reproduce the pre-2026-07-02 Haiku behavior for A/B compare
+    without needing a code rollback."""
+    import importlib
+    import os
+    saved = os.environ.get("ORALLEXA_ESTIMATOR_MODEL")
+    os.environ["ORALLEXA_ESTIMATOR_MODEL"] = "claude-haiku-4-5"
+    try:
+        import markets.auto.polymarket_daily as pd
+        importlib.reload(pd)
+        assert pd.CLAUDE_MODEL == "claude-haiku-4-5"
+    finally:
+        if saved is None:
+            os.environ.pop("ORALLEXA_ESTIMATOR_MODEL", None)
+        else:
+            os.environ["ORALLEXA_ESTIMATOR_MODEL"] = saved
+        import markets.auto.polymarket_daily as pd
+        importlib.reload(pd)
 
 
 # ═════════════════════════════════════════════════════════════════
