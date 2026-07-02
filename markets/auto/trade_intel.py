@@ -23,9 +23,63 @@ from datetime import datetime, timedelta, timezone
 # ─────────────────────────────────────────────────────────────────────
 # Trade ticket compute
 # ─────────────────────────────────────────────────────────────────────
-def setup_to_sizing_notional(setup: str, sizing_label: str, account: float) -> tuple[float, str]:
+def setup_to_sizing_notional(setup: str, sizing_label: str, account: float,
+                             *,
+                             kelly_p_win: float | None = None,
+                             kelly_avg_win_pct: float | None = None,
+                             kelly_avg_loss_pct: float | None = None,
+                             kelly_current_drawdown_pct: float | None = None,
+                             kelly_fraction: float = 0.5) -> tuple[float, str]:
     """Return (notional_dollars, side). Setup labels match classify_setup
-    in spacex-daily.sh. side ∈ {'long', 'short', 'pass'}."""
+    in spacex-daily.sh. side ∈ {'long', 'short', 'pass'}.
+
+    Sizing paths
+    ------------
+    **Fixed-bucket (legacy, default):** Full = 25× risk_per_trade capped
+    at 20% account, Half = 15× capped at 10%, Short-half = 12× capped
+    at 8%. Doesn't adapt to edge magnitude — 2026-05-27 paper audit
+    found this cost -$1015 on $10k account over 14 days.
+
+    **Kelly (Tier-2 #11, wired 2026-07-02):** opt-in by passing
+    kelly_p_win + kelly_avg_win_pct + kelly_avg_loss_pct together.
+    Uses Half-Kelly by default (kelly_fraction=0.5, professional
+    consensus). Drawdown-adjusted if kelly_current_drawdown_pct is
+    passed. Capped at MAX_KELLY_FRACTION_CAP (25% account) as absolute
+    safety regardless of edge.
+
+    Both paths return (notional, side). Kelly path preserves the side
+    logic (short/long/pass) from setup + sizing_label so downstream
+    order-generation stays the same shape.
+    """
+    # ─── Kelly opt-in path ───────────────────────────────────────
+    kelly_inputs_present = (
+        kelly_p_win is not None
+        and kelly_avg_win_pct is not None
+        and kelly_avg_loss_pct is not None
+    )
+    if kelly_inputs_present:
+        try:
+            import sys as _sys
+            from pathlib import Path as _Path
+            _sys.path.insert(0, str(_Path(__file__).parent.parent.parent))
+            from engine.kelly_sizing import kelly_notional as _kelly_notional
+            ticket = _kelly_notional(
+                account, kelly_p_win, kelly_avg_win_pct, kelly_avg_loss_pct,
+                fraction=kelly_fraction,
+                current_drawdown_pct=kelly_current_drawdown_pct,
+            )
+            notional = ticket.notional_usd
+            side = "pass"
+            if notional > 0:
+                side = "short" if ("Short" in sizing_label or "Breakdown" in setup) else "long"
+            return notional, side
+        except Exception:
+            # Fail-safe: fixed-bucket fallback if kelly_sizing not
+            # importable (broken sys.path in cron, etc.). Sizing must
+            # never raise mid-trade.
+            pass
+
+    # ─── Fixed-bucket legacy path ────────────────────────────────
     # 1-2% risk rule → with ~5% stop distance, notional = 20-40x risk
     risk_per_trade = account * 0.015  # 1.5%
     if "Full" in sizing_label:

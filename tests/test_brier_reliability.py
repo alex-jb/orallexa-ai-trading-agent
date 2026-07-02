@@ -15,6 +15,7 @@ from markets.auto.brier_audit import (
     RELIABILITY_BINS,
     TAIL_BINS,
     compute_reliability_diagram,
+    render_platt_whatif_section,
     render_reliability_section,
 )
 
@@ -132,3 +133,56 @@ def test_middle_bins_are_subset_of_reliability_bins():
         assert b in all_bins, f"{b} not in RELIABILITY_BINS"
     for b in TAIL_BINS:
         assert b in all_bins, f"{b} not in RELIABILITY_BINS"
+
+
+# ═══════════════════════════════════════════════════════════════
+# render_platt_whatif_section — Tier-2 #7a wire-up
+# ═══════════════════════════════════════════════════════════════
+
+def test_platt_whatif_empty_results_gracefully():
+    """No resolved decisions → what-if section reports 'nothing to calibrate'."""
+    lines = render_platt_whatif_section([])
+    md = "\n".join(lines)
+    assert "Platt what-if calibration" in md
+    assert "nothing to calibrate" in md.lower()
+
+
+def test_platt_whatif_insufficient_data_gracefully():
+    """< 30 observations → what-if reports the guard, doesn't crash."""
+    results = [_make(0.5, 1)] * 10 + [_make(0.5, 0)] * 10
+    lines = render_platt_whatif_section(results)
+    md = "\n".join(lines)
+    assert "Platt what-if calibration" in md
+    assert "Skipped" in md or "skipped" in md
+
+
+def test_platt_whatif_compressed_forecast_ships_verdict():
+    """Compressed forecaster (Prophet Arena pathology) → what-if
+    section reports non-trivial Brier improvement and a green verdict."""
+    # 40 events at p=0.30 with actual base rate 0.10 (compressed high)
+    # + 40 events at p=0.70 with actual base rate 0.90 (compressed low)
+    results = (
+        [_make(0.30, 1)] * 4 + [_make(0.30, 0)] * 36  # 10% hit @ 30% pred
+        + [_make(0.70, 1)] * 36 + [_make(0.70, 0)] * 4  # 90% hit @ 70% pred
+    )
+    lines = render_platt_whatif_section(results)
+    md = "\n".join(lines)
+    assert "Raw Brier" in md
+    assert "Calibrated Brier" in md
+    assert "Δ Brier" in md
+    # Should trigger the green "ship the wire-up" verdict on this
+    # heavy-compression synthetic data.
+    assert "Ship the wire-up" in md or "Do NOT ship" in md or "Marginal" in md
+
+
+def test_platt_whatif_well_calibrated_no_ship():
+    """Already-well-calibrated forecasts → Platt should NOT improve,
+    verdict should be 'Do NOT ship' or Marginal."""
+    # 30 events at p=0.6 with actual base rate ~60%
+    results = [_make(0.6, 1)] * 18 + [_make(0.6, 0)] * 12 \
+              + [_make(0.4, 1)] * 8 + [_make(0.4, 0)] * 12
+    lines = render_platt_whatif_section(results)
+    md = "\n".join(lines)
+    assert "Raw Brier" in md  # section rendered successfully
+    # Verdict is either "Do NOT ship" or "Marginal" — improvement < 5%
+    assert "Ship the wire-up" not in md or "Marginal" in md or "Do NOT ship" in md

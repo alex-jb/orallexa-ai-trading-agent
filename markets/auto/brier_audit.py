@@ -35,6 +35,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# ROOT for engine.platt_calibration import (added 2026-07-02 for #7a
+# what-if Brier delta reporting).
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 # 2026-07-02 upgrade #8: reliability diagram per bin.
 #
 # Prophet Arena finding (arxiv 2510.17638): "strong models perform much
@@ -185,6 +189,67 @@ HOME = Path.home()
 DECISION_LOG = HOME / "Desktop" / "orallexa-ai-trading-agent" / "memory_data" / "decision_log.json"
 AUDIT_DIR = HOME / "Desktop" / "Interview-Prep" / "Projects" / "alex-brain" / "research" / "brier-audit"
 MIN_DECISIONS_FOR_REPORT = 5
+
+
+def render_platt_whatif_section(results: list[dict]) -> list[str]:
+    """Fit Platt scaling on `results` in-memory and report what the
+    Brier score WOULD have been under calibration. What-if only —
+    does not persist a calibrator and does not change any decisions.
+
+    Purpose: give Alex empirical evidence before flipping the live
+    wire-up flag on polymarket_daily.py / stock decision path. If
+    Platt drops Brier by ≥ 5% here, the wire-up is worth shipping.
+
+    Refs
+    ----
+    - engine/platt_calibration.py (shipped 2026-07-02, Tier-2 #7a)
+    - AIA Forecaster (Bridgewater 2025-09, arxiv 2511.07678) supervisor
+      pass — Platt is the deterministic post-hoc step of that framework.
+    """
+    lines: list[str] = ["", "## Platt what-if calibration",
+                        "*What would Brier have been if we applied Platt "
+                        "post-hoc calibration to the exact same forecasts?*",
+                        ""]
+    try:
+        from engine.platt_calibration import fit as _platt_fit
+    except ImportError:
+        lines.append("_platt_calibration module not importable — skipping._")
+        return lines
+
+    if not results:
+        lines.append("_No resolved decisions — nothing to calibrate._")
+        return lines
+
+    history = [{"forecast_p": r["forecast_p"], "actual": r["actual"]}
+               for r in results]
+
+    try:
+        cal = _platt_fit(history, min_observations=30)
+    except ValueError as exc:
+        lines.append(f"_Skipped: {exc}_")
+        return lines
+
+    improvement = cal.improvement_pct()
+    delta = cal.train_brier_raw - cal.train_brier_calibrated
+    verdict = (
+        "🟢 **Ship the wire-up** — Platt materially improves calibration."
+        if improvement >= 0.05 else
+        "🟡 Marginal — Platt helps but < 5% Brier drop. Wait for more data."
+        if improvement > 0 else
+        "🔴 **Do NOT ship** — Platt makes it worse. Forecasts already "
+        "well-calibrated or fit overfit on this sample."
+    )
+    lines.extend([
+        f"- Raw Brier         : {cal.train_brier_raw:.4f}",
+        f"- Calibrated Brier  : {cal.train_brier_calibrated:.4f}",
+        f"- Δ Brier           : {delta:+.4f}  ({improvement * 100:+.1f}%)",
+        f"- Fit params        : A={cal.A:+.3f}, B={cal.B:+.3f}, "
+        f"n_train={cal.n_train}",
+        "",
+        f"**Verdict:** {verdict}",
+        "",
+    ])
+    return lines
 
 
 def load_decisions() -> list[dict]:
@@ -365,6 +430,12 @@ def main(lookahead_days: int = 1) -> int:
     # will save Alex from -$1015 paper losses, so put it up top.
     diag = compute_reliability_diagram(results)
     body.extend(render_reliability_section(diag))
+
+    # 2026-07-02 upgrade #7a (wire-up): Platt what-if. Reports the
+    # empirical Brier delta if we had applied post-hoc calibration
+    # to the same forecasts. Does NOT change any live decision — it's
+    # the go/no-go signal for whether to wire Platt into estimate_p_yes.
+    body.extend(render_platt_whatif_section(results))
 
     body.append("## Confidence-band calibration\n")
     body.append("Does 'BUY 60% confidence' actually win ~60% of the time? (Hit rate in each band)\n")
