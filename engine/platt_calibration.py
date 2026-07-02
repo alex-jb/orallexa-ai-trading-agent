@@ -55,9 +55,12 @@ compression pathology this module directly addresses.
 """
 from __future__ import annotations
 
+import json
 import math
-from dataclasses import dataclass
-from typing import Iterable
+from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Iterable, Optional
 
 import scipy.optimize as _opt
 
@@ -250,3 +253,99 @@ def identity() -> PlattCalibrator:
         train_brier_raw=0.0,
         train_brier_calibrated=0.0,
     )
+
+
+# ═══════════════════════════════════════════════════════════════
+# Cache + refit-if-stale helper
+# ═══════════════════════════════════════════════════════════════
+
+def save(calibrator: PlattCalibrator, cache_path: Path) -> None:
+    """Persist (A, B, n_train, brier fields) + refit timestamp to disk."""
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = asdict(calibrator)
+    payload["refitted_at"] = datetime.now(timezone.utc).isoformat()
+    with cache_path.open("w") as f:
+        json.dump(payload, f, indent=2)
+
+
+def load(cache_path: Path) -> Optional[PlattCalibrator]:
+    """Load a cached PlattCalibrator from disk. Returns None if missing
+    or corrupt — caller should treat as cold-start."""
+    if not cache_path.exists():
+        return None
+    try:
+        with cache_path.open() as f:
+            payload = json.load(f)
+        return PlattCalibrator(
+            A=float(payload["A"]),
+            B=float(payload["B"]),
+            n_train=int(payload.get("n_train", 0)),
+            train_brier_raw=float(payload.get("train_brier_raw", 0.0)),
+            train_brier_calibrated=float(payload.get("train_brier_calibrated", 0.0)),
+        )
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return None
+
+
+def _cached_refit_timestamp(cache_path: Path) -> Optional[datetime]:
+    """Read the refitted_at timestamp from the cache file, or None."""
+    if not cache_path.exists():
+        return None
+    try:
+        with cache_path.open() as f:
+            payload = json.load(f)
+        ts = payload.get("refitted_at")
+        if not ts:
+            return None
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+
+
+def load_or_refit(
+    cache_path: Path,
+    history_provider,
+    *,
+    refit_interval_days: int = 7,
+    min_observations: int = 30,
+) -> PlattCalibrator:
+    """Return a fitted PlattCalibrator, refitting from history if the
+    cached version is missing OR older than `refit_interval_days`.
+
+    Parameters
+    ----------
+    cache_path : path to the persisted (A, B, ...) JSON blob
+    history_provider : callable() → iterable of {"forecast_p", "actual"}
+                       dicts. Called only when a refit is needed, so
+                       cost is amortized across `refit_interval_days`.
+    refit_interval_days : how stale is stale.
+    min_observations : passed through to fit(). Below this, falls back
+                       to identity() rather than raising — production
+                       callers shouldn't crash on cold-start.
+
+    Returns
+    -------
+    Always a usable PlattCalibrator. identity() on cold-start or if
+    fit fails; otherwise fitted from history.
+    """
+    cached_ts = _cached_refit_timestamp(cache_path)
+    is_stale = (
+        cached_ts is None
+        or (datetime.now(timezone.utc) - cached_ts) > timedelta(days=refit_interval_days)
+    )
+    if not is_stale:
+        cached = load(cache_path)
+        if cached is not None:
+            return cached
+
+    # Refit path. If it fails (not enough data, single-class outcomes,
+    # crashed reader), fall back to whatever's cached — or identity if
+    # nothing is.
+    try:
+        history = list(history_provider())
+        fitted = fit(history, min_observations=min_observations)
+        save(fitted, cache_path)
+        return fitted
+    except (ValueError, TypeError) as _:
+        cached = load(cache_path)
+        return cached if cached is not None else identity()

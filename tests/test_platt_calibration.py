@@ -218,3 +218,106 @@ def test_brier_helper():
 def test_brier_empty_returns_zero():
     """Empty input → 0.0 (no crash)."""
     assert _brier([], []) == 0.0
+
+
+# ═══════════════════════════════════════════════════════════════
+# save / load / load_or_refit
+# ═══════════════════════════════════════════════════════════════
+
+def test_save_and_load_roundtrip(tmp_path):
+    """Persist a fitted calibrator, read it back, params match."""
+    from engine.platt_calibration import save, load
+
+    history = _compressed_history(n_per_bucket=60, seed=11)
+    original = fit(history)
+    cache_path = tmp_path / "platt.json"
+    save(original, cache_path)
+    reloaded = load(cache_path)
+
+    assert reloaded is not None
+    assert reloaded.A == pytest.approx(original.A)
+    assert reloaded.B == pytest.approx(original.B)
+    assert reloaded.n_train == original.n_train
+
+
+def test_load_missing_returns_none(tmp_path):
+    """Missing cache file → None (caller treats as cold-start)."""
+    from engine.platt_calibration import load
+    assert load(tmp_path / "missing.json") is None
+
+
+def test_load_corrupt_returns_none(tmp_path):
+    """Malformed cache file → None (don't crash on garbage)."""
+    from engine.platt_calibration import load
+    cache_path = tmp_path / "corrupt.json"
+    cache_path.write_text("{not valid json")
+    assert load(cache_path) is None
+
+
+def test_load_or_refit_cold_start_returns_fitted(tmp_path):
+    """No cache → refit from history → return fitted calibrator."""
+    from engine.platt_calibration import load_or_refit
+
+    history = _compressed_history(n_per_bucket=60, seed=12)
+    cache_path = tmp_path / "platt.json"
+
+    result = load_or_refit(cache_path, lambda: history)
+    assert result.n_train > 0  # NOT identity
+    assert cache_path.exists()  # was persisted
+
+
+def test_load_or_refit_uses_cache_when_fresh(tmp_path):
+    """Fresh cache → don't refit → history_provider never called."""
+    from engine.platt_calibration import load_or_refit, save
+
+    history = _compressed_history(n_per_bucket=60, seed=13)
+    fitted = fit(history)
+    cache_path = tmp_path / "platt.json"
+    save(fitted, cache_path)
+
+    call_count = {"n": 0}
+
+    def _provider():
+        call_count["n"] += 1
+        return []
+
+    result = load_or_refit(cache_path, _provider)
+    assert call_count["n"] == 0  # provider not called
+    assert result.A == pytest.approx(fitted.A)
+
+
+def test_load_or_refit_cold_start_falls_back_to_identity(tmp_path):
+    """Cold start + insufficient history → identity() rather than crash."""
+    from engine.platt_calibration import load_or_refit
+
+    cache_path = tmp_path / "platt.json"
+    # 10 observations << min_observations=30
+    tiny = [{"forecast_p": 0.5, "actual": i % 2} for i in range(10)]
+    result = load_or_refit(cache_path, lambda: tiny)
+    assert result.n_train == 0  # identity()
+
+
+def test_load_or_refit_stale_cache_refits(tmp_path):
+    """Cache older than refit_interval_days → refit + overwrite."""
+    from engine.platt_calibration import load_or_refit, save
+    import json
+
+    history_v1 = _compressed_history(n_per_bucket=60, seed=14)
+    fitted_v1 = fit(history_v1)
+    cache_path = tmp_path / "platt.json"
+    save(fitted_v1, cache_path)
+    # Force stale by rewriting refitted_at to 30 days ago
+    payload = json.loads(cache_path.read_text())
+    payload["refitted_at"] = "2026-01-01T00:00:00+00:00"
+    cache_path.write_text(json.dumps(payload))
+
+    call_count = {"n": 0}
+    history_v2 = _compressed_history(n_per_bucket=80, seed=15)  # different size
+
+    def _provider():
+        call_count["n"] += 1
+        return history_v2
+
+    result = load_or_refit(cache_path, _provider, refit_interval_days=7)
+    assert call_count["n"] == 1  # refit fired
+    assert result.n_train == len(history_v2)
