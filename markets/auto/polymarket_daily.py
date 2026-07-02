@@ -39,6 +39,80 @@ RULES_PATH = HOME / ".orallexa" / "markets" / "rules.json"
 CLAUDE_MODEL = "claude-haiku-4-5"
 MISPRICING_THRESHOLD = 0.05  # |our_p - market_p| > 5% → flag
 
+# 72h news-lag skip window (2026-07-02 upgrade #3, per Prophet Arena
+# 2026 finding, arxiv 2510.17638):
+#   "markets incorporate breaking information and news updates more
+#    rapidly than LLMs, quickly surpassing LLMs in short-term accuracy"
+# Within 72h of resolution, LLM p_yes is systematically outperformed by
+# market_p because LLMs can't ingest breaking news fast enough. We skip
+# our estimate + fall back to market_p only — this removes a known
+# structural loss window rather than pretending our estimate is useful.
+NEWS_LAG_SKIP_HOURS = 72
+
+# Political-market extremization (2026-07-02 upgrade #2, per
+# "Decomposing Crowd Wisdom" arxiv 2602.19520, 292M trades / 327K
+# contracts). Direct finding:
+#   "The dominant pattern is persistent underconfidence in political
+#    markets, where prices are chronically compressed toward 50%"
+# When market_p sits in the compression zone and our estimate agrees
+# directionally with market_p (both above or both below 0.5), we
+# extremize our p_yes 30% away from market — correcting the structural
+# compression bias without inventing signal we don't have.
+POLITICAL_COMPRESSION_ZONE = (0.30, 0.70)
+POLITICAL_EXTREMIZATION_FACTOR = 0.30
+
+# Keywords that identify a market as political-adjacent. Conservative:
+# false-positive (extremizing a non-political market) costs at most a
+# 30% amplification of an already-correct directional edge; false-
+# negative (missing extremization on a political market) is the baseline
+# behavior. Bias toward FALSE for safety.
+_POLITICAL_KEYWORDS = (
+    "trump", "biden", "harris", "vance", "walz", "newsom",
+    "election", "primary", "nominat", "impeach", "vote",
+    "president", "senate", "congress", "supreme court", "scotus",
+    "fed rate", "federal reserve", "powell", "fomc", "ecb", "boe",
+    "china", "taiwan", "iran", "russia", "ukraine", "nato",
+    "invade", "invasion", "war between", "cease-fire", "ceasefire",
+    "recession", "gdp", "inflation", "cpi", "unemployment",
+    "government shutdown", "debt ceiling",
+)
+
+
+def _is_political_market(event_title: str, question: str, event_slug: str = "") -> bool:
+    """Detect political / political-adjacent markets. Conservative: a
+    false positive costs a 30% amplification of an already-correct
+    directional edge; a false negative leaves you at baseline behavior.
+    Reasonable to err toward FALSE.
+    """
+    haystack = f"{event_title} {question} {event_slug}".lower()
+    return any(kw in haystack for kw in _POLITICAL_KEYWORDS)
+
+
+def _extremize_political_p(our_p: float, market_p: float | None) -> float:
+    """Push our_p 30% further from market_p, but only when:
+      1. market_p is in the compression zone [0.30, 0.70]
+      2. our_p and market_p agree directionally (both < 0.5 or both > 0.5)
+
+    Never crosses 0.5 (would flip the directional bet, which extremization
+    is not supposed to do). Clamped to [0.01, 0.99] so we never emit
+    literal certainty.
+    """
+    if market_p is None:
+        return our_p
+    if not (POLITICAL_COMPRESSION_ZONE[0] <= market_p <= POLITICAL_COMPRESSION_ZONE[1]):
+        return our_p
+    # Directional agreement check
+    if (our_p >= 0.5) != (market_p >= 0.5):
+        return our_p
+    delta = our_p - market_p
+    extremized = market_p + (1 + POLITICAL_EXTREMIZATION_FACTOR) * delta
+    # Clamp; never cross 0.5 (would flip the directional bet)
+    if market_p >= 0.5:
+        extremized = max(0.5, min(0.99, extremized))
+    else:
+        extremized = min(0.5, max(0.01, extremized))
+    return round(extremized, 4)
+
 # Load ANTHROPIC_API_KEY: prefer env, fall back to grepping ~/.zshrc
 # (daily-brief.sh established this pattern — launchd doesn't source zshrc).
 def _load_anthropic_key() -> str:
@@ -156,8 +230,41 @@ def _tournament_winner_p_yes(slug: str, question: str) -> dict | None:
     }
 
 
+def _hours_until_resolution(end_date: str | None) -> float | None:
+    """Return hours from now (UTC) until the market resolves, or None if
+    the end_date field is missing or malformed.
+
+    Polymarket serializes `endDate` as ISO 8601 with a trailing Z. We
+    parse forgivingly — junk data means None + caller assumes "not
+    near resolution" (safer than raising).
+    """
+    if not end_date:
+        return None
+    try:
+        cleaned = end_date.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(cleaned)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta_seconds = (dt - datetime.now(timezone.utc)).total_seconds()
+        return delta_seconds / 3600.0
+    except (ValueError, TypeError):
+        return None
+
+
+def _is_within_news_lag_window(end_date: str | None) -> bool:
+    """True if we're within NEWS_LAG_SKIP_HOURS of the market's resolution.
+
+    Returns False on malformed dates — we'd rather Haiku-estimate a
+    long-horizon market than skip a valid one over a parse quirk.
+    """
+    hrs = _hours_until_resolution(end_date)
+    if hrs is None:
+        return False
+    return 0 < hrs < NEWS_LAG_SKIP_HOURS
+
+
 def estimate_p_yes(event_title: str, question: str, current_market_p: float | None,
-                   event_slug: str = "") -> dict:
+                   event_slug: str = "", end_date: str | None = None) -> dict:
     """Return {'p_yes', 'conviction', 'rationale'} or None values if unavailable.
 
     Calls Claude Haiku once per event. Cost ~$0.0003 per call (200 input + 150
@@ -169,6 +276,18 @@ def estimate_p_yes(event_title: str, question: str, current_market_p: float | No
     tournament-win markets is engine/sports_pricer.py + parlay_correlation
     v0.2 work.
     """
+    # 2026-07-02 upgrade #3: 72h news-lag skip. Within NEWS_LAG_SKIP_HOURS
+    # of resolution, LLM p_yes is systematically outperformed by market_p
+    # (Prophet Arena 2026, arxiv 2510.17638). Check this BEFORE the sports
+    # branch and BEFORE the Anthropic call — the shortest-path skip.
+    if _is_within_news_lag_window(end_date):
+        hrs = _hours_until_resolution(end_date)
+        return {
+            "p_yes": None,
+            "conviction": "skip",
+            "rationale": f"news_lag_skip_within_{NEWS_LAG_SKIP_HOURS}h_of_resolution ({hrs:.1f}h left)",
+        }
+
     if _is_sports_market(event_slug, f"{event_title} {question}"):
         # 2026-06-30 wire-in: try tournament-winner Elo MC first; if the
         # team is extractable + in NATIONAL_TEAM_ELO, return a real prob.
@@ -195,6 +314,13 @@ def estimate_p_yes(event_title: str, question: str, current_market_p: float | No
 
     market_str = (f"Current market consensus: {current_market_p:.3f} "
                   f"(~{current_market_p*100:.0f}% yes)") if current_market_p else "(market price unavailable)"
+    # 2026-07-02 upgrade #4: edge_thesis is now a required field. Kris
+    # Longmore (Robot Wealth 2026) — "nice-looking backtests are cheap
+    # now. AI has no theory of edge and doesn't know which edges have
+    # real economic drivers behind them." A flag without an economic
+    # driver is a false-positive factory. If the model refuses to
+    # articulate ONE, we treat that as signal absence, not signal
+    # presence.
     prompt = f"""Estimate the probability of this Polymarket event resolving YES.
 
 Event: {event_title}
@@ -205,7 +331,19 @@ Be an analyst, not a market follower. Don't anchor on the market price unless
 you have no other signal. Cite 1-2 concrete factors driving your estimate.
 Calibrated reasoning beats confident-sounding wrong calls.
 
-Output strictly JSON: {{"p_yes": 0.XX, "conviction": "high"|"medium"|"low", "rationale": "..."}}
+CRITICAL: You must include an `edge_thesis` field — one sentence
+explaining WHO on the other side of your view is systematically
+mispricing this event and WHY. If you cannot articulate a specific
+economic driver of edge, set edge_thesis to null and lower conviction
+to "low". A view without an edge_thesis is a random walk.
+
+Output strictly JSON:
+{{
+  "p_yes": 0.XX,
+  "conviction": "high" | "medium" | "low",
+  "rationale": "one-line summary of your reasoning",
+  "edge_thesis": "specific economic driver of edge, or null"
+}}
 """
     try:
         client = Anthropic(api_key=api_key)
@@ -227,10 +365,23 @@ Output strictly JSON: {{"p_yes": 0.XX, "conviction": "high"|"medium"|"low", "rat
         if p_yes is not None and (p_yes < 0 or p_yes > 1):
             return {"p_yes": None, "conviction": "err",
                     "rationale": f"out_of_range:{p_yes}"}
+        # edge_thesis extraction — treated as informational but persisted
+        # so brier_audit can bucket signals by "has thesis" vs "no thesis"
+        # and see empirically whether thesis-backed signals outperform.
+        raw_thesis = data.get("edge_thesis")
+        if raw_thesis is None or (isinstance(raw_thesis, str) and not raw_thesis.strip()):
+            edge_thesis = None
+            # A missing thesis is legitimate signal absence — downgrade
+            # conviction so downstream mispricing_flag threshold catches it.
+            conviction = "low"
+        else:
+            edge_thesis = str(raw_thesis)[:300]
+            conviction = str(data.get("conviction", "low"))[:20]
         return {
             "p_yes": p_yes,
-            "conviction": str(data.get("conviction", "low"))[:20],
+            "conviction": conviction,
             "rationale": str(data.get("rationale", ""))[:200],
+            "edge_thesis": edge_thesis,
         }
     except Exception as exc:
         return {"p_yes": None, "conviction": "err", "rationale": f"api:{exc!r}"[:120]}
@@ -389,11 +540,22 @@ def main() -> int:
             question=m.get("question") or "",
             current_market_p=yes,
             event_slug=slug or m.get("slug") or "",
+            end_date=m.get("endDate"),
         )
+        # 2026-07-02 upgrade #2: political-market extremization. Applied
+        # to the RAW Haiku estimate before mispricing delta calc.
+        # Recorded separately so brier_audit can compare pre- vs post-
+        # extremization Brier and validate the correction is helping.
+        raw_our_p = est["p_yes"]
+        extremized_p = raw_our_p
+        if raw_our_p is not None and _is_political_market(
+            m.get("_event_title") or "", m.get("question") or "", slug or ""
+        ):
+            extremized_p = _extremize_political_p(raw_our_p, yes)
         mispricing_delta = None
         mispricing_flag = None
-        if est["p_yes"] is not None and yes is not None:
-            mispricing_delta = round(est["p_yes"] - yes, 3)
+        if extremized_p is not None and yes is not None:
+            mispricing_delta = round(extremized_p - yes, 3)
             mispricing_flag = "YES" if abs(mispricing_delta) > MISPRICING_THRESHOLD else "NO"
 
         line = {
@@ -408,9 +570,19 @@ def main() -> int:
             "end_date": m.get("endDate"),
             "checked_at": datetime.now(timezone.utc).isoformat(),
             # Phase A #1 — our own estimate for Brier scoring + mispricing detection
-            "our_p_yes": est["p_yes"],
+            # our_p_yes is the EXTREMIZED value we act on downstream.
+            # our_p_yes_raw is the pre-extremization Haiku output — kept
+            # so brier_audit can bucket by pre/post and validate that
+            # extremization actually helps calibration (upgrade #8).
+            "our_p_yes": extremized_p,
+            "our_p_yes_raw": raw_our_p,
             "our_conviction": est["conviction"],
             "our_rationale": est["rationale"],
+            # 2026-07-02 upgrade #4: economic-driver field. May be None
+            # for skip paths (sports/news-lag) or when the model refuses
+            # to articulate one. brier_audit can bucket by has-thesis.
+            "our_edge_thesis": est.get("edge_thesis"),
+            "extremized": extremized_p != raw_our_p,
             "mispricing_delta": mispricing_delta,
             "mispricing_flag": mispricing_flag,
         }

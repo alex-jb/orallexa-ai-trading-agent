@@ -190,9 +190,14 @@ def test_estimate_falls_through_to_anthropic_for_non_sports(monkeypatch):
 
     class FakeResponse:
         def __init__(self):
+            # 2026-07-02 upgrade #4: edge_thesis is now required — a
+            # response without it downgrades conviction to "low".
+            # Include a valid edge_thesis so this test continues to
+            # exercise the "medium conviction survives" path.
             self.content = [
                 FakeContent('{"p_yes": 0.42, "conviction": "medium", '
-                            '"rationale": "test"}')
+                            '"rationale": "test", '
+                            '"edge_thesis": "geopolitical status quo persistence"}')
             ]
 
     class FakeClient:
