@@ -43,6 +43,16 @@ DEFAULT_RULES = {
     "max_same_direction_streak":  5,
     "base_position_pct":          5.0,
     "max_position_pct":           15.0,
+    # Insider-signal gate (Tier-2 #13, wired 2026-07-02).
+    # BUY when insiders are dumping is a red flag — reject at ≤ -0.10
+    # p(up) delta (i.e. insiders are meaningfully bearish). Warn +
+    # downweight at ≤ -0.05. Below-threshold events don't move the
+    # needle. All thresholds are on the |delta| range [0, 0.15] from
+    # engine.insider_signal.ABS_DELTA_CAP.
+    "insider_block_delta":       -0.10,
+    "insider_warn_delta":        -0.05,
+    "insider_boost_delta":        0.05,
+    "insider_downweight_factor":  0.60,
 }
 
 
@@ -84,6 +94,7 @@ def approve_decision(
     portfolio_value: float = 10_000.0,
     recent_decisions: Optional[list[dict]] = None,
     rules: Optional[dict] = None,
+    insider_events: Optional[list[dict]] = None,
 ) -> dict:
     """
     Apply portfolio-level gates on a single ticker decision.
@@ -131,6 +142,65 @@ def approve_decision(
             checks={"confidence": False},
         ).to_dict()
     checks["confidence"] = True
+
+    # 1.5. Insider-signal gate (Tier-2 #13). Only relevant to BUY.
+    # SELL against insider-buying is *not* auto-blocked — Alex might
+    # be shorting on stronger evidence than insider self-reporting.
+    # For SELL we only surface a warning.
+    insider_delta = 0.0
+    insider_events_n = 0
+    insider_cluster = False
+    if insider_events:
+        try:
+            from engine.insider_signal import compute_insider_signal
+            sig = compute_insider_signal(ticker, insider_events)
+            insider_delta = float(sig.p_up_delta)
+            insider_events_n = int(sig.events_considered)
+            insider_cluster = bool(sig.cluster_bonus_applied)
+        except Exception:
+            # Insider signal shipped 2026-06-19 (c34de90) but could still
+            # legitimately fail on malformed events. Fail closed = ignore
+            # the signal + continue (don't block a decision because the
+            # audit layer crashed).
+            insider_delta = 0.0
+    checks["insider_p_up_delta"] = round(insider_delta, 4)
+    checks["insider_events_considered"] = insider_events_n
+    checks["insider_cluster_bonus"] = insider_cluster
+
+    if direction == "BUY" and insider_delta <= r["insider_block_delta"]:
+        return ApprovalResult(
+            approved=False,
+            scaled_position_pct=0.0,
+            reason=(
+                f"Insider signal Δp(up) {insider_delta:+.3f} for {ticker} "
+                f"≤ block threshold {r['insider_block_delta']:+.3f} "
+                f"({insider_events_n} qualifying events"
+                f"{', C-suite cluster' if insider_cluster else ''})"
+            ),
+            warnings=warnings,
+            original_confidence=confidence,
+            adjusted_confidence=confidence,
+            checks=checks,
+        ).to_dict()
+
+    if direction == "BUY" and insider_delta <= r["insider_warn_delta"]:
+        warnings.append(
+            f"Insider Δp(up) {insider_delta:+.3f} bearish "
+            f"({insider_events_n} events) — downweighting sizing"
+        )
+    elif direction == "BUY" and insider_delta >= r["insider_boost_delta"]:
+        warnings.append(
+            f"Insider Δp(up) {insider_delta:+.3f} bullish "
+            f"({insider_events_n} events) — boosting signal_strength"
+        )
+        # Boost signal_strength (capped by the sizing formula's own
+        # ceilings so this can't blow through max_position_pct).
+        signal_strength = min(100, signal_strength + int(insider_delta * 200))
+    elif direction == "SELL" and insider_delta >= r["insider_boost_delta"]:
+        warnings.append(
+            f"Insiders BUYING while we SELL {ticker} "
+            f"(Δp(up) {insider_delta:+.3f}) — contra-signal, review manually"
+        )
 
     # HOLD / WAIT decisions bypass sizing logic
     if direction == "HOLD":
@@ -194,6 +264,13 @@ def approve_decision(
     # If warnings, trim by 25%
     if warnings:
         scaled_pct *= 0.75
+    # Extra insider-bearish downweight on BUY: overrides the generic
+    # 25% warning trim with the tighter r["insider_downweight_factor"]
+    # (default 0.60 = 40% reduction). Multiplicative, so it compounds
+    # if there are other warnings too — the more red flags, the smaller
+    # the ticket.
+    if direction == "BUY" and insider_delta <= r["insider_warn_delta"]:
+        scaled_pct *= r["insider_downweight_factor"]
 
     scaled_pct = round(max(0.0, scaled_pct), 2)
 
