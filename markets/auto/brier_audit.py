@@ -35,6 +35,152 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# 2026-07-02 upgrade #8: reliability diagram per bin.
+#
+# Prophet Arena finding (arxiv 2510.17638): "strong models perform much
+# better in the extreme bins (0-0.1 and 0.9-1.0), where it almost
+# always predicts correctly. Weaker models compress toward middle-of-
+# book." Direct symptom of Orallexa's Haiku middle-bin collapse.
+#
+# A single Brier score MASKS this pathology. The reliability diagram
+# splits [0, 1] into 10 bins, reports per-bin hit rate, and separates
+# middle-bin (0.3-0.7) ECE from tail-bin (0-0.1 + 0.9-1.0) ECE. The
+# middle-bin ECE is the -$1015 paper-loss driver — this makes it
+# inescapable.
+RELIABILITY_BINS = [
+    (0.0, 0.1), (0.1, 0.2), (0.2, 0.3), (0.3, 0.4), (0.4, 0.5),
+    (0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0),
+]
+# Prophet Arena's "extreme bins" definition — these are where strong
+# models earn their keep and weak models collapse into middle-bucket
+# noise.
+TAIL_BINS = [(0.0, 0.1), (0.9, 1.0)]
+MIDDLE_BINS = [(0.3, 0.4), (0.4, 0.5), (0.5, 0.6), (0.6, 0.7)]
+
+
+def compute_reliability_diagram(results: list[dict]) -> dict:
+    """Return per-bin hit rate + expected calibration error (ECE).
+
+    Each result dict must have `forecast_p` (float in [0,1]) and
+    `actual` (0 or 1). We accept the caller's forecast_p directly —
+    no direction-normalization — so a symmetric distribution across
+    [0,1] shows up as "some bins pull, others push" which is what we
+    want to see.
+
+    ECE = sum over bins of (n_in_bin / total_n) * |hit_rate - avg_p|.
+    Lower is better. 0.03 or less is "well-calibrated" per the
+    forecasting literature; > 0.10 is "meaningfully miscalibrated";
+    > 0.20 is "system is telling you it doesn't know what it's doing."
+
+    Returns:
+      {
+        "per_bin": [{low, high, n, hit_rate, avg_p, gap}, ...],
+        "overall_ece": float,
+        "middle_bin_ece": float,   # [0.3, 0.7] ECE — Prophet Arena's key
+        "tail_bin_ece": float,     # [0, 0.1] + [0.9, 1.0] ECE
+        "n_total": int,
+      }
+    """
+    per_bin: list[dict] = []
+    total = len(results)
+    if total == 0:
+        return {
+            "per_bin": [],
+            "overall_ece": 0.0,
+            "middle_bin_ece": 0.0,
+            "tail_bin_ece": 0.0,
+            "n_total": 0,
+        }
+
+    for low, high in RELIABILITY_BINS:
+        # Right-open interval [low, high) except the very last bin,
+        # which is inclusive of 1.0 so p=1.0 forecasts get a home.
+        is_last = high == 1.0
+        in_bin = [r for r in results
+                  if r["forecast_p"] >= low
+                  and (r["forecast_p"] < high or (is_last and r["forecast_p"] <= 1.0))]
+        n = len(in_bin)
+        if n == 0:
+            per_bin.append({
+                "low": low, "high": high, "n": 0,
+                "hit_rate": None, "avg_p": None, "gap": None,
+            })
+            continue
+        hit_rate = sum(r["actual"] for r in in_bin) / n
+        avg_p = sum(r["forecast_p"] for r in in_bin) / n
+        gap = hit_rate - avg_p
+        per_bin.append({
+            "low": low, "high": high, "n": n,
+            "hit_rate": hit_rate, "avg_p": avg_p, "gap": gap,
+        })
+
+    def ece_for(bin_set: list[tuple[float, float]]) -> float:
+        total_contribution = 0.0
+        for b in per_bin:
+            if b["n"] == 0:
+                continue
+            in_set = any(b["low"] == lo and b["high"] == hi for lo, hi in bin_set)
+            if in_set:
+                total_contribution += (b["n"] / total) * abs(b["gap"])
+        return total_contribution
+
+    overall_ece = ece_for(RELIABILITY_BINS)
+    middle_ece = ece_for(MIDDLE_BINS)
+    tail_ece = ece_for(TAIL_BINS)
+
+    return {
+        "per_bin": per_bin,
+        "overall_ece": overall_ece,
+        "middle_bin_ece": middle_ece,
+        "tail_bin_ece": tail_ece,
+        "n_total": total,
+    }
+
+
+def render_reliability_section(diag: dict) -> list[str]:
+    """Turn a compute_reliability_diagram result into markdown lines."""
+    lines: list[str] = []
+    lines.append("## Reliability diagram (10 bins across [0, 1])")
+    lines.append("")
+    lines.append("Prophet Arena 2026 finding: strong models excel in "
+                 "**extreme bins** (0-10%, 90-100%). Weak models "
+                 "**collapse into middle bins** (30-70%), where a single "
+                 "overall Brier score masks the pathology.")
+    lines.append("")
+    lines.append(f"- **Overall ECE**: {diag['overall_ece']:.4f}")
+    lines.append(f"- **Middle-bin ECE (30-70%)**: {diag['middle_bin_ece']:.4f} "
+                 f"— {_ece_label(diag['middle_bin_ece'])}")
+    lines.append(f"- **Tail-bin ECE (0-10% + 90-100%)**: {diag['tail_bin_ece']:.4f} "
+                 f"— {_ece_label(diag['tail_bin_ece'])}")
+    lines.append("")
+    lines.append("| Bin | N | Avg forecast_p | Hit rate | Gap |")
+    lines.append("|---|---|---|---|---|")
+    for b in diag["per_bin"]:
+        label = f"{b['low']*100:.0f}-{b['high']*100:.0f}%"
+        if b["n"] == 0:
+            lines.append(f"| {label} | 0 | — | — | — |")
+            continue
+        gap = b["gap"]
+        gap_str = f"{gap:+.3f}"
+        marker = "✅" if abs(gap) < 0.05 else "🟡" if abs(gap) < 0.15 else "🔴"
+        lines.append(
+            f"| {label} | {b['n']} | {b['avg_p']:.3f} | "
+            f"{b['hit_rate']:.3f} | {gap_str} {marker} |"
+        )
+    lines.append("")
+    return lines
+
+
+def _ece_label(ece: float) -> str:
+    if ece < 0.03:
+        return "well-calibrated"
+    if ece < 0.10:
+        return "mildly miscalibrated"
+    if ece < 0.20:
+        return "🟠 meaningfully miscalibrated"
+    return "🔴 severely miscalibrated"
+
+
 HOME = Path.home()
 DECISION_LOG = HOME / "Desktop" / "orallexa-ai-trading-agent" / "memory_data" / "decision_log.json"
 AUDIT_DIR = HOME / "Desktop" / "Interview-Prep" / "Projects" / "alex-brain" / "research" / "brier-audit"
@@ -212,6 +358,13 @@ def main(lookahead_days: int = 1) -> int:
         avg = sum(scores) / len(scores)
         body.append(f"| **{t}** | {len(scores)} | {avg:.4f} |")
     body.append("")
+
+    # 2026-07-02 upgrade #8: 10-bin reliability diagram. Comes BEFORE
+    # the existing 4-band confidence-band section — the middle-bin ECE
+    # is the pathology-surfacing number Prophet Arena's finding says
+    # will save Alex from -$1015 paper losses, so put it up top.
+    diag = compute_reliability_diagram(results)
+    body.extend(render_reliability_section(diag))
 
     body.append("## Confidence-band calibration\n")
     body.append("Does 'BUY 60% confidence' actually win ~60% of the time? (Hit rate in each band)\n")
