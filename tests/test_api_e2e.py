@@ -10,6 +10,16 @@ marked with @pytest.mark.llm and skipped if key is not set.
 import os
 import json
 import pytest
+
+# Skip the entire module if FastAPI isn't installed — this test suite
+# uses fastapi.testclient which is an optional dev dep, not a runtime
+# dep. Without this guard, pytest --collect-only hits ImportError at
+# collection time and blocks the entire whole-suite run for everyone
+# who hasn't installed the dev extras.
+fastapi = pytest.importorskip(
+    "fastapi",
+    reason="fastapi not installed — install fastapi[all] to run API E2E tests",
+)
 from fastapi.testclient import TestClient
 
 

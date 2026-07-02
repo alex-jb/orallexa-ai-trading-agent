@@ -2,6 +2,89 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [2026-07-02] — Tier-1 + Tier-2 upgrades from deep-research roadmap (13 commits, +257 tests)
+
+Single-session shipping burst implementing 8 of 15 items from the
+2026-07-02 orallexa-upgrade-roadmap. All wire-ups are opt-in +
+back-compat — no cron behavior shifts until callers pass the new
+kwargs.
+
+### Tier-1 primitives (safety + calibration)
+
+* **`engine/kill_conditions.py`** — 4-gate kill decision (cumulative
+  loss $500 cap, 14d Sharpe > 0, drawdown < 15%, 30d Brier < 0.20).
+  Addresses the 2026-06-30 audit's #1 danger finding: "no kill
+  condition on paper loss." First WAIT short-circuits.
+* **`markets/auto/brier_audit.render_reliability_section`** — 10-bin
+  reliability diagram + separate middle-bin ECE vs tail-bin ECE.
+  Directly surfaces the Prophet Arena middle-band pathology
+  (arxiv 2510.17638) that a single Brier score masks.
+* **`markets/auto/polymarket_daily.py` audit block** — every fire
+  persists model_id + prompt_sha256 + call_started_utc +
+  call_completed_utc + response_tokens_hint for 6-month replay
+  audit. Sonnet 4.6 promoted to default estimator via
+  `ORALLEXA_ESTIMATOR_MODEL`.
+* **`markets/auto/portfolio_paper.py`** — ATR stops on by default
+  (was opt-in for 5 weeks after backtest showed +$5,950 vs -$873
+  baseline). `--no-atr-stops` escape hatch for regression testing.
+* **`edge_thesis` required field** in Haiku estimator prompt.
+  Conviction auto-downgrades if the model can't articulate an
+  economic driver (Longmore "no theory of edge" rule).
+
+### Tier-2 primitives (edge)
+
+* **`engine/kelly_sizing.py`** — Fractional Kelly (Half-Kelly default),
+  drawdown-adjusted variant scaling linearly to 0 at 15% DD.
+  MAX_KELLY_FRACTION_CAP = 0.25 as absolute safety. Vendored per
+  we-dont-do #7 (Thorp 1997, Ed Miller 2018, Robot Wealth 2026).
+* **`engine/platt_calibration.py`** — post-hoc sigmoid calibration
+  for the middle-band compression pathology. `load_or_refit` cache
+  helper (7-day refit interval). Bridgewater AIA Forecaster pattern
+  (arxiv 2511.07678). Cold-start returns identity().
+* **`engine/dixon_coles_fit.py`** — MLE fit for DC bivariate Poisson.
+  Vendored (~80 lines) because penaltyblog crashes on scipy>=1.13
+  via arviz→scipy.signal.gaussian. Time-decay weights per DC 1997
+  §3 (ξ=0.0018/day matches EPL calibration).
+* **`engine/cpcv.py`** — Combinatorial Purged Cross-Validation
+  (López de Prado 2018 ch. 12). Iterates C(n_groups, k_test) splits
+  with purging + embargo. `walkforward.py --cpcv` opt-in.
+* **`markets/auto/export_for_flow.py`** — Orallexa → Flow SCP CSV
+  exporter for the 7/31 Y.U. Dean+VP demo.
+* **`markets/auto/insider_join.enrich_decision_with_insider`** —
+  bridges engine.insider_signal (2026-06-19) into the SpaceX daily
+  decision pipeline.
+
+### Production wire-ups (opt-in, back-compat)
+
+* **`markets/auto/brier_audit.render_platt_whatif_section`** —
+  fits Platt on same in-memory results, reports Brier delta +
+  ship/hold verdict. Zero effect on live decisions.
+* **`markets/auto/trade_intel.setup_to_sizing_notional`** —
+  new kwargs `kelly_p_win`, `kelly_avg_win_pct`, `kelly_avg_loss_pct`,
+  `kelly_current_drawdown_pct`, `kelly_fraction`. When all three
+  required kwargs passed, `kelly_notional()` overrides fixed-bucket.
+* **`engine/portfolio_manager.approve_decision`** — 2 new gates:
+  - Kill gate (portfolio_state param) — WAIT/GATED short-circuits
+    REJECT before any other check. Fail-open on audit-layer crash.
+  - Insider gate (insider_events param) — 3-tier ladder: block ≤
+    -0.10, warn + downweight ≤ -0.05, boost ≥ +0.05.
+
+### Tests
+
++257 across all modules. Test surface breakdown:
+kelly=29 · DC=25 · Platt=26 · CPCV=23 · PM insider=12 · PM kill=9 ·
+brier reliability=14 · trade_intel wire=12 · insider_signal=15 ·
+kill_conditions=27 · export_flow=17 · insider_join=16.
+
+Full commit range: `8ec872c..7961978` on master.
+
+### Refs
+
+Prophet Arena (arxiv 2510.17638), AIA Forecaster (Bridgewater
+arxiv 2511.07678), Dixon & Coles 1997, López de Prado 2018 ch. 12,
+Kris Longmore "no theory of edge", Thorp 1997 Kelly, Ed Miller
+2018 "The Logic of Sports Betting" Ch. 12.
+
 ## [2026-04-28] — Multi-modal debate Day 8-9: demo orchestrator + cron eval workflow
 
 The pipeline can now produce demos for the 5/4 interview without API

@@ -5,6 +5,8 @@ Risk management: position sizing, stop-loss, overtrading detection.
 Stateless per call — trade state is owned by BehaviorMemory (bot/behavior.py).
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from models.decision import DecisionOutput
 

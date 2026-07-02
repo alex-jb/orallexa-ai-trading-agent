@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from core.logger import get_logger
 from skills.market_data import MarketDataSkill
 

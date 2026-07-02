@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from engine.backtest import simple_backtest
 from engine.evaluation import evaluate
 
