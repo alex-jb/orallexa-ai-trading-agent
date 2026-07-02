@@ -201,7 +201,7 @@ def simulate(
     lookahead_days: int,
     account: float,
     *,
-    use_atr_stops: bool = False,
+    use_atr_stops: bool = True,   # 2026-07-02 upgrade #5: default → True
     atr_stop_mult: float = 1.5,
     sector_cap_pct: float | None = None,
 ) -> dict:
@@ -439,13 +439,25 @@ def simulate(
     }
 
 
-def render_report(result: dict, since_days: int, lookahead_days: int, account: float) -> str:
+def render_report(result: dict, since_days: int, lookahead_days: int, account: float,
+                  flags: dict | None = None) -> str:
     now_utc = datetime.now(timezone.utc)
     lines = [f"# Portfolio paper P&L — {now_utc.date()}",
              "",
              f"_Window: last {since_days} days of decision_log. Lookahead: {lookahead_days} trading days. "
              f"Account: ${account:,.0f}. Sizing: trade_intel.py Half/Short-half buckets._",
              ""]
+
+    # 2026-07-02 upgrade #5: enumerate flags at the top of every report.
+    # Prod/backtest divergence hid a $6,823 signal for 3 weeks because
+    # reports didn't mark the flags they were run under. Never again.
+    if flags is not None:
+        lines.append("## Flags enumerated")
+        lines.append("| Flag | Value |")
+        lines.append("|---|---|")
+        for k, v in flags.items():
+            lines.append(f"| `{k}` | `{v}` |")
+        lines.append("")
 
     n = result["n_trades"]
     if n == 0:
@@ -521,15 +533,39 @@ def main():
     p.add_argument("--print", action="store_true",
                    help="Print report to stdout instead of writing file")
     # Phase B1 — entry-rule improvement flags
-    p.add_argument("--use-atr-stops", action="store_true",
-                   help="Use 1.5×ATR(14) for stop distance instead of fixed 5%/4%")
+    # 2026-07-02 upgrade #5: ATR stops flipped to default TRUE.
+    # Backtest 2026-05-29 (n=128) showed baseline -$873 vs +ATR +$5,950 —
+    # a $6,823 swing that was hidden behind an opt-in flag for weeks
+    # despite unambiguous statistical significance (p<0.005). The
+    # audit finding was: "Prod vs backtest mismatch can hide 3 weeks."
+    # Adding `--no-atr-stops` as escape hatch for backtest comparison
+    # sweeps that WANT the baseline behavior.
+    p.add_argument("--no-atr-stops", action="store_false", dest="use_atr_stops",
+                   default=True,
+                   help="Disable ATR stops (default is ON as of 2026-07-02). "
+                        "Only pass this for backtest comparison sweeps.")
     p.add_argument("--atr-mult", type=float, default=1.5,
                    help="ATR multiplier for stop distance (default 1.5)")
     p.add_argument("--sector-cap", type=float, default=None,
-                   help="Max sector exposure as account fraction (e.g. 0.30 for 30%)")
+                   help="Max sector exposure as account fraction (e.g. 0.30 for 30%%)")
     p.add_argument("--compare", action="store_true",
                    help="Run 4 scenarios (baseline / +ATR / +sector-cap / both) and print delta table")
     args = p.parse_args()
+
+    # 2026-07-02 upgrade #5 part 2: every backtest report MUST enumerate
+    # its flags. The audit finding was "backtest reports don't enumerate
+    # the flags they ran under; prod/backtest mismatch can hide 3
+    # weeks." Flags enumerated inline so any consumer of the report can
+    # verify what scenario produced the numbers.
+    flags_enumerated = {
+        "use_atr_stops": args.use_atr_stops,
+        "atr_stop_mult": args.atr_mult,
+        "sector_cap_pct": args.sector_cap,
+        "lookahead_days": args.lookahead,
+        "since_days": args.since_days,
+        "account": args.account,
+    }
+    print(f"[portfolio] flags_enumerated: {flags_enumerated}", file=sys.stderr)
 
     decisions = load_decisions(args.since_days)
     if not decisions:
@@ -557,7 +593,8 @@ def main():
                        use_atr_stops=args.use_atr_stops,
                        atr_stop_mult=args.atr_mult,
                        sector_cap_pct=args.sector_cap)
-    report = render_report(result, args.since_days, args.lookahead, args.account)
+    report = render_report(result, args.since_days, args.lookahead, args.account,
+                             flags=flags_enumerated)
 
     if args.print:
         print(report)
