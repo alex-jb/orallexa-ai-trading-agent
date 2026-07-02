@@ -230,6 +230,100 @@ def test_estimate_p_yes_empty_string_edge_thesis_treated_as_null(monkeypatch):
 
 
 # ═════════════════════════════════════════════════════════════════
+# #9 — auditable-history port (Claude Science shape)
+# ═════════════════════════════════════════════════════════════════
+
+def test_estimate_p_yes_returns_audit_block(monkeypatch):
+    """Every successful Haiku call must attach an audit dict — that's
+    the whole point. Skip paths (sports / news-lag) don't have one
+    because there was no LLM call to audit."""
+    monkeypatch.setattr(
+        "markets.auto.polymarket_daily._load_anthropic_key",
+        lambda: "test-key",
+    )
+    _install_fake_anthropic(monkeypatch, response_json={
+        "p_yes": 0.42, "conviction": "medium",
+        "rationale": "test", "edge_thesis": "test thesis",
+    })
+    result = estimate_p_yes(
+        event_title="test",
+        question="test?",
+        current_market_p=0.35,
+        event_slug="test-slug",
+    )
+    assert "audit" in result
+    audit = result["audit"]
+    assert audit["model_id"] == "claude-haiku-4-5"
+    # SHA-256 hex is exactly 64 chars
+    assert len(audit["prompt_sha256"]) == 64
+    assert all(c in "0123456789abcdef" for c in audit["prompt_sha256"])
+    # ISO 8601 UTC timestamps
+    assert "T" in audit["call_started_utc"]
+    assert "T" in audit["call_completed_utc"]
+
+
+def test_audit_prompt_hash_is_deterministic(monkeypatch):
+    """Same prompt inputs must produce the same SHA-256 hash across
+    calls. Determinism is the whole point of hashing — if this
+    breaks, the audit is a random walk not a trail."""
+    monkeypatch.setattr(
+        "markets.auto.polymarket_daily._load_anthropic_key",
+        lambda: "test-key",
+    )
+    _install_fake_anthropic(monkeypatch, response_json={
+        "p_yes": 0.42, "conviction": "medium",
+        "rationale": "test", "edge_thesis": "test thesis",
+    })
+    r1 = estimate_p_yes(
+        event_title="China Taiwan invasion 2027",
+        question="Will China invade Taiwan before 2027?",
+        current_market_p=0.05,
+        event_slug="will-china-invade-taiwan-before-2027",
+    )
+    r2 = estimate_p_yes(
+        event_title="China Taiwan invasion 2027",
+        question="Will China invade Taiwan before 2027?",
+        current_market_p=0.05,
+        event_slug="will-china-invade-taiwan-before-2027",
+    )
+    assert r1["audit"]["prompt_sha256"] == r2["audit"]["prompt_sha256"]
+
+
+def test_audit_prompt_hash_differs_for_different_events(monkeypatch):
+    """Different event yields different prompt — different hash."""
+    monkeypatch.setattr(
+        "markets.auto.polymarket_daily._load_anthropic_key",
+        lambda: "test-key",
+    )
+    _install_fake_anthropic(monkeypatch, response_json={
+        "p_yes": 0.42, "conviction": "medium",
+        "rationale": "test", "edge_thesis": "test thesis",
+    })
+    r1 = estimate_p_yes(
+        event_title="Event A",
+        question="A?", current_market_p=0.1,
+    )
+    r2 = estimate_p_yes(
+        event_title="Event B",
+        question="B?", current_market_p=0.1,
+    )
+    assert r1["audit"]["prompt_sha256"] != r2["audit"]["prompt_sha256"]
+
+
+def test_audit_null_on_skip_paths():
+    """Skip paths (sports / news-lag) never called Anthropic → no audit
+    dict → callers writing to JSONL should store null. The main() code
+    path uses est.get('audit') to handle this — verify that behavior."""
+    result = estimate_p_yes(
+        event_title="Will Uzbekistan win the 2026 FIFA World Cup",
+        question="Will Uzbekistan win the 2026 FIFA World Cup?",
+        current_market_p=0.012,
+        event_slug="will-uzbekistan-win-the-2026-fifa-world-cup-773",
+    )
+    assert result.get("audit") is None
+
+
+# ═════════════════════════════════════════════════════════════════
 # Test helper
 # ═════════════════════════════════════════════════════════════════
 

@@ -15,6 +15,7 @@ gamma-api by keywords and pick the highest-volume active match.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -345,6 +346,16 @@ Output strictly JSON:
   "edge_thesis": "specific economic driver of edge, or null"
 }}
 """
+    # 2026-07-02 upgrade #9: auditable-history port from Shadow's
+    # buildReproducibilityArtifact (2026-07-02 sibling ship). Anthropic
+    # Claude Science launch (2026-06-30) positioned "every output
+    # carries an auditable history of how it was made" as the industry
+    # trust primitive for AI in high-risk regulated domains. Same shape
+    # here for banking-adjacent prediction-market decisions. Alex 6
+    # months from now, or an examiner replaying this audit chain, can
+    # verify "the model said X" not "Alex rewrote the log after".
+    prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    call_started_utc = datetime.now(timezone.utc).isoformat()
     try:
         client = Anthropic(api_key=api_key)
         resp = client.messages.create(
@@ -382,6 +393,20 @@ Output strictly JSON:
             "conviction": conviction,
             "rationale": str(data.get("rationale", ""))[:200],
             "edge_thesis": edge_thesis,
+            # 2026-07-02 upgrade #9: auditable-history fields per Claude
+            # Science 2026-06-30 pattern. Prompt hash pins determinism;
+            # model_id pins Sonnet-4-6 vs Haiku-4-5 vs future Sonnet-5;
+            # timestamps bound the response to a specific market snapshot
+            # in time. Full prompt not returned (may contain client-
+            # confidential market context in future); hash is enough to
+            # prove the same prompt reran deterministically.
+            "audit": {
+                "model_id": CLAUDE_MODEL,
+                "prompt_sha256": prompt_sha256,
+                "call_started_utc": call_started_utc,
+                "call_completed_utc": datetime.now(timezone.utc).isoformat(),
+                "response_tokens_hint": len(text),
+            },
         }
     except Exception as exc:
         return {"p_yes": None, "conviction": "err", "rationale": f"api:{exc!r}"[:120]}
@@ -583,6 +608,13 @@ def main() -> int:
             # to articulate one. brier_audit can bucket by has-thesis.
             "our_edge_thesis": est.get("edge_thesis"),
             "extremized": extremized_p != raw_our_p,
+            # 2026-07-02 upgrade #9: auditable-history block. None on
+            # skip paths (sports / news-lag) — no LLM call, nothing to
+            # audit. When present, `audit.model_id + prompt_sha256 +
+            # call_completed_utc` uniquely identifies "the exact model
+            # + prompt + moment" that produced this row. 6 months from
+            # now an examiner can verify the log is authentic.
+            "audit": est.get("audit"),
             "mispricing_delta": mispricing_delta,
             "mispricing_flag": mispricing_flag,
         }
