@@ -16,7 +16,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
 [![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI%20—%20Tests%20%26%20Build&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/990%2B_测试-全部通过-22c55e?style=for-the-badge)](tests/)
+[![Tests](https://img.shields.io/badge/1300%2B_测试-全部通过-22c55e?style=for-the-badge)](tests/)
 [![Issues](https://img.shields.io/badge/未关闭议题-0-22c55e?style=for-the-badge)](https://github.com/alex-jb/orallexa-ai-trading-agent/issues)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
@@ -45,6 +45,50 @@ Orallexa 跑一条**多智能体情报管道**。4 个不同风险偏好的 AI �
 ```
 
 每个阶段自动化。每个阶段可观测。系统从自身学习。
+
+---
+
+## 2026-07-02 深度研究 shipping burst
+
+一次深度研究 session,ship 了 8 个 Tier-1/Tier-2 上升项目,257 个新测试全绿。commit 范围 `8ec872c..c8587c7`。全部 opt-in / back-compat,cron 行为不变直到调用方传新 kwargs。
+
+### Tier-1 primitives(安全 + 校准)
+
+- **`engine/kill_conditions.py`** — 4 gate kill decision(累计亏损 $500 cap、14 日 Sharpe > 0、drawdown < 15%、30 日 Brier < 0.20)。解决 2026-06-30 audit 里 #1 的 danger finding "no kill condition on paper loss"。任一 gate WAIT 短路。**已 LIVE 到 launchd,每晚 21:00 NY 自动跑,状态写到 `~/.orallexa/markets/kill_state.json`**。见 `markets/auto/README-kill-conditions-cron.md`。
+- **`markets/auto/brier_audit.render_reliability_section`** — 10-bin reliability diagram + 中间带 ECE 和尾带 ECE 分开算。直接暴露 Prophet Arena 中间带塌陷病(arxiv 2510.17638),单一 Brier 分会掩盖。
+- **`markets/auto/polymarket_daily.py` audit block** — 每次 fire 持久化 model_id + prompt_sha256 + call_started_utc + call_completed_utc + response_tokens_hint,给 6 个月 replay audit 用。Sonnet 4.6 通过 `ORALLEXA_ESTIMATOR_MODEL` 提升为默认 estimator。
+- **`markets/auto/portfolio_paper.py`** — ATR 止损默认 ON(之前 opt-in 了 5 周,backtest 显示 +$5,950 vs baseline -$873)。`--no-atr-stops` 逃生阀留给回归测试。
+- **`edge_thesis` 强制字段** 加进 Haiku estimator 提示。conviction 会自动降级如果模型说不出经济驱动因子(Longmore "no theory of edge" 规则)。
+
+### Tier-2 primitives(edge)
+
+- **`engine/kelly_sizing.py`** — 分数 Kelly(默认 Half-Kelly)、drawdown-adjusted 变体在 15% DD 线性 scale 到 0。MAX_KELLY_FRACTION_CAP = 0.25 作为绝对安全上限。Vendored(依 we-dont-do #7)。Refs: Thorp 1997、Ed Miller 2018、Robot Wealth 2026。
+- **`engine/platt_calibration.py`** — 后验 sigmoid 校准针对中间带压缩病。`load_or_refit` 缓存助手(7 日 refit 间隔)。Bridgewater AIA Forecaster pattern(arxiv 2511.07678)。冷启动返回 identity()。
+- **`engine/dixon_coles_fit.py`** — DC bivariate Poisson 的 MLE fit。Vendored(约 80 行)因为 penaltyblog 在 scipy>=1.13 上通过 arviz→scipy.signal.gaussian 崩了。Time-decay weights 依 DC 1997 §3(ξ=0.0018/日 对齐 EPL 校准)。
+- **`engine/cpcv.py`** — Combinatorial Purged 交叉验证(López de Prado 2018 ch. 12)。用 purging + embargo 迭代 C(n_groups, k_test) 分割。`walkforward.py --cpcv` opt-in。
+- **`markets/auto/export_for_flow.py`** — Orallexa → Flow SCP CSV 导出器,用于 7/31 Y.U. Dean+VP demo。
+- **`markets/auto/insider_join.enrich_decision_with_insider`** — 桥接 `engine.insider_signal`(2026-06-19)到 SpaceX 每日决策管道。
+
+### 生产 wire-ups(opt-in,back-compat)
+
+- **`markets/auto/brier_audit.render_platt_whatif_section`** — 在同一 in-memory results 上 fit Platt,报 Brier delta + ship/hold verdict。对 live 决策零影响。
+- **`markets/auto/trade_intel.setup_to_sizing_notional`** — 新 kwargs `kelly_p_win`、`kelly_avg_win_pct`、`kelly_avg_loss_pct`、`kelly_current_drawdown_pct`、`kelly_fraction`。三个必需 kwargs 全传时,`kelly_notional()` override 固定桶。
+- **`engine/portfolio_manager.approve_decision`** — 2 个新 gate:
+  - Kill gate(`portfolio_state` 参数)— WAIT/GATED 在其他 check 之前短路 REJECT。audit-layer crash 时 fail-open。
+  - Insider gate(`insider_events` 参数)— 3 tier ladder:block ≤ -0.10、warn + downweight ≤ -0.05、boost ≥ +0.05。
+
+### 测试
+
+跨所有模块 +257。测试面分解:
+kelly=29 · DC=25 · Platt=26 · CPCV=23 · PM insider=12 · PM kill=9 ·
+brier reliability=14 · trade_intel wire=12 · insider_signal=15 ·
+kill_conditions=27 · export_flow=17 · insider_join=16。
+
+完整 commit 范围: `8ec872c..c8587c7` on master。
+
+### Refs
+
+Prophet Arena(arxiv 2510.17638)、AIA Forecaster(Bridgewater arxiv 2511.07678)、Dixon & Coles 1997、López de Prado 2018 ch. 12、Kris Longmore "no theory of edge"、Thorp 1997 Kelly、Ed Miller 2018 "The Logic of Sports Betting" Ch. 12。
 
 ---
 
