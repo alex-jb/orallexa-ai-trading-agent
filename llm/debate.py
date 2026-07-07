@@ -166,6 +166,7 @@ def run_lightweight_debate(
     summary: dict,
     ticker: str,
     rag_context: str = "",
+    sizer_kwargs: dict | None = None,
 ) -> DecisionOutput:
     """
     Run a 3-call adversarial debate and return an improved DecisionOutput.
@@ -173,6 +174,16 @@ def run_lightweight_debate(
     On any failure, returns the original decision unchanged (graceful degradation).
 
     Cost: ~$0.003 per debate (2 Haiku + 1 Sonnet call).
+
+    v1.2.1 (2026-07-07): opt-in Risk Sizer voice.
+        If `sizer_kwargs` is provided (bankroll_usd + kelly_p_win + kelly_avg_win_pct +
+        kelly_avg_loss_pct + volatility_regime + optional current_drawdown_pct),
+        the FinPos-style Risk Sizer voice runs AFTER the Judge and adds a
+        `risk_sizer` sub-dict to `out.extra`. The direction from Judge is NOT
+        changed — Sizer only decides size. See engine/risk_sizer.py.
+
+        If `sizer_kwargs` is None (default), sizer is skipped, behavior is
+        identical to v1.2.0.
     """
     try:
         client = get_client()
@@ -249,6 +260,46 @@ def run_lightweight_debate(
             "judge_confidence":  int(confidence),
             "judge_risk_level":  risk_level,
         }
+
+        # v1.2.1 opt-in Risk Sizer voice. Only runs if the caller passed
+        # sizer_kwargs. The Judge's direction is IMMUTABLE — the Sizer
+        # only decides how large a position to take given the direction.
+        if sizer_kwargs is not None:
+            try:
+                from engine.risk_sizer import (
+                    RiskSizerInput,
+                    size_position,
+                )
+
+                direction_map = {"BUY": "long", "SELL": "short", "WAIT": "no_op"}
+                sizer_input = RiskSizerInput(
+                    direction=direction_map.get(decision, "no_op"),
+                    directional_confidence=scaled_conf / 100.0,
+                    bankroll_usd=float(sizer_kwargs["bankroll_usd"]),
+                    volatility_regime=sizer_kwargs.get("volatility_regime", "medium"),
+                    kelly_p_win=float(sizer_kwargs["kelly_p_win"]),
+                    kelly_avg_win_pct=float(sizer_kwargs["kelly_avg_win_pct"]),
+                    kelly_avg_loss_pct=float(sizer_kwargs["kelly_avg_loss_pct"]),
+                    current_drawdown_pct=float(sizer_kwargs.get("current_drawdown_pct", 0.0)),
+                    max_kelly_cap=float(sizer_kwargs.get("max_kelly_cap", 0.25)),
+                )
+                sizer_out = size_position(sizer_input)
+                out.extra["risk_sizer"] = {
+                    "voice":              sizer_out.voice,
+                    "verdict":            sizer_out.verdict,
+                    "position_usd":       sizer_out.position_usd,
+                    "kelly_notional":     sizer_out.kelly_notional,
+                    "volatility_scalar":  sizer_out.volatility_scalar,
+                    "rationale":          sizer_out.rationale,
+                    "direction_input":    direction_map.get(decision, "no_op"),
+                }
+                # Append Sizer rationale to the decision reasoning trail so
+                # bank counsel reading the log sees the sizing story.
+                out.reasoning.append(f"Risk Sizer: {sizer_out.rationale}")
+            except Exception as e:
+                # Sizer failure is non-fatal — debate output still valid.
+                out.extra["risk_sizer_error"] = str(e)[:200]
+
         return out
 
     except Exception:
