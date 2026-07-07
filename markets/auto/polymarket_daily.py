@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import re
 import sys
 from datetime import datetime, timezone
@@ -591,6 +592,34 @@ def main() -> int:
         # Recorded separately so brier_audit can compare pre- vs post-
         # extremization Brier and validate the correction is helping.
         raw_our_p = est["p_yes"]
+
+        # 2026-07-07 v1.1.0 — uniform-0.5 collapse hard guard.
+        # An audit of ~/.orallexa/markets/polymarket-decisions.jsonl on
+        # 2026-07-07 found 200/203 (98.5%) our_p_yes decisions collapsed
+        # to exactly 0.5 on World Cup markets — the sports-skip route
+        # from 2026-06-30 caught most sports markets but a few slipped
+        # through. Prior brain 2026-06-22 already caught this pattern
+        # once (persona diversification fix). Now defensive-in-depth:
+        # if the ensemble emits *exactly* 0.5 (or within 0.5 ± 0.002),
+        # reject the estimate entirely — treat as "no signal" rather
+        # than "50% signal" so downstream mispricing / paper-trader
+        # cannot act on the fake edge. Logs a diagnostic reason.
+        if raw_our_p is not None and abs(raw_our_p - 0.5) < 0.002:
+            _uniform_05_reject_count = (
+                globals().get("_UNIFORM_05_REJECT_COUNT", 0) + 1
+            )
+            globals()["_UNIFORM_05_REJECT_COUNT"] = _uniform_05_reject_count
+            print(
+                f"  [guard] uniform-0.5 reject: {slug or 'unknown'} "
+                f"(rejected {_uniform_05_reject_count} so far this fire)",
+                file=sys.stderr,
+            )
+            raw_our_p = None
+            est["p_yes"] = None
+            est["rationale"] = (
+                (est.get("rationale") or "") + " [rejected: uniform-0.5 collapse guard v1.1.0]"
+            ).strip()
+
         extremized_p = raw_our_p
         if raw_our_p is not None and _is_political_market(
             m.get("_event_title") or "", m.get("question") or "", slug or ""
