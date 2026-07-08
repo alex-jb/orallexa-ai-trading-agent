@@ -2,6 +2,64 @@
 
 All notable changes to the Orallexa project will be documented in this file.
 
+## [v1.2.1] 2026-07-08 — Persist-boundary guards + backfill of 205 corrupted rows (CRITICAL data-integrity fix)
+
+**What happened**: 2026-07-08 deep-research audit found that
+`polymarket-decisions.jsonl` was 205 / 208 (98.6%) garbage. Every
+corrupted row was a World Cup / Copa America / Champions League market
+with `our_p_yes = 0.5` and a fake `edge` of +32% to +49%. The paper
+trader downstream had been consuming this signal since 2026-07-04,
+exactly what the **v1.1.0 uniform-0.5 guard** and **2026-06-30
+sports_skip** were shipped to prevent.
+
+**Root cause**: v1.1.0's guards fire on the SIGNAL side (raw Haiku
+output in `polymarket_daily.py:596`). The queue-writer path had
+already been queuing sports markets to `queue/pending/` before the
+guards ran, or a different code path bypassed the guard entirely.
+`queue_consumer.py`, which is what the launchd cron
+`com.orallexa.markets-queue-consume` @21:30 NY fires nightly, had **no
+guard at the persist boundary**. It happily persisted whatever was
+in `queue/pending/*.md`.
+
+**Fix (defense-in-depth)**:
+
+* `markets/auto/queue_consumer.py:_should_persist()` re-applies both
+  guards at the LAST HOP into `polymarket-decisions.jsonl`. Sports
+  slugs move to `queue/rejected/` with reason
+  `sports_skip_at_persist_boundary`. Any `our_p_yes` within
+  `0.5 ± 0.002` gets the same treatment with reason
+  `uniform_0_5_collapse_at_persist_boundary`.
+* `queue/rejected/` is a new sibling to `queue/decided/`. Rejected
+  files move here (NOT deleted) so postmortem is possible.
+* `tests/test_queue_consumer_persist_guards.py` ships 8 regression
+  tests covering exact 0.5, ±0.002 tolerance band, actual 2026-07-07
+  failed World Cup slugs, cross-sport-token coverage (NBA / NFL /
+  Wimbledon / Olympics), politics false-positive protection, `None`
+  handling.
+* Import path uses `try / except ImportError` fallback so
+  `queue_consumer.py` still runs if `polymarket_daily.py` is
+  unavailable (unit-test sandbox), just skips the sports guard.
+
+**Backfill**: `~/.orallexa/markets/polymarket-decisions.jsonl` was
+rewritten in place, keeping only the 3 non-corrupted rows. Removed
+rows are preserved at
+`~/.orallexa/markets/polymarket-decisions-quarantined-2026-07-08.jsonl`.
+
+**Test surface**: +8 (existing test_polymarket_uniform_05_guard.py and
+test_polymarket_sports_skip.py both stay green).
+
+**Runtime deployment**: no separate deploy step. The launchd cron
+reads the repo path directly
+(`scripts/markets-queue-consume.sh` → `markets/auto/queue_consumer.py`).
+Fix goes live at the next nightly 21:30 NY fire.
+
+**Real-world impact acknowledgment**: because these garbage rows were
+in the ledger since 2026-07-04, **any Brier-audit metric computed off
+`polymarket-decisions.jsonl` on those dates was measuring noise, not
+skill**. That is the honest correction to log for the record. It does
+NOT change the paper-trade P&L (paper_trade_live.py reads from a
+different source and has its own bugs, separate ship).
+
 ## [2026-07-02] — Tier-1 + Tier-2 upgrades from deep-research roadmap (13 commits, +257 tests)
 
 Single-session shipping burst implementing 8 of 15 items from the

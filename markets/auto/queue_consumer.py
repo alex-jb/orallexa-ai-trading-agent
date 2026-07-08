@@ -49,7 +49,47 @@ HOME = Path.home()
 QUEUE_DIR = HOME / ".orallexa" / "markets" / "queue"
 PENDING_DIR = QUEUE_DIR / "pending"
 DECIDED_DIR = QUEUE_DIR / "decided"
+REJECTED_DIR = QUEUE_DIR / "rejected"
 DECISIONS_JSONL = HOME / ".orallexa" / "markets" / "polymarket-decisions.jsonl"
+
+# v1.2.1 (2026-07-08) — defense-in-depth: sports_skip + uniform-0.5 guard
+# were live in polymarket_daily.py since v1.1.0, but the 2026-07-07
+# production audit found 3 World Cup rows with our_p_yes=0.5 / edge=+0.47
+# in polymarket-decisions.jsonl anyway. Whatever upstream path emitted
+# those files bypassed the guards; queue_consumer.py had no filter, so
+# it happily persisted them. The fix is to re-apply the same guards at
+# the LAST HOP into the audit log, so a broken upstream can't corrupt
+# the calibration record.
+try:
+    # markets/auto is on sys.path when this runs as `python markets/auto/queue_consumer.py`
+    from polymarket_daily import _is_sports_market  # noqa: E402
+except ImportError:
+    # Graceful degrade — if polymarket_daily can't be imported (unit-test
+    # sandbox, module surgery), let queue_consumer still run but skip the
+    # sports guard rather than crash the persist path.
+    def _is_sports_market(slug: str, question: str) -> bool:  # type: ignore
+        return False
+
+
+def _should_persist(decision: dict) -> tuple[bool, str]:
+    """Guardrail at the persist boundary. Returns (ok, reject_reason).
+
+    Two guards, both matching polymarket_daily.py v1.1.0 semantics:
+      1. sports_skip — Haiku over-defaults to ~0.5 on sports markets
+         (2026-06-30 audit: 126/173 sports rows), so we refuse to log
+         them into the calibration record.
+      2. uniform_0_5 — any our_p_yes within 0.5 ± 0.002 is treated as
+         "no signal", not a real estimate.
+    """
+    slug = decision.get("market_id") or ""
+    if _is_sports_market(slug, ""):
+        return (False, "sports_skip_at_persist_boundary")
+
+    our_p = decision.get("our_p_yes")
+    if our_p is not None and abs(our_p - 0.5) < 0.002:
+        return (False, "uniform_0_5_collapse_at_persist_boundary")
+
+    return (True, "")
 
 
 def parse_md_header(text: str) -> dict | None:
@@ -137,6 +177,7 @@ def main() -> int:
         print(f"[queue-consumer] no pending dir: {PENDING_DIR}", file=sys.stderr)
         return 0
     DECIDED_DIR.mkdir(parents=True, exist_ok=True)
+    REJECTED_DIR.mkdir(parents=True, exist_ok=True)
     DECISIONS_JSONL.parent.mkdir(parents=True, exist_ok=True)
 
     pending = sorted(p for p in PENDING_DIR.glob("*.md") if not p.name.startswith("."))
@@ -147,6 +188,8 @@ def main() -> int:
     n_persisted = 0
     n_failed_parse = 0
     n_moved = 0
+    n_rejected = 0
+    reject_reasons: dict[str, int] = {}
     summary_by_side: dict[str, int] = {}
     summary_by_category: dict[str, int] = {}
     edges_with_position: list[float] = []
@@ -157,6 +200,21 @@ def main() -> int:
             if decision is None:
                 n_failed_parse += 1
                 continue
+
+            # v1.2.1 persist-boundary guard
+            ok, reason = _should_persist(decision)
+            if not ok:
+                n_rejected += 1
+                reject_reasons[reason] = reject_reasons.get(reason, 0) + 1
+                # Move to rejected/ instead of decided/ so the audit-log
+                # never sees these rows AND the source file is preserved
+                # for postmortem (not silently deleted).
+                try:
+                    shutil.move(str(path), str(REJECTED_DIR / path.name))
+                except Exception as exc:
+                    print(f"[queue-consumer] reject-move failed {path.name}: {exc}", file=sys.stderr)
+                continue
+
             out.write(json.dumps(decision, ensure_ascii=False) + "\n")
             n_persisted += 1
 
@@ -177,8 +235,10 @@ def main() -> int:
                 print(f"[queue-consumer] move failed {path.name}: {exc}", file=sys.stderr)
 
     # Summary log to stderr (cron-friendly; jsonl is the data artifact)
-    print(f"[queue-consumer] {n_persisted} persisted, {n_failed_parse} parse-fail, "
-          f"{n_moved} moved → decided/", file=sys.stderr)
+    print(f"[queue-consumer] {n_persisted} persisted, {n_rejected} rejected, "
+          f"{n_failed_parse} parse-fail, {n_moved} moved → decided/", file=sys.stderr)
+    if reject_reasons:
+        print(f"[queue-consumer] reject reasons: {reject_reasons}", file=sys.stderr)
     if summary_by_side:
         print(f"[queue-consumer] by side: {summary_by_side}", file=sys.stderr)
     if summary_by_category:
