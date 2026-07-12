@@ -67,6 +67,16 @@ echo "ANTHROPIC_API_KEY=your_key" > .env
 # Terminal 1: API
 python api_server.py
 
+
+## ⚠️ Educational research, not financial advice
+
+This repository is published for educational and research purposes. Nothing
+here is investment, trading, or financial advice. The models, signals, and
+outputs shown are experimental and may be wrong. Past performance does not
+predict future results. Do not use any output as the basis for a real
+trading, investment, or hedging decision without independent professional
+verification. The author accepts no liability for losses.
+
 # Terminal 2: UI
 cd orallexa-ui && npm install && npm run dev
 ```
