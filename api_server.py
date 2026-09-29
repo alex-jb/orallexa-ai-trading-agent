@@ -1370,8 +1370,8 @@ async def run_backtest(ticker: str, period: str = "2y"):
 @app.get("/api/alpaca/account", dependencies=[Depends(_require_api_key)])
 async def alpaca_account():
     """Get Alpaca paper trading account info."""
-    from bot.alpaca_executor import AlpacaExecutor
-    executor = AlpacaExecutor()
+    from bot.broker_adapter import create_broker_adapter
+    executor = create_broker_adapter("alpaca")
     if not executor.connected:
         return {"error": "Alpaca not connected. Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env"}
     return executor.get_account()
@@ -1380,15 +1380,15 @@ async def alpaca_account():
 @app.get("/api/alpaca/positions", dependencies=[Depends(_require_api_key)])
 async def alpaca_positions():
     """Get all open Alpaca positions."""
-    from bot.alpaca_executor import AlpacaExecutor
-    return AlpacaExecutor().get_positions()
+    from bot.broker_adapter import create_broker_adapter
+    return create_broker_adapter("alpaca").get_positions()
 
 
 @app.get("/api/alpaca/orders", dependencies=[Depends(_require_api_key)])
 async def alpaca_orders(limit: int = 10):
     """Get recent Alpaca orders."""
-    from bot.alpaca_executor import AlpacaExecutor
-    return AlpacaExecutor().get_recent_orders(limit)
+    from bot.broker_adapter import create_broker_adapter
+    return create_broker_adapter("alpaca").get_recent_orders(limit)
 
 
 @app.post("/api/alpaca/execute", dependencies=[Depends(_require_api_key)])
@@ -1461,8 +1461,8 @@ async def alpaca_execute(
             from core.logger import get_logger
             get_logger("api").warning("PM gate skipped (bad input): %s", e)
 
-    from bot.alpaca_executor import AlpacaExecutor
-    executor = AlpacaExecutor()
+    from bot.broker_adapter import create_broker_adapter
+    executor = create_broker_adapter("alpaca")
     result = executor.execute_signal(
         ticker=ticker.upper(),
         decision=decision.upper(),
@@ -1480,15 +1480,15 @@ async def alpaca_execute(
 @app.post("/api/alpaca/close/{ticker}", dependencies=[Depends(_require_api_key)])
 async def alpaca_close(ticker: str):
     """Close an open position."""
-    from bot.alpaca_executor import AlpacaExecutor
-    return AlpacaExecutor().close_position(ticker.upper())
+    from bot.broker_adapter import create_broker_adapter
+    return create_broker_adapter("alpaca").close_position(ticker.upper())
 
 
 @app.post("/api/alpaca/close-all", dependencies=[Depends(_require_api_key)])
 async def alpaca_close_all():
     """Close all open positions."""
-    from bot.alpaca_executor import AlpacaExecutor
-    return AlpacaExecutor().close_all()
+    from bot.broker_adapter import create_broker_adapter
+    return create_broker_adapter("alpaca").close_all()
 
 
 # ── X/Twitter Publishing ─────────────────────────────────────────────────

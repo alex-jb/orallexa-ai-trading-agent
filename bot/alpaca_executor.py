@@ -24,6 +24,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
+from bot.broker_adapter import BrokerAdapter
 from core.logger import get_logger
 
 logger = get_logger("alpaca")
@@ -32,7 +33,7 @@ logger = get_logger("alpaca")
 PAPER_BASE_URL = "https://paper-api.alpaca.markets"
 
 
-class AlpacaExecutor:
+class AlpacaExecutor(BrokerAdapter):
     """
     Execute trading signals via Alpaca paper trading API.
 
