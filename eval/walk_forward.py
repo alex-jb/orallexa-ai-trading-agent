@@ -36,6 +36,7 @@ class WindowResult:
     max_drawdown: float
     win_rate: float
     information_ratio: float
+    net_returns: List[float] = field(default_factory=list, repr=False)
 
 
 @dataclass
@@ -48,6 +49,7 @@ class WalkForwardResult:
     avg_oos_return: float = 0.0
     avg_information_ratio: float = 0.0
     passed: bool = False
+    oos_returns: List[float] = field(default_factory=list, repr=False)
 
 
 def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -224,6 +226,7 @@ def _run_single_window(
         max_drawdown=metrics["max_drawdown"],
         win_rate=metrics["win_rate"],
         information_ratio=ir,
+        net_returns=bt_result["net_strategy_return"].astype(float).tolist(),
     )
 
 
@@ -292,6 +295,7 @@ def run_walk_forward(
             strategy_name=strategy_name,
             num_windows=len(windows),
             windows=windows,
+            oos_returns=[r for w in windows for r in w.net_returns],
             passed=False,
         )
 
@@ -308,5 +312,6 @@ def run_walk_forward(
         pct_positive_sharpe=pct_positive,
         avg_oos_return=float(np.mean(returns)),
         avg_information_ratio=float(np.mean(irs)),
-        passed=pct_positive >= 0.4 and float(np.mean(sharpes)) > 0,  # Pass if >=40% windows positive AND avg Sharpe > 0
+        oos_returns=[r for w in windows for r in w.net_returns],
+        passed=pct_positive > 0.5,
     )

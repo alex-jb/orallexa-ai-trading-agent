@@ -22,7 +22,7 @@ export const revalidate = 3600;
 export const metadata = {
   title: "Walk-Forward Leaderboard — Orallexa",
   description:
-    "Out-of-sample Sharpe ratios across 9 strategies × 10 tickers. Each pair tested against 3 independent statistical gates.",
+    "Out-of-sample results are withheld until the pinned 90-pair evaluation is reproducible.",
 };
 
 type Row = {
@@ -125,10 +125,9 @@ export default async function LeaderboardPage() {
               maxWidth: 640,
             }}
           >
-            Every strategy tested against 3 independent statistical gates: walk-forward
-            (OOS Sharpe &gt; 0 in &gt;50% of windows), p-value &lt; 0.05, and Monte Carlo
-            (&gt; 75th percentile). Live data, refreshed hourly from
-            the public evaluation report.
+            Results are pending a pinned-data, cost-aware 90-pair run with
+            Bonferroni and BH corrections. Historical headline numbers were
+            not reproducible from the retained data.
           </p>
         </header>
 
@@ -148,7 +147,7 @@ export default async function LeaderboardPage() {
 
         {rows.length === 0 ? (
           <p style={{ color: "var(--text-muted, #6B6E76)", fontStyle: "italic" }}>
-            Data unavailable — try again later.
+            No verified results yet. The full evaluation protocol is in the repository.
           </p>
         ) : (
           <div
@@ -174,7 +173,7 @@ export default async function LeaderboardPage() {
                   <Th>Strategy</Th>
                   <Th>Ticker</Th>
                   <Th align="right">OOS Sharpe</Th>
-                  <Th align="right">p-value</Th>
+                  <Th align="right">Bonferroni p</Th>
                   <Th>Verdict</Th>
                 </tr>
               </thead>

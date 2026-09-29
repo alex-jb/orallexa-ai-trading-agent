@@ -8,7 +8,9 @@ tickers. Produces structured results with pass/fail gates.
 from __future__ import annotations
 
 import logging
+import hashlib
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Any
 
 import numpy as np
@@ -18,7 +20,7 @@ import yfinance as yf
 from engine.strategies import STRATEGY_REGISTRY, STRATEGY_DEFAULT_PARAMS
 from eval.walk_forward import run_walk_forward, WalkForwardResult
 from eval.monte_carlo import run_monte_carlo, MonteCarloResult
-from eval.statistical_tests import run_statistical_tests, StatisticalTestResult
+from eval.statistical_tests import adjust_pvalues, run_statistical_tests, StatisticalTestResult
 
 logger = logging.getLogger("eval.harness")
 
@@ -62,6 +64,7 @@ class HarnessResult:
     # Advanced report data
     benchmark_df: pd.DataFrame | None = None  # SPY OHLCV for comparison
     raw_data: Dict[str, pd.DataFrame] = field(default_factory=dict)  # ticker -> raw DataFrame
+    data_sha256: Dict[str, str] = field(default_factory=dict)
 
 
 class EvaluationHarness:
@@ -81,6 +84,8 @@ class EvaluationHarness:
         mc_iterations: int = 1000,
         mc_seed: int | None = None,
         data_years: int = 5,
+        data_dir: str | Path | None = None,
+        strategies: List[str] | None = None,
     ):
         self.tickers = [t.upper() for t in tickers]
         self.initial_train_days = initial_train_days
@@ -88,18 +93,32 @@ class EvaluationHarness:
         self.mc_iterations = mc_iterations
         self.mc_seed = mc_seed
         self.data_years = data_years
-        self.strategies = list(STRATEGY_REGISTRY.keys())
+        self.data_dir = Path(data_dir) if data_dir is not None else None
+        self.data_sha256: Dict[str, str] = {}
+        self.strategies = list(strategies) if strategies is not None else list(STRATEGY_REGISTRY.keys())
+        if not self.strategies or len(set(self.strategies)) != len(self.strategies):
+            raise ValueError("Specify at least one unique strategy")
+        unknown = set(self.strategies) - STRATEGY_REGISTRY.keys()
+        if unknown:
+            raise ValueError(f"Unknown strategies: {sorted(unknown)}")
         self.num_strategies = len(self.strategies)
         self.adaptive = True  # Enable walk-forward parameter optimization
 
     def _fetch_data(self, ticker: str) -> pd.DataFrame | None:
-        """Fetch historical OHLCV data from yfinance."""
+        """Load pinned CSV if provided; never silently fall back to live data."""
         try:
-            df = yf.download(
-                ticker,
-                period=f"{self.data_years}y",
-                progress=False,
-            )
+            if self.data_dir is not None:
+                path = self.data_dir / f"{ticker}.csv"
+                if not path.is_file():
+                    logger.warning("Missing snapshot for %s: %s", ticker, path)
+                    return None
+                self.data_sha256[ticker] = hashlib.sha256(path.read_bytes()).hexdigest()
+                df = pd.read_csv(path, index_col="Date", parse_dates=["Date"])
+                required = {"Open", "High", "Low", "Close", "Volume"}
+                if not required.issubset(df.columns) or df.index.has_duplicates or not df.index.is_monotonic_increasing:
+                    raise ValueError("Snapshot must contain sorted unique dates and OHLCV columns")
+            else:
+                df = yf.download(ticker, period=f"{self.data_years}y", progress=False)
             if df is None or len(df) < self.initial_train_days + self.test_days * 4:
                 logger.warning("Insufficient data for %s (%d bars)", ticker, len(df) if df is not None else 0)
                 return None
@@ -183,21 +202,14 @@ class EvaluationHarness:
             )
             evaluation.monte_carlo = mc
 
-            # 2b. Statistical tests — extract trade returns
-            signal_shifted = bt_result["signal"].shift(1).fillna(0)
-            mask = signal_shifted != 0
-            if "net_strategy_return" in bt_result.columns:
-                trade_returns = bt_result.loc[mask, "net_strategy_return"].dropna().values
-            elif "strategy_return" in bt_result.columns:
-                trade_returns = bt_result.loc[mask, "strategy_return"].dropna().values
-            else:
-                trade_returns = np.array([])
-
+            # Test OOS daily *net* returns, including flat days; full-data
+            # backtest above is descriptive and cannot supply OOS p-values.
+            oos_returns = np.asarray(evaluation.walk_forward.oos_returns) if evaluation.walk_forward else np.array([])
             st = run_statistical_tests(
-                trade_returns=trade_returns,
+                trade_returns=oos_returns,
                 strategy_name=strategy_name,
                 ticker=ticker,
-                num_strategies_tested=self.num_strategies,
+                num_strategies_tested=self.num_strategies * len(self.tickers),
                 seed=self.mc_seed,
             )
             evaluation.statistical = st
@@ -205,33 +217,51 @@ class EvaluationHarness:
         except Exception as exc:
             logger.warning("Backtest/MC/stats failed for %s/%s: %s", strategy_name, ticker, exc)
 
-        # Gate counting for tiered verdict
+        # Final significance gate is assigned across the whole family in run().
+        return evaluation
+
+    @staticmethod
+    def _assign_verdict(evaluation: StrategyEvaluation) -> None:
+        if evaluation.verdict == "NOT EVALUATED":
+            return
         wf_pass = evaluation.walk_forward.passed if evaluation.walk_forward else False
-        mc_pass = evaluation.monte_carlo.passed if evaluation.monte_carlo else False
-        st_pass = (
-            evaluation.statistical.returns_significant
+        bonf_pass = (
+            evaluation.statistical.bonferroni_significant
             if evaluation.statistical and evaluation.statistical.sufficient_data
             else False
         )
-        gates = sum([wf_pass, mc_pass, st_pass])
+        bh_pass = evaluation.statistical.bh_significant if evaluation.statistical else False
+        gates = sum([wf_pass, bonf_pass])
         evaluation.gates_passed = gates
-        evaluation.overall_pass = gates == 3
+        evaluation.overall_pass = gates == 2
 
-        # Tiered verdict based on gates passed + OOS Sharpe
-        oos_sharpe = evaluation.walk_forward.avg_oos_sharpe if evaluation.walk_forward else 0
-        if gates == 3:
-            evaluation.verdict = "STRONG PASS"
-        elif gates >= 2 and oos_sharpe > 0.3:
+        # Monte Carlo shuffle is descriptive and does not supply an
+        # independent hypothesis test or an additional pass gate.
+        if evaluation.overall_pass:
             evaluation.verdict = "PASS"
-        elif gates >= 1 and oos_sharpe > 0:
+        elif wf_pass and bh_pass:
             evaluation.verdict = "MARGINAL"
         else:
             evaluation.verdict = "FAIL"
 
-        if progress_callback:
-            progress_callback()
-
-        return evaluation
+    @staticmethod
+    def _correct_family(result: HarnessResult) -> None:
+        """Apply corrections across the predeclared ticker × strategy family."""
+        expected = len(result.tickers) * len(result.strategies)
+        if len(result.evaluations) != expected:
+            raise ValueError(f"Expected {expected} pair records, found {len(result.evaluations)}")
+        raw = [e.statistical.p_value if e.statistical and e.statistical.sufficient_data else 1.0
+               for e in result.evaluations]
+        bonferroni, bh = adjust_pvalues(raw)
+        result.total_passed = 0
+        for ev, p_bonf, p_bh in zip(result.evaluations, bonferroni, bh):
+            if ev.statistical:
+                ev.statistical.p_bonferroni = p_bonf
+                ev.statistical.p_bh = p_bh
+                ev.statistical.bonferroni_significant = p_bonf < 0.05
+                ev.statistical.bh_significant = p_bh < 0.05
+            EvaluationHarness._assign_verdict(ev)
+            result.total_passed += int(ev.overall_pass)
 
     def run(self, progress_callback=None) -> HarnessResult:
         """
@@ -248,10 +278,17 @@ class EvaluationHarness:
             strategies=self.strategies,
             num_strategies_tested=self.num_strategies,
         )
+        if self.data_dir is not None and not self.data_dir.is_dir():
+            raise ValueError(f"Snapshot directory does not exist: {self.data_dir}")
 
         # Fetch SPY benchmark for comparison charts
         try:
-            spy_df = yf.download("SPY", period=f"{self.data_years}y", progress=False)
+            if self.data_dir is None:
+                spy_df = yf.download("SPY", period=f"{self.data_years}y", progress=False)
+            elif (self.data_dir / "SPY.csv").is_file():
+                spy_df = self._fetch_data("SPY")
+            else:
+                spy_df = None
             if spy_df is not None and len(spy_df) > 0:
                 if isinstance(spy_df.columns, pd.MultiIndex):
                     spy_df.columns = spy_df.columns.get_level_values(0)
@@ -263,6 +300,10 @@ class EvaluationHarness:
             df = self._fetch_data(ticker)
             if df is None:
                 result.skipped_tickers.append(ticker)
+                for strategy_name in self.strategies:
+                    result.evaluations.append(StrategyEvaluation(strategy_name, ticker, verdict="NOT EVALUATED"))
+                    if progress_callback:
+                        progress_callback()
                 continue
             result.raw_data[ticker] = df
 
@@ -275,14 +316,16 @@ class EvaluationHarness:
                 )
                 result.evaluations.append(evaluation)
                 result.total_evaluated += 1
-                if evaluation.overall_pass:
-                    result.total_passed += 1
+                if progress_callback:
+                    progress_callback()
 
             # ML model evaluation (RF, XGB, LR on walk-forward split)
             ml = self._evaluate_ml_models(df, ticker)
             if ml:
                 result.ml_results[ticker] = ml
 
+        result.data_sha256 = self.data_sha256.copy()
+        self._correct_family(result)
         return result
 
     def _evaluate_ml_models(self, df: pd.DataFrame, ticker: str) -> dict | None:

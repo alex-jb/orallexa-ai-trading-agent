@@ -457,7 +457,7 @@ def _generate_ranking_table(result: HarnessResult) -> str:
         sharpe = wf.avg_oos_sharpe if wf else 0.0
         ir = wf.avg_information_ratio if wf else 0.0
         mc_rank = mc.sharpe_percentile_rank if mc else 0.0
-        p_val = st.p_value if st and st.sufficient_data else 1.0
+        p_val = st.p_value if st and st.sufficient_data else None
         rows.append({
             "strategy": ev.strategy_name,
             "ticker": ev.ticker,
@@ -465,22 +465,26 @@ def _generate_ranking_table(result: HarnessResult) -> str:
             "info_ratio": ir,
             "mc_percentile": mc_rank,
             "p_value": p_val,
+            "p_bonferroni": st.p_bonferroni if p_val is not None else None,
+            "p_bh": st.p_bh if p_val is not None else None,
             "verdict": ev.verdict,
             "gates_passed": ev.gates_passed,
         })
 
-    rows.sort(key=lambda r: r["oos_sharpe"], reverse=True)
+    rows.sort(key=lambda r: (r["verdict"] == "NOT EVALUATED", -r["oos_sharpe"]))
 
     lines = [
-        "| Strategy | Ticker | OOS Sharpe | Info Ratio | MC Pct | p-value | Verdict |",
-        "|----------|--------|-----------|------------|--------|---------|---------|",
+        "| Strategy | Ticker | OOS Sharpe | Raw p | Bonferroni p | BH q | Verdict |",
+        "|----------|--------|-----------|-------|--------------|------|---------|",
     ]
     for r in rows:
-        p_str = f"{r['p_value']:.4f}" if r["p_value"] < 1 else "N/A"
+        p_str = f"{r['p_value']:.4f}" if r["p_value"] is not None else "N/A"
+        bonf_str = f"{r['p_bonferroni']:.4f}" if r["p_bonferroni"] is not None else "N/A"
+        bh_str = f"{r['p_bh']:.4f}" if r["p_bh"] is not None else "N/A"
+        sharpe = f"{r['oos_sharpe']:.3f}" if r["verdict"] != "NOT EVALUATED" else "N/A"
         lines.append(
-            f"| {r['strategy']} | {r['ticker']} | {r['oos_sharpe']:.3f} | "
-            f"{r['info_ratio']:.3f} | {r['mc_percentile']:.1f}% | "
-            f"{p_str} | {r['verdict']} |"
+            f"| {r['strategy']} | {r['ticker']} | {sharpe} | "
+            f"{p_str} | {bonf_str} | {bh_str} | {r['verdict']} |"
         )
 
     return "\n".join(lines)
@@ -539,7 +543,6 @@ def generate_report(
     lines.append("## Executive Summary\n")
 
     verdicts = [e.verdict for e in result.evaluations]
-    strong = verdicts.count("STRONG PASS")
     passed = verdicts.count("PASS")
     marginal = verdicts.count("MARGINAL")
     failed = verdicts.count("FAIL")
@@ -547,21 +550,22 @@ def generate_report(
 
     # Gate-by-gate breakdown
     wf_passed = sum(1 for e in result.evaluations if e.walk_forward and e.walk_forward.passed)
-    st_passed = sum(1 for e in result.evaluations if e.statistical and e.statistical.sufficient_data and e.statistical.returns_significant)
+    st_passed = sum(1 for e in result.evaluations if e.statistical and e.statistical.bonferroni_significant)
+    bh_passed = sum(1 for e in result.evaluations if e.statistical and e.statistical.bh_significant)
     mc_passed = sum(1 for e in result.evaluations if e.monte_carlo and e.monte_carlo.passed)
 
-    lines.append(f"{total} strategy-ticker pairs evaluated across {len(tickers_with_data)} tickers "
-                 f"and {result.num_strategies_tested} rule-based strategies. "
-                 f"Each pair is tested against three independent statistical gates.\n")
+    lines.append(f"{result.total_evaluated}/{total} predeclared strategy-ticker pairs evaluated "
+                 f"across {len(tickers_with_data)} tickers and {result.num_strategies_tested} strategies. "
+                 "Missing pairs remain in the table as NOT EVALUATED and count toward corrections.\n")
     lines.append("**Results by gate:**")
     lines.append(f"- **Walk-forward (OOS Sharpe > 0 in >50% windows):** {wf_passed}/{total} passed")
-    lines.append(f"- **Statistical significance (p < 0.05):** {st_passed}/{total} passed")
-    lines.append(f"- **Monte Carlo (beat 75th percentile):** {mc_passed}/{total} passed\n")
+    lines.append(f"- **Bonferroni family-wise p < 0.05:** {st_passed}/{total} passed")
+    lines.append(f"- **Benjamini-Hochberg FDR q < 0.05:** {bh_passed}/{total} passed")
+    lines.append(f"- **Monte Carlo descriptive check:** {mc_passed}/{total} (not a significance gate)\n")
     lines.append("**Tiered verdicts:**")
-    lines.append(f"- **STRONG PASS** (all 3 gates): {strong}")
-    lines.append(f"- **PASS** (2 gates + Sharpe > 0.5): {passed}")
-    lines.append(f"- **MARGINAL** (1+ gate + Sharpe > 0): {marginal}")
-    lines.append(f"- **FAIL** (0 gates or Sharpe <= 0): {failed}\n")
+    lines.append(f"- **PASS** (walk-forward + Bonferroni): {passed}")
+    lines.append(f"- **MARGINAL** (walk-forward + BH only): {marginal}")
+    lines.append(f"- **FAIL:** {failed}; **NOT EVALUATED:** {verdicts.count('NOT EVALUATED')}\n")
     lines.append("> Rule-based strategies serve as feature generators for the 9-model ML ensemble "
                  "and Claude AI synthesis layer. The value is in the composite system, not individual strategies.\n")
     lines.append(_generate_ranking_table(result))
@@ -620,32 +624,34 @@ def generate_report(
 
     # Statistical Significance
     lines.append("\n## Statistical Significance\n")
-    lines.append("One-sided t-test on trade returns (H0: mean return = 0). "
+    lines.append("Exploratory one-sided t-test on out-of-sample daily net returns, including flat days "
+                 "(H0: mean return = 0). "
                  "Bootstrap 95% CI on Sharpe ratio (5,000 resamples). "
-                 "Deflated Sharpe Ratio corrects for multiple testing "
-                 "(Bailey & Lopez de Prado 2014). "
-                 f"Minimum {result.num_strategies_tested} strategies tested per run.\n")
-    lines.append("Tests require a minimum of 20 trades. Strategies with fewer trades "
+                 "Bonferroni and Benjamini-Hochberg corrections use the entire predeclared "
+                 f"{total}-pair family. These t-tests assume independent daily returns; serial dependence can "
+                 "make their p-values optimistic. Monte Carlo and DSR are descriptive only.\n")
+    lines.append("Tests require a minimum of 20 OOS daily observations. Pairs with fewer observations "
                  "are marked 'Insufficient data.'\n")
 
     for ticker in tickers_with_data:
         ticker_evals = [e for e in result.evaluations if e.ticker == ticker]
         lines.append(f"\n### {ticker}\n")
-        lines.append("| Strategy | n | t-stat | p-value | Sharpe [95% CI] | DSR | Sig? |")
-        lines.append("|----------|---|--------|---------|-----------------|-----|------|")
+        lines.append("| Strategy | OOS days | t-stat | Raw p | Bonferroni p | BH q | Sharpe [95% CI] |")
+        lines.append("|----------|----------|--------|-------|--------------|------|-----------------|")
         for ev in ticker_evals:
             st = ev.statistical
             if st and st.sufficient_data:
                 ci_str = f"{st.sharpe_point:.2f} [{st.sharpe_ci_lower:.2f}, {st.sharpe_ci_upper:.2f}]"
-                sig = "Yes" if st.returns_significant else "No"
                 lines.append(
                     f"| {ev.strategy_name} | {st.n_observations} | {st.t_statistic:.2f} | "
-                    f"{st.p_value:.4f} | {ci_str} | {st.dsr:.3f} | {sig} |"
+                    f"{st.p_value:.4f} | {st.p_bonferroni:.4f} | {st.p_bh:.4f} | {ci_str} |"
                 )
             elif st:
                 lines.append(
                     f"| {ev.strategy_name} | {st.n_observations} | — | — | — | — | Insufficient data |"
                 )
+            else:
+                lines.append(f"| {ev.strategy_name} | — | — | — | — | — | NOT EVALUATED |")
         lines.append("")
 
     # Strategy Comparison
@@ -701,7 +707,7 @@ def generate_report(
                              f"(Sharpe {best_ml['sharpe']:.3f}). "
                              f"**Best rule strategy:** {best_rule.strategy_name} on {best_rule.ticker} "
                              f"(OOS Sharpe {best_rule.walk_forward.avg_oos_sharpe:.3f}). "
-                             f"The ML ensemble combines all models for stronger composite signals.\n")
+                             "This does not evaluate the combined multi-agent system.\n")
 
     # Methodology Notes
     lines.append("\n## Methodology Notes\n")
@@ -711,14 +717,18 @@ def generate_report(
                  "(prevents lookahead bias from rolling indicators)")
     lines.append(f"- **Monte Carlo:** {result.evaluations[0].monte_carlo.n_iterations if result.evaluations and result.evaluations[0].monte_carlo else 1000} "
                  "iterations, shuffling non-zero trade returns only")
-    lines.append("- **Statistical tests:** One-sided t-test (p < 0.05), "
+    lines.append("- **Transaction cost:** 0.001 (10 bps) per unit of position change; "
+                 "**slippage:** another 0.001 (10 bps), charged by `engine/backtest.py` "
+                 "on each entry/exit. No per-share fee. The same defaults apply to all OOS windows")
+    lines.append("- **Statistical tests:** One-sided t-test on OOS daily net returns, "
                  "bootstrap 95% CI (5,000 resamples)")
-    lines.append(f"- **DSR:** Deflated Sharpe Ratio with {result.num_strategies_tested} "
-                 "strategies tested. DSR > 0.5 = pass. "
-                 "Results are not comparable across separate invocations")
+    lines.append(f"- **DSR (descriptive only):** {len(result.tickers) * len(result.strategies)} "
+                 "planned pairs. It is not used for the verdict")
     lines.append("- **Minimum trades:** 20 required for statistical tests")
-    lines.append("- **Pass/fail gates:** Walk-forward OOS Sharpe > 0 in >50% of windows; "
-                 "Monte Carlo strategy Sharpe > 75th percentile; t-test p < 0.05")
+    lines.append(f"- **Family:** all {total} intended strategy-ticker pairs, including skipped tests as p=1")
+    lines.append("- **Pass gate:** >50% of walk-forward windows have positive Sharpe AND "
+                 "Bonferroni-adjusted p < 0.05; BH-only pairs are exploratory")
+    lines.append("- **Input snapshot SHA-256:** " + (", ".join(f"{ticker}={digest}" for ticker, digest in sorted(result.data_sha256.items())) or "No pinned data; live fetch is not reproducible"))
     lines.append("")
 
     report_content = "\n".join(lines)
@@ -789,6 +799,10 @@ def _result_to_dict(result: HarnessResult) -> dict:
                 "sufficient_data": st.sufficient_data,
                 "t_statistic": round(st.t_statistic, 4),
                 "p_value": round(st.p_value, 4),
+                "p_bonferroni": round(st.p_bonferroni, 4),
+                "p_bh": round(st.p_bh, 4),
+                "bonferroni_significant": st.bonferroni_significant,
+                "bh_significant": st.bh_significant,
                 "sharpe_point": round(st.sharpe_point, 4),
                 "sharpe_ci": [round(st.sharpe_ci_lower, 4), round(st.sharpe_ci_upper, 4)],
                 "dsr": round(st.dsr, 4),
@@ -805,6 +819,10 @@ def _result_to_dict(result: HarnessResult) -> dict:
         "skipped_tickers": result.skipped_tickers,
         "total_evaluated": result.total_evaluated,
         "total_passed": result.total_passed,
+        "data_sha256": result.data_sha256,
+        "family_size": len(result.tickers) * len(result.strategies),
+        "transaction_cost": 0.001,
+        "slippage": 0.001,
         "evaluations": evaluations,
         "ml_results": result.ml_results,
     }

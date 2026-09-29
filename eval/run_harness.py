@@ -28,6 +28,10 @@ def main():
         help="Comma-separated ticker symbols (e.g., NVDA,AAPL)",
     )
     parser.add_argument(
+        "--strategies", default=None,
+        help="Comma-separated predeclared strategies (default: all registered strategies)",
+    )
+    parser.add_argument(
         "--output", default=None,
         help="Output path for markdown report (default: docs/evaluation_report.md)",
     )
@@ -44,8 +48,12 @@ def main():
         help="Test window in days (default: 63)",
     )
     parser.add_argument(
-        "--seed", type=int, default=None,
-        help="Random seed for reproducibility",
+        "--seed", type=int, default=42,
+        help="Random seed for bootstrap and Monte Carlo (default: 42)",
+    )
+    parser.add_argument(
+        "--data-dir", default=None,
+        help="Directory of pinned TICKER.csv OHLCV snapshots (Date,Open,High,Low,Close,Volume)",
     )
     parser.add_argument(
         "--years", type=int, default=5,
@@ -85,7 +93,9 @@ def main():
     from eval.report_generator import generate_report
     from engine.strategies import STRATEGY_REGISTRY
 
-    num_strategies = len(STRATEGY_REGISTRY)
+    strategies = ([s.strip() for s in args.strategies.split(",") if s.strip()]
+                  if args.strategies else list(STRATEGY_REGISTRY))
+    num_strategies = len(strategies)
     total_tasks = len(tickers) * num_strategies
 
     print(f"\n{'=' * 60}")
@@ -105,6 +115,8 @@ def main():
         mc_iterations=args.mc_iterations,
         mc_seed=args.seed,
         data_years=args.years,
+        data_dir=args.data_dir,
+        strategies=strategies,
     )
     harness.adaptive = adaptive
 
@@ -138,13 +150,15 @@ def main():
         print(f"  Skipped tickers: {', '.join(result.skipped_tickers)} (insufficient data)")
     print(f"  Report: {output_path or 'docs/evaluation_report.md'}")
     print(f"  JSON: docs/evaluation_results.json")
+    print(f"  Family: {len(tickers) * num_strategies} predeclared pairs (missing pairs remain N/A)")
     print(f"  Charts: docs/charts/")
     print(f"{'=' * 60}\n")
 
     # Exit code: 0 if at least one strategy passed, 1 if all failed or no data
-    if result.total_evaluated == 0:
-        print("Error: No tickers had sufficient data for evaluation.")
-        sys.exit(1)
+    if result.total_evaluated != total_tasks:
+        print(f"Incomplete evaluation: {result.total_evaluated}/{total_tasks} pairs have data. "
+              "Do not publish performance claims from this run.")
+        sys.exit(2)
 
     sys.exit(0)
 
