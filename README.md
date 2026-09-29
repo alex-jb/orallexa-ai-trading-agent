@@ -63,6 +63,8 @@ git clone https://github.com/alex-jb/orallexa-ai-trading-agent.git
 cd orallexa-ai-trading-agent
 pip install -r requirements.txt
 echo "ANTHROPIC_API_KEY=your_key" > .env
+# Add ORALLEXA_API_KEY=<a unique random secret> to .env before starting the API.
+# DEMO_MODE=1 permits a keyless demo but disables protected endpoints and paper orders.
 
 # Terminal 1: API
 python api_server.py
