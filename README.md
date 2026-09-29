@@ -144,7 +144,7 @@ Docker: `docker compose up --build` — that's it.
 |-----------|--------|
 | **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing — runs on `analyze`, `deep-analysis`, AND `alpaca/execute` (rejected trades never hit the broker) |
 | **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
-| **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
+| **Paper Trading** | Alpaca bracket executor and a separate [fixed-rule long/flat paper harness](docs/PAPER_HARNESS.md) with fill ledger and matched buy-and-hold |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
 | **LLM Observability** | Triple sink: JSONL log + PostHog (`$ai_generation` events) + Langfuse (`generation-create` traces, prompt versioning, evals) |
 | **Multi-Provider LLM** | Anthropic (default), OpenAI, Gemini all implemented; Ollama/Grok scaffolded. Switch via `ORALEXXA_LLM_PROVIDER` |
