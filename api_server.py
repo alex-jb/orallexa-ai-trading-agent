@@ -18,6 +18,7 @@ Endpoints:
 from __future__ import annotations
 
 import json
+import hmac
 import os
 import sys
 from datetime import date
@@ -42,6 +43,8 @@ DEMO_MODE = os.environ.get("DEMO_MODE", "").lower() in ("true", "1", "yes")
 @app.on_event("startup")
 async def _warmup():
     """Lazy warmup — don't block startup."""
+    if not DEMO_MODE and not os.environ.get("ORALLEXA_API_KEY", "").strip():
+        raise RuntimeError("ORALLEXA_API_KEY is required when DEMO_MODE is off")
     if DEMO_MODE:
         import logging
         logging.getLogger("api").info("🎭 DEMO MODE — all endpoints return mock data, no API keys needed")
@@ -68,14 +71,17 @@ app.add_middleware(
 
 # ── API Key Authentication ────────────────────────────────────────────────────
 _API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
-_API_KEY = os.environ.get("ORALLEXA_API_KEY", "")
 
 
 def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
-    """Protect sensitive endpoints. Skipped in demo mode or when no key is configured."""
-    if DEMO_MODE or not _API_KEY:
-        return
-    if not key or key != _API_KEY:
+    """Fail closed on protected endpoints; demo mode cannot reach broker actions."""
+    if DEMO_MODE:
+        raise HTTPException(status_code=403, detail="Protected endpoints are disabled in demo mode")
+    expected_key = os.environ.get("ORALLEXA_API_KEY", "").strip()
+    if not expected_key:
+        # Also protect direct ASGI calls that bypass the startup lifespan.
+        raise HTTPException(status_code=503, detail="API authentication is not configured")
+    if not key or not hmac.compare_digest(key, expected_key):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
