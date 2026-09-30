@@ -147,20 +147,41 @@ class PaperLoop:
         self.state.setdefault("config", {"qty": qty})
 
     def _save(self) -> None:
-        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.state_path.parent)
         temporary = self.state_path.with_suffix(".tmp")
         with temporary.open("w", encoding="utf-8") as stream:
             stream.write(json.dumps(self.state, indent=2) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, self.state_path)
+        self._fsync_directory(self.state_path.parent)
+
+    @staticmethod
+    def _fsync_directory(path: Path) -> None:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @classmethod
+    def _ensure_directory(cls, path: Path) -> None:
+        missing = []
+        current = path
+        while not current.exists():
+            missing.append(current)
+            current = current.parent
+        for directory in reversed(missing):
+            directory.mkdir()
+            cls._fsync_directory(directory.parent)
 
     def _log(self, row: dict) -> None:
-        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.ledger_path.parent)
         with self.ledger_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(row, sort_keys=True) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
+        self._fsync_directory(self.ledger_path.parent)
 
     def _deliver_outbox(self) -> None:
         """Replay a saved row after a crash, without duplicating an appended row."""
@@ -327,7 +348,8 @@ class PaperLoop:
             # data. A 404 is not proof that an accepted submission cannot appear.
             intent = item["intent"]
             row.update(event_type="intent_recovery", client_order_id=intent["client_id"],
-                       order_type="market", qty=intent["qty"], signal_price=intent["signal_price"])
+                       order_type="market", qty=intent["qty"],
+                       intent_signal_price=intent["signal_price"])
             if item.get("pending"):
                 raise ValueError("Both an order intent and a pending order require review")
             if self.broker is None:
@@ -342,10 +364,10 @@ class PaperLoop:
                         row["order_status"] = "intent_unresolved"
                     else:
                         self._attach_order(item, order, intent)
+                        item["comparison_stale"] = "recovered_order_awaits_position_check"
                         self._save()  # Persist broker ID before polling its fills.
                         try:
                             self._reconcile(ticker, item, row)
-                            item.pop("comparison_stale", None)
                         except Exception as exc:
                             row.update(order_status="broker_error", error_type=type(exc).__name__)
                             item["comparison_stale"] = "broker_reconciliation_error"
@@ -363,13 +385,15 @@ class PaperLoop:
             if item and item.get("pending"):
                 try:
                     self._reconcile(ticker, item, row)
-                    item.pop("comparison_stale", None)
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
                     item["comparison_stale"] = "broker_reconciliation_error"
                     row["comparison_valid"] = False
                     row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
                 row["realized_pnl_total_usd"] = item["realized_pnl"]
+                if item.get("comparison_stale"):
+                    row["comparison_valid"] = False
+                    row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
             self._record(row)
             return row
 
@@ -389,7 +413,6 @@ class PaperLoop:
         if had_pending:
             try:
                 self._reconcile(ticker, item, row)
-                item.pop("comparison_stale", None)
                 row["order_status"] = row["order_status"] or "pending"
             except Exception as exc:
                 row.update(order_status="broker_error", error_type=type(exc).__name__)
@@ -397,15 +420,19 @@ class PaperLoop:
                 reconciliation_error = True
         if had_pending and not item.get("pending") and not reconciliation_error:
             # Persist the prior order's fill before today's decision can log a new order.
-            equity, drawdown, buy_hold = self._mark(item, price)
-            conditional, excluded = self._conditional_mark(item, price, mark_date)
             row.update(realized_pnl_total_usd=item["realized_pnl"],
-                       strategy_equity_usd=equity, drawdown_pct=drawdown,
-                       buy_hold_pnl_usd=buy_hold,
-                       buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
-                       conditional_comparison=conditional,
-                       conditional_comparison_excluded_reason=excluded,
                        event_type="reconciliation")
+            if item.get("comparison_stale"):
+                row["comparison_valid"] = False
+                row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
+            else:
+                equity, drawdown, buy_hold = self._mark(item, price)
+                conditional, excluded = self._conditional_mark(item, price, mark_date)
+                row.update(strategy_equity_usd=equity, drawdown_pct=drawdown,
+                           buy_hold_pnl_usd=buy_hold,
+                           buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
+                           conditional_comparison=conditional,
+                           conditional_comparison_excluded_reason=excluded)
             self._record(row)
             row = {**row, "event_type": "decision", "event_id": None,
                    "order_id": None, "order_status": None, "order_type": None,
@@ -429,6 +456,7 @@ class PaperLoop:
                             item["blocked_reason"] = "position_mismatch_requires_review"
                         else:
                             item.pop("comparison_stale", None)
+                            row["comparison_valid"] = True
                     except Exception as exc:
                         row.update(order_status="broker_error", error_type=type(exc).__name__)
                         item["comparison_stale"] = "broker_state_unverified"
@@ -454,6 +482,7 @@ class PaperLoop:
                             item["blocked_reason"] = "position_mismatch_requires_review"
                         else:
                             item.pop("comparison_stale", None)
+                            row["comparison_valid"] = True
                             if not self.broker.market_open():
                                 row["order_status"] = "market_closed"
                             else:
@@ -487,7 +516,6 @@ class PaperLoop:
                     self._save()  # Preserve order ID before polling fills.
                     try:
                         self._reconcile(ticker, item, row)
-                        item.pop("comparison_stale", None)
                     except Exception as exc:
                         row.update(order_status="broker_error", error_type=type(exc).__name__)
                         item["comparison_stale"] = "broker_reconciliation_error"
@@ -579,6 +607,7 @@ def main() -> None:
     now = datetime.now(timezone.utc)
     marks = {}
     mark_dates = {}
+    recovered_intent = False
     for ticker in [s.strip().upper() for s in args.tickers.split(",") if s.strip()]:
         if args.bars_dir:
             import pandas as pd
@@ -590,11 +619,17 @@ def main() -> None:
             assert gateway is not None
             closes, mark_date = gateway.completed_closes_with_dates(ticker, now)
         row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date)
-        if row["signal_price"] is not None:
+        if row.get("event_type") == "intent_recovery":
+            recovered_intent = True
+        elif row["signal_price"] is not None:
             marks[ticker] = row["signal_price"]
             mark_dates[ticker] = mark_date
         print(json.dumps(row, sort_keys=True))
-    print(json.dumps(loop.report(marks, mark_dates=mark_dates), sort_keys=True))
+    if recovered_intent:
+        print(json.dumps({"report_status": "withheld_intent_recovery_requires_fresh_mark"},
+                         sort_keys=True))
+    else:
+        print(json.dumps(loop.report(marks, mark_dates=mark_dates), sort_keys=True))
 
 
 if __name__ == "__main__":
