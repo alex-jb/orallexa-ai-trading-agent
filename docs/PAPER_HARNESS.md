@@ -26,9 +26,28 @@ python -m bot.paper_harness --submit-paper --tickers NVDA,AAPL --qty 1
 The gateway constructs `TradingClient(..., paper=True)` with no live URL
 override. Submission is blocked when `DEMO_MODE` is on or the paper market is
 closed. It never opens a short and refuses to touch a broker position that
-does not match its own saved state. One deterministic client order ID per
-ticker/side/day prevents retries from submitting a second order. A pending
-order is reconciled before any new decision, even when market data is missing.
+does not match its own saved state. The deterministic client order ID supports
+same-day deduplication for a single loop. Before a new
+paper order, the loop persists an `order_intent` event and the exact client ID,
+side, quantity, prior-close signal price, rule version, the completed session
+date when available, and a SHA-256 of the canonical last 50 *input close
+values*. This hash is not proof of the raw Alpaca data or its publication
+time. A disk failure while writing the intent prevents
+submission. If an order is accepted and the process exits before storing its
+broker ID, the next invocation looks up the saved ID before considering new
+signals, including when that invocation has insufficient bars or happens on a
+later day. Broker lookup visibility can lag the submission. A 404 or lookup
+error leaves the intent unresolved: no automatic
+resubmission with a new ID or new order on that ticker. Review the broker paper
+account and ledger; this harness has no automated resolution action. `report()`
+refuses to publish a comparison while an intent is unresolved. This safety rule
+may suspend a pilot even if a crash happened just before the request reached
+the broker. A pending order is reconciled before any new decision, even when
+market data is missing. State plus JSONL are not an atomic multi-worker
+coordinator. Concurrent processes sharing the same state path are not
+serialized by this harness; run a single instance per pilot.
+If fill reconciliation fails after recovering an accepted order, the comparison
+remains withheld until a later successful broker reconciliation.
 A completed order and a new opposite-side decision get separate ledger rows.
 The saved state locks the share quantity: changing `--qty` requires a new pilot
 with separate state and ledger paths. State created by older harness versions
@@ -40,8 +59,8 @@ orders are pending.
 `logs/paper_harness.jsonl` is append-only and `logs/paper_harness_state.json`
 stores positions, entry fill prices, pending order IDs, realized P&L, first
 benchmark price, the first completed paper BUY order's fill schedule, peak
-equity, the fixed quantity, and one audit outbox row for
-crash recovery. Both are gitignored. Every decision logs:
+equity, the fixed quantity, unresolved intents, and one audit outbox row for
+process-crash recovery. Both are gitignored. Every decision logs:
 
 - UTC timestamp, ticker, signal, completed-bar signal price and SMA20/50;
 - market order quantity, ID, status, newly accounted filled quantity and fill price;
