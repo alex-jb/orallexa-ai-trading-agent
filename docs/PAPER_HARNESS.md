@@ -32,7 +32,13 @@ paper order, the loop persists an `order_intent` event and the exact client ID,
 side, quantity, prior-close signal price, rule version, the completed session
 date when available, and a SHA-256 of the canonical last 50 *input close
 values*. This hash is not proof of the raw Alpaca data or its publication
-time. A disk failure while writing the intent prevents
+time. The harness does not currently enforce a maximum age for an otherwise
+completed daily bar. Verify the feed and session date before starting an
+unattended pilot. The state checkpoint and ledger append fsync their files and
+containing directories (including newly created directories); a failed fsync
+before submission prevents an order. This depends on the filesystem honoring
+fsync and does not provide cross-host or concurrent-process coordination.
+A disk failure while writing the intent prevents
 submission. If an order is accepted and the process exits before storing its
 broker ID, the next invocation looks up the saved ID before considering new
 signals, including when that invocation has insufficient bars or happens on a
@@ -40,14 +46,18 @@ later day. Broker lookup visibility can lag the submission. A 404 or lookup
 error leaves the intent unresolved: no automatic
 resubmission with a new ID or new order on that ticker. Review the broker paper
 account and ledger; this harness has no automated resolution action. `report()`
-refuses to publish a comparison while an intent is unresolved. This safety rule
+refuses to publish a comparison while an intent is unresolved. On a recovery
+invocation, the original `intent_signal_price` is kept separately from today's
+`signal_price`; the CLI withholds the aggregate report until a later run with
+at least 50 completed bars and a verified broker position. This safety rule
 may suspend a pilot even if a crash happened just before the request reached
 the broker. A pending order is reconciled before any new decision, even when
 market data is missing. State plus JSONL are not an atomic multi-worker
 coordinator. Concurrent processes sharing the same state path are not
 serialized by this harness; run a single instance per pilot.
-If fill reconciliation fails after recovering an accepted order, the comparison
-remains withheld until a later successful broker reconciliation.
+After recovering an accepted order, the comparison remains withheld until a
+later successful broker reconciliation **and position check**. A fill query
+alone cannot clear a stale broker-state flag or validate the recorded P&L.
 A completed order and a new opposite-side decision get separate ledger rows.
 The saved state locks the share quantity: changing `--qty` requires a new pilot
 with separate state and ledger paths. State created by older harness versions
