@@ -1,0 +1,181 @@
+{
+  "audit_module_sha256": "d9b39e8e474fe47e58d6730f197666d3d018a587d1d6798bdc616e6bbed52985",
+  "audit_schema": "orallexa-paper-audit-snapshot-v1",
+  "cost_assumptions": {
+    "assumed_paper_commission_usd": 0.0,
+    "broker_api_cost_usd": 0.0,
+    "broker_calls": 0,
+    "llm_api_cost_usd": 0.0,
+    "llm_calls": 0,
+    "slippage_modeled": false
+  },
+  "cryptography_version": "46.0.0",
+  "fixture": {
+    "ledger_sha256": "97a76d63747f566b2ba3cc59dc6108ebf1660e38936f370459c3d0a3a897f63a",
+    "pre_signature_shortened_ledger_sha256": "d5380e269a7945a82707f376a66600e5a4c50c559dfa3cffc160ed18b436830c",
+    "row_count": 4,
+    "seed": 20260930,
+    "state_sha256": "17a9d971bf81f7f16d1c67cc59be97aca947bec13593de73bf4f9da85f12b7ea",
+    "synthetic": true
+  },
+  "interpretation": "An independently retained prior bundle detects later signed history loss, rewrite, and replay; the first signature cannot prove earlier completeness",
+  "passed": true,
+  "results": [
+    {
+      "case": "intact_signed_bundle",
+      "elapsed_ms": 0.825,
+      "expected_rejected": false,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": false,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "ledger_complete_row_truncation",
+      "elapsed_ms": 0.69,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "ledger_row_reorder",
+      "elapsed_ms": 0.575,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "ledger_valid_row_modify",
+      "elapsed_ms": 0.606,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "state_valid_json_modify",
+      "elapsed_ms": 0.501,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "manifest_canonical_modify",
+      "elapsed_ms": 0.467,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "signature_valid_base64_modify",
+      "elapsed_ms": 0.444,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "missing_bundle_member",
+      "elapsed_ms": 0.061,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "extra_bundle_member",
+      "elapsed_ms": 0.069,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "malformed_tail_after_signing",
+      "elapsed_ms": 0.62,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "wrong_independent_trusted_key",
+      "elapsed_ms": 0.187,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "malformed_tail_before_signing",
+      "elapsed_ms": 0.313,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "export",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "valid_history_loss_before_first_signature",
+      "elapsed_ms": 1.521,
+      "expected_rejected": false,
+      "matched_expected": true,
+      "phase": "export_then_verify",
+      "rejected": false,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "intact_history_extension",
+      "elapsed_ms": 1.697,
+      "expected_rejected": false,
+      "matched_expected": true,
+      "phase": "verify_continuity",
+      "rejected": false,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "valid_history_loss_after_first_signature",
+      "elapsed_ms": 1.969,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify_continuity",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "valid_history_rewrite_after_first_signature",
+      "elapsed_ms": 1.66,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify_continuity",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "replay_old_valid_bundle_as_current",
+      "elapsed_ms": 1.39,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify_continuity",
+      "rejected": true,
+      "unexpected_error_type": null
+    }
+  ],
+  "script_version": "1.1",
+  "study": "orallexa-offline-paper-audit-fault-injection",
+  "timing_note": "Local perf_counter case durations in ms; descriptive, not a speed benchmark"
+}

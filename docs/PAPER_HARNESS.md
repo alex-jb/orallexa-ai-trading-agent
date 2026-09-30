@@ -191,6 +191,12 @@ python -m bot.paper_audit_export export \
 python -m bot.paper_audit_export verify \
   --bundle 'PASTE_BUNDLE_PATH_FROM_EXPORT_OUTPUT' \
   --trusted-public-key /secure/local/orallexa-trusted.pub.pem
+# After another day has added at least one row, retain the first bundle and
+# check that the next signed ledger extends it without changing earlier bytes:
+python -m bot.paper_audit_export verify-continuity \
+  --previous-bundle 'PASTE_RETAINED_FIRST_BUNDLE_PATH' \
+  --bundle 'PASTE_LATER_BUNDLE_PATH' \
+  --trusted-public-key /secure/local/orallexa-trusted.pub.pem
 ```
 
 The export creates a new owner-only directory under gitignored `logs/` by
@@ -212,9 +218,14 @@ before retrying with a fresh output path.
 A valid signature means only that **this local snapshot** has not changed
 since the holder of that key signed it. A signer could sign a ledger already
 truncated before the first snapshot; this format has no external earlier
-anchor or independent completeness proof. An older valid bundle can also be
-replayed as if it were the latest unless you independently retain the expected
-snapshot time or hash. The two input files are selected by the exporter caller;
+anchor or independent completeness proof. The optional continuity check
+independently verifies both bundles under the same separately trusted key,
+then requires a later signature time, at least one new event, and an exact
+byte prefix matching the earlier signed ledger. Retain earlier bundles outside
+the current export directory and run the check on each adjacent pair; a valid
+older bundle still verifies by itself and cannot establish that it is the
+latest without a separately retained expected snapshot hash or trusted time.
+The two input files are selected by the exporter caller;
 the exporter requires every checkpointed ticker to appear in the ledger, but
 blocked tickers can appear in the ledger without a state checkpoint. The harness has
 no shared pilot ID that binds them before signing. Two different pilots using
