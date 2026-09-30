@@ -1,11 +1,13 @@
 """Paper loop lifecycle with a fake gateway: no network or broker calls."""
 
 import json
+import sys
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 
+import bot.paper_harness as paper_harness
 from bot.paper_harness import PaperLoop, _completed_daily_closes, AlpacaPaperGateway
 
 
@@ -79,7 +81,8 @@ def test_paper_buy_fill_sell_and_matched_buy_hold(tmp_path):
     assert harness.report({"NVDA": 90.0})["llm_api_cost_usd_week"] == 0.0
     assert harness.token_budget.allow() is False
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
-    assert len(rows) == 3
+    assert [r.get("event_type") for r in rows] == ["order_intent", None, None,
+                                                     "order_intent", None]
     assert all("timestamp" in row and "ticker" in row and "drawdown_pct" in row for row in rows)
     assert all(row["event_id"] for row in rows)
 
@@ -88,6 +91,8 @@ def test_conditional_hold_uses_first_buy_fill_only_after_later_close(tmp_path):
     broker = FakePaperGateway()
     harness = loop(tmp_path, broker, submit=True)
     first = harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    intent = json.loads((tmp_path / "decisions.jsonl").read_text().splitlines()[0])
+    assert intent["source_as_of_session"] == "2026-09-28"
     assert first["conditional_comparison"] is None
     assert first["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
     assert harness.report({"NVDA": 110.0}, mark_dates={"NVDA": date(2026, 9, 28)})[
@@ -274,8 +279,9 @@ def test_reconciled_buy_does_not_swallow_todays_sell_signal(tmp_path):
     assert row["signal"] == "SELL"
     assert broker.submissions == [("NVDA", "BUY", 1), ("NVDA", "SELL", 1.0)]
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
-    assert rows[-2]["event_type"] == "reconciliation"
-    assert rows[-2]["fill_price"] == pytest.approx(110.11)
+    assert rows[-3]["event_type"] == "reconciliation"
+    assert rows[-3]["fill_price"] == pytest.approx(110.11)
+    assert rows[-2]["event_type"] == "order_intent"
     assert rows[-1]["event_type"] == "decision"
     assert rows[-1]["order_id"] == "2" and rows[-1]["fill_price"] is None
 
@@ -340,35 +346,323 @@ def test_no_change_detects_external_position_or_split(tmp_path):
 
 
 def test_audit_outbox_replays_missing_fill_once_after_process_failure(tmp_path):
-    broker = FakePaperGateway()
+    broker = FakePaperGateway(immediate=False)
     harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 1.0
     harness._log = lambda row: (_ for _ in ()).throw(OSError("disk temporarily unavailable"))
     with pytest.raises(OSError, match="disk temporarily unavailable"):
-        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
-    assert not (tmp_path / "decisions.jsonl").exists()
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
     restarted = loop(tmp_path, broker, submit=True)
-    restarted.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    restarted.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2))
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
-    assert [row["order_status"] for row in rows] == ["filled", "no_change"]
-    assert len({row["event_id"] for row in rows}) == 2
+    assert [row["order_status"] for row in rows] == ["prepared", "new", "filled", "no_change"]
+    assert len({row["event_id"] for row in rows}) == 4
     assert broker.submissions == [("NVDA", "BUY", 1)]
 
 
 def test_audit_outbox_deduplicates_crash_after_append(tmp_path):
-    broker = FakePaperGateway()
+    broker = FakePaperGateway(immediate=False)
     harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 1.0
     original_log = harness._log
     def fail_after_append(row):
         original_log(row)
         raise OSError("crash after append")
     harness._log = fail_after_append
     with pytest.raises(OSError, match="crash after append"):
-        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
     restarted = loop(tmp_path, broker, submit=True)
-    restarted.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    restarted.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2))
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
-    assert [row["order_status"] for row in rows] == ["filled", "no_change"]
-    assert len({row["event_id"] for row in rows}) == 2
+    assert [row["order_status"] for row in rows] == ["prepared", "new", "filled", "no_change"]
+    assert len({row["event_id"] for row in rows}) == 4
+
+
+def _crash_during_intent_append(tmp_path, *, corrupt):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    ledger = tmp_path / "decisions.jsonl"
+
+    def interrupted_append(row):
+        complete = (json.dumps(row, sort_keys=True) + "\n").encode("utf-8")
+        ledger.write_bytes(corrupt(complete))
+        raise OSError("interrupted ledger append")
+
+    harness._log = interrupted_append
+    with pytest.raises(OSError, match="interrupted ledger append"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert broker.submissions == []
+    assert json.loads((tmp_path / "state.json").read_text())["outbox"]["event_type"] == "order_intent"
+    return broker, ledger
+
+
+@pytest.mark.parametrize("corrupt, error", [
+    (lambda complete: complete[:-1], "no final newline"),
+    (lambda complete: complete[:24], "no final newline"),
+    (lambda complete: complete[:24] + b"\n", "invalid JSON"),
+])
+def test_interrupted_intent_ledger_tail_blocks_paper_order(tmp_path, corrupt, error):
+    broker, ledger = _crash_during_intent_append(tmp_path, corrupt=corrupt)
+    original = ledger.read_bytes()
+    with pytest.raises(ValueError, match=error):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert ledger.read_bytes() == original
+    assert "outbox" in json.loads((tmp_path / "state.json").read_text())
+    assert broker.submissions == []
+
+
+def test_outbox_event_id_requires_exact_saved_row_and_unique_ledger_ids(tmp_path):
+    def changed_payload(complete):
+        row = json.loads(complete)
+        row["qty"] += 1  # Same event ID cannot attest to a different order intent.
+        return (json.dumps(row, sort_keys=True) + "\n").encode("utf-8")
+
+    broker, ledger = _crash_during_intent_append(tmp_path, corrupt=changed_payload)
+    with pytest.raises(ValueError, match="conflicts with saved outbox"):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+
+    saved = json.loads((tmp_path / "state.json").read_text())["outbox"]
+    exact = (json.dumps(saved, sort_keys=True) + "\n").encode("utf-8")
+    ledger.write_bytes(exact + exact)
+    with pytest.raises(ValueError, match="duplicate event_id"):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert json.loads((tmp_path / "state.json").read_text())["outbox"] == saved
+
+
+def test_outbox_match_does_not_skip_corrupt_rows_after_it(tmp_path):
+    broker, ledger = _crash_during_intent_append(tmp_path, corrupt=lambda complete: complete)
+    ledger.write_bytes(ledger.read_bytes() + b'{"event_id":"another"}')
+    with pytest.raises(ValueError, match="no final newline"):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert "outbox" in json.loads((tmp_path / "state.json").read_text())
+
+
+def test_prior_ledger_row_without_newline_blocks_new_paper_intent(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    ledger = tmp_path / "decisions.jsonl"
+    ledger.write_bytes(ledger.read_bytes()[:-1])
+    original = ledger.read_bytes()
+    broker = FakePaperGateway()
+    with pytest.raises(ValueError, match="no final newline"):
+        loop(tmp_path, broker, submit=True).run_ticker("AAPL", BUY_BARS,
+                                                      now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert ledger.read_bytes() == original
+    assert "AAPL" not in json.loads((tmp_path / "state.json").read_text())["tickers"]
+
+
+def test_missing_ledger_with_saved_ticker_blocks_order_and_report(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    (tmp_path / "decisions.jsonl").unlink()
+    with pytest.raises(ValueError, match="audit ledger is missing"):
+        harness.report({"NVDA": 110.0})
+
+    broker = FakePaperGateway()
+    with pytest.raises(ValueError, match="audit ledger is missing"):
+        loop(tmp_path, broker, submit=True).run_ticker("AAPL", BUY_BARS,
+                                                      now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert not (tmp_path / "decisions.jsonl").exists()
+    assert "AAPL" not in json.loads((tmp_path / "state.json").read_text())["tickers"]
+
+
+def test_direct_report_rejects_corrupt_saved_ledger(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    ledger = tmp_path / "decisions.jsonl"
+    ledger.write_bytes(ledger.read_bytes() + b'{"event_id":"partial"}')
+    original = ledger.read_bytes()
+    restarted = loop(tmp_path)
+    with pytest.raises(ValueError, match="no final newline"):
+        restarted.report({"NVDA": 110.0})
+    assert ledger.read_bytes() == original
+
+
+def test_intent_audit_failure_prevents_submission_and_blocks_next_day(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness._log = lambda row: (_ for _ in ()).throw(OSError("audit unavailable"))
+    with pytest.raises(OSError, match="audit unavailable"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert broker.submissions == []
+    assert json.loads((tmp_path / "state.json").read_text())["tickers"]["NVDA"]["intent"]["side"] == "BUY"
+
+    restarted = loop(tmp_path, broker, submit=True)
+    row = restarted.run_ticker("NVDA", SELL_BARS[:49], now=DAY + timedelta(days=1))
+    assert row["order_status"] == "intent_unresolved"
+    assert broker.submissions == []
+    with pytest.raises(ValueError, match="unresolved paper order intent"):
+        restarted.report({"NVDA": 90.0})
+    rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
+    assert rows[0]["event_type"] == "order_intent"
+    assert rows[0]["rule_version"] == "sma20_50_long_flat_v1"
+    assert len(rows[0]["input_closes_sha256"]) == 64
+
+
+def test_intent_state_checkpoint_failure_prevents_submission(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    harness._save = lambda: (_ for _ in ()).throw(OSError("cannot checkpoint intent"))
+    with pytest.raises(OSError, match="cannot checkpoint intent"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert broker.submissions == []
+    assert not (tmp_path / "state.json").exists()
+
+
+def test_intent_directory_sync_failure_prevents_submission(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    harness._fsync_directory = lambda path: (_ for _ in ()).throw(OSError("directory sync failed"))
+    with pytest.raises(OSError, match="directory sync failed"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert broker.submissions == []
+    saved = json.loads((tmp_path / "state.json").read_text())
+    assert saved["tickers"]["NVDA"]["intent"]["side"] == "BUY"
+
+
+def test_accepted_order_before_state_checkpoint_recovers_old_id_cross_day(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    original_save = harness._save
+
+    def fail_after_broker_acceptance():
+        item = harness.state["tickers"].get("NVDA", {})
+        if item.get("pending") and not item.get("intent"):
+            raise OSError("state disk unavailable")
+        original_save()
+
+    harness._save = fail_after_broker_acceptance
+    with pytest.raises(OSError, match="state disk unavailable"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+    persisted = json.loads((tmp_path / "state.json").read_text())["tickers"]["NVDA"]
+    assert persisted["intent"]["client_id"].endswith("20260929-NVDA-BUY")
+    assert "pending" not in persisted
+
+    restarted = loop(tmp_path, broker, submit=True)
+    row = restarted.run_ticker("NVDA", SELL_BARS[:49], now=DAY + timedelta(days=1))
+    assert row["event_type"] == "intent_recovery"
+    assert row["order_id"] == "1" and row["order_status"] == "new"
+    assert restarted.state["tickers"]["NVDA"]["pending"]["id"] == "1"
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+def test_recovered_intent_withholds_old_price_and_cli_summary(tmp_path, monkeypatch, capsys):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    original_save = harness._save
+
+    def fail_after_broker_acceptance():
+        if harness.state["tickers"].get("NVDA", {}).get("pending"):
+            raise OSError("checkpoint unavailable")
+        original_save()
+
+    harness._save = fail_after_broker_acceptance
+    with pytest.raises(OSError, match="checkpoint unavailable"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 1.0
+    broker.completed_closes_with_dates = lambda ticker, now: (
+        BUY_BARS[:-1] + [115.0], now.date() - timedelta(days=1))
+    monkeypatch.setattr(paper_harness, "AlpacaPaperGateway", lambda: broker)
+    monkeypatch.setattr(sys, "argv", ["paper_harness", "--submit-paper", "--tickers", "NVDA",
+                                  "--state", str(tmp_path / "state.json"),
+                                  "--ledger", str(tmp_path / "decisions.jsonl")])
+    paper_harness.main()
+    row, status = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert row["event_type"] == "intent_recovery"
+    assert row["intent_signal_price"] == 110.0 and row["signal_price"] is None
+    assert status == {"report_status": "withheld_intent_recovery_requires_fresh_mark"}
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+    with pytest.raises(ValueError, match="unverified broker state"):
+        loop(tmp_path, broker, submit=True).report({"NVDA": 115.0})
+
+
+def test_recovered_order_fill_lookup_failure_suppresses_comparison(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    original_save = harness._save
+
+    def fail_after_acceptance():
+        if harness.state["tickers"].get("NVDA", {}).get("pending"):
+            raise OSError("checkpoint unavailable")
+        original_save()
+
+    harness._save = fail_after_acceptance
+    with pytest.raises(OSError, match="checkpoint unavailable"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    original_order = broker.order
+    broker.order = lambda order_id: (_ for _ in ()).throw(RuntimeError("broker offline"))
+    restarted = loop(tmp_path, broker, submit=True)
+    row = restarted.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=1))
+    assert row["order_status"] == "broker_error"
+    with pytest.raises(ValueError, match="unverified broker state"):
+        restarted.report({"NVDA": 110.0})
+    broker.order = original_order
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 1.0
+    restarted.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2))
+    assert len(broker.submissions) == 1
+    assert restarted.report({"NVDA": 110.0})["strategy_pnl_usd"] == pytest.approx(-0.11)
+
+
+def test_stale_comparison_survives_fill_reconciliation_until_position_verified(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    original_order = broker.order
+    broker.order = lambda order_id: (_ for _ in ()).throw(OSError("broker offline"))
+    assert harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))[
+        "comparison_valid"] is False
+    broker.order = original_order
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 3.0  # External broker activity invalidates local cost basis.
+    without_bars = harness.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=2))
+    assert without_bars["comparison_valid"] is False
+    still_without_bars = harness.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=3))
+    assert still_without_bars["comparison_valid"] is False
+    with pytest.raises(ValueError, match="unverified broker state"):
+        harness.report({"NVDA": 110.0})
+    with_bars = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=4))
+    assert with_bars["order_status"] == "position_mismatch"
+    assert with_bars["comparison_valid"] is False
+    with pytest.raises(ValueError, match="broker position mismatch"):
+        harness.report({"NVDA": 110.0})
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+def test_uncertain_submission_stays_blocked_until_old_id_is_found(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    original_submit = broker.submit_market
+
+    def submit_then_timeout(*args):
+        original_submit(*args)
+        raise TimeoutError("response lost")
+
+    broker.submit_market = submit_then_timeout
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert row["order_status"] == "submission_unconfirmed"
+    assert len(broker.submissions) == 1
+
+    restarted = loop(tmp_path, broker, submit=True)
+    broker.by_client_id = lambda client_id: None
+    row = restarted.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=1))
+    assert row["order_status"] == "intent_unresolved"
+    assert len(broker.submissions) == 1
+    broker.by_client_id = lambda client_id: broker.orders[broker.ids[client_id]]
+    row = restarted.run_ticker("NVDA", SELL_BARS[:49], now=DAY + timedelta(days=2))
+    assert row["order_id"] == "1"
+    assert len(broker.submissions) == 1
 
 
 def test_audit_outbox_remains_blocking_after_checkpoint_failure(tmp_path):

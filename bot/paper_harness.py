@@ -6,7 +6,9 @@ ledger live in logs/ (gitignored). Run once per market day after the open.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import re
 import uuid
@@ -22,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TERMINAL = {"filled", "canceled", "expired", "rejected"}
 BENCHMARK_BASIS = "hypothetical_prior_close_no_executable_entry"
 CONDITIONAL_BASIS = "conditional_first_completed_buy_order_same_paper_fill_schedule"
+RULE_VERSION = "sma20_50_long_flat_v1"
 
 
 def _value(value) -> str:
@@ -144,33 +147,89 @@ class PaperLoop:
         self.state.setdefault("config", {"qty": qty})
 
     def _save(self) -> None:
-        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.state_path.parent)
         temporary = self.state_path.with_suffix(".tmp")
         with temporary.open("w", encoding="utf-8") as stream:
             stream.write(json.dumps(self.state, indent=2) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, self.state_path)
+        self._fsync_directory(self.state_path.parent)
+
+    @staticmethod
+    def _fsync_directory(path: Path) -> None:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @classmethod
+    def _ensure_directory(cls, path: Path) -> None:
+        missing = []
+        current = path
+        while not current.exists():
+            missing.append(current)
+            current = current.parent
+        for directory in reversed(missing):
+            directory.mkdir()
+            cls._fsync_directory(directory.parent)
 
     def _log(self, row: dict) -> None:
-        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.ledger_path.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(row, sort_keys=True) + "\n")
+        self._ensure_directory(self.ledger_path.parent)
+        with self.ledger_path.open("ab") as stream:
+            stream.write(self._ledger_line(row))
             stream.flush()
             os.fsync(stream.fileno())
+        self._fsync_directory(self.ledger_path.parent)
+
+    @staticmethod
+    def _ledger_line(row: dict) -> bytes:
+        return (json.dumps(row, sort_keys=True) + "\n").encode("utf-8")
+
+    def _require_ledger_for_saved_tickers(self) -> None:
+        if self.state["tickers"] and not self.ledger_path.exists():
+            raise ValueError("Paper audit ledger is missing for existing pilot state")
 
     def _deliver_outbox(self) -> None:
-        """Replay a saved row after a crash, without duplicating an appended row."""
+        """Replay a saved row only after validating the entire append-only ledger.
+
+        An interrupted append can leave even a valid JSON object without its final
+        newline. Never append to, or treat as delivered, an ambiguous tail: the
+        operator must preserve the evidence and repair the ledger explicitly.
+        """
         row = self.state.get("outbox")
         if row is None:
-            return
+            self._require_ledger_for_saved_tickers()
+        if row is not None and (not isinstance(row, dict)
+                                or not isinstance(row.get("event_id"), str)
+                                or not row["event_id"]):
+            raise ValueError("Saved paper audit outbox has no valid event_id")
         found = False
+        seen: set[str] = set()
         if self.ledger_path.exists():
-            with self.ledger_path.open(encoding="utf-8") as stream:
-                for line in stream:
-                    if json.loads(line).get("event_id") == row["event_id"]:
+            with self.ledger_path.open("rb") as stream:
+                for number, line in enumerate(stream, 1):
+                    if not line.endswith(b"\n"):
+                        raise ValueError(f"Paper audit ledger row {number} has no final newline")
+                    try:
+                        existing = json.loads(line)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                        raise ValueError(f"Paper audit ledger row {number} is invalid JSON") from exc
+                    if (not isinstance(existing, dict)
+                            or not isinstance(existing.get("event_id"), str)
+                            or not existing["event_id"]):
+                        raise ValueError(f"Paper audit ledger row {number} has no valid event_id")
+                    event_id = existing["event_id"]
+                    if event_id in seen:
+                        raise ValueError(f"Paper audit ledger row {number} has a duplicate event_id")
+                    seen.add(event_id)
+                    if row is not None and event_id == row["event_id"]:
+                        if line != self._ledger_line(row):
+                            raise ValueError(f"Paper audit ledger row {number} conflicts with saved outbox")
                         found = True
-                        break
+        if row is None:
+            return
         if not found:
             self._log(row)
         self.state.pop("outbox")
@@ -280,6 +339,17 @@ class PaperLoop:
                 item["conditional_entry_exclusion"] = "partial_buy_order_terminated_before_full_fill"
             item.pop("pending", None)
 
+    @staticmethod
+    def _attach_order(item: dict, order: dict, intent: dict) -> None:
+        if not order.get("id"):
+            raise ValueError("Broker order ID is unavailable")
+        item["pending"] = {
+            "id": order["id"], "side": intent["side"], "qty": intent["qty"],
+            "signal_price": intent["signal_price"], "entry_price": intent["entry_price"],
+            "accounted_qty": 0.0, "accounted_notional": 0.0,
+        }
+        item.pop("intent", None)
+
     def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None,
                    mark_date: date | None = None) -> dict:
         self._deliver_outbox()  # Recover any fill record before reading the broker or making a decision.
@@ -307,7 +377,43 @@ class PaperLoop:
             "comparison_valid": True,
             "llm_api_cost_usd_week": 0.0,
         }
-        if len(closes) < 50 or any(p <= 0 for p in closes[-50:]):
+        item = self.state["tickers"].get(ticker)
+        if item and item.get("intent"):
+            # Resolve yesterday's client ID before considering today's signal or
+            # data. A 404 is not proof that an accepted submission cannot appear.
+            intent = item["intent"]
+            row.update(event_type="intent_recovery", client_order_id=intent["client_id"],
+                       order_type="market", qty=intent["qty"],
+                       intent_signal_price=intent["signal_price"])
+            if item.get("pending"):
+                raise ValueError("Both an order intent and a pending order require review")
+            if self.broker is None:
+                row["order_status"] = "intent_requires_paper_broker"
+            else:
+                try:
+                    order = self.broker.by_client_id(intent["client_id"])
+                except Exception as exc:
+                    row.update(order_status="intent_lookup_error", error_type=type(exc).__name__)
+                else:
+                    if order is None:
+                        row["order_status"] = "intent_unresolved"
+                    else:
+                        self._attach_order(item, order, intent)
+                        item["comparison_stale"] = "recovered_order_awaits_position_check"
+                        self._save()  # Persist broker ID before polling its fills.
+                        try:
+                            self._reconcile(ticker, item, row)
+                        except Exception as exc:
+                            row.update(order_status="broker_error", error_type=type(exc).__name__)
+                            item["comparison_stale"] = "broker_reconciliation_error"
+            row["realized_pnl_total_usd"] = item["realized_pnl"]
+            row["comparison_valid"] = False  # Recovery is not a new daily decision.
+            row["conditional_comparison_excluded_reason"] = (
+                item.get("comparison_stale") or "order_intent_recovery_not_daily_decision")
+            self._record(row)
+            return row
+
+        if len(closes) < 50 or any(not math.isfinite(p) or p <= 0 for p in closes[-50:]):
             row["order_status"] = "insufficient_completed_bars"
             row["conditional_comparison_excluded_reason"] = "insufficient_completed_bars"
             item = self.state["tickers"].get(ticker)
@@ -317,9 +423,13 @@ class PaperLoop:
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
                     item["comparison_stale"] = "broker_reconciliation_error"
-                    row["comparison_valid"] = False
-                    row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
                 row["realized_pnl_total_usd"] = item["realized_pnl"]
+            if item and item.get("blocked_reason"):
+                row["comparison_valid"] = False
+                row["conditional_comparison_excluded_reason"] = "broker_position_mismatch"
+            elif item and item.get("comparison_stale"):
+                row["comparison_valid"] = False
+                row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
             self._record(row)
             return row
 
@@ -346,15 +456,19 @@ class PaperLoop:
                 reconciliation_error = True
         if had_pending and not item.get("pending") and not reconciliation_error:
             # Persist the prior order's fill before today's decision can log a new order.
-            equity, drawdown, buy_hold = self._mark(item, price)
-            conditional, excluded = self._conditional_mark(item, price, mark_date)
             row.update(realized_pnl_total_usd=item["realized_pnl"],
-                       strategy_equity_usd=equity, drawdown_pct=drawdown,
-                       buy_hold_pnl_usd=buy_hold,
-                       buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
-                       conditional_comparison=conditional,
-                       conditional_comparison_excluded_reason=excluded,
                        event_type="reconciliation")
+            if item.get("comparison_stale"):
+                row["comparison_valid"] = False
+                row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
+            else:
+                equity, drawdown, buy_hold = self._mark(item, price)
+                conditional, excluded = self._conditional_mark(item, price, mark_date)
+                row.update(strategy_equity_usd=equity, drawdown_pct=drawdown,
+                           buy_hold_pnl_usd=buy_hold,
+                           buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
+                           conditional_comparison=conditional,
+                           conditional_comparison_excluded_reason=excluded)
             self._record(row)
             row = {**row, "event_type": "decision", "event_id": None,
                    "order_id": None, "order_status": None, "order_type": None,
@@ -378,6 +492,7 @@ class PaperLoop:
                             item["blocked_reason"] = "position_mismatch_requires_review"
                         else:
                             item.pop("comparison_stale", None)
+                            row["comparison_valid"] = True
                     except Exception as exc:
                         row.update(order_status="broker_error", error_type=type(exc).__name__)
                         item["comparison_stale"] = "broker_state_unverified"
@@ -389,8 +504,12 @@ class PaperLoop:
                 order_qty = self.qty if action == "BUY" else item["position_qty"]
                 client_id = f"orallexa-paper-{now.astimezone(NY):%Y%m%d}-{ticker}-{action}"
                 row.update(order_type="market", qty=order_qty)
+                can_submit = False
+                order = None
                 try:
-                    # Recover an order submitted before a process crash.
+                    # Look up today's ID and check broker position before
+                    # preparing the durable intent. Broker errors are loggable;
+                    # local audit I/O errors below must always propagate.
                     order = self.broker.by_client_id(client_id)
                     if order is None:
                         broker_qty = self.broker.position_qty(ticker)
@@ -399,21 +518,43 @@ class PaperLoop:
                             item["blocked_reason"] = "position_mismatch_requires_review"
                         else:
                             item.pop("comparison_stale", None)
+                            row["comparison_valid"] = True
                             if not self.broker.market_open():
                                 row["order_status"] = "market_closed"
                             else:
-                                order = self.broker.submit_market(ticker, action, order_qty, client_id)
-                    if order is not None:
-                        item["pending"] = {
-                            "id": order["id"], "side": action, "qty": order_qty,
-                            "signal_price": price, "entry_price": item["entry_price"],
-                            "accounted_qty": 0.0, "accounted_notional": 0.0,
-                        }
-                        self._save()  # Preserve order ID before polling fills.
-                        self._reconcile(ticker, item, row)
+                                can_submit = True
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
                     item["comparison_stale"] = "broker_state_unverified"
+
+                intent = {
+                    "client_id": client_id, "side": action, "qty": order_qty,
+                    "signal_price": price, "entry_price": item["entry_price"],
+                    "rule_version": RULE_VERSION,
+                    "source_as_of_session": mark_date.isoformat() if mark_date else None,
+                    "input_closes_sha256": hashlib.sha256(json.dumps(closes[-50:],
+                        separators=(",", ":"), allow_nan=False).encode()).hexdigest(),
+                }
+                if can_submit:
+                    item["intent"] = intent
+                    self._record({**row, "event_type": "order_intent",
+                                  "client_order_id": client_id, "order_status": "prepared",
+                                  "rule_version": RULE_VERSION,
+                                  "source_as_of_session": intent["source_as_of_session"],
+                                  "input_closes_sha256": intent["input_closes_sha256"]})
+                    try:
+                        order = self.broker.submit_market(ticker, action, order_qty, client_id)
+                    except Exception as exc:
+                        row.update(order_status="submission_unconfirmed",
+                                   error_type=type(exc).__name__)
+                if order is not None:
+                    self._attach_order(item, order, intent)
+                    self._save()  # Preserve order ID before polling fills.
+                    try:
+                        self._reconcile(ticker, item, row)
+                    except Exception as exc:
+                        row.update(order_status="broker_error", error_type=type(exc).__name__)
+                        item["comparison_stale"] = "broker_reconciliation_error"
 
         row["realized_pnl_total_usd"] = item["realized_pnl"]
         if item.get("blocked_reason"):
@@ -422,6 +563,9 @@ class PaperLoop:
         elif item.get("comparison_stale"):
             row["comparison_valid"] = False
             row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
+        elif item.get("intent"):
+            row["comparison_valid"] = False
+            row["conditional_comparison_excluded_reason"] = "unresolved_paper_order_intent"
         else:
             equity, drawdown, buy_hold = self._mark(item, price)
             row["strategy_equity_usd"] = equity
@@ -435,10 +579,15 @@ class PaperLoop:
 
     def report(self, marks: dict[str, float], *, mark_dates: dict[str, date] | None = None) -> dict:
         """Keep pilot-start and conditional first-buy comparisons distinct."""
+        if self.state.get("outbox") is not None:
+            raise ValueError("Unrecovered paper audit row invalidates the comparison")
+        self._deliver_outbox()  # No outbox: validate without changing state or ledger.
         equity = buy_hold = initial = 0.0
         eligible: dict[str, dict] = {}
         excluded: dict[str, str] = {}
         for ticker, item in self.state["tickers"].items():
+            if item.get("intent"):
+                raise ValueError(f"{ticker}: unresolved paper order intent invalidates the comparison")
             if item.get("blocked_reason"):
                 raise ValueError(f"{ticker}: broker position mismatch invalidates the paper comparison")
             if item.get("comparison_stale"):
@@ -497,6 +646,7 @@ def main() -> None:
     now = datetime.now(timezone.utc)
     marks = {}
     mark_dates = {}
+    recovered_intent = False
     for ticker in [s.strip().upper() for s in args.tickers.split(",") if s.strip()]:
         if args.bars_dir:
             import pandas as pd
@@ -508,11 +658,17 @@ def main() -> None:
             assert gateway is not None
             closes, mark_date = gateway.completed_closes_with_dates(ticker, now)
         row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date)
-        if row["signal_price"] is not None:
+        if row.get("event_type") == "intent_recovery":
+            recovered_intent = True
+        elif row["signal_price"] is not None:
             marks[ticker] = row["signal_price"]
             mark_dates[ticker] = mark_date
         print(json.dumps(row, sort_keys=True))
-    print(json.dumps(loop.report(marks, mark_dates=mark_dates), sort_keys=True))
+    if recovered_intent:
+        print(json.dumps({"report_status": "withheld_intent_recovery_requires_fresh_mark"},
+                         sort_keys=True))
+    else:
+        print(json.dumps(loop.report(marks, mark_dates=mark_dates), sort_keys=True))
 
 
 if __name__ == "__main__":
