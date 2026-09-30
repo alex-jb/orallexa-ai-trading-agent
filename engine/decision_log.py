@@ -26,7 +26,7 @@ def save_decision(
     timeframe: str,
     entry_price: float = 0.0,
     notes: str = "",
-) -> None:
+) -> bool:
     """
     Append a decision record to memory_data/decision_log.json.
 
@@ -37,6 +37,9 @@ def save_decision(
         timeframe:   "1m" | "5m" | "15m" | "1h" | "1D"
         entry_price: Live price at decision time (0 if unavailable)
         notes:       Optional user notes
+
+    Returns True after a successful write, False if the file write fails.
+    Existing callers that do not require persistence may ignore the result.
     """
     record = {
         "timestamp":    datetime.now().isoformat(),
@@ -58,8 +61,9 @@ def save_decision(
     try:
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(entries, f, indent=2, ensure_ascii=False)
+        return True
     except OSError:
-        pass   # non-critical — don't crash the app
+        return False  # callers that need an audit trail can detect failure
 
 
 def load_decisions(n: int = 50) -> list:

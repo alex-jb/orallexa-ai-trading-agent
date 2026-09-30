@@ -1,88 +1,42 @@
 # Orallexa — 30-day Unblock Plan
 
-> Concrete operational steps to clear the two infrastructure gates
-> currently choking traction. Both gates exist because **production
-> data hasn't accumulated** — not because code is missing.
+> Historical unblock plan. The legacy cron does not produce eligible
+> debate rows or paper fills. DSPy Phase B requires a separate,
+> budgeted, measured debate collection flow before any timeline can
+> be estimated.
 
 ---
 
-## Gate 1: Alpaca paper trading pilot (`memory_data/decision_log.json`)
+## Gate 1: collect audited paper fills and independently measured debate rows
 
-**Status:** `bot/alpaca_executor.py` is done. `memory_data/` is empty —
-zero production decisions logged. The whole self-improvement loop
-(DSPy Phase B + multi-modal lift gate + adaptive weights with real
-sample size) is downstream of this dataset existing.
+The older daily pilot is now **technical-decision logging only**. Running
+scripts/run_daily_pilot.py or its launchd job fetches daily market data,
+records at most seven technical decisions per invocation, and submits **zero
+orders** and makes **zero LLM calls**. Its log marks every row as
+technical_only:no_debate. The previous estimate of seven production debates a
+day and approximately $38 per month was not backed by a reproducible LLM
+usage ledger or a measured cost model and is withdrawn. No elapsed time or
+paper fill rate is promised.
 
-**5-step setup (one-time, ~15 min):**
+For the fixed-rule Alpaca PAPER-only signal/order/fill/ledger loop, review the
+separate draft PR #15 and its docs/PAPER_HARNESS.md. The default there is a
+dry run. Paper submission is an explicit operation. That harness never calls
+an LLM, so its *scoped* model cost is $0/week by construction. It does not
+create debate rows or unblock DSPy Phase B.
 
-```bash
-# 1. Alpaca paper account (free)
-open https://app.alpaca.markets/signup
-# Generate keys: dashboard → API Keys → Paper Trading → Generate
+To inspect the legacy technical decision log without any paid LLM or broker
+order:
 
-# 2. Add to .env (gitignored)
-cat >> .env <<'EOF'
-ALPACA_API_KEY=PK_PASTE_HERE
-ALPACA_SECRET_KEY=PASTE_SECRET_HERE
-EOF
+    python scripts/run_daily_pilot.py --tickers NVDA,AAPL --dry-run
 
-# 3. Verify connection
-python -c "from bot.alpaca_executor import AlpacaExecutor; e = AlpacaExecutor(); print(e.get_account())"
-# Expected: { equity: 100000.00, ... } — paper account starts at $100k
-
-# 4. Smoke-trade NVDA
-python -c "
-from bot.alpaca_executor import AlpacaExecutor
-from core.brain import OrallexaBrain
-brain = OrallexaBrain()
-decision = brain.run_prediction('NVDA')
-result = AlpacaExecutor().execute_signal(decision, ticker='NVDA')
-print(result)
-"
-
-# 5. Wire daily cron — copy this launchd plist
-```
-
-**Daily auto-execute cron** (`~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist`):
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key><string>com.alexji.orallexa-paper-daily</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/zsh</string>
-        <string>-c</string>
-        <string>cd $HOME/Desktop/orallexa-ai-trading-agent && source .env && python scripts/run_daily_pilot.py 2>&amp;1 | tee -a logs/pilot.log</string>
-    </array>
-    <!-- 9:35 AM ET = market open + 5min, in PT this is 6:35 (no DST) or 7:35 -->
-    <key>StartCalendarInterval</key>
-    <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>35</integer></dict>
-    <key>StandardOutPath</key><string>/Users/alexji/Desktop/orallexa-ai-trading-agent/logs/pilot.stdout.log</string>
-    <key>StandardErrorPath</key><string>/Users/alexji/Desktop/orallexa-ai-trading-agent/logs/pilot.stderr.log</string>
-</dict>
-</plist>
-```
-
-**Watchlist for the pilot** (file: `scripts/run_daily_pilot.py`, write this):
-- 7 tickers: NVDA, AAPL, TSLA, GOOG, META, INTC (the STRONG-PASS ticker), QQQ
-- Each gets a `run_prediction(ticker)` deep-analysis
-- Decision logged to `memory_data/decision_log.json`
-- Paper trade executed iff confidence > 60% AND PortfolioManagerGate passes
-- Result appended to `logs/pilot.log`
-
-**Expected accumulation rate:**
-- 7 tickers × 1 deep-analysis/day = 7 decisions/day
-- 1-2 of those typically clear the 60% confidence gate → paper trade
-- Each deep-analysis writes a debate row to `decision_log.json`
-
-After 14 days: ~100 debate rows. **Gate 2 (DSPy Phase B) unblocks.**
-
-**Cost:** ~$0.18 per deep-analysis × 7 × 30 days = **~$38 for the month**.
-
----
+The output JSONL contains mode=technical_only_no_debate, debate_rows=0,
+orders_submitted=0, llm_calls=0, llm_cost_usd=0. The separate
+memory_data/decision_log.json rows are labeled
+run_daily_pilot:technical_only:no_debate. Market data can still be fetched
+from Yahoo Finance; log writes are local. Do not count these rows toward the
+100 eligible **production debate** rows. That gate remains blocked until a
+separate, instrumented and budgeted debate flow accumulates qualified rows
+and their forward outcomes.
 
 ## Gate 2: DSPy Phase B compile (≥100 production debates)
 
@@ -92,10 +46,10 @@ compile is gated on `decision_log.json` accumulating ≥100 eligible
 records (with `extra.debate` populated + ≥5 trading days of forward
 return data available).
 
-**14-day path (after Gate 1 cron is running):**
+**Only after 100 eligible measured debate rows and their forward returns exist:**
 
 ```bash
-# Day 14: compile attempt #1
+# Inspect eligibility before any compile attempt
 python scripts/build_dspy_eval_set.py --days 5
 # Output: memory_data/dspy_eval_set.jsonl
 #         <eligible count> rows ready
@@ -110,7 +64,8 @@ python scripts/compile_judge_dspy.py --auto light
 # Phase B status: REJECTED — compiled fails gate, baseline stays
 ```
 
-**Trigger this monthly via existing cron infrastructure:**
+**Historical workflow proposal (do not schedule paid compilation until its
+data and budget gates are implemented):**
 
 Add to `.github/workflows/dspy-compile.yml` (new file):
 
