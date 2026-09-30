@@ -23,6 +23,8 @@ memory_data/
 bot/memory.json
 bot/config.json
 eval_results/
+eval/snapshots/
+eval/private_snapshots/
 results/
 
 # Marketing drafts (internal only)
