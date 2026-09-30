@@ -25,6 +25,8 @@ TERMINAL = {"filled", "canceled", "expired", "rejected"}
 BENCHMARK_BASIS = "hypothetical_prior_close_no_executable_entry"
 CONDITIONAL_BASIS = "conditional_first_completed_buy_order_same_paper_fill_schedule"
 RULE_VERSION = "sma20_50_long_flat_v1"
+SOURCE_KINDS = frozenset({"alpaca_iex_daily_bars", "csv_date_close",
+                          "caller_supplied_completed_closes"})
 
 
 def _value(value) -> str:
@@ -362,7 +364,8 @@ class PaperLoop:
 
     def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None,
                    mark_date: date | None = None,
-                   data_fetch_error_type: str | None = None) -> dict:
+                   data_fetch_error_type: str | None = None,
+                   source_kind: str = "caller_supplied_completed_closes") -> dict:
         self._deliver_outbox()  # Recover any fill record before reading the broker or making a decision.
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
@@ -372,6 +375,8 @@ class PaperLoop:
         ticker = ticker.upper()
         if not re.fullmatch(r"[A-Z]{1,5}", ticker):
             raise ValueError("Invalid ticker")
+        if source_kind not in SOURCE_KINDS:
+            raise ValueError("Invalid completed-close source label")
         row = {
             "timestamp": now.isoformat(), "ticker": ticker,
             "signal": "HOLD", "signal_price": None, "sma20": None, "sma50": None,
@@ -500,16 +505,25 @@ class PaperLoop:
                 return row
             self.state.get("data_blocked", {}).pop(ticker, None)
 
-        price = float(closes[-1])
+        # This is derived input evidence, not raw exchange bars. Persist the
+        # exact float values used in the fixed rule for offline replay.
+        input_closes = [float(value) for value in closes[-50:]]
+        price = input_closes[-1]
         item = self.state["tickers"].setdefault(ticker, {
             "benchmark_price": price, "first_date": now.astimezone(NY).date().isoformat(),
             "position_qty": 0.0, "entry_price": 0.0,
             "realized_pnl": 0.0, "peak_equity": self.qty * price,
         })
         row["signal_price"] = price
-        row["sma20"] = sum(closes[-20:]) / 20
-        row["sma50"] = sum(closes[-50:]) / 50
+        row["sma20"] = sum(input_closes[-20:]) / 20
+        row["sma50"] = sum(input_closes) / 50
         row["signal"] = "BUY" if row["sma20"] > row["sma50"] else "SELL"
+        row.update(event_type="decision", rule_version=RULE_VERSION,
+                   source_kind=source_kind,
+                   source_as_of_session=mark_date.isoformat() if mark_date else None,
+                   input_closes=input_closes,
+                   input_closes_sha256=hashlib.sha256(json.dumps(
+                       input_closes, separators=(",", ":"), allow_nan=False).encode()).hexdigest())
 
         had_pending = bool(item.get("pending"))
         reconciliation_error = False
@@ -536,7 +550,11 @@ class PaperLoop:
                            buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
                            conditional_comparison=conditional,
                            conditional_comparison_excluded_reason=excluded)
-            self._record(row)
+            reconciliation_row = {**row}
+            for field in ("rule_version", "source_kind", "source_as_of_session",
+                          "input_closes", "input_closes_sha256"):
+                reconciliation_row.pop(field, None)
+            self._record(reconciliation_row)
             row = {**row, "event_type": "decision", "event_id": None,
                    "order_id": None, "order_status": None, "order_type": None,
                    "qty": 0, "filled_qty": 0.0, "fill_price": None,
@@ -599,8 +617,7 @@ class PaperLoop:
                     "signal_price": price, "entry_price": item["entry_price"],
                     "rule_version": RULE_VERSION,
                     "source_as_of_session": mark_date.isoformat() if mark_date else None,
-                    "input_closes_sha256": hashlib.sha256(json.dumps(closes[-50:],
-                        separators=(",", ":"), allow_nan=False).encode()).hexdigest(),
+                    "input_closes_sha256": row["input_closes_sha256"],
                 }
                 if can_submit:
                     item["intent"] = intent
@@ -734,7 +751,8 @@ def main() -> None:
                 closes, mark_date = [], None
                 data_fetch_error_type = type(exc).__name__
         row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date,
-                              data_fetch_error_type=data_fetch_error_type)
+                              data_fetch_error_type=data_fetch_error_type,
+                              source_kind="csv_date_close" if args.bars_dir else "alpaca_iex_daily_bars")
         if row.get("event_type") == "intent_recovery":
             recovered_intent = True
         elif row.get("data_status"):

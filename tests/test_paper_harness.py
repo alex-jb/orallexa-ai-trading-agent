@@ -93,8 +93,8 @@ def test_paper_buy_fill_sell_and_matched_buy_hold(tmp_path):
     assert harness.report({"NVDA": 90.0})["llm_api_cost_usd_week"] == 0.0
     assert harness.token_budget.allow() is False
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
-    assert [r.get("event_type") for r in rows] == ["order_intent", None, None,
-                                                     "order_intent", None]
+    assert [r.get("event_type") for r in rows] == ["order_intent", "decision", "decision",
+                                                     "order_intent", "decision"]
     assert all("timestamp" in row and "ticker" in row and "drawdown_pct" in row for row in rows)
     assert all(row["event_id"] for row in rows)
 
@@ -276,7 +276,10 @@ def test_pending_order_is_reconciled_without_resubmission(tmp_path):
     assert second["order_status"] == "no_change"
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
     assert rows[-2]["event_type"] == "reconciliation" and rows[-2]["filled_qty"] == 1
+    assert "input_closes" not in rows[-2]  # Fill observation is not another rule decision.
     assert rows[-2]["order_status"] == "filled"
+    assert rows[-1]["event_type"] == "decision"
+    assert rows[-1]["input_closes"] == BUY_BARS
     assert rows[-2]["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
     assert harness.state["tickers"]["NVDA"]["position_qty"] == 1
     assert len(broker.submissions) == 1

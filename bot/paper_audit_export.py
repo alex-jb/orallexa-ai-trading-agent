@@ -14,7 +14,7 @@ import os
 import re
 import stat
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -29,6 +29,10 @@ MAX_SOURCE_BYTES = 50 * 1024 * 1024
 MAX_META_BYTES = 16 * 1024
 EVENT_ID = re.compile(r"[0-9a-f]{32}\Z")
 TICKER = re.compile(r"[A-Z]{1,5}\Z")
+INPUT_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+REPLAY_RULE = "sma20_50_long_flat_v1"
+SOURCE_KINDS = frozenset({"alpaca_iex_daily_bars", "csv_date_close",
+                          "caller_supplied_completed_closes"})
 
 
 class AuditError(ValueError):
@@ -131,12 +135,48 @@ def _validate_state(data: bytes) -> set[str]:
     return set(state["tickers"])
 
 
-def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
+def _verify_decision_input(row: dict, number: int) -> None:
+    """Replay derived closes; a valid hash alone cannot prove source truth."""
+    if row.get("event_type") not in ("decision", "order_intent"):
+        raise AuditError(f"Ledger row {number} puts decision inputs on a non-decision event")
+    closes = row["input_closes"]
+    if (not isinstance(closes, list) or len(closes) != 50
+            or any(type(price) is not float or not math.isfinite(price) or price <= 0
+                   for price in closes)):
+        raise AuditError(f"Ledger row {number} has invalid transformed closes")
+    if row.get("rule_version") != REPLAY_RULE:
+        raise AuditError(f"Ledger row {number} has an unsupported replay rule")
+    if not isinstance(row.get("source_kind"), str) or row["source_kind"] not in SOURCE_KINDS:
+        raise AuditError(f"Ledger row {number} has an invalid source label")
+    session = row.get("source_as_of_session")
+    if session is not None:
+        try:
+            if not isinstance(session, str) or date.fromisoformat(session).isoformat() != session:
+                raise ValueError("Noncanonical session date")
+        except ValueError as exc:
+            raise AuditError(f"Ledger row {number} has an invalid source session") from exc
+    digest = hashlib.sha256(json.dumps(
+        closes, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+    recorded_digest = row.get("input_closes_sha256")
+    if (not isinstance(recorded_digest, str) or not INPUT_SHA256.fullmatch(recorded_digest)
+            or recorded_digest != digest):
+        raise AuditError(f"Ledger row {number} has an invalid decision input hash")
+    sma20, sma50 = sum(closes[-20:]) / 20, sum(closes) / 50
+    if (any(type(row.get(field)) is not float
+            for field in ("signal_price", "sma20", "sma50"))
+            or row["signal_price"] != closes[-1] or row["sma20"] != sma20
+            or row.get("sma50") != sma50
+            or row.get("signal") != ("BUY" if sma20 > sma50 else "SELL")):
+        raise AuditError(f"Ledger row {number} does not replay the fixed rule")
+
+
+def _validate_ledger(data: bytes) -> tuple[int, str, set[str], dict]:
     if not data or not data.endswith(b"\n") or b"\r" in data:
         raise AuditError("Ledger must contain JSONL rows with final LF")
     seen: set[str] = set()
     tickers: set[str] = set()
     last = ""
+    replay_eligible = replay_verified = 0
     for number, line in enumerate(data.split(b"\n")[:-1], 1):
         if not line:
             raise AuditError(f"Blank ledger row {number}")
@@ -181,7 +221,20 @@ def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
             value = row[field]
             if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
                 raise AuditError(f"Ledger row {number} has an invalid {field}")
-    return len(seen), last, tickers
+        # A pre-replay ledger may contain order intents with only a digest and
+        # old decisions with no explicit event type. Count them as unverified.
+        eligible = row.get("event_type") in ("decision", "order_intent") or (
+            row.get("event_type") is None and row.get("signal_price") is not None
+            and row.get("sma20") is not None and row.get("sma50") is not None)
+        if "input_closes" in row:
+            _verify_decision_input(row, number)
+            replay_verified += 1
+        if eligible:
+            replay_eligible += 1
+    return len(seen), last, tickers, {
+        "eligible_rows": replay_eligible, "verified_rows": replay_verified,
+        "unverified_rows": replay_eligible - replay_verified,
+    }
 
 
 def _require_matching_tickers(state_tickers: set[str], ledger_tickers: set[str]) -> None:
@@ -254,7 +307,7 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
     state = _read(state_path, limit=MAX_SOURCE_BYTES)
     ledger = _read(ledger_path, limit=MAX_SOURCE_BYTES)
     state_tickers = _validate_state(state)
-    count, last, ledger_tickers = _validate_ledger(ledger)
+    count, last, ledger_tickers, replay = _validate_ledger(ledger)
     _require_matching_tickers(state_tickers, ledger_tickers)
     # Detect ordinary concurrent writes. This is not a substitute for stopping
     # the writer: the state and ledger have no shared atomic snapshot primitive.
@@ -281,7 +334,8 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
     _fsync_directory(bundle_path)
     _fsync_directory(bundle_path.parent)
     return {"bundle": str(bundle_path), "ledger_event_count": count,
-            "signer_public_key_sha256": manifest["signer_public_key_sha256"]}
+            "signer_public_key_sha256": manifest["signer_public_key_sha256"],
+            "decision_replay_coverage": replay}
 
 
 def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
@@ -336,7 +390,7 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
             raise AuditError("Snapshot bytes do not match the signed manifest")
         payload[name] = raw
     state_tickers = _validate_state(payload["state.json"])
-    count, last, ledger_tickers = _validate_ledger(payload["ledger.jsonl"])
+    count, last, ledger_tickers, replay = _validate_ledger(payload["ledger.jsonl"])
     _require_matching_tickers(state_tickers, ledger_tickers)
     if manifest["ledger_event_count"] != count or manifest["ledger_last_event_id"] != last:
         raise AuditError("Ledger metadata does not match the signed manifest")
@@ -352,7 +406,8 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
             raise AuditError("Bundle changed during verification")
     return {"bundle": str(bundle_path), "ledger_event_count": count,
             "signer_public_key_sha256": fingerprint, "verified": True,
-            "evidence_scope": manifest["evidence_scope"]}
+            "evidence_scope": manifest["evidence_scope"],
+            "decision_replay_coverage": replay}
 
 
 def main() -> None:

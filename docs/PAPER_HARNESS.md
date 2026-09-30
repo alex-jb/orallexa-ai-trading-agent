@@ -30,8 +30,15 @@ does not match its own saved state. The deterministic client order ID supports
 same-day deduplication for a single loop. Before a new
 paper order, the loop persists an `order_intent` event and the exact client ID,
 side, quantity, prior-close signal price, rule version, the completed session
-date, and a SHA-256 of the canonical last 50 *input close values*. This hash
-is not proof of the raw Alpaca data or its publication time. In submit mode,
+date, the source label, the exact last 50 transformed floating-point closes,
+and a SHA-256 of their canonical JSON representation. The final
+`decision` row records the same inputs even when no order changes (including
+dry-run). A prior fill `reconciliation` row and an `intent_recovery` row are
+separate events with no replay claim; missing/stale data and calendar failures
+also do not claim a rule decision. A valid decision with no order has a BUY or
+SELL *signal* and `no_change` order status; HOLD is reserved for an unavailable
+signal. The input hash and source label are not proof of the raw Alpaca data,
+its publication time, or the actual exchange close. In submit mode,
 the last bar must have a date **equal to the most recent prior scheduled
 equity session** returned by Alpaca's read-only trading calendar. This handles
 ordinary weekends and scheduled holidays without guessing by calendar-day
@@ -200,6 +207,17 @@ that records both SHA-256 hashes, byte lengths, row count, last event ID, and
 the signing public key fingerprint. The verifier rejects changed bytes, missing
 or extra files, symlinks, wrong or untrusted keys, malformed JSONL (including a
 missing final LF), duplicate event IDs, invalid rows, and a pending outbox.
+For rows carrying replay inputs, export and verification independently recompute
+the close-array SHA-256, last-close signal price, SMA20, SMA50, and BUY/SELL
+comparison under `sma20_50_long_flat_v1`. A mismatch blocks export/verification
+even when someone signs a new manifest around the inconsistent row. Results
+include `decision_replay_coverage` counts for eligible, verified, and older
+unverified rows. Older intent rows recorded only an input hash; older decision
+rows omitted the exact closes. Such rows remain signed local records but cannot
+be replayed. A malicious signer can remove replay fields and re-sign a row;
+the resulting row is counted as unverified. Inspect the coverage before making
+any rule-level claim. Reconciliation, recovery, and unavailable-data rows do
+not count as eligible decisions.
 The signing key is never copied into the bundle. Keep the public key and its
 fingerprint in separately trusted storage; the manifest's fingerprint alone
 does not establish trust. Do not publicly upload the bundle without reviewing
@@ -224,9 +242,10 @@ verification, but a concurrently writable directory needs separate custody
 or an immutable copy. It cannot establish whether the
 recorded signals, order responses, paper fills, or P&L were true. The state and
 ledger contain the fixed-rule loop's derived data; the original raw Alpaca
-bars and broker responses are unavailable here. The intent hash covers its
-transformed last 50 closes, not raw market history. Paper commission is
-assumed $0, and this fixed-rule harness scopes LLM API cost to $0/week;
+bars and broker responses are unavailable here. Decision replay checks only
+the transformed last 50 closes and the rule arithmetic. It cannot establish
+that those closes came from Alpaca or that a submitted order or fill occurred.
+Paper commission is assumed $0, and this fixed-rule harness scopes LLM API cost to $0/week;
 neither amount measures outside API usage. Concurrent writes are not an atomic
 two-file snapshot; stop the writer and retry if the exporter detects changes.
 
