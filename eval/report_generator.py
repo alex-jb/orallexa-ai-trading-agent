@@ -455,6 +455,8 @@ def _generate_ranking_table(result: HarnessResult) -> str:
         st = ev.statistical
 
         sharpe = wf.avg_oos_sharpe if wf else 0.0
+        mean_excess_bps = (10_000 * sum(wf.oos_excess_returns) / len(wf.oos_excess_returns)
+                           if wf and wf.oos_excess_returns else None)
         ir = wf.avg_information_ratio if wf else 0.0
         mc_rank = mc.sharpe_percentile_rank if mc else 0.0
         p_val = st.p_value if st and st.sufficient_data and ev.verdict != "NOT EVALUATED" else None
@@ -462,6 +464,7 @@ def _generate_ranking_table(result: HarnessResult) -> str:
             "strategy": ev.strategy_name,
             "ticker": ev.ticker,
             "oos_sharpe": sharpe,
+            "mean_excess_bps": mean_excess_bps,
             "info_ratio": ir,
             "mc_percentile": mc_rank,
             "p_value": p_val,
@@ -474,16 +477,18 @@ def _generate_ranking_table(result: HarnessResult) -> str:
     rows.sort(key=lambda r: (r["verdict"] == "NOT EVALUATED", -r["oos_sharpe"]))
 
     lines = [
-        "| Strategy | Ticker | OOS Sharpe | Raw p | Bonferroni p | BH q | Verdict |",
-        "|----------|--------|-----------|-------|--------------|------|---------|",
+        "| Strategy | Ticker | OOS Sharpe | Mean excess (bps/day) | Raw excess p | Bonferroni excess p | BH excess q | Verdict |",
+        "|----------|--------|-----------|-----------------------|--------------|---------------------|-------------|---------|",
     ]
     for r in rows:
         p_str = f"{r['p_value']:.4f}" if r["p_value"] is not None else "N/A"
         bonf_str = f"{r['p_bonferroni']:.4f}" if r["p_bonferroni"] is not None else "N/A"
         bh_str = f"{r['p_bh']:.4f}" if r["p_bh"] is not None else "N/A"
         sharpe = f"{r['oos_sharpe']:.3f}" if r["verdict"] != "NOT EVALUATED" else "N/A"
+        excess = (f"{r['mean_excess_bps']:+.2f}" if r["verdict"] != "NOT EVALUATED"
+                  and r["mean_excess_bps"] is not None else "N/A")
         lines.append(
-            f"| {r['strategy']} | {r['ticker']} | {sharpe} | "
+            f"| {r['strategy']} | {r['ticker']} | {sharpe} | {excess} | "
             f"{p_str} | {bonf_str} | {bh_str} | {r['verdict']} |"
         )
 
@@ -562,14 +567,15 @@ def generate_report(
                  "Missing pairs remain in the table as NOT EVALUATED and count toward corrections.\n")
     lines.append("**Results by gate:**")
     lines.append(f"- **Walk-forward (OOS Sharpe > 0 in >50% windows):** {wf_passed}/{total} passed")
-    lines.append(f"- **Bonferroni family-wise p < 0.05:** {st_passed}/{total} passed")
-    lines.append(f"- **Benjamini-Hochberg FDR q < 0.05:** {bh_passed}/{total} passed")
+    lines.append(f"- **Bonferroni paired-excess p < 0.05:** {st_passed}/{total} passed")
+    lines.append(f"- **Benjamini-Hochberg paired-excess q < 0.05:** {bh_passed}/{total} passed")
     lines.append(f"- **Monte Carlo descriptive check:** {mc_passed}/{total} (not a significance gate)\n")
     lines.append("**Tiered verdicts:**")
     lines.append(f"- **PASS** (walk-forward + Bonferroni): {passed}")
     lines.append(f"- **MARGINAL** (walk-forward + BH only): {marginal}")
     lines.append(f"- **FAIL:** {failed}; **NOT EVALUATED:** {verdicts.count('NOT EVALUATED')}\n")
-    lines.append("> This report tests fixed rule-based strategies only. It does not establish "
+    lines.append("> These exploratory IID tests, even when labeled PASS, do not validate a "
+                 "trading edge. This report tests fixed rules only and cannot establish "
                  "whether the multi-agent or ML system adds value.\n")
     lines.append(_generate_ranking_table(result))
     lines.append("")
@@ -627,9 +633,14 @@ def generate_report(
 
     # Statistical Significance
     lines.append("\n## Statistical Significance\n")
-    lines.append("Exploratory one-sided t-test on out-of-sample daily net returns, including flat days "
-                 "(H0: mean return = 0). "
-                 "Bootstrap 95% CI on Sharpe ratio (5,000 resamples). "
+    lines.append("Exploratory one-sided paired t-test on each strategy's out-of-sample daily "
+                 "net return minus its same-ticker buy-and-hold daily return, including "
+                 "flat strategy days (H0: mean daily excess <= 0). Both start each OOS "
+                 "window in cash at its first open. Buy-and-hold pays 10 bps transaction "
+                 "cost plus 10 bps slippage on entry; the strategy pays those costs "
+                 "for subsequent changes. The benchmark holds until the window ends, "
+                 "with no forced exit charged to either side. Bootstrap 95% CI describes "
+                 "the Sharpe ratio of paired daily excess (5,000 resamples). "
                  "Bonferroni and Benjamini-Hochberg corrections use the entire predeclared "
                  f"{total}-pair family. These t-tests assume independent daily returns; serial dependence can "
                  "make their p-values optimistic. BH's FDR guarantee also depends on null-p-value "
@@ -641,22 +652,25 @@ def generate_report(
     for ticker in tickers_with_data:
         ticker_evals = [e for e in result.evaluations if e.ticker == ticker]
         lines.append(f"\n### {ticker}\n")
-        lines.append("| Strategy | OOS days | t-stat | Raw p | Bonferroni p | BH q | Sharpe [95% CI] |")
-        lines.append("|----------|----------|--------|-------|--------------|------|-----------------|")
+        lines.append("| Strategy | OOS days | Excess t-stat | Raw excess p | Bonferroni excess p | BH excess q | Excess Sharpe [95% CI] | Net > 0 raw p (diagnostic) |")
+        lines.append("|----------|----------|---------------|--------------|---------------------|-------------|------------------------|----------------------------|")
         for ev in ticker_evals:
             st = ev.statistical
             if st and st.sufficient_data:
                 ci_str = f"{st.sharpe_point:.2f} [{st.sharpe_ci_lower:.2f}, {st.sharpe_ci_upper:.2f}]"
+                absolute_p = (f"{ev.absolute_net_p_value:.4f}"
+                              if ev.absolute_net_p_value is not None else "—")
                 lines.append(
                     f"| {ev.strategy_name} | {st.n_observations} | {st.t_statistic:.2f} | "
-                    f"{st.p_value:.4f} | {st.p_bonferroni:.4f} | {st.p_bh:.4f} | {ci_str} |"
+                    f"{st.p_value:.4f} | {st.p_bonferroni:.4f} | {st.p_bh:.4f} | {ci_str} | "
+                    f"{absolute_p} |"
                 )
             elif st:
                 lines.append(
-                    f"| {ev.strategy_name} | {st.n_observations} | — | — | — | — | Insufficient data |"
+                    f"| {ev.strategy_name} | {st.n_observations} | — | — | — | — | Insufficient data | — |"
                 )
             else:
-                lines.append(f"| {ev.strategy_name} | — | — | — | — | — | NOT EVALUATED |")
+                lines.append(f"| {ev.strategy_name} | — | — | — | — | — | NOT EVALUATED | — |")
         lines.append("")
 
     # Strategy Comparison
@@ -726,8 +740,14 @@ def generate_report(
                  "**slippage:** another 0.001 (10 bps), charged by `engine/backtest.py` "
                  "at the next session open on each entry/exit. No per-share fee. "
                  "The same defaults apply to all OOS windows")
-    lines.append("- **Statistical tests:** One-sided t-test on OOS daily net returns, "
-                 "bootstrap 95% CI (5,000 resamples)")
+    lines.append("- **Statistical tests:** One-sided paired t-test of OOS daily strategy net "
+                 "returns minus same-ticker buy-and-hold returns, bootstrap 95% excess "
+                 "Sharpe CI (5,000 resamples); absolute net > 0 p is descriptive only")
+    lines.append("- **Matched benchmark:** Both start from cash at each OOS window's first "
+                 "open. Buy-and-hold pays 10 bps transaction cost plus 10 bps slippage "
+                 "on entry; the strategy pays when it actually enters or exits. "
+                 "Buy-and-hold stays invested until the window ends; neither is charged "
+                 "a final liquidation. A new window starts with fresh capital")
     lines.append(f"- **DSR (descriptive only):** {len(result.tickers) * len(result.strategies)} "
                  "planned pairs. It is not used for the verdict")
     lines.append("- **Minimum observations:** 20 OOS daily returns required for statistical tests")
@@ -786,6 +806,9 @@ def _result_to_dict(result: HarnessResult) -> dict:
                 "pct_positive_sharpe": round(wf.pct_positive_sharpe, 3),
                 "avg_oos_return": round(wf.avg_oos_return, 4),
                 "avg_information_ratio": round(wf.avg_information_ratio, 4),
+                "oos_mean_excess_bps_day": (round(10_000 * sum(wf.oos_excess_returns)
+                                                  / len(wf.oos_excess_returns), 4)
+                                            if wf.oos_excess_returns else None),
                 "passed": wf.passed,
             }
         if ev.monte_carlo:
@@ -814,7 +837,9 @@ def _result_to_dict(result: HarnessResult) -> dict:
                 "dsr": round(st.dsr, 4),
                 "returns_significant": st.returns_significant,
                 "dsr_passed": st.dsr_passed,
+                "null_hypothesis": "mean OOS daily strategy net minus matched same-ticker buy-and-hold <= 0",
             }
+        entry["absolute_net_p_value_diagnostic_only"] = ev.absolute_net_p_value
         evaluations.append(entry)
 
     return {

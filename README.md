@@ -91,12 +91,14 @@ The former eight-row table claimed results from 90 tests. The repo contains
 only a nine-pair NVDA report and an older 21-pair run, without the underlying
 OHLCV snapshots for the claimed 90. Those performance numbers are **unverified**.
 The new 90-pair protocol is [predeclared here](eval/PROTOCOL.md); evaluation
-will use all pairs, net costs, and Bonferroni/BH corrections. No current pair
+will use all pairs, net costs, a same-ticker buy-and-hold comparison from each
+OOS window's first open, and Bonferroni/BH corrections on paired excess returns.
+The one-sided IID p-values remain exploratory. No current pair
 has a reproducible result under that protocol.
 
 <!-- EVAL_TABLE_START -->
-| Strategy | Ticker | OOS Sharpe | Verdict | Bonferroni p |
-|----------|--------|-----------|---------|--------------|
+| Strategy | Ticker | OOS Sharpe | Verdict | Bonferroni excess p |
+|----------|--------|-----------|---------|---------------------|
 | Pending pinned-data run | — | N/A | NOT EVALUATED | N/A |
 <!-- EVAL_TABLE_END -->
 

@@ -11,6 +11,7 @@ from engine.backtest import simple_backtest
 from engine.strategies import STRATEGY_REGISTRY
 from eval.harness import EvaluationHarness, HarnessResult, StrategyEvaluation
 from eval.report_generator import _generate_ranking_table
+from eval.walk_forward import run_walk_forward
 from eval import report_generator
 from eval.statistical_tests import adjust_pvalues, run_statistical_tests, ttest_returns
 
@@ -57,6 +58,8 @@ def test_missing_snapshots_stay_in_full_family_and_do_not_pass(tmp_path, monkeyp
     assert report.count("NOT EVALUATED") >= 90
     assert "0/90 predeclared" in report
     assert "10 bps" in report
+    assert "Raw excess p" in report
+    assert "do not validate a trading edge" in report
 
 
 def test_transaction_and_slippage_costs_on_entry_and_exit():
@@ -100,6 +103,51 @@ def test_pinned_snapshot_produces_oos_test_and_hash(tmp_path):
     assert st is not None
     assert st.n_observations == 4 * 63  # four 63-bar windows, not 520 in-sample bars
     assert st.p_bonferroni == pytest.approx(st.p_value)
+
+
+def test_matched_oos_entry_excludes_training_overnight_and_charges_both_entries():
+    dates = pd.bdate_range("2025-01-01", periods=315)
+    prices = pd.DataFrame({"Open": 100.0, "High": 122.0, "Low": 99.0,
+                           "Close": 100.0, "Volume": 100000}, index=dates)
+    # A gap after the final training close cannot be earned by a rule fitted
+    # through that close. The opening rule and benchmark buy the same ticker.
+    prices.iloc[252, prices.columns.get_loc("Open")] = 110.0
+    prices.iloc[252, prices.columns.get_loc("Close")] = 121.0
+    rule = lambda df, _params: pd.Series(1, index=df.index)
+    wf = run_walk_forward(prices, rule, "synthetic_hold", {},
+                          initial_train_days=252, test_days=63,
+                          min_windows=1, adaptive=False)
+    expected = (1 - 0.002) * (121 / 110) - 1
+    assert wf.oos_returns[0] == pytest.approx(expected)
+    assert wf.oos_benchmark_returns[0] == pytest.approx(expected)
+    assert wf.oos_excess_returns == pytest.approx([0.0] * 63)
+    assert wf.windows[0].num_trades == 1
+
+
+def test_positive_absolute_net_return_can_fail_matched_excess_gate(tmp_path, monkeypatch):
+    dates = pd.bdate_range("2021-01-01", periods=520, name="Date")
+    close = 100 * np.power(1.01, np.arange(520))
+    df = pd.DataFrame({"Open": close, "High": close * 1.001,
+                       "Low": close * 0.999, "Close": close,
+                       "Volume": 100000}, index=dates)
+    df.to_csv(tmp_path / "NVDA.csv")
+
+    def brief_long_signal(data, _params):
+        # Each OOS window buys at the first open and then sits out most of a
+        # steadily rising ticker. Absolute net returns remain positive.
+        return pd.Series(((np.arange(len(data)) - 251) % 63 < 16).astype(int),
+                         index=data.index)
+
+    monkeypatch.setitem(STRATEGY_REGISTRY, "brief_long_signal", brief_long_signal)
+    harness = EvaluationHarness(tickers=["NVDA"], strategies=["brief_long_signal"],
+                                data_dir=tmp_path, mc_seed=42, mc_iterations=10)
+    harness.adaptive = False
+    ev = harness.run().evaluations[0]
+    assert ev.absolute_net_p_value < 0.05
+    assert ev.statistical.p_value > 0.95
+    assert np.mean(ev.walk_forward.oos_excess_returns) < 0
+    assert ev.statistical.p_bonferroni == pytest.approx(ev.statistical.p_value)
+    assert ev.verdict == "FAIL"
 
 
 def test_strategy_failure_remains_unevaluated_even_with_complete_snapshot(tmp_path, monkeypatch):

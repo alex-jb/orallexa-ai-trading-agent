@@ -21,7 +21,7 @@ import yfinance as yf
 from engine.strategies import STRATEGY_REGISTRY, STRATEGY_DEFAULT_PARAMS
 from eval.walk_forward import run_walk_forward, WalkForwardResult
 from eval.monte_carlo import run_monte_carlo, MonteCarloResult
-from eval.statistical_tests import adjust_pvalues, run_statistical_tests, StatisticalTestResult
+from eval.statistical_tests import adjust_pvalues, run_statistical_tests, ttest_returns, StatisticalTestResult
 
 logger = logging.getLogger("eval.harness")
 
@@ -34,6 +34,7 @@ class StrategyEvaluation:
     walk_forward: WalkForwardResult | None = None
     monte_carlo: MonteCarloResult | None = None
     statistical: StatisticalTestResult | None = None
+    absolute_net_p_value: float | None = None  # Exploratory H0: daily net return <= 0, never a pass gate.
     overall_pass: bool = False
     verdict: str = "FAIL"
     gates_passed: int = 0
@@ -219,17 +220,22 @@ class EvaluationHarness:
             )
             evaluation.monte_carlo = mc
 
-            # Test OOS daily *net* returns, including flat days; full-data
-            # backtest above is descriptive and cannot supply OOS p-values.
-            oos_returns = np.asarray(evaluation.walk_forward.oos_returns) if evaluation.walk_forward else np.array([])
+            # The family-wise gate asks whether the rule exceeds buy-and-hold
+            # of the same ticker over matched OOS sessions and opening entry.
+            # Absolute net > 0 is retained only as an exploratory diagnostic.
+            oos_excess = (np.asarray(evaluation.walk_forward.oos_excess_returns)
+                          if evaluation.walk_forward else np.array([]))
             st = run_statistical_tests(
-                trade_returns=oos_returns,
+                trade_returns=oos_excess,
                 strategy_name=strategy_name,
                 ticker=ticker,
                 num_strategies_tested=self.num_strategies * len(self.tickers),
                 seed=self.mc_seed,
             )
             evaluation.statistical = st
+            if evaluation.walk_forward and len(evaluation.walk_forward.oos_returns) >= 20:
+                evaluation.absolute_net_p_value = ttest_returns(
+                    np.asarray(evaluation.walk_forward.oos_returns))[1]
 
         except Exception as exc:
             logger.warning("Backtest/MC/stats failed for %s/%s: %s", strategy_name, ticker, exc)

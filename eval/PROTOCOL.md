@@ -1,4 +1,4 @@
-# New 90-pair evaluation protocol (declared 2026-09-29)
+# New 90-pair evaluation protocol (declared 2026-09-29; amended 2026-09-30)
 
 The README's former eight-row table claimed 90 tests, but the repository
 retained only a nine-pair NVDA report and an older 21-pair JSON. The source
@@ -30,23 +30,38 @@ unverified; this protocol defines a new cohort, not a reconstruction.**
   Fixed strategy defaults.
   The rule-based strategies are *not* the multi-agent decision system.
 - Returns: a signal made at close on day t is executed at the **next session's
-  open**, t+1. The old position earns close-to-next-open return, and the new
-  position earns that session's open-to-close return. Charge 10 bps
-  transaction cost plus 10 bps slippage per unit of executed position change
-  on entry and exit at the next open. A signal on the final bar cannot execute
-  inside this dataset. This is a percentage-of-notional model, with no per-share fee.
-  Results are net of those modeled costs, but do not model spread, borrow,
-  taxes, partial fills, or market impact.
-- Tests: one-sided t-test of all OOS daily net returns (including flat days).
-  Bonferroni family-wise adjustment and BH FDR across **all 90 planned pairs**;
-  unavailable pairs count as p=1. The t-test assumes independent daily
-  observations and is exploratory when returns are serially dependent; BH's
-  formal FDR guarantee also depends on assumptions about null p-values and
-  their dependence. Correlated ticker and strategy results warrant caution.
+  open**, t+1. Each independent OOS window starts from cash at its first open;
+  a signal from the final training close may enter there, paying 10 bps
+  transaction cost plus 10 bps slippage. No strategy return is credited for
+  the preceding overnight period. Subsequent old positions earn overnight
+  returns, and new positions earn open-to-close returns; both costs are
+  charged per executed position change. The matched buy-and-hold comparator
+  buys the same ticker at that first OOS open with identical entry costs,
+  stays invested through that window, and does not pay an unexecuted final
+  exit cost. Independent windows restart both portfolios from cash. A signal
+  on the last bar cannot execute inside the dataset. This is a percentage-of-
+  notional cost model, with no per-share fee, spread, borrow, taxes, partial
+  fills, or market impact.
+- Tests: the primary exploratory one-sided paired t-test uses OOS daily **net
+  strategy return minus matched same-ticker buy-and-hold return**, including
+  flat strategy days (H0: mean daily excess <= 0). Absolute net strategy
+  return > 0 is retained as an uncorrected diagnostic and never contributes
+  to a PASS. Bonferroni family-wise adjustment and BH FDR apply to primary
+  excess p-values across **all 90 planned pairs**; unavailable pairs count
+  as p=1. The t-test assumes independent daily paired excess returns;
+  serial dependence can make p-values optimistic. BH's formal FDR guarantee
+  also depends on assumptions about null p-values and their dependence.
+  Correlated ticker and strategy results warrant caution. A PASS is an
+  exploratory screen, never a validated edge; paper fills, a licensed
+  independently reproducible cohort, and prospective testing remain necessary.
+  The report exposes mean daily paired excess in basis points as an effect
+  size on the same OOS days used by the test.
+  (Protocol amendment 2026-09-30, before inspecting any numerical outcome:
+  the 2026-09-29 draft incorrectly tested absolute net > 0 and attributed
+  training-to-test overnight returns to newly fitted adaptive parameters.)
   Monte Carlo shuffling is descriptive, not an independent evidence gate.
 - Do not label a strategy as having a validated trading edge from this run
-  alone. Paper fills, forward behavior, and a matched buy-and-hold comparison
-  are separate tests.
+  alone. Paper fills and forward behavior are separate tests.
 - If any pair's walk-forward/statistical calculation fails or has insufficient
   observations, the CLI exits 2 without writing numerical report artifacts.
 

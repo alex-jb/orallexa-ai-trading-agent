@@ -21,6 +21,8 @@ import pandas as pd
 WARMUP_BARS = 50  # Kept for callers; fixed-rule evaluation uses full prior history.
 OPTIMIZE_TRIALS_BASE = 20   # Base Optuna trials; scaled by param count
 OPTIMIZE_TRIALS_PER_PARAM = 8  # Extra trials per parameter dimension
+TRANSACTION_COST = 0.001
+SLIPPAGE = 0.001
 
 
 @dataclass
@@ -37,6 +39,8 @@ class WindowResult:
     win_rate: float
     information_ratio: float
     net_returns: List[float] = field(default_factory=list, repr=False)
+    benchmark_returns: List[float] = field(default_factory=list, repr=False)
+    excess_returns: List[float] = field(default_factory=list, repr=False)
 
 
 @dataclass
@@ -50,6 +54,8 @@ class WalkForwardResult:
     avg_information_ratio: float = 0.0
     passed: bool = False
     oos_returns: List[float] = field(default_factory=list, repr=False)
+    oos_benchmark_returns: List[float] = field(default_factory=list, repr=False)
+    oos_excess_returns: List[float] = field(default_factory=list, repr=False)
 
 
 def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -107,7 +113,8 @@ def _optimize_on_train(
                 return -10.0
             bt = train_df.copy()
             bt["signal"] = signal
-            result = simple_backtest(bt, signal_col="signal", execution_mode="next_open")
+            result = simple_backtest(bt, signal_col="signal", execution_mode="next_open",
+                                     transaction_cost=TRANSACTION_COST, slippage=SLIPPAGE)
             net = result["net_strategy_return"]
             if net.std() < 1e-9:
                 return 0.0
@@ -191,22 +198,33 @@ def _run_single_window(
         raise ValueError("Strategy must return aligned long/flat signals")
     available["signal"] = signals
 
-    # Calculate the boundary day's overnight return and open fill using prior
-    # bars, then retain only this window's OOS rows for metrics and p-values.
+    # Seed indicators from prior bars, but deploy both portfolios from cash at
+    # this OOS window's first open. Adaptive parameters were fitted through the
+    # last training close: they cannot own the preceding overnight return.
     bt_result = simple_backtest(available, params=params, signal_col="signal",
-                                execution_mode="next_open").iloc[test_start_idx:test_end_idx].copy()
-    if not np.isfinite(bt_result["net_strategy_return"]).all():
-        raise ValueError("Nonfinite OOS net return")
+                                execution_mode="next_open", transaction_cost=TRANSACTION_COST,
+                                slippage=SLIPPAGE).iloc[test_start_idx:test_end_idx].copy()
+    bt_result["benchmark_return"] = bt_result["market_return"].copy()
+    first = bt_result.index[0]
+    opening_signal = int(signals.iloc[test_start_idx - 1])
+    intraday = float(bt_result.at[first, "Close"] / bt_result.at[first, "Open"])
+    entry_cost = TRANSACTION_COST + SLIPPAGE
+    bt_result.at[first, "position_change"] = opening_signal
+    bt_result.at[first, "trade_cost"] = opening_signal * entry_cost
+    bt_result.at[first, "gross_strategy_return"] = opening_signal * (intraday - 1)
+    net_first = (1 - opening_signal * entry_cost) * (1 + opening_signal * (intraday - 1)) - 1
+    bt_result.at[first, "net_strategy_return"] = net_first
+    bt_result.at[first, "strategy_return"] = net_first
+    bt_result.at[first, "benchmark_return"] = (1 - entry_cost) * intraday - 1
+    excess = bt_result["net_strategy_return"] - bt_result["benchmark_return"]
+    if not np.isfinite(bt_result[["net_strategy_return", "benchmark_return"]].to_numpy()).all():
+        raise ValueError("Nonfinite OOS strategy or matched benchmark return")
     metrics = evaluate(bt_result)
 
-    # Information ratio: (strategy return - market return) / tracking error
-    if "strategy_return" in bt_result.columns and "market_return" in bt_result.columns:
-        excess = bt_result["strategy_return"] - bt_result["market_return"]
-        excess = excess.dropna()
-        te = excess.std()
-        ir = float(excess.mean() / te * np.sqrt(252)) if te > 0 else 0.0
-    else:
-        ir = 0.0
+    # Both sides hold cash before the first test open and share the same ticker
+    # and adjusted bars. Buy-and-hold pays one opening entry cost per window.
+    te = excess.std()
+    ir = float(excess.mean() / te * np.sqrt(252)) if te > 0 else 0.0
 
     num_trades = int((bt_result["position_change"] > 0).sum())
 
@@ -223,6 +241,8 @@ def _run_single_window(
         win_rate=metrics["win_rate"],
         information_ratio=ir,
         net_returns=bt_result["net_strategy_return"].astype(float).tolist(),
+        benchmark_returns=bt_result["benchmark_return"].astype(float).tolist(),
+        excess_returns=excess.astype(float).tolist(),
     )
 
 
@@ -292,6 +312,8 @@ def run_walk_forward(
             num_windows=len(windows),
             windows=windows,
             oos_returns=[r for w in windows for r in w.net_returns],
+            oos_benchmark_returns=[r for w in windows for r in w.benchmark_returns],
+            oos_excess_returns=[r for w in windows for r in w.excess_returns],
             passed=False,
         )
 
@@ -309,5 +331,7 @@ def run_walk_forward(
         avg_oos_return=float(np.mean(returns)),
         avg_information_ratio=float(np.mean(irs)),
         oos_returns=[r for w in windows for r in w.net_returns],
+        oos_benchmark_returns=[r for w in windows for r in w.benchmark_returns],
+        oos_excess_returns=[r for w in windows for r in w.excess_returns],
         passed=pct_positive > 0.5,
     )

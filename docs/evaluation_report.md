@@ -6,101 +6,102 @@ The old README table cannot be reproduced from committed data. The old nine-pair
 
 ## Predeclared family (90 pairs)
 
-| Ticker | Strategy | OOS Sharpe | Raw p | Bonferroni p | BH q | Verdict |
-|--------|----------|------------|-------|--------------|------|---------|
-| NVDA | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| NVDA | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AAPL | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| TSLA | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| GOOG | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| META | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| INTC | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| QQQ | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| MSFT | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| AMZN | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | double_ma | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | macd_crossover | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | bollinger_breakout | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | rsi_reversal | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | trend_momentum | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | alpha_combo | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | dual_thrust | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | ensemble_vote | N/A | N/A | N/A | N/A | NOT EVALUATED |
-| SPY | regime_ensemble | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| Ticker | Strategy | OOS Sharpe | Mean excess (bps/day) | Raw excess p | Bonferroni excess p | BH excess q | Verdict |
+|--------|----------|------------|-----------------------|--------------|---------------------|-------------|---------|
+| NVDA | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| NVDA | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AAPL | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| TSLA | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| GOOG | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| META | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| INTC | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| QQQ | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| MSFT | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| AMZN | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | double_ma | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | macd_crossover | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | bollinger_breakout | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | rsi_reversal | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | trend_momentum | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | alpha_combo | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | dual_thrust | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | ensemble_vote | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
+| SPY | regime_ensemble | N/A | N/A | N/A | N/A | N/A | NOT EVALUATED |
 
 ## Cost assumptions for the next run
 
 - The predeclared evaluation runs the `next_open` backtest mode: a close signal fills at the next session's open; 10 bps transaction cost plus 10 bps slippage are charged per executed position change, on both entry and exit. No per-share fee is modeled.
+- The 2026-09-30 protocol amendment compares paired OOS daily net returns against buy-and-hold of the **same ticker**, entering both portfolios from cash at the first open of each test window. The buy-and-hold leg also pays entry costs. The original absolute net > 0 test is retained as an uncorrected diagnostic and cannot establish excess return.
 - The fixed cohort, date range, snapshot script, hashes, and rerun command are in [eval/PROTOCOL.md](../eval/PROTOCOL.md).
 - Do not interpret archived raw p-values as significance across 90 comparisons. Future t-test p-values will be exploratory under serially dependent returns; BH FDR also depends on null p-value and dependence assumptions across correlated strategies and tickers.
