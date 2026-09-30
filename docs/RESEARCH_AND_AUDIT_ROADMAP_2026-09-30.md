@@ -16,6 +16,8 @@ For the paper loop, bind a stable run and order-intent ID to the timestamp, tick
 
 The first implementation target is **durable pre-submit intent** in PR #15's paper loop. A crash after broker acceptance but before the current pending-state write can leave no local order record; a later calendar day may generate a new client ID. Persist the intent before any broker submission, fail closed on a failed write, reconcile unresolved intents by their original client ID, and block new orders while the outcome is unknown. Then add an independent, read-only signed export and offline verifier. Keep signing outside the broker submission path. Verify crash and I/O failures with synthetic broker fakes; no external order is needed.
 
+**Implementation update:** [draft PR #32](https://github.com/alex-jb/orallexa-ai-trading-agent/pull/32), stacked on #15, now checkpoints the intent and audit row before broker submission, fsyncs file and directory entries, recovers by the original client ID, and withholds a comparison until broker position verification and a later usable completed-bar run. Its 70 related local fake-broker tests passed; the complete test suite could not be collected in that local environment because optional dependencies were missing. #32 has no GitHub CI run while its base is another draft branch. This is an unmerged implementation, not observed Alpaca execution; signed exports, a freshness age limit for completed bars, and raw-source snapshots remain open work.
+
 ## Technology and market scan
 
 | Evidence | Implication for this project | Limit |
@@ -49,7 +51,7 @@ The [AI4F workshop](https://ai4f.org/) is on-topic, but its page lists **2026-10
 
 [BlackRock's Aladdin Technical Relationship Manager description](https://careers.blackrock.com/job/new-york/veterans-transition-program-technical-relationship-manager-aladdin-associate/45831/98145928464) emphasizes client adoption, clear explanations, the investment lifecycle, trading/operations/compliance and risk/performance concepts; SQL/UNIX/programming are preferred. [Portfolio Analytics](https://careers.blackrock.com/job/new-york/analytics-specialist-associate-portfolio-analytics-group-pag/45831/99804344544) is a distinct, more technical path emphasizing Python/SQL and analytical applications. A candid demonstration of a rejected unsafe paper order, evidence replay and stated limitations is relevant to both; this prototype is not an Aladdin equivalent, and no employment outcome is implied. [Aladdin Copilot](https://www.blackrock.com/aladdin/platforms/products/aladdin-copilot) explicitly does not provide investment advice.
 
-1. Finish and review the pre-submit-intent draft PR on top of #15; do not activate real-money execution.
+1. Review draft #32 on top of #15, then add an age bound for completed market bars and a read-only signed evidence export in separately scoped work; do not activate real-money execution.
 2. Run the fault matrix and package reproducible evidence for the Agent Evaluation Science abstract. Do not claim a result before the run.
 3. Choose at most one immediate competition code path, with FinReason Task 3 as the best data-audit fit. Keep competition data and rules separate from trading evidence.
 4. Continue a frozen Alpaca **paper** pilot with broker-observed fills and a same-window, cost-aware buy-and-hold comparison. Treat Jev as a later shadow-classification experiment only if its early-access key and data rights are available.
