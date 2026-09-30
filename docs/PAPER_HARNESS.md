@@ -171,6 +171,54 @@ state. Do not treat a temporary broker error as a zero-fill day.
 This is a prospective paper test; no live fill record or measured edge exists
 until the pilot actually runs.
 
+### Signed local audit snapshot (offline)
+
+Stop the paper loop and any other writer before exporting. Create and retain an
+Ed25519 private key **outside the repository, export directory, and GitHub**;
+protect it with owner-only filesystem permissions. The corresponding public key
+must reach the verifier independently of the snapshot (for example, through a
+separately pinned fingerprint). Replace the example `/secure/local/` paths with
+your own protected storage; never add PEM files or runtime logs to Git.
+
+```bash
+umask 077
+openssl genpkey -algorithm Ed25519 -out /secure/local/orallexa-signing.pem
+openssl pkey -in /secure/local/orallexa-signing.pem -pubout \
+  -out /secure/local/orallexa-trusted.pub.pem
+python -m bot.paper_audit_export export \
+  --state logs/paper_harness_state.json --ledger logs/paper_harness.jsonl \
+  --signing-key /secure/local/orallexa-signing.pem
+python -m bot.paper_audit_export verify \
+  --bundle 'PASTE_BUNDLE_PATH_FROM_EXPORT_OUTPUT' \
+  --trusted-public-key /secure/local/orallexa-trusted.pub.pem
+```
+
+The export creates a new owner-only directory under gitignored `logs/` by
+default. Pass `--out` to choose a different **new** directory. It copies the
+state and ledger bytes unchanged and signs a canonical, versioned manifest
+that records both SHA-256 hashes, byte lengths, row count, last event ID, and
+the signing public key fingerprint. The verifier rejects changed bytes, missing
+or extra files, symlinks, wrong or untrusted keys, malformed JSONL (including a
+missing final LF), duplicate event IDs, invalid rows, and a pending outbox.
+The signing key is never copied into the bundle. Keep the public key and its
+fingerprint in separately trusted storage; the manifest's fingerprint alone
+does not establish trust. Do not publicly upload the bundle without reviewing
+its potentially sensitive local trading records.
+
+A valid signature means only that **this local snapshot** has not changed
+since the holder of that key signed it. A signer could sign a ledger already
+truncated before the first snapshot; this format has no external earlier
+anchor or independent completeness proof. An older valid bundle can also be
+replayed as if it were the latest unless you independently retain the expected
+snapshot time or hash. It cannot establish whether the
+recorded signals, order responses, paper fills, or P&L were true. The state and
+ledger contain the fixed-rule loop's derived data; the original raw Alpaca
+bars and broker responses are unavailable here. The intent hash covers its
+transformed last 50 closes, not raw market history. Paper commission is
+assumed $0, and this fixed-rule harness scopes LLM API cost to $0/week;
+neither amount measures outside API usage. Concurrent writes are not an atomic
+two-file snapshot; stop the writer and retry if the exporter detects changes.
+
 The older `scripts/run_daily_pilot.py` calls Claude and is **not** this fixed-rule
 loop. Do not schedule both pilots together; its LLM calls are not included in
 the $0/week figure above. The new harness does not claim to cap that separate
