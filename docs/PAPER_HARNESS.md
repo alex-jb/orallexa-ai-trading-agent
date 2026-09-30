@@ -38,6 +38,12 @@ ordinary weekends and scheduled holidays without guessing by calendar-day
 age. A missing, same-day, future, or older date, fewer than 50 valid bars,
 empty calendar, or calendar query failure blocks new paper decisions and
 orders; any outstanding order can still be reconciled.
+An Alpaca bar-fetch error is logged as `paper_market_data_unavailable` with
+only the exception type, never the error message. Pending fills are still
+reconciled, while a new order for that ticker and the CLI aggregate are
+withheld. A multi-ticker invocation is not atomic: another ticker with valid
+data can submit a paper order, leaving a partial-day portfolio that cannot
+be compared as a complete cohort that day.
 The ledger records `data_status`, provided and expected session dates, and
 withholds comparison fields while data is stale. The CLI withholds its aggregate
 report until a later run supplies at least 50 valid bars ending at the current
