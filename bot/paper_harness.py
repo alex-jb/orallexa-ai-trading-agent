@@ -388,12 +388,13 @@ class PaperLoop:
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
                     item["comparison_stale"] = "broker_reconciliation_error"
-                    row["comparison_valid"] = False
-                    row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
                 row["realized_pnl_total_usd"] = item["realized_pnl"]
-                if item.get("comparison_stale"):
-                    row["comparison_valid"] = False
-                    row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
+            if item and item.get("blocked_reason"):
+                row["comparison_valid"] = False
+                row["conditional_comparison_excluded_reason"] = "broker_position_mismatch"
+            elif item and item.get("comparison_stale"):
+                row["comparison_valid"] = False
+                row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
             self._record(row)
             return row
 
