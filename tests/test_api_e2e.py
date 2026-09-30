@@ -9,6 +9,7 @@ marked with @pytest.mark.llm and skipped if key is not set.
 """
 import os
 import json
+from unittest.mock import patch
 import pytest
 
 # Skip the entire module if FastAPI isn't installed — this test suite
@@ -26,7 +27,8 @@ from fastapi.testclient import TestClient
 @pytest.fixture(scope="module")
 def client():
     """Create FastAPI test client."""
-    from api_server import app
+    with patch.dict(os.environ, {"ORALLEXA_API_KEY": "paper-test-secret"}):
+        from api_server import app
     return TestClient(app)
 
 
