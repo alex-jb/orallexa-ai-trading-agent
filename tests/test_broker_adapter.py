@@ -67,6 +67,8 @@ def test_alpaca_bracket_order_behavior_unchanged(monkeypatch):
             return SimpleNamespace(id="paper-order-1")
 
     monkeypatch.setattr(AlpacaExecutor, "_make_client", lambda self: FakeClient())
+    # A later paper PM gate may require a fresh quote for market-order sizing.
+    monkeypatch.setattr(AlpacaExecutor, "_get_sizing_price", lambda self, ticker, side: 100.0, raising=False)
     monkeypatch.setattr(AlpacaExecutor, "_sync_to_paper_trader", lambda self, result: None)
     result = create_broker_adapter("alpaca").execute_signal(
         "NVDA", "BUY", confidence=80, entry_price=100,
