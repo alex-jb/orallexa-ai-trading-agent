@@ -7,6 +7,7 @@ matplotlib
 mplfinance
 scikit-learn
 xgboost
+cryptography>=41  # Offline Ed25519 paper audit snapshots
 
 # ── API Server ───────────────────────────
 fastapi
