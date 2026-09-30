@@ -53,11 +53,17 @@ every observation to match the predeclared expectation.
 | Verify | Supply the wrong independently held public key | Reject |
 | Export | Present a malformed tail before signing | Reject |
 | Export then verify | Remove a valid whole row **before the first signature** | Accept: known blind spot |
+| Continuity | Append a valid row after the retained first signature | Accept |
+| Continuity | Remove a whole earlier row and append two new rows, then re-sign | Reject |
+| Continuity | Rewrite an earlier valid row and append a new row, then re-sign | Reject |
+| Continuity | Present a copy of the first valid bundle as the later bundle | Reject |
 
-For the default seed, the expected result is **13/13 controls matched**, with
-11 rejected inputs and two accepted controls. The final accepted case shows why
-a valid signature cannot reconstruct absent pre-signature history. Its signed
-ledger has three rows; the reference synthetic data has four.
+For the default seed, the expected result is **17/17 controls matched**, with
+14 rejected inputs and three accepted controls. The accepted pre-first-signature
+history-loss case shows why a signature cannot reconstruct earlier missing
+history. Its signed ledger has three rows; the reference synthetic data has
+four. For later signatures, the separately retained first bundle acts as the
+anchor; the two changed histories verify individually but fail continuity.
 
 ## Scope and cost assumptions
 
@@ -72,5 +78,8 @@ rejected by this version of the local exporter/verifier. It cannot establish
 that original records were complete, that the signing key belonged to a
 particular owner, that paper orders actually filled, or that a strategy has an
 edge. A malicious signer can sign altered records; a replayed old valid bundle
-also remains verifiable without a separately trusted later anchor. Preserve
-the trusted public key and snapshot fingerprints outside the exported bundle.
+still verifies individually and can be presented as the latest without a
+separately trusted later anchor. The new continuity check applies only when
+the operator independently retains the earlier bundle and trusts the signing
+key. Preserve the trusted public key and snapshot fingerprints outside the
+exported bundle. It checks local bytes, not raw broker or market evidence.

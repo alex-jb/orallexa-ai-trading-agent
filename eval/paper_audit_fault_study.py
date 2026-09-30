@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import bot.paper_audit_export as audit
 
-SCRIPT_VERSION = "1.0"
+SCRIPT_VERSION = "1.1"
 DEFAULT_SEED = 20260930
 FIXTURES = Path(__file__).with_name("fixtures")
 
@@ -191,6 +191,38 @@ def run_study(seed: int = DEFAULT_SEED) -> dict:
         results.append(_observe("valid_history_loss_before_first_signature", "export_then_verify",
                                 False, sign_and_verify_shortened))
 
+        # The same trusted first snapshot provides a local anchor for later
+        # exports. All later candidates are correctly re-signed before checking.
+        added = json.loads(ledger_bytes.splitlines()[0])
+        added["event_id"] = hashlib.sha256(f"orallexa-fault-study-v1:{seed}:4".encode()).hexdigest()[:32]
+        added["timestamp"] = "2026-09-24T14:00:00+00:00"
+        added_again = dict(added)
+        added_again["event_id"] = hashlib.sha256(f"orallexa-fault-study-v1:{seed}:5".encode()).hexdigest()[:32]
+        added_again["timestamp"] = "2026-09-25T14:00:00+00:00"
+        candidates = {
+            "intact_history_extension": ledger_bytes + _json_bytes(added),
+            "valid_history_loss_after_first_signature": shortened_bytes + _json_bytes(added) + _json_bytes(added_again),
+        }
+        rewritten = ledger_bytes.splitlines(keepends=True)
+        changed = json.loads(rewritten[1])
+        changed["signal"] = "SELL"
+        rewritten[1] = _json_bytes(changed)
+        candidates["valid_history_rewrite_after_first_signature"] = b"".join(rewritten) + _json_bytes(added)
+        for case, data in candidates.items():
+            source = temp / f"{case}.jsonl"
+            source.write_bytes(data)
+            later = temp / f"{case}-signed"
+            audit.export_snapshot(state, source, later, private)
+            # A valid signature alone accepts all three candidates.
+            audit.verify_snapshot(later, public)
+            results.append(_observe(case, "verify_continuity",
+                                    case != "intact_history_extension",
+                                    lambda b=later: audit.verify_continuity(baseline, b, public)))
+        replay = temp / "replayed-old-signed-bundle"
+        shutil.copytree(baseline, replay)
+        results.append(_observe("replay_old_valid_bundle_as_current", "verify_continuity", True,
+                                lambda: audit.verify_continuity(baseline, replay, public)))
+
     return {
         "study": "orallexa-offline-paper-audit-fault-injection",
         "script_version": SCRIPT_VERSION,
@@ -206,7 +238,7 @@ def run_study(seed: int = DEFAULT_SEED) -> dict:
         "timing_note": "Local perf_counter case durations in ms; descriptive, not a speed benchmark",
         "results": results,
         "passed": all(result["matched_expected"] for result in results),
-        "interpretation": "The pre-signature history-loss control is expected to verify; no preexisting completeness proof",
+        "interpretation": "An independently retained prior bundle detects later signed history loss, rewrite, and replay; the first signature cannot prove earlier completeness",
     }
 
 

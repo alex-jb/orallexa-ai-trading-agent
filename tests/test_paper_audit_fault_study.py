@@ -1,4 +1,5 @@
 """Offline controls for the predeclared fault study and its blind spot."""
+import hashlib
 import json
 import subprocess
 import sys
@@ -22,9 +23,9 @@ def test_cli_reports_independent_failure_controls_and_documented_blind_spot(tmp_
     report = json.loads(run.stdout)
     assert json.loads(output.read_text()) == report
     assert report["passed"] is True
-    assert len(report["results"]) == 13
-    assert len({row["case"] for row in report["results"]}) == 13
-    assert sum(row["rejected"] for row in report["results"]) == 11
+    assert len(report["results"]) == 17
+    assert len({row["case"] for row in report["results"]}) == 17
+    assert sum(row["rejected"] for row in report["results"]) == 14
     assert all(row["matched_expected"] and row["unexpected_error_type"] is None
                for row in report["results"])
     outcomes = {row["case"]: row for row in report["results"]}
@@ -32,6 +33,10 @@ def test_cli_reports_independent_failure_controls_and_documented_blind_spot(tmp_
     assert outcomes["valid_history_loss_before_first_signature"]["rejected"] is False
     assert outcomes["malformed_tail_before_signing"]["phase"] == "export"
     assert outcomes["wrong_independent_trusted_key"]["rejected"] is True
+    assert outcomes["intact_history_extension"]["rejected"] is False
+    assert outcomes["valid_history_loss_after_first_signature"]["rejected"] is True
+    assert outcomes["valid_history_rewrite_after_first_signature"]["rejected"] is True
+    assert outcomes["replay_old_valid_bundle_as_current"]["rejected"] is True
     assert report["fixture"]["synthetic"] and report["fixture"]["row_count"] == 4
     assert report["cost_assumptions"]["broker_calls"] == 0
     assert report["cost_assumptions"]["llm_calls"] == 0
@@ -40,13 +45,18 @@ def test_cli_reports_independent_failure_controls_and_documented_blind_spot(tmp_
 
 def test_study_fails_if_verifier_accepts_every_mutated_bundle(monkeypatch):
     # This tests the study's rejection oracle, beyond retesting the verifier.
-    monkeypatch.setattr(study.audit, "verify_snapshot",
-                        lambda bundle, trusted_key: {"ledger_event_count": 3})
+    def unsafe_verifier(bundle, trusted_key):
+        ledger = (bundle / "ledger.jsonl").read_bytes()
+        return {"ledger_event_count": len(ledger.splitlines()),
+                "created_at_utc": json.loads((bundle / "manifest.json").read_bytes())["created_at_utc"],
+                "ledger_sha256": hashlib.sha256(ledger).hexdigest()}
+
+    monkeypatch.setattr(study.audit, "verify_snapshot", unsafe_verifier)
     report = study.run_study()
     assert report["passed"] is False
     assert len([row for row in report["results"] if not row["matched_expected"]]) >= 10
     assert report["results"][0]["matched_expected"] is True
-    assert report["results"][-1]["matched_expected"] is True
+    assert {row["case"] for row in report["results"] if not row["matched_expected"]}
 
 
 def test_modified_valid_rows_stay_well_formed_but_differ_from_signed_source(tmp_path):

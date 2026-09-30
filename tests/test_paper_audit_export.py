@@ -1,6 +1,7 @@
 """Local-only snapshot validation: generated keys and synthetic rows only."""
 import json
 import os
+import shutil
 import stat
 import sys
 from datetime import date, datetime, timezone
@@ -11,7 +12,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import bot.paper_audit_export as paper_audit_export
-from bot.paper_audit_export import AuditError, export_snapshot, main, verify_snapshot
+from bot.paper_audit_export import AuditError, export_snapshot, main, verify_continuity, verify_snapshot
 
 
 def _keypair(directory: Path, label: str = "signer") -> tuple[Path, Path]:
@@ -314,3 +315,59 @@ def test_offline_cli_export_and_verify(tmp_path, monkeypatch, capsys):
                                          "--trusted-public-key", str(public)])
     main()
     assert json.loads(capsys.readouterr().out)["verified"] is True
+
+
+def test_later_signed_snapshot_must_strictly_extend_retained_history(tmp_path, monkeypatch, capsys):
+    state, ledger, previous, private, public = _export(tmp_path)
+    earlier_bytes = ledger.read_bytes()
+    ledger.write_bytes(earlier_bytes + (json.dumps(_row("b" * 32)) + "\n").encode())
+    current = tmp_path / "current"
+    export_snapshot(state, ledger, current, private)
+    result = verify_continuity(previous, current, public)
+    assert result["verified"] and result["new_events"] == 1
+    assert result["previous_ledger_sha256"] == verify_snapshot(previous, public)["ledger_sha256"]
+    monkeypatch.setattr(sys, "argv", ["paper_audit_export", "verify-continuity",
+                                     "--previous-bundle", str(previous), "--bundle", str(current),
+                                     "--trusted-public-key", str(public)])
+    main()
+    assert json.loads(capsys.readouterr().out)["new_events"] == 1
+
+
+def test_valid_resigned_truncation_or_rewritten_history_fails_continuity(tmp_path):
+    state, ledger, previous, private, public = _export(tmp_path)
+    original = ledger.read_bytes()
+    # Each later bundle verifies in isolation; their relationship to the
+    # retained prior signature is the new control.
+    ledger.write_bytes((json.dumps(_row("b" * 32)) + "\n").encode())
+    truncated = tmp_path / "truncated"
+    export_snapshot(state, ledger, truncated, private)
+    assert verify_snapshot(truncated, public)["verified"]
+    with pytest.raises(AuditError, match="no new events"):
+        verify_continuity(previous, truncated, public)
+
+    changed = _row()
+    changed["signal"] = "SELL"
+    ledger.write_bytes((json.dumps(changed) + "\n" + json.dumps(_row("c" * 32)) + "\n").encode())
+    rewritten = tmp_path / "rewritten"
+    export_snapshot(state, ledger, rewritten, private)
+    assert verify_snapshot(rewritten, public)["verified"]
+    with pytest.raises(AuditError, match="preserve the previous signed history"):
+        verify_continuity(previous, rewritten, public)
+
+    ledger.write_bytes(original)
+    replay = tmp_path / "replay"
+    shutil.copytree(previous, replay)
+    with pytest.raises(AuditError, match="not later"):
+        verify_continuity(previous, replay, public)
+
+
+def test_continuity_requires_an_independent_trusted_key(tmp_path):
+    state, ledger, previous, private, public = _export(tmp_path)
+    ledger.write_bytes(ledger.read_bytes() + (json.dumps(_row("b" * 32)) + "\n").encode())
+    current = tmp_path / "current"
+    export_snapshot(state, ledger, current, private)
+    _, wrong_public = _keypair(tmp_path, "wrong")
+    with pytest.raises(AuditError, match="fingerprint"):
+        verify_continuity(previous, current, wrong_public)
+    with pytest.raises(AuditError, match="different"):
+        verify_continuity(previous, previous, public)

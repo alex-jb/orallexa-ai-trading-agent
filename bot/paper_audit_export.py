@@ -352,7 +352,40 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
             raise AuditError("Bundle changed during verification")
     return {"bundle": str(bundle_path), "ledger_event_count": count,
             "signer_public_key_sha256": fingerprint, "verified": True,
-            "evidence_scope": manifest["evidence_scope"]}
+            "evidence_scope": manifest["evidence_scope"],
+            "created_at_utc": manifest["created_at_utc"],
+            "ledger_sha256": manifest["files"]["ledger.jsonl"]["sha256"]}
+
+
+def verify_continuity(previous_bundle_path: Path, bundle_path: Path,
+                      trusted_public_key_path: Path) -> dict:
+    """Check that a newer signed ledger strictly extends a separately retained one.
+
+    Both bundles must verify with the same independently supplied public key.
+    This can detect history loss after the earlier snapshot, but cannot prove
+    anything about rows missing before that first trusted snapshot.
+    """
+    previous_bundle_path = _path(previous_bundle_path, kind="directory")
+    bundle_path = _path(bundle_path, kind="directory")
+    if previous_bundle_path == bundle_path:
+        raise AuditError("Previous and current bundles must be different")
+    previous = verify_snapshot(previous_bundle_path, trusted_public_key_path)
+    current = verify_snapshot(bundle_path, trusted_public_key_path)
+    if datetime.fromisoformat(current["created_at_utc"]) <= datetime.fromisoformat(previous["created_at_utc"]):
+        raise AuditError("Current snapshot is not later than the previous snapshot")
+    if current["ledger_event_count"] <= previous["ledger_event_count"]:
+        raise AuditError("Current ledger has no new events")
+    prior_bytes = _read(previous_bundle_path / "ledger.jsonl", limit=MAX_SOURCE_BYTES)
+    current_bytes = _read(bundle_path / "ledger.jsonl", limit=MAX_SOURCE_BYTES)
+    if (hashlib.sha256(prior_bytes).hexdigest() != previous["ledger_sha256"]
+            or hashlib.sha256(current_bytes).hexdigest() != current["ledger_sha256"]):
+        raise AuditError("Snapshot ledger changed after verification")
+    if not current_bytes.startswith(prior_bytes):
+        raise AuditError("Current ledger does not preserve the previous signed history")
+    return {"verified": True, "new_events": current["ledger_event_count"] - previous["ledger_event_count"],
+            "previous_ledger_sha256": previous["ledger_sha256"],
+            "current_ledger_sha256": current["ledger_sha256"],
+            "evidence_scope": "signed_local_ledger_append_only_continuity"}
 
 
 def main() -> None:
@@ -366,6 +399,10 @@ def main() -> None:
     verify = subparsers.add_parser("verify", help="Verify a bundle with an independent trusted key")
     verify.add_argument("--bundle", type=Path, required=True)
     verify.add_argument("--trusted-public-key", type=Path, required=True)
+    continuity = subparsers.add_parser("verify-continuity", help="Check a later bundle extends a retained trusted bundle")
+    continuity.add_argument("--previous-bundle", type=Path, required=True)
+    continuity.add_argument("--bundle", type=Path, required=True)
+    continuity.add_argument("--trusted-public-key", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "export":
@@ -374,8 +411,10 @@ def main() -> None:
                 _path(out.parent.parent, kind="directory")
                 out.parent.mkdir(mode=0o700, exist_ok=True)
             result = export_snapshot(args.state, args.ledger, out, args.signing_key)
-        else:
+        elif args.command == "verify":
             result = verify_snapshot(args.bundle, args.trusted_public_key)
+        else:
+            result = verify_continuity(args.previous_bundle, args.bundle, args.trusted_public_key)
     except (AuditError, OSError) as exc:
         parser.exit(2, f"Audit {args.command} refused ({type(exc).__name__}); inspect local inputs.\n")
     print(json.dumps(result, sort_keys=True))
