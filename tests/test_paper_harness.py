@@ -780,6 +780,61 @@ def test_cli_withholds_aggregate_after_insufficient_bars(tmp_path, monkeypatch, 
     assert broker.submissions == []
 
 
+def test_cli_records_data_fetch_failure_and_still_reconciles_pending_fill(
+        tmp_path, monkeypatch, capsys):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 1.0
+
+    def unavailable(ticker, now):
+        raise RuntimeError("private feed message must never enter audit ledger")
+
+    broker.completed_closes_with_dates = unavailable
+    monkeypatch.setattr(paper_harness, "AlpacaPaperGateway", lambda: broker)
+    monkeypatch.setattr(sys, "argv", ["paper_harness", "--submit-paper", "--tickers", "NVDA",
+                                  "--state", str(tmp_path / "state.json"),
+                                  "--ledger", str(tmp_path / "decisions.jsonl")])
+    paper_harness.main()
+    row, status = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert row["data_status"] == "paper_market_data_unavailable"
+    assert row["data_fetch_error_type"] == "RuntimeError"
+    assert row["order_status"] == "filled" and row["filled_qty"] == 1
+    assert row["comparison_valid"] is False
+    assert status == {"report_status": "withheld_missing_or_stale_paper_bar"}
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+    assert row == json.loads((tmp_path / "decisions.jsonl").read_text().splitlines()[-1])
+    assert "private feed message" not in (tmp_path / "decisions.jsonl").read_text()
+    with pytest.raises(ValueError, match="unverified broker state"):
+        loop(tmp_path, broker, submit=True).report({"NVDA": 110.0})
+
+
+def test_cli_data_error_does_not_leak_into_next_ticker(tmp_path, monkeypatch, capsys):
+    broker = FakePaperGateway()
+    monday = DAY + timedelta(days=6)
+
+    def feed(ticker, now):
+        if ticker == "NVDA":
+            raise ConnectionError("private")
+        return BUY_BARS, date(2026, 10, 2)
+
+    broker.completed_closes_with_dates = feed
+    monkeypatch.setattr(paper_harness, "datetime", SimpleNamespace(
+        now=lambda tz: monday, fromisoformat=datetime.fromisoformat))
+    monkeypatch.setattr(paper_harness, "AlpacaPaperGateway", lambda: broker)
+    monkeypatch.setattr(sys, "argv", ["paper_harness", "--submit-paper", "--tickers", "NVDA,AAPL",
+                                  "--state", str(tmp_path / "state.json"),
+                                  "--ledger", str(tmp_path / "decisions.jsonl")])
+    paper_harness.main()
+    failed, healthy, status = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert failed["order_status"] == "paper_market_data_unavailable"
+    assert failed["data_fetch_error_type"] == "ConnectionError"
+    assert healthy["order_status"] == "filled" and "data_fetch_error_type" not in healthy
+    assert broker.submissions == [("AAPL", "BUY", 1)]
+    assert status == {"report_status": "withheld_missing_or_stale_paper_bar"}
+
+
 def test_same_session_mark_date_is_rejected(tmp_path):
     with pytest.raises(ValueError, match="completed earlier session"):
         loop(tmp_path).run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 29))
