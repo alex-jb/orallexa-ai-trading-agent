@@ -185,8 +185,10 @@ def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
 
 
 def _require_matching_tickers(state_tickers: set[str], ledger_tickers: set[str]) -> None:
-    if state_tickers != ledger_tickers:
-        raise AuditError("State and ledger ticker sets do not match")
+    # A feed failure can log a ticker before the first valid-bar decision has
+    # created its checkpoint. Every checkpointed ticker must still have a row.
+    if not state_tickers.issubset(ledger_tickers):
+        raise AuditError("State ticker is absent from the ledger")
 
 
 def _canonical(manifest: dict) -> bytes:
