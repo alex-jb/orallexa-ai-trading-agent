@@ -1439,12 +1439,12 @@ def alpaca_execute(
     if not math.isfinite(position_pct) or position_pct <= 0:
         raise HTTPException(status_code=422, detail="Position percentage must be positive")
 
-    from bot.alpaca_executor import AlpacaExecutor
+    from bot.alpaca_executor import AlpacaExecutor, paper_client_order_id
     # Serialize the local snapshot → risk check → submit critical section.
-    # Broker open-order state is authoritative; other hosts need a shared
-    # coordinator to close the remaining distributed race.
+    # The stable broker client ID also guards workers that do not share this lock.
     with _PAPER_ORDER_LOCK:
         executor = AlpacaExecutor()
+        client_order_id = paper_client_order_id(ticker)
         try:
             from engine.portfolio_manager import Position, approve_decision
             snapshot = executor.get_risk_snapshot()
@@ -1453,6 +1453,14 @@ def alpaca_execute(
                     "executed": False, "status": "blocked",
                     "error": "An Alpaca PAPER order is already open on this symbol",
                     "reason": "paper_open_order_exists",
+                })
+            previous = executor.lookup_paper_order(client_order_id)
+            if previous is not None:
+                return JSONResponse(status_code=409, content={
+                    "executed": False, "status": "blocked",
+                    "reason": "paper_order_already_exists",
+                    "client_order_id": client_order_id,
+                    "order_id": str(previous.id),
                 })
             portfolio = [Position(**position) for position in snapshot["positions"]]
             pm_verdict = approve_decision(
@@ -1499,8 +1507,13 @@ def alpaca_execute(
             stop_loss=stop_loss,
             take_profit=take_profit,
             position_pct=position_pct,
+            client_order_id=client_order_id,
         )
         result["portfolio_manager"] = pm_verdict
+        if result.get("reason") == "paper_order_already_exists":
+            return JSONResponse(status_code=409, content={"executed": False, **result})
+        if result.get("reason") == "paper_order_submission_unconfirmed":
+            return JSONResponse(status_code=503, content={"executed": False, **result})
         return result
 
 

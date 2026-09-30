@@ -144,7 +144,7 @@ Docker: `docker compose up --build` — that's it.
 
 | Component | Detail |
 |-----------|--------|
-| **Portfolio Manager Gate** | `alpaca/execute` reads Alpaca PAPER equity, positions, and open orders for the target symbol before each BUY/SELL; missing data, open orders, and PM errors block the order. A local lock serializes risk checks and submissions within one API process. Caller-provided portfolio fields and `skip_pm` cannot bypass it. Analysis routes apply their own PM gate when given portfolio context. Other hosts or workers can still race; broker order visibility can lag. Sector, recent-decision history, and kill-state are not in this gate. |
+| **Portfolio Manager Gate** | `alpaca/execute` reads Alpaca PAPER equity, positions, and open orders for the target symbol before each BUY/SELL; missing data, open orders, and PM errors block the order. A local lock serializes risk checks and submissions within one API process. A deterministic Alpaca client order ID limits API entries to one submitted order per symbol per New York calendar day, including filled or canceled orders. Caller-provided portfolio fields and `skip_pm` cannot bypass it. Analysis routes apply their own PM gate when given portfolio context. Sector, recent-decision history, and kill-state are not in this gate. |
 | **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
@@ -158,10 +158,16 @@ Docker: `docker compose up --build` — that's it.
 </table>
 
 Open bracket exit legs block additional `/api/alpaca/execute` orders on their
-symbol until Alpaca reports no open orders. The lock is local to one API
-process; use a shared, durable coordinator before running multiple workers
-or hosts. Alpaca order visibility can lag, so this gate does not guarantee
-cross-request idempotency. A caller's `entry_price` is only a signal reference;
+symbol until Alpaca reports no open orders. The process-local lock is backed
+by the same broker `client_order_id` on every worker for a symbol on a New York
+calendar day. A filled or canceled entry therefore blocks another entry that
+day, including an intentional adjustment. The route checks that ID before
+submission and looks it up after a rejected or uncertain submission; if the
+outcome remains unknown it returns 503 and does not retry under a new ID.
+This relies on Alpaca's documented unique client order ID behavior, not a
+documented atomic replay guarantee. Broker visibility can lag; a shared,
+durable coordinator is still needed for a strict cross-host guarantee and for
+other order paths such as close endpoints. A caller's `entry_price` is only a signal reference;
 market-order quantity is calculated from a recent Alpaca ask (BUY) or bid
 (SELL). A market order can fill at another price, so the percentage cap
 controls estimated sizing rather than a hard filled-dollar amount.

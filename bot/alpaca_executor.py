@@ -23,7 +23,9 @@ from __future__ import annotations
 import math
 import os
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from core.logger import get_logger
 
@@ -31,6 +33,20 @@ logger = get_logger("alpaca")
 
 # Alpaca paper trading base URL
 PAPER_BASE_URL = "https://paper-api.alpaca.markets"
+
+
+def paper_client_order_id(ticker: str, now: datetime | None = None) -> str:
+    """One broker-unique entry ID per symbol and New York calendar day.
+
+    All paper API workers must derive the same ID, including for opposite sides.
+    This intentionally prevents another entry after a fill or cancellation that
+    day; a new ID must never be invented to retry an uncertain submission.
+    """
+    today = (now or datetime.now(timezone.utc)).astimezone(
+        ZoneInfo("America/New_York")
+    ).strftime("%Y%m%d")
+    symbol_hash = sha256(ticker.strip().upper().encode("utf-8")).hexdigest()[:20]
+    return f"orallexa-paper-v1-{today}-{symbol_hash}"
 
 
 class AlpacaExecutor:
@@ -154,6 +170,22 @@ class AlpacaExecutor:
             raise ValueError("Alpaca PAPER open orders are unavailable")
         return bool(orders)
 
+    def lookup_paper_order(self, client_order_id: str):
+        """Return an existing order, or None only for Alpaca's explicit 404."""
+        if self._client is None:
+            raise RuntimeError("Alpaca PAPER account is not connected")
+        from alpaca.common.exceptions import APIError
+
+        try:
+            order = self._client.get_order_by_client_id(client_order_id)
+        except APIError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
+        if getattr(order, "client_order_id", None) != client_order_id or not getattr(order, "id", None):
+            raise ValueError("Invalid Alpaca PAPER order lookup")
+        return order
+
     def _get_sizing_price(self, ticker: str, decision: str) -> float:
         """Use a recent market-data quote, never a caller's signal price, for sizing.
 
@@ -190,6 +222,7 @@ class AlpacaExecutor:
         stop_loss: float = 0.0,
         take_profit: float = 0.0,
         position_pct: float = 5.0,
+        client_order_id: str | None = None,
     ) -> dict:
         """
         Execute a trading signal as a paper order.
@@ -246,6 +279,7 @@ class AlpacaExecutor:
                     qty=qty,
                     side=side,
                     time_in_force=TimeInForce.DAY,
+                    client_order_id=client_order_id,
                     order_class=OrderClass.BRACKET,
                     take_profit=TakeProfitRequest(limit_price=round(take_profit, 2)),
                     stop_loss=StopLossRequest(stop_price=round(stop_loss, 2)),
@@ -256,13 +290,39 @@ class AlpacaExecutor:
                     qty=qty,
                     side=side,
                     time_in_force=TimeInForce.DAY,
+                    client_order_id=client_order_id,
                 )
 
-            order = self._client.submit_order(order_data)
+            try:
+                order = self._client.submit_order(order_data)
+            except Exception as exc:
+                if client_order_id is None:
+                    raise
+                # A timeout or duplicate-ID error might mean the first worker
+                # already placed the order. Never retry with a different ID.
+                try:
+                    existing = self.lookup_paper_order(client_order_id)
+                except Exception as lookup_exc:
+                    logger.warning("PAPER order %s submission/lookup failed: %s / %s",
+                                   client_order_id, type(exc).__name__, type(lookup_exc).__name__)
+                    existing = None
+                if existing is not None:
+                    return {
+                        "status": "blocked", "reason": "paper_order_already_exists",
+                        "ticker": ticker, "client_order_id": client_order_id,
+                        "order_id": str(existing.id),
+                    }
+                logger.warning("PAPER order %s submission unconfirmed: %s",
+                               client_order_id, type(exc).__name__)
+                return {
+                    "status": "uncertain", "reason": "paper_order_submission_unconfirmed",
+                    "ticker": ticker, "client_order_id": client_order_id,
+                }
 
             result = {
                 "status": "submitted",
                 "order_id": str(order.id),
+                "client_order_id": client_order_id,
                 "ticker": ticker,
                 "side": decision,
                 "qty": qty,

@@ -1,8 +1,9 @@
 """Broker-backed paper PM gate: synthetic clients, no network or order submission."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
-from threading import Event
+from threading import Barrier, Event, Lock
 from types import SimpleNamespace
 
 import pytest
@@ -11,13 +12,14 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 import api_server
-from bot.alpaca_executor import AlpacaExecutor
+from bot.alpaca_executor import AlpacaExecutor, paper_client_order_id
 
 
 class FakePaperClient:
     def __init__(self, *, equity="10000", positions=(), account_error=False,
                  positions_error=False, orders=(), orders_error=False,
-                 orders_unavailable=False, advertise_submitted=False):
+                 orders_unavailable=False, advertise_submitted=False,
+                 lookup_error=False, submit_error=False):
         self.equity = equity
         self.positions = positions
         self.account_error = account_error
@@ -29,6 +31,9 @@ class FakePaperClient:
         self.orders_error = orders_error
         self.orders_unavailable = orders_unavailable
         self.advertise_submitted = advertise_submitted
+        self.lookup_error = lookup_error
+        self.submit_error = submit_error
+        self.by_client_id = {}
         self.submitted = []
 
     def get_account(self):
@@ -61,8 +66,22 @@ class FakePaperClient:
         )
 
     def submit_order(self, order):
+        if self.submit_error:
+            raise TimeoutError("Synthetic submission timeout")
         self.submitted.append(order)
-        return SimpleNamespace(id="synthetic-paper-order")
+        created = SimpleNamespace(id="synthetic-paper-order", client_order_id=order.client_order_id)
+        self.by_client_id[order.client_order_id] = created
+        return created
+
+    def get_order_by_client_id(self, client_order_id):
+        from alpaca.common.exceptions import APIError
+
+        if self.lookup_error:
+            raise RuntimeError("Synthetic order lookup failure")
+        if client_order_id in self.by_client_id:
+            return self.by_client_id[client_order_id]
+        raise APIError('{"message":"not found"}', http_error=SimpleNamespace(
+            response=SimpleNamespace(status_code=404)))
 
 
 def _position(ticker, market_value):
@@ -215,6 +234,129 @@ def test_other_symbol_open_order_does_not_block_target(request_paper):
     assert response.status_code == 200
     assert broker.order_reads == 1
     assert len(broker.submitted) == 1
+
+
+def test_client_order_id_is_stable_per_eastern_day_and_symbol():
+    day = datetime(2026, 9, 30, 17, tzinfo=timezone.utc)
+    first = paper_client_order_id("nvda", day)
+    assert first == paper_client_order_id(" NVDA ", day)
+    assert len(first) <= 48
+    assert first != paper_client_order_id("AAPL", day)
+    assert first != paper_client_order_id("NVDA", day + timedelta(days=1))
+
+
+def test_filled_order_blocks_same_symbol_again_that_day(request_paper):
+    broker = FakePaperClient()  # Filled order is absent from OPEN query.
+    first = request_paper(broker, _form())
+    second = request_paper(broker, _form(decision="SELL"))
+    assert first.status_code == 200
+    assert first.json()["client_order_id"] == second.json()["client_order_id"]
+    assert second.status_code == 409
+    assert second.json()["reason"] == "paper_order_already_exists"
+    assert len(broker.submitted) == 1
+
+
+def test_order_lookup_failure_blocks_before_submit(request_paper):
+    from alpaca.common.exceptions import APIError
+
+    broker = FakePaperClient()
+    broker.get_order_by_client_id = lambda client_id: (_ for _ in ()).throw(
+        APIError('{"message":"service unavailable"}', http_error=SimpleNamespace(
+            response=SimpleNamespace(status_code=503))))
+    response = request_paper(broker, _form())
+    assert response.status_code == 503
+    assert broker.submitted == []
+
+
+def test_ambiguous_submit_without_visible_order_fails_closed(request_paper):
+    broker = FakePaperClient(submit_error=True)
+    response = request_paper(broker, _form())
+    assert response.status_code == 503
+    assert response.json()["reason"] == "paper_order_submission_unconfirmed"
+    assert response.json()["client_order_id"] == paper_client_order_id("NVDA")
+    assert broker.submitted == []
+
+
+def test_ambiguous_submit_reconciles_accepted_order(request_paper):
+    broker = FakePaperClient()
+    original_submit = broker.submit_order
+
+    def accepted_then_timed_out(order):
+        original_submit(order)
+        raise TimeoutError("Synthetic response lost")
+
+    broker.submit_order = accepted_then_timed_out
+    response = request_paper(broker, _form())
+    assert response.status_code == 409
+    assert response.json()["reason"] == "paper_order_already_exists"
+    assert len(broker.submitted) == 1
+
+
+def test_ambiguous_submit_and_failed_reconciliation_stays_uncertain(request_paper):
+    broker = FakePaperClient(submit_error=True)
+    original_lookup = broker.get_order_by_client_id
+    lookups = 0
+
+    def lookup(client_order_id):
+        nonlocal lookups
+        lookups += 1
+        if lookups == 2:
+            raise RuntimeError("Synthetic reconciliation failure")
+        return original_lookup(client_order_id)
+
+    broker.get_order_by_client_id = lookup
+    response = request_paper(broker, _form())
+    assert response.status_code == 503
+    assert response.json()["reason"] == "paper_order_submission_unconfirmed"
+    assert lookups == 2
+    assert broker.submitted == []
+
+
+def test_two_workers_submit_one_order_with_same_broker_id(monkeypatch):
+    class RacingBroker(FakePaperClient):
+        def __init__(self):
+            super().__init__()
+            self.lookup_barrier = Barrier(2)
+            self.order_lock = Lock()
+            self.attempted_ids = []
+            self.lookups = 0
+
+        def get_order_by_client_id(self, client_order_id):
+            with self.order_lock:
+                self.lookups += 1
+                preflight = self.lookups <= 2
+            if preflight:
+                # Both workers observe no submitted order, even if the broker
+                # has not yet made an accepted order visible to the other.
+                self.lookup_barrier.wait(timeout=5)
+                from alpaca.common.exceptions import APIError
+                raise APIError('{"message":"not found"}', http_error=SimpleNamespace(
+                    response=SimpleNamespace(status_code=404)))
+            return super().get_order_by_client_id(client_order_id)
+
+        def submit_order(self, order):
+            with self.order_lock:
+                self.attempted_ids.append(order.client_order_id)
+                if order.client_order_id in self.by_client_id:
+                    raise RuntimeError("Synthetic duplicate client_order_id")
+                return super().submit_order(order)
+
+    broker = RacingBroker()
+    monkeypatch.setattr(api_server, "DEMO_MODE", False)
+    monkeypatch.setenv("ORALLEXA_API_KEY", "paper-test-secret")
+    monkeypatch.setattr(api_server, "_PAPER_ORDER_LOCK", nullcontext())
+    monkeypatch.setattr(AlpacaExecutor, "_make_client", lambda self: broker)
+    monkeypatch.setattr(AlpacaExecutor, "_get_sizing_price", lambda self, ticker, side: 100.0)
+    monkeypatch.setattr(AlpacaExecutor, "_sync_to_paper_trader", lambda self, order: None)
+    with TestClient(api_server.app) as client, ThreadPoolExecutor(max_workers=2) as pool:
+        def send():
+            return client.post("/api/alpaca/execute", data=_form(),
+                               headers={"X-API-Key": "paper-test-secret"})
+        responses = list(pool.map(lambda _: send(), range(2)))
+    assert sorted(r.status_code for r in responses) == [200, 409]
+    assert len(broker.submitted) == 1
+    assert broker.attempted_ids == [paper_client_order_id("NVDA")] * 2
+    assert {r.json()["client_order_id"] for r in responses} == set(broker.attempted_ids)
 
 
 def test_concurrent_requests_recheck_open_orders_after_first_submit(monkeypatch):
