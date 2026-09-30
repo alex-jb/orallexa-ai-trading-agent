@@ -1,5 +1,7 @@
 """Broker-backed paper PM gate: synthetic clients, no network or order submission."""
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -13,13 +15,19 @@ from bot.alpaca_executor import AlpacaExecutor
 
 class FakePaperClient:
     def __init__(self, *, equity="10000", positions=(), account_error=False,
-                 positions_error=False):
+                 positions_error=False, orders=(), orders_error=False,
+                 orders_unavailable=False, advertise_submitted=False):
         self.equity = equity
         self.positions = positions
         self.account_error = account_error
         self.positions_error = positions_error
         self.account_reads = 0
         self.position_reads = 0
+        self.order_reads = 0
+        self.orders = orders
+        self.orders_error = orders_error
+        self.orders_unavailable = orders_unavailable
+        self.advertise_submitted = advertise_submitted
         self.submitted = []
 
     def get_account(self):
@@ -33,6 +41,23 @@ class FakePaperClient:
         if self.positions_error:
             raise RuntimeError("Synthetic position failure")
         return self.positions
+
+    def get_orders(self, request):
+        from alpaca.trading.enums import QueryOrderStatus
+
+        self.order_reads += 1
+        assert request.status == QueryOrderStatus.OPEN
+        assert request.symbols == ["NVDA"]
+        assert request.limit == 1
+        assert request.nested is False
+        if self.orders_error:
+            raise RuntimeError("Synthetic open-order failure")
+        if self.orders_unavailable:
+            return None
+        return [o for o in self.orders if o.symbol == "NVDA"] + (
+            [SimpleNamespace(symbol="NVDA") for _ in self.submitted]
+            if self.advertise_submitted else []
+        )
 
     def submit_order(self, order):
         self.submitted.append(order)
@@ -107,6 +132,79 @@ def test_missing_or_invalid_broker_snapshot_blocks_order(request_paper, broker):
     assert response.json()["error"]
     assert response.json()["reason"] == "paper_portfolio_manager_unavailable"
     assert broker.submitted == []
+
+
+@pytest.mark.parametrize("order", [
+    SimpleNamespace(symbol="NVDA", side="buy"),
+    SimpleNamespace(symbol="NVDA", side="sell", order_class="bracket"),
+])
+def test_open_order_or_bracket_exit_blocks_same_symbol(request_paper, order):
+    broker = FakePaperClient(orders=[order])
+    response = request_paper(broker, _form())
+    assert response.status_code == 409
+    assert response.json()["reason"] == "paper_open_order_exists"
+    assert broker.submitted == []
+
+
+@pytest.mark.parametrize("broker", [
+    FakePaperClient(orders_error=True), FakePaperClient(orders_unavailable=True),
+])
+def test_unavailable_open_order_query_blocks(request_paper, broker):
+    response = request_paper(broker, _form())
+    assert response.status_code == 503
+    assert response.json()["reason"] == "paper_portfolio_manager_unavailable"
+    assert broker.submitted == []
+
+
+def test_malformed_open_order_response_blocks(request_paper):
+    broker = FakePaperClient()
+    broker.get_orders = lambda request: {}
+    response = request_paper(broker, _form())
+    assert response.status_code == 503
+    assert broker.submitted == []
+
+
+def test_other_symbol_open_order_does_not_block_target(request_paper):
+    broker = FakePaperClient(orders=[SimpleNamespace(symbol="AAPL")])
+    response = request_paper(broker, _form())
+    assert response.status_code == 200
+    assert broker.order_reads == 1
+    assert len(broker.submitted) == 1
+
+
+def test_concurrent_requests_recheck_open_orders_after_first_submit(monkeypatch):
+    broker = FakePaperClient(advertise_submitted=True)
+    entered_submit = Event()
+    release_submit = Event()
+    original_submit = broker.submit_order
+
+    def delayed_submit(order):
+        entered_submit.set()
+        assert release_submit.wait(timeout=5)
+        return original_submit(order)
+
+    broker.submit_order = delayed_submit
+    monkeypatch.setattr(api_server, "DEMO_MODE", False)
+    monkeypatch.setenv("ORALLEXA_API_KEY", "paper-test-secret")
+    monkeypatch.setattr(AlpacaExecutor, "_make_client", lambda self: broker)
+    monkeypatch.setattr(AlpacaExecutor, "_sync_to_paper_trader", lambda self, order: None)
+
+    with TestClient(api_server.app) as client, ThreadPoolExecutor(max_workers=2) as pool:
+        send = lambda: client.post("/api/alpaca/execute", data=_form(),
+                                   headers={"X-API-Key": "paper-test-secret"})
+        first = pool.submit(send)
+        assert entered_submit.wait(timeout=5)
+        second = pool.submit(send)
+        try:
+            # The second request has no opportunity to check stale positions
+            # until the first leaves the critical section.
+            assert not second.done()
+        finally:
+            release_submit.set()
+        responses = [first.result(timeout=5), second.result(timeout=5)]
+    assert sorted(r.status_code for r in responses) == [200, 409]
+    assert broker.order_reads == 2
+    assert len(broker.submitted) == 1
 
 
 def test_pm_exception_blocks_order(request_paper):

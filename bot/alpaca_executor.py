@@ -136,6 +136,24 @@ class AlpacaExecutor:
             positions.append({"ticker": symbol, "value_usd": abs(value)})
         return {"portfolio_value": equity, "positions": positions}
 
+    def has_open_order(self, ticker: str) -> bool:
+        """Check for an unsettled PAPER order on this symbol, failing closed.
+
+        Query each leg separately: an exit leg of a filled bracket order is
+        still an active order and must prevent another order on the symbol.
+        """
+        if self._client is None:
+            raise RuntimeError("Alpaca PAPER account is not connected")
+        from alpaca.trading.enums import QueryOrderStatus
+        from alpaca.trading.requests import GetOrdersRequest
+
+        orders = self._client.get_orders(GetOrdersRequest(
+            status=QueryOrderStatus.OPEN, symbols=[ticker], limit=1, nested=False,
+        ))
+        if not isinstance(orders, list):
+            raise ValueError("Alpaca PAPER open orders are unavailable")
+        return bool(orders)
+
     def execute_signal(
         self,
         ticker: str,

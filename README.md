@@ -144,7 +144,13 @@ Docker: `docker compose up --build` — that's it.
 
 | Component | Detail |
 |-----------|--------|
-| **Portfolio Manager Gate** | `alpaca/execute` reads Alpaca PAPER equity and positions before each BUY/SELL; missing or invalid data and PM errors block the order. Caller-provided portfolio fields and `skip_pm` cannot bypass it. Analysis routes apply their own PM gate when given portfolio context. This snapshot excludes open orders, sectors, recent-decision history, and kill-state; concurrent requests can race. |
+| **Portfolio Manager Gate** | `alpaca/execute` reads Alpaca PAPER equity, positions, and open orders for the target symbol before each BUY/SELL; missing data, open orders, and PM errors block the order. A local lock serializes risk checks and submissions within one API process. Caller-provided portfolio fields and `skip_pm` cannot bypass it. Analysis routes apply their own PM gate when given portfolio context. Other hosts or workers can still race; broker order visibility can lag. Sector, recent-decision history, and kill-state are not in this gate. |
+
+Open bracket exit legs block additional `/api/alpaca/execute` orders on their
+symbol until Alpaca reports no open orders. The lock is local to one API
+process; use a shared, durable coordinator before running multiple API workers
+or replicas against the same paper account. Alpaca order visibility can lag
+submission, so this gate alone does not guarantee cross-request idempotency.
 | **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
