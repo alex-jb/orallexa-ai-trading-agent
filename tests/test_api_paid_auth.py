@@ -1,5 +1,6 @@
 """Public demo never reaches paid LLMs; real paid routes require API auth."""
 
+import os
 import sys
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -9,7 +10,9 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-import api_server
+# The protected API refuses a keyless non-demo import before ASGI startup.
+with patch.dict(os.environ, {"ORALLEXA_API_KEY": "test-secret"}):
+    import api_server
 
 
 PAID_ROUTES = [
