@@ -380,6 +380,9 @@ cd orallexa-ui && npx playwright test   # E2E (16+ specs)
 
 </details>
 
+Broker execution implements a [paper-only adapter contract](docs/BROKER_ADAPTER.md).
+The Robinhood implementation is an offline dry-run preview with no live order path.
+
 ---
 
 ## Ships with Claude Code skills

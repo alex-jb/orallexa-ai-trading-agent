@@ -129,8 +129,8 @@ def run_for_ticker(ticker: str, dry_run: bool, confidence_gate: float) -> dict:
 
     # Fire paper trade
     try:
-        from bot.alpaca_executor import AlpacaExecutor
-        executor = AlpacaExecutor()
+        from bot.broker_adapter import create_broker_adapter
+        executor = create_broker_adapter("alpaca")
         result = executor.execute_signal(
             ticker=ticker,
             decision=decision.decision,
