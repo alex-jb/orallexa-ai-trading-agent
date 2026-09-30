@@ -138,6 +138,9 @@ class AlpacaExecutor:
         if not self._client:
             return {"error": "Alpaca not connected. Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env"}
 
+        if decision not in {"BUY", "SELL", "WAIT"}:
+            return {"error": "Unsupported decision; expected BUY, SELL, or WAIT", "ticker": ticker}
+
         if decision == "WAIT":
             return {"status": "skipped", "reason": "WAIT signal — no action"}
 
