@@ -156,8 +156,10 @@ Provide a concise reflection (under 100 words):
 
         try:
             from llm.claude_client import get_client, _extract_text, FAST_MODEL
+            from llm.call_logger import logged_create
             client = get_client()
-            response = client.messages.create(
+            response, _ = logged_create(
+                client, request_type="trade_reflection", ticker=ticker,
                 model=FAST_MODEL,
                 max_tokens=300,
                 messages=[{"role": "user", "content": prompt}],

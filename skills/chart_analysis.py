@@ -127,7 +127,9 @@ class ChartAnalysisSkill:
 
         try:
             client = self._get_client()
-            response = client.messages.create(
+            from llm.call_logger import logged_create
+            response, _ = logged_create(
+                client, request_type="chart_analysis", ticker=ticker,
                 model=DEEP_MODEL,
                 max_tokens=800,
                 messages=[

@@ -227,6 +227,11 @@ def logged_create(
     if effort:
         kwargs["output_config"] = {"effort": effort}
 
+    # API-process budget is configured by api_server after authentication.
+    # Reserve before the first SDK request; an exception here sends no call.
+    from llm.weekly_budget import reserve_if_active, settle_if_active
+    reservation = reserve_if_active(model, max_tokens, messages, PRICING)
+
     t0 = time.monotonic()
     error_msg = None
     input_tokens = 0
@@ -249,6 +254,14 @@ def logged_create(
         error_msg = str(e)[:200]
         raise
     finally:
+        settlement_error = None
+        if error_msg is None and input_tokens > 0 and output_tokens > 0:
+            # Missing usage keeps the full reservation. A failed request may
+            # still be billed by the provider, so it also keeps the reserve.
+            try:
+                settle_if_active(reservation, _estimate_cost(model, input_tokens, output_tokens))
+            except Exception as exc:
+                settlement_error = exc
         latency_ms = int((time.monotonic() - t0) * 1000)
         record = LLMCallRecord(
             timestamp=datetime.now(timezone.utc).isoformat(),
@@ -272,6 +285,8 @@ def logged_create(
             pass  # logging must never break the main flow
         _send_to_posthog(record)
         _send_to_langfuse(record)
+        if settlement_error is not None:
+            raise settlement_error  # Log the billable call even when the ledger fails.
 
     return response, record
 
