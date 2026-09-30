@@ -1,5 +1,7 @@
 """Local-only snapshot validation: generated keys and synthetic rows only."""
 import json
+import os
+import stat
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -8,6 +10,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+import bot.paper_audit_export as paper_audit_export
 from bot.paper_audit_export import AuditError, export_snapshot, main, verify_snapshot
 
 
@@ -185,6 +188,40 @@ def test_signed_truncation_or_reordering_cannot_verify(tmp_path):
     (bundle / "ledger.jsonl").write_bytes(b"".join(reversed(original.splitlines(keepends=True))))
     with pytest.raises(AuditError, match="bytes"):
         verify_snapshot(bundle, public)
+
+
+def test_verification_rejects_bundle_replaced_after_first_read(tmp_path, monkeypatch):
+    _, _, bundle, _, public = _export(tmp_path)
+    original_read = paper_audit_export._read
+    replaced = False
+
+    def replace_ledger_after_read(path, *, limit):
+        nonlocal replaced
+        data = original_read(path, limit=limit)
+        if path == bundle / "ledger.jsonl" and not replaced:
+            (bundle / "ledger.jsonl").write_bytes(b"different contents\n")
+            replaced = True
+        return data
+
+    monkeypatch.setattr(paper_audit_export, "_read", replace_ledger_after_read)
+    with pytest.raises(AuditError, match="Bundle changed during verification"):
+        verify_snapshot(bundle, public)
+    assert replaced
+
+
+def test_export_refuses_success_when_directory_sync_fails(tmp_path, monkeypatch):
+    private, _ = _keypair(tmp_path)
+    state, ledger = _inputs(tmp_path)
+    original_fsync = os.fsync
+
+    def fail_directory_fsync(descriptor):
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise OSError("directory sync failure")
+        return original_fsync(descriptor)
+
+    monkeypatch.setattr(paper_audit_export.os, "fsync", fail_directory_fsync)
+    with pytest.raises(OSError, match="directory sync failure"):
+        export_snapshot(state, ledger, tmp_path / "incomplete-bundle", private)
 
 
 def test_real_fixed_rule_dry_run_files_export_without_network(tmp_path):
