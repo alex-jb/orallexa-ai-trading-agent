@@ -40,6 +40,7 @@ def _completed_daily_closes(bars, now: datetime) -> list[float]:
 
 class PaperGateway(Protocol):
     def market_open(self) -> bool: ...
+    def last_completed_session(self, now: datetime) -> date | None: ...
     def position_qty(self, ticker: str) -> float: ...
     def submit_market(self, ticker: str, side: str, qty: int, client_id: str) -> dict: ...
     def by_client_id(self, client_id: str) -> dict | None: ...
@@ -72,6 +73,15 @@ class AlpacaPaperGateway:
 
     def market_open(self) -> bool:
         return bool(self.client.get_clock().is_open)
+
+    def last_completed_session(self, now: datetime) -> date | None:
+        """Read Alpaca's scheduled equity sessions; never trust a weekday guess."""
+        from alpaca.trading.requests import GetCalendarRequest
+        today = now.astimezone(NY).date()
+        sessions = self.client.get_calendar(GetCalendarRequest(
+            start=today - timedelta(days=14), end=today - timedelta(days=1)))
+        dates = [session.date for session in sessions if session.date < today]
+        return max(dates, default=None)
 
     def position_qty(self, ticker: str) -> float:
         for position in self.client.get_all_positions():
@@ -321,7 +331,7 @@ class PaperLoop:
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
             raise ValueError("now must be timezone-aware")
-        if mark_date is not None and mark_date >= now.astimezone(NY).date():
+        if mark_date is not None and mark_date >= now.astimezone(NY).date() and not self.submit_paper:
             raise ValueError("mark_date must be a completed earlier session")
         ticker = ticker.upper()
         if not re.fullmatch(r"[A-Z]{1,5}", ticker):
@@ -382,6 +392,11 @@ class PaperLoop:
             row["order_status"] = "insufficient_completed_bars"
             row["conditional_comparison_excluded_reason"] = "insufficient_completed_bars"
             item = self.state["tickers"].get(ticker)
+            if self.submit_paper:
+                row.update(data_status="insufficient_completed_bars", comparison_valid=False)
+                self.state.setdefault("data_blocked", {})[ticker] = "insufficient_completed_bars"
+                if item:
+                    item.setdefault("comparison_stale", "insufficient_completed_bars")
             if item and item.get("pending"):
                 try:
                     self._reconcile(ticker, item, row)
@@ -397,6 +412,49 @@ class PaperLoop:
                 row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
             self._record(row)
             return row
+
+        if self.submit_paper:
+            assert self.broker is not None
+            expected = None
+            if mark_date is None:
+                data_status = "missing_completed_bar_date"
+            elif mark_date >= now.astimezone(NY).date():
+                data_status = "incomplete_completed_bar"
+            else:
+                try:
+                    expected = self.broker.last_completed_session(now)
+                except Exception as exc:
+                    data_status = "paper_calendar_unavailable"
+                    row["error_type"] = type(exc).__name__
+                else:
+                    if not isinstance(expected, date) or expected >= now.astimezone(NY).date():
+                        data_status = "paper_calendar_unavailable"
+                    elif mark_date != expected:
+                        data_status = "stale_completed_bar"
+                    else:
+                        data_status = None
+            if data_status:
+                # A missing/stale source must never establish the benchmark or
+                # reach submit_market. Existing fills still need reconciliation.
+                row.update(data_status=data_status, order_status=data_status,
+                           source_as_of_session=mark_date.isoformat() if mark_date else None,
+                           expected_last_session=expected.isoformat() if isinstance(expected, date) else None,
+                           comparison_valid=False,
+                           conditional_comparison_excluded_reason=data_status)
+                self.state.setdefault("data_blocked", {})[ticker] = data_status
+                item = self.state["tickers"].get(ticker)
+                if item:
+                    item["comparison_stale"] = data_status
+                    if item.get("pending"):
+                        try:
+                            self._reconcile(ticker, item, row)
+                        except Exception as exc:
+                            row.update(order_status="broker_error", error_type=type(exc).__name__)
+                            item["comparison_stale"] = "broker_reconciliation_error"
+                        row["realized_pnl_total_usd"] = item["realized_pnl"]
+                self._record(row)
+                return row
+            self.state.get("data_blocked", {}).pop(ticker, None)
 
         price = float(closes[-1])
         item = self.state["tickers"].setdefault(ticker, {
@@ -544,6 +602,9 @@ class PaperLoop:
 
     def report(self, marks: dict[str, float], *, mark_dates: dict[str, date] | None = None) -> dict:
         """Keep pilot-start and conditional first-buy comparisons distinct."""
+        if any(ticker not in self.state["tickers"]
+               for ticker in self.state.get("data_blocked", {})):
+            raise ValueError("Missing or stale paper bar invalidates the paper comparison")
         equity = buy_hold = initial = 0.0
         eligible: dict[str, dict] = {}
         excluded: dict[str, str] = {}
@@ -609,6 +670,7 @@ def main() -> None:
     marks = {}
     mark_dates = {}
     recovered_intent = False
+    invalid_paper_data = False
     for ticker in [s.strip().upper() for s in args.tickers.split(",") if s.strip()]:
         if args.bars_dir:
             import pandas as pd
@@ -622,12 +684,17 @@ def main() -> None:
         row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date)
         if row.get("event_type") == "intent_recovery":
             recovered_intent = True
+        elif row.get("data_status"):
+            invalid_paper_data = True
         elif row["signal_price"] is not None:
             marks[ticker] = row["signal_price"]
             mark_dates[ticker] = mark_date
         print(json.dumps(row, sort_keys=True))
     if recovered_intent:
         print(json.dumps({"report_status": "withheld_intent_recovery_requires_fresh_mark"},
+                         sort_keys=True))
+    elif invalid_paper_data:
+        print(json.dumps({"report_status": "withheld_missing_or_stale_paper_bar"},
                          sort_keys=True))
     else:
         print(json.dumps(loop.report(marks, mark_dates=mark_dates), sort_keys=True))
