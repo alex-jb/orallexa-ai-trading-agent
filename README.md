@@ -144,7 +144,7 @@ Docker: `docker compose up --build` — that's it.
 
 | Component | Detail |
 |-----------|--------|
-| **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing — runs on `analyze`, `deep-analysis`, AND `alpaca/execute` (rejected trades never hit the broker) |
+| **Portfolio Manager Gate** | `alpaca/execute` reads Alpaca PAPER equity and positions before each BUY/SELL; missing or invalid data and PM errors block the order. Caller-provided portfolio fields and `skip_pm` cannot bypass it. Analysis routes apply their own PM gate when given portfolio context. This snapshot excludes open orders, sectors, recent-decision history, and kill-state; concurrent requests can race. |
 | **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
@@ -156,6 +156,11 @@ Docker: `docker compose up --build` — that's it.
 </td>
 </tr>
 </table>
+
+The current Portfolio Manager can approve a SELL with a zero permitted size
+when an existing position exceeds its concentration cap. `alpaca/execute`
+blocks that order. Use `/api/alpaca/close/{ticker}` to close the entire paper
+position; partial reductions need a separate sizing rule.
 
 ---
 

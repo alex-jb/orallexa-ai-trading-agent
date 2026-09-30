@@ -20,6 +20,7 @@ Usage:
 """
 from __future__ import annotations
 
+import math
 import os
 from datetime import datetime
 from typing import Optional
@@ -109,6 +110,31 @@ class AlpacaExecutor:
         except Exception as e:
             logger.warning("Failed to get positions: %s", e)
             return []
+
+    def get_risk_snapshot(self) -> dict:
+        """Fetch a strict PAPER account snapshot for the pre-order risk gate.
+
+        Unlike the dashboard helpers, failures must propagate: an empty list
+        is a valid portfolio, but a failed position query is not.
+        """
+        if self._client is None:
+            raise RuntimeError("Alpaca PAPER account is not connected")
+        account = self._client.get_account()
+        equity = float(account.equity)
+        if not math.isfinite(equity) or equity <= 0:
+            raise ValueError("Invalid Alpaca PAPER account equity")
+        raw_positions = self._client.get_all_positions()
+        if raw_positions is None:
+            raise ValueError("Alpaca PAPER positions are unavailable")
+        positions = []
+        for position in raw_positions:
+            symbol = str(position.symbol).strip().upper()
+            value = float(position.market_value)
+            if not symbol or symbol == "NONE" or not math.isfinite(value):
+                raise ValueError("Invalid Alpaca PAPER position")
+            # Market value of a short can be negative; count gross exposure.
+            positions.append({"ticker": symbol, "value_usd": abs(value)})
+        return {"portfolio_value": equity, "positions": positions}
 
     def execute_signal(
         self,
