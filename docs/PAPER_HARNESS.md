@@ -86,6 +86,17 @@ excess return. Dates recorded for fills are conservative observation times,
 which can be later than Alpaca's actual execution times. The same omitted
 dividends and transaction-cost limitations below apply to both benchmarks.
 
+**Alpaca paper fills are simulated.** Alpaca says its simulator omits market
+impact, order information leakage, latency-driven slippage, price improvement,
+regulatory fees, and dividends; queue position is also omitted for
+nonmarketable limit orders, though this pilot uses market orders. It may fill
+a quantity larger than the actual displayed liquidity. Therefore neither this
+pilot's fill-to-signal drift nor an apparent win over the conditional benchmark
+measures a live executable edge. The feed here is IEX daily bars for signals;
+paper fills and a consolidated SIP history are distinct evidence sources.
+These limitations apply even after several months of paper observations.
+See [Alpaca's paper trading specification](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading).
+
 Actual Alpaca market orders
 can fill later or partially; pending orders retain their state until a final
 status is reconciled. If the state checkpoint succeeds but the ledger append
