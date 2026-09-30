@@ -74,7 +74,9 @@ for this unrun design.
 
 Before implementation, add a separate `TokenBudget` with proposed initial
 weekly caps of 100,000 tokens and $0.01, at most 100 articles per week, one
-request at a time, and no automatic retries. Estimate an upper bound on input
+request at a time, and no automatic retries. The TypeSafe SDK retries with
+backoff by default, so explicitly set `RetryPolicy(max_retries=0)` for this
+runner. Estimate an upper bound on input
 size before each call; skip the article if the remaining cap cannot cover it.
 Charge the reported token usage afterward. Review those caps with actual
 usage before increasing them. The runner must not consume the live
