@@ -6,7 +6,9 @@ ledger live in logs/ (gitignored). Run once per market day after the open.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import re
 import uuid
@@ -22,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TERMINAL = {"filled", "canceled", "expired", "rejected"}
 BENCHMARK_BASIS = "hypothetical_prior_close_no_executable_entry"
 CONDITIONAL_BASIS = "conditional_first_completed_buy_order_same_paper_fill_schedule"
+RULE_VERSION = "sma20_50_long_flat_v1"
 
 
 def _value(value) -> str:
@@ -280,6 +283,17 @@ class PaperLoop:
                 item["conditional_entry_exclusion"] = "partial_buy_order_terminated_before_full_fill"
             item.pop("pending", None)
 
+    @staticmethod
+    def _attach_order(item: dict, order: dict, intent: dict) -> None:
+        if not order.get("id"):
+            raise ValueError("Broker order ID is unavailable")
+        item["pending"] = {
+            "id": order["id"], "side": intent["side"], "qty": intent["qty"],
+            "signal_price": intent["signal_price"], "entry_price": intent["entry_price"],
+            "accounted_qty": 0.0, "accounted_notional": 0.0,
+        }
+        item.pop("intent", None)
+
     def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None,
                    mark_date: date | None = None) -> dict:
         self._deliver_outbox()  # Recover any fill record before reading the broker or making a decision.
@@ -307,13 +321,49 @@ class PaperLoop:
             "comparison_valid": True,
             "llm_api_cost_usd_week": 0.0,
         }
-        if len(closes) < 50 or any(p <= 0 for p in closes[-50:]):
+        item = self.state["tickers"].get(ticker)
+        if item and item.get("intent"):
+            # Resolve yesterday's client ID before considering today's signal or
+            # data. A 404 is not proof that an accepted submission cannot appear.
+            intent = item["intent"]
+            row.update(event_type="intent_recovery", client_order_id=intent["client_id"],
+                       order_type="market", qty=intent["qty"], signal_price=intent["signal_price"])
+            if item.get("pending"):
+                raise ValueError("Both an order intent and a pending order require review")
+            if self.broker is None:
+                row["order_status"] = "intent_requires_paper_broker"
+            else:
+                try:
+                    order = self.broker.by_client_id(intent["client_id"])
+                except Exception as exc:
+                    row.update(order_status="intent_lookup_error", error_type=type(exc).__name__)
+                else:
+                    if order is None:
+                        row["order_status"] = "intent_unresolved"
+                    else:
+                        self._attach_order(item, order, intent)
+                        self._save()  # Persist broker ID before polling its fills.
+                        try:
+                            self._reconcile(ticker, item, row)
+                            item.pop("comparison_stale", None)
+                        except Exception as exc:
+                            row.update(order_status="broker_error", error_type=type(exc).__name__)
+                            item["comparison_stale"] = "broker_reconciliation_error"
+            row["realized_pnl_total_usd"] = item["realized_pnl"]
+            row["comparison_valid"] = False  # Recovery is not a new daily decision.
+            row["conditional_comparison_excluded_reason"] = (
+                item.get("comparison_stale") or "order_intent_recovery_not_daily_decision")
+            self._record(row)
+            return row
+
+        if len(closes) < 50 or any(not math.isfinite(p) or p <= 0 for p in closes[-50:]):
             row["order_status"] = "insufficient_completed_bars"
             row["conditional_comparison_excluded_reason"] = "insufficient_completed_bars"
             item = self.state["tickers"].get(ticker)
             if item and item.get("pending"):
                 try:
                     self._reconcile(ticker, item, row)
+                    item.pop("comparison_stale", None)
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
                     item["comparison_stale"] = "broker_reconciliation_error"
@@ -339,6 +389,7 @@ class PaperLoop:
         if had_pending:
             try:
                 self._reconcile(ticker, item, row)
+                item.pop("comparison_stale", None)
                 row["order_status"] = row["order_status"] or "pending"
             except Exception as exc:
                 row.update(order_status="broker_error", error_type=type(exc).__name__)
@@ -389,8 +440,12 @@ class PaperLoop:
                 order_qty = self.qty if action == "BUY" else item["position_qty"]
                 client_id = f"orallexa-paper-{now.astimezone(NY):%Y%m%d}-{ticker}-{action}"
                 row.update(order_type="market", qty=order_qty)
+                can_submit = False
+                order = None
                 try:
-                    # Recover an order submitted before a process crash.
+                    # Look up today's ID and check broker position before
+                    # preparing the durable intent. Broker errors are loggable;
+                    # local audit I/O errors below must always propagate.
                     order = self.broker.by_client_id(client_id)
                     if order is None:
                         broker_qty = self.broker.position_qty(ticker)
@@ -402,18 +457,40 @@ class PaperLoop:
                             if not self.broker.market_open():
                                 row["order_status"] = "market_closed"
                             else:
-                                order = self.broker.submit_market(ticker, action, order_qty, client_id)
-                    if order is not None:
-                        item["pending"] = {
-                            "id": order["id"], "side": action, "qty": order_qty,
-                            "signal_price": price, "entry_price": item["entry_price"],
-                            "accounted_qty": 0.0, "accounted_notional": 0.0,
-                        }
-                        self._save()  # Preserve order ID before polling fills.
-                        self._reconcile(ticker, item, row)
+                                can_submit = True
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
                     item["comparison_stale"] = "broker_state_unverified"
+
+                intent = {
+                    "client_id": client_id, "side": action, "qty": order_qty,
+                    "signal_price": price, "entry_price": item["entry_price"],
+                    "rule_version": RULE_VERSION,
+                    "source_as_of_session": mark_date.isoformat() if mark_date else None,
+                    "input_closes_sha256": hashlib.sha256(json.dumps(closes[-50:],
+                        separators=(",", ":"), allow_nan=False).encode()).hexdigest(),
+                }
+                if can_submit:
+                    item["intent"] = intent
+                    self._record({**row, "event_type": "order_intent",
+                                  "client_order_id": client_id, "order_status": "prepared",
+                                  "rule_version": RULE_VERSION,
+                                  "source_as_of_session": intent["source_as_of_session"],
+                                  "input_closes_sha256": intent["input_closes_sha256"]})
+                    try:
+                        order = self.broker.submit_market(ticker, action, order_qty, client_id)
+                    except Exception as exc:
+                        row.update(order_status="submission_unconfirmed",
+                                   error_type=type(exc).__name__)
+                if order is not None:
+                    self._attach_order(item, order, intent)
+                    self._save()  # Preserve order ID before polling fills.
+                    try:
+                        self._reconcile(ticker, item, row)
+                        item.pop("comparison_stale", None)
+                    except Exception as exc:
+                        row.update(order_status="broker_error", error_type=type(exc).__name__)
+                        item["comparison_stale"] = "broker_reconciliation_error"
 
         row["realized_pnl_total_usd"] = item["realized_pnl"]
         if item.get("blocked_reason"):
@@ -422,6 +499,9 @@ class PaperLoop:
         elif item.get("comparison_stale"):
             row["comparison_valid"] = False
             row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
+        elif item.get("intent"):
+            row["comparison_valid"] = False
+            row["conditional_comparison_excluded_reason"] = "unresolved_paper_order_intent"
         else:
             equity, drawdown, buy_hold = self._mark(item, price)
             row["strategy_equity_usd"] = equity
@@ -439,6 +519,8 @@ class PaperLoop:
         eligible: dict[str, dict] = {}
         excluded: dict[str, str] = {}
         for ticker, item in self.state["tickers"].items():
+            if item.get("intent"):
+                raise ValueError(f"{ticker}: unresolved paper order intent invalidates the comparison")
             if item.get("blocked_reason"):
                 raise ValueError(f"{ticker}: broker position mismatch invalidates the paper comparison")
             if item.get("comparison_stale"):
