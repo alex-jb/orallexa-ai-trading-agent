@@ -26,6 +26,8 @@ class FakePaperClient:
 
 def _executor(monkeypatch, client):
     monkeypatch.setattr(AlpacaExecutor, "_make_client", lambda self: client)
+    # A later paper PM gate may require a fresh quote for market-order sizing.
+    monkeypatch.setattr(AlpacaExecutor, "_get_sizing_price", lambda self, ticker, side: 100.0, raising=False)
     monkeypatch.setattr(AlpacaExecutor, "_sync_to_paper_trader", lambda self, order: None)
     return AlpacaExecutor()
 
