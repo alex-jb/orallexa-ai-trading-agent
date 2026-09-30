@@ -115,7 +115,7 @@ def _strict_json(data: bytes) -> object:
     return parsed
 
 
-def _validate_state(data: bytes) -> None:
+def _validate_state(data: bytes) -> set[str]:
     state = _strict_json(data)
     if not isinstance(state, dict) or not isinstance(state.get("tickers"), dict):
         raise AuditError("Invalid paper state schema")
@@ -128,12 +128,14 @@ def _validate_state(data: bytes) -> None:
         raise AuditError("State has no valid fixed share quantity")
     if state.get("outbox") is not None:
         raise AuditError("Unrecovered audit outbox; run recovery before export")
+    return set(state["tickers"])
 
 
-def _validate_ledger(data: bytes) -> tuple[int, str]:
+def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
     if not data or not data.endswith(b"\n") or b"\r" in data:
         raise AuditError("Ledger must contain JSONL rows with final LF")
     seen: set[str] = set()
+    tickers: set[str] = set()
     last = ""
     for number, line in enumerate(data.split(b"\n")[:-1], 1):
         if not line:
@@ -159,6 +161,7 @@ def _validate_ledger(data: bytes) -> tuple[int, str]:
             raise AuditError(f"Ledger row {number} needs a UTC timestamp")
         if not isinstance(row.get("ticker"), str) or not TICKER.fullmatch(row["ticker"]):
             raise AuditError(f"Ledger row {number} has an invalid ticker")
+        tickers.add(row["ticker"])
         if row.get("signal") not in ("BUY", "SELL", "HOLD"):
             raise AuditError(f"Ledger row {number} has an invalid signal")
         required = ("order_type", "qty", "order_status", "filled_qty", "fill_price",
@@ -178,7 +181,12 @@ def _validate_ledger(data: bytes) -> tuple[int, str]:
             value = row[field]
             if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
                 raise AuditError(f"Ledger row {number} has an invalid {field}")
-    return len(seen), last
+    return len(seen), last, tickers
+
+
+def _require_matching_tickers(state_tickers: set[str], ledger_tickers: set[str]) -> None:
+    if state_tickers != ledger_tickers:
+        raise AuditError("State and ledger ticker sets do not match")
 
 
 def _canonical(manifest: dict) -> bytes:
@@ -243,8 +251,9 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
         raise AuditError("Signing key and source files must be separate")
     state = _read(state_path, limit=MAX_SOURCE_BYTES)
     ledger = _read(ledger_path, limit=MAX_SOURCE_BYTES)
-    _validate_state(state)
-    count, last = _validate_ledger(ledger)
+    state_tickers = _validate_state(state)
+    count, last, ledger_tickers = _validate_ledger(ledger)
+    _require_matching_tickers(state_tickers, ledger_tickers)
     # Detect ordinary concurrent writes. This is not a substitute for stopping
     # the writer: the state and ledger have no shared atomic snapshot primitive.
     if state != _read(state_path, limit=MAX_SOURCE_BYTES) or ledger != _read(ledger_path, limit=MAX_SOURCE_BYTES):
@@ -324,8 +333,9 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
         if metadata["size_bytes"] != len(raw) or metadata["sha256"] != hashlib.sha256(raw).hexdigest():
             raise AuditError("Snapshot bytes do not match the signed manifest")
         payload[name] = raw
-    _validate_state(payload["state.json"])
-    count, last = _validate_ledger(payload["ledger.jsonl"])
+    state_tickers = _validate_state(payload["state.json"])
+    count, last, ledger_tickers = _validate_ledger(payload["ledger.jsonl"])
+    _require_matching_tickers(state_tickers, ledger_tickers)
     if manifest["ledger_event_count"] != count or manifest["ledger_last_event_id"] != last:
         raise AuditError("Ledger metadata does not match the signed manifest")
     # Catch an ordinary replacement after the first read. Verification still
