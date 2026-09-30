@@ -37,6 +37,9 @@ load_dotenv(_ROOT / ".env", override=True)
 app = FastAPI(title="Orallexa Capital API")
 
 DEMO_MODE = os.environ.get("DEMO_MODE", "").lower() in ("true", "1", "yes")
+if not DEMO_MODE and not os.environ.get("ORALLEXA_API_KEY", "").strip():
+    # Uvicorn may run with --lifespan off. Refuse import before it binds a port.
+    raise RuntimeError("ORALLEXA_API_KEY is required when DEMO_MODE is off")
 
 
 # ── Warm up heavy imports at startup (avoids 30s cold start on first request) ──

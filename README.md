@@ -64,6 +64,7 @@ cd orallexa-ai-trading-agent
 pip install -r requirements.txt
 echo "ANTHROPIC_API_KEY=your_key" > .env
 # Add ORALLEXA_API_KEY=<a unique random secret> to .env before starting the API.
+# Non-demo startup refuses a missing key at import, including with Uvicorn --lifespan off.
 # DEMO_MODE=1 permits a keyless demo but disables protected endpoints and paper orders.
 
 # Terminal 1: API
