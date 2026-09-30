@@ -3,9 +3,9 @@ eval/walk_forward.py
 --------------------------------------------------------------------
 Expanding-window walk-forward validation for trading strategies.
 
-Splits historical data into train/test windows, computes indicators
-per-window with a warmup buffer to prevent leakage, runs backtest
-on each out-of-sample window, and collects OOS metrics.
+Splits historical data into train/test windows, computes causal indicators
+and stateful signals over history available through each test window, then
+collects only out-of-sample returns from next-open execution.
 
 Default: 252-day initial train, 63-day test windows, min 4 windows.
 """
@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 
-WARMUP_BARS = 50  # Extra bars before each window for indicator warmup
+WARMUP_BARS = 50  # Kept for callers; fixed-rule evaluation uses full prior history.
 OPTIMIZE_TRIALS_BASE = 20   # Base Optuna trials; scaled by param count
 OPTIMIZE_TRIALS_PER_PARAM = 8  # Extra trials per parameter dimension
 
@@ -107,7 +107,7 @@ def _optimize_on_train(
                 return -10.0
             bt = train_df.copy()
             bt["signal"] = signal
-            result = simple_backtest(bt, signal_col="signal")
+            result = simple_backtest(bt, signal_col="signal", execution_mode="next_open")
             net = result["net_strategy_return"]
             if net.std() < 1e-9:
                 return 0.0
@@ -170,18 +170,7 @@ def _run_single_window(
             strategy_fn, strategy_name, params,
         )
 
-    # Include warmup buffer before test window for indicator computation
-    warmup_start = max(0, test_start_idx - WARMUP_BARS)
-    test_slice_raw = full_df.iloc[warmup_start:test_end_idx].copy()
-
-    # Compute indicators on the slice (prevents future data leakage)
-    test_with_indicators = _compute_indicators(test_slice_raw)
-
-    # Trim to actual test period (remove warmup bars)
-    actual_test_start = test_start_idx - warmup_start
-    test_df = test_with_indicators.iloc[actual_test_start:].copy()
-
-    if len(test_df) < 5:
+    if test_end_idx - test_start_idx < 5:
         return WindowResult(
             window_idx=window_idx,
             train_start=str(full_df.index[train_start_idx].date()),
@@ -192,15 +181,22 @@ def _run_single_window(
             max_drawdown=0.0, win_rate=0.0, information_ratio=0.0,
         )
 
-    # Generate signals
-    try:
-        signals = strategy_fn(test_df, params)
-        test_df["signal"] = signals.values
-    except Exception:
-        test_df["signal"] = 0
+    # The entire preceding history is known at this point. It seeds indicator
+    # and strategy state at the boundary; computing signals only on the 63
+    # test bars would forget an already open position or a previous crossover.
+    available = _compute_indicators(full_df.iloc[:test_end_idx].copy())
+    signals = strategy_fn(available, params)
+    if (not isinstance(signals, pd.Series) or not signals.index.equals(available.index)
+            or signals.isna().any() or not signals.isin([0, 1]).all()):
+        raise ValueError("Strategy must return aligned long/flat signals")
+    available["signal"] = signals
 
-    # Run backtest
-    bt_result = simple_backtest(test_df, params=params, signal_col="signal")
+    # Calculate the boundary day's overnight return and open fill using prior
+    # bars, then retain only this window's OOS rows for metrics and p-values.
+    bt_result = simple_backtest(available, params=params, signal_col="signal",
+                                execution_mode="next_open").iloc[test_start_idx:test_end_idx].copy()
+    if not np.isfinite(bt_result["net_strategy_return"]).all():
+        raise ValueError("Nonfinite OOS net return")
     metrics = evaluate(bt_result)
 
     # Information ratio: (strategy return - market return) / tracking error
@@ -212,7 +208,7 @@ def _run_single_window(
     else:
         ir = 0.0
 
-    num_trades = int((test_df["signal"].diff().abs() > 0).sum())
+    num_trades = int((bt_result["position_change"] > 0).sum())
 
     return WindowResult(
         window_idx=window_idx,

@@ -457,7 +457,7 @@ def _generate_ranking_table(result: HarnessResult) -> str:
         sharpe = wf.avg_oos_sharpe if wf else 0.0
         ir = wf.avg_information_ratio if wf else 0.0
         mc_rank = mc.sharpe_percentile_rank if mc else 0.0
-        p_val = st.p_value if st and st.sufficient_data else None
+        p_val = st.p_value if st and st.sufficient_data and ev.verdict != "NOT EVALUATED" else None
         rows.append({
             "strategy": ev.strategy_name,
             "ticker": ev.ticker,
@@ -493,6 +493,7 @@ def _generate_ranking_table(result: HarnessResult) -> str:
 def generate_report(
     result: HarnessResult,
     output_path: str | Path | None = None,
+    generate_charts: bool = True,
 ) -> str:
     """
     Generate the full evaluation report.
@@ -509,7 +510,8 @@ def generate_report(
 
     output_path = Path(output_path) if output_path else _DOCS / "evaluation_report.md"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    _CHARTS.mkdir(parents=True, exist_ok=True)
+    if generate_charts:
+        _CHARTS.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     tickers_str = ", ".join(result.tickers)
@@ -519,18 +521,19 @@ def generate_report(
     chart_paths = {}
     tickers_with_data = [t for t in result.tickers if t not in result.skipped_tickers]
 
-    for ticker in tickers_with_data:
-        ticker_evals = [e for e in result.evaluations if e.ticker == ticker]
-        wf_chart = _plot_walk_forward(ticker_evals, ticker)
-        if wf_chart:
-            chart_paths[f"{ticker}_wf"] = wf_chart
-        mc_chart = _plot_monte_carlo(ticker_evals, ticker)
-        if mc_chart:
-            chart_paths[f"{ticker}_mc"] = mc_chart
+    if generate_charts:
+        for ticker in tickers_with_data:
+            ticker_evals = [e for e in result.evaluations if e.ticker == ticker]
+            wf_chart = _plot_walk_forward(ticker_evals, ticker)
+            if wf_chart:
+                chart_paths[f"{ticker}_wf"] = wf_chart
+            mc_chart = _plot_monte_carlo(ticker_evals, ticker)
+            if mc_chart:
+                chart_paths[f"{ticker}_mc"] = mc_chart
 
-    comparison_chart = _plot_strategy_comparison(result)
-    if comparison_chart:
-        chart_paths["comparison"] = comparison_chart
+        comparison_chart = _plot_strategy_comparison(result)
+        if comparison_chart:
+            chart_paths["comparison"] = comparison_chart
 
     # Build report
     lines = []
@@ -566,16 +569,16 @@ def generate_report(
     lines.append(f"- **PASS** (walk-forward + Bonferroni): {passed}")
     lines.append(f"- **MARGINAL** (walk-forward + BH only): {marginal}")
     lines.append(f"- **FAIL:** {failed}; **NOT EVALUATED:** {verdicts.count('NOT EVALUATED')}\n")
-    lines.append("> Rule-based strategies serve as feature generators for the 9-model ML ensemble "
-                 "and Claude AI synthesis layer. The value is in the composite system, not individual strategies.\n")
+    lines.append("> This report tests fixed rule-based strategies only. It does not establish "
+                 "whether the multi-agent or ML system adds value.\n")
     lines.append(_generate_ranking_table(result))
     lines.append("")
 
     # Walk-Forward Validation
     lines.append("\n## Walk-Forward Validation\n")
     lines.append("Expanding-window walk-forward: each strategy is evaluated on sequential "
-                 "out-of-sample windows. Indicators are computed per-window with a 50-bar "
-                 "warmup buffer to prevent data leakage.\n")
+                 "out-of-sample windows. Causal indicators and strategy state use all prior "
+                 "history through each window; a close signal executes at the next open.\n")
 
     for ticker in tickers_with_data:
         key = f"{ticker}_wf"
@@ -629,7 +632,9 @@ def generate_report(
                  "Bootstrap 95% CI on Sharpe ratio (5,000 resamples). "
                  "Bonferroni and Benjamini-Hochberg corrections use the entire predeclared "
                  f"{total}-pair family. These t-tests assume independent daily returns; serial dependence can "
-                 "make their p-values optimistic. Monte Carlo and DSR are descriptive only.\n")
+                 "make their p-values optimistic. BH's FDR guarantee also depends on null-p-value "
+                 "and dependence assumptions; correlated tickers and strategies warrant caution. "
+                 "Monte Carlo and DSR are descriptive only.\n")
     lines.append("Tests require a minimum of 20 OOS daily observations. Pairs with fewer observations "
                  "are marked 'Insufficient data.'\n")
 
@@ -713,18 +718,19 @@ def generate_report(
     lines.append("\n## Methodology Notes\n")
     lines.append("- **Walk-forward:** Expanding window, 252-day initial training, "
                  "63-day quarterly test windows, minimum 4 windows")
-    lines.append("- **Indicators:** Computed per-window with 50-bar warmup buffer "
-                 "(prevents lookahead bias from rolling indicators)")
+    lines.append("- **Indicators and state:** Computed from all prior available bars through "
+                 "the current OOS window; only OOS bars enter the significance tests")
     lines.append(f"- **Monte Carlo:** {result.evaluations[0].monte_carlo.n_iterations if result.evaluations and result.evaluations[0].monte_carlo else 1000} "
-                 "iterations, shuffling non-zero trade returns only")
+                 "iterations, shuffling in-position daily returns (descriptive only)")
     lines.append("- **Transaction cost:** 0.001 (10 bps) per unit of position change; "
                  "**slippage:** another 0.001 (10 bps), charged by `engine/backtest.py` "
-                 "on each entry/exit. No per-share fee. The same defaults apply to all OOS windows")
+                 "at the next session open on each entry/exit. No per-share fee. "
+                 "The same defaults apply to all OOS windows")
     lines.append("- **Statistical tests:** One-sided t-test on OOS daily net returns, "
                  "bootstrap 95% CI (5,000 resamples)")
     lines.append(f"- **DSR (descriptive only):** {len(result.tickers) * len(result.strategies)} "
                  "planned pairs. It is not used for the verdict")
-    lines.append("- **Minimum trades:** 20 required for statistical tests")
+    lines.append("- **Minimum observations:** 20 OOS daily returns required for statistical tests")
     lines.append(f"- **Family:** all {total} intended strategy-ticker pairs, including skipped tests as p=1")
     lines.append("- **Pass gate:** >50% of walk-forward windows have positive Sharpe AND "
                  "Bonferroni-adjusted p < 0.05; BH-only pairs are exploratory")

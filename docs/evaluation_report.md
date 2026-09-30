@@ -101,6 +101,6 @@ The old README table cannot be reproduced from committed data. The old nine-pair
 
 ## Cost assumptions for the next run
 
-- `engine/backtest.py` charges 10 bps transaction cost plus 10 bps slippage per unit of position change, on both entry and exit. No per-share fee is modeled.
+- The predeclared evaluation runs the `next_open` backtest mode: a close signal fills at the next session's open; 10 bps transaction cost plus 10 bps slippage are charged per executed position change, on both entry and exit. No per-share fee is modeled.
 - The fixed cohort, date range, snapshot script, hashes, and rerun command are in [eval/PROTOCOL.md](../eval/PROTOCOL.md).
-- Do not interpret archived raw p-values as significance across 90 comparisons.
+- Do not interpret archived raw p-values as significance across 90 comparisons. Future t-test p-values will be exploratory under serially dependent returns; BH FDR also depends on null p-value and dependence assumptions across correlated strategies and tickers.

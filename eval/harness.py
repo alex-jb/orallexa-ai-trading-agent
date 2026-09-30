@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import hashlib
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Any
@@ -95,6 +96,12 @@ class EvaluationHarness:
         self.data_years = data_years
         self.data_dir = Path(data_dir) if data_dir is not None else None
         self.data_sha256: Dict[str, str] = {}
+        self.expected_sha256: Dict[str, str] = {}
+        if self.data_dir is not None and (self.data_dir / "manifest.json").is_file():
+            manifest = json.loads((self.data_dir / "manifest.json").read_text(encoding="utf-8"))
+            if not isinstance(manifest.get("sha256"), dict) or not manifest["sha256"]:
+                raise ValueError("Snapshot manifest is missing per-ticker SHA-256 hashes")
+            self.expected_sha256 = manifest["sha256"]
         self.strategies = list(strategies) if strategies is not None else list(STRATEGY_REGISTRY.keys())
         if not self.strategies or len(set(self.strategies)) != len(self.strategies):
             raise ValueError("Specify at least one unique strategy")
@@ -113,10 +120,16 @@ class EvaluationHarness:
                     logger.warning("Missing snapshot for %s: %s", ticker, path)
                     return None
                 self.data_sha256[ticker] = hashlib.sha256(path.read_bytes()).hexdigest()
+                if self.expected_sha256 and self.expected_sha256.get(ticker) != self.data_sha256[ticker]:
+                    raise ValueError(f"Snapshot SHA-256 differs from manifest for {ticker}")
                 df = pd.read_csv(path, index_col="Date", parse_dates=["Date"])
                 required = {"Open", "High", "Low", "Close", "Volume"}
                 if not required.issubset(df.columns) or df.index.has_duplicates or not df.index.is_monotonic_increasing:
                     raise ValueError("Snapshot must contain sorted unique dates and OHLCV columns")
+                values = df[list(required)].to_numpy(dtype=float)
+                if (not np.isfinite(values).all() or (df[["Open", "High", "Low", "Close"]] <= 0).any().any()
+                        or (df["Volume"] < 0).any()):
+                    raise ValueError("Snapshot must contain finite positive prices and nonnegative volume")
             else:
                 df = yf.download(ticker, period=f"{self.data_years}y", progress=False)
             if df is None or len(df) < self.initial_train_days + self.test_days * 4:
@@ -171,8 +184,12 @@ class EvaluationHarness:
             ta.add_indicators()
             full_df = ta.copy()
             signals = strategy_fn(full_df, params)
-            full_df["signal"] = signals.values
-            bt_result = simple_backtest(full_df, params=params, signal_col="signal")
+            if (not isinstance(signals, pd.Series) or not signals.index.equals(full_df.index)
+                    or signals.isna().any() or not signals.isin([0, 1]).all()):
+                raise ValueError("Strategy must return aligned long/flat signals")
+            full_df["signal"] = signals
+            bt_result = simple_backtest(full_df, params=params, signal_col="signal",
+                                        execution_mode="next_open")
 
             # Store enriched data for advanced charts
             evaluation.backtest_df = bt_result
@@ -217,6 +234,10 @@ class EvaluationHarness:
         except Exception as exc:
             logger.warning("Backtest/MC/stats failed for %s/%s: %s", strategy_name, ticker, exc)
 
+        if (evaluation.walk_forward is None or evaluation.walk_forward.num_windows < 4
+                or evaluation.statistical is None or not evaluation.statistical.sufficient_data):
+            evaluation.verdict = "NOT EVALUATED"
+
         # Final significance gate is assigned across the whole family in run().
         return evaluation
 
@@ -250,12 +271,13 @@ class EvaluationHarness:
         expected = len(result.tickers) * len(result.strategies)
         if len(result.evaluations) != expected:
             raise ValueError(f"Expected {expected} pair records, found {len(result.evaluations)}")
-        raw = [e.statistical.p_value if e.statistical and e.statistical.sufficient_data else 1.0
+        raw = [e.statistical.p_value if (e.verdict != "NOT EVALUATED"
+               and e.statistical and e.statistical.sufficient_data) else 1.0
                for e in result.evaluations]
         bonferroni, bh = adjust_pvalues(raw)
         result.total_passed = 0
         for ev, p_bonf, p_bh in zip(result.evaluations, bonferroni, bh):
-            if ev.statistical:
+            if ev.statistical and ev.verdict != "NOT EVALUATED":
                 ev.statistical.p_bonferroni = p_bonf
                 ev.statistical.p_bh = p_bh
                 ev.statistical.bonferroni_significant = p_bonf < 0.05
@@ -315,14 +337,17 @@ class EvaluationHarness:
                     progress_callback=progress_callback,
                 )
                 result.evaluations.append(evaluation)
-                result.total_evaluated += 1
+                if evaluation.verdict != "NOT EVALUATED":
+                    result.total_evaluated += 1
                 if progress_callback:
                     progress_callback()
 
-            # ML model evaluation (RF, XGB, LR on walk-forward split)
-            ml = self._evaluate_ml_models(df, ticker)
-            if ml:
-                result.ml_results[ticker] = ml
+            # The pinned 90-pair family excludes separate ML trials. Do not
+            # publish those uncorrected performance metrics in its report.
+            if self.data_dir is None:
+                ml = self._evaluate_ml_models(df, ticker)
+                if ml:
+                    result.ml_results[ticker] = ml
 
         result.data_sha256 = self.data_sha256.copy()
         self._correct_family(result)

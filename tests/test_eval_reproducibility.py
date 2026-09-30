@@ -1,18 +1,32 @@
 """The declared family and modeled costs must survive missing data."""
 
 import hashlib
+import json
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
 
 from engine.backtest import simple_backtest
-from eval.harness import EvaluationHarness
+from engine.strategies import STRATEGY_REGISTRY
+from eval.harness import EvaluationHarness, HarnessResult, StrategyEvaluation
 from eval.report_generator import _generate_ranking_table
 from eval import report_generator
 from eval.statistical_tests import adjust_pvalues, run_statistical_tests, ttest_returns
 
 NINE_STRATEGIES = ["double_ma", "macd_crossover", "bollinger_breakout", "rsi_reversal",
                    "trend_momentum", "alpha_combo", "dual_thrust", "ensemble_vote", "regime_ensemble"]
+
+
+def _write_synthetic_alpaca_manifest(path):
+    from eval.freeze_alpaca_data import TICKERS, PROTOCOL_IDS
+
+    (path / "manifest.json").write_text(json.dumps({
+        "protocol_id": PROTOCOL_IDS["iex"], "source": "Alpaca Historical Stock Bars GET API",
+        "tickers": list(TICKERS), "sha256": {ticker: "0" * 64 for ticker in TICKERS},
+        "parameters": {"feed": "iex", "adjustment": "split,dividend", "start": "2021-01-01",
+                       "last_session_required": "2026-09-28"},
+    }))
 
 
 def test_90_pair_adjustment_includes_unobserved_tests():
@@ -46,10 +60,19 @@ def test_missing_snapshots_stay_in_full_family_and_do_not_pass(tmp_path, monkeyp
 
 
 def test_transaction_and_slippage_costs_on_entry_and_exit():
-    prices = pd.DataFrame({"Close": [100.0, 100.0, 100.0], "signal": [0, 1, 0]})
-    result = simple_backtest(prices)
-    assert result["trade_cost"].tolist() == pytest.approx([0.0, 0.002, 0.002])
+    prices = pd.DataFrame({"Open": [100.0] * 4, "Close": [100.0] * 4,
+                           "signal": [0, 1, 0, 0]})
+    result = simple_backtest(prices, execution_mode="next_open")
+    assert result["trade_cost"].tolist() == pytest.approx([0.0, 0.0, 0.002, 0.002])
     assert result["net_strategy_return"].sum() == pytest.approx(-0.004)
+
+
+def test_last_close_signal_has_no_unexecuted_entry_cost():
+    prices = pd.DataFrame({"Open": [100.0] * 3, "Close": [100.0] * 3,
+                           "signal": [0, 0, 1]})
+    result = simple_backtest(prices, execution_mode="next_open")
+    assert result["trade_cost"].sum() == 0
+    assert result["gross_strategy_return"].sum() == 0
 
 
 def test_flat_oos_returns_cannot_be_declared_significant():
@@ -77,3 +100,91 @@ def test_pinned_snapshot_produces_oos_test_and_hash(tmp_path):
     assert st is not None
     assert st.n_observations == 4 * 63  # four 63-bar windows, not 520 in-sample bars
     assert st.p_bonferroni == pytest.approx(st.p_value)
+
+
+def test_strategy_failure_remains_unevaluated_even_with_complete_snapshot(tmp_path, monkeypatch):
+    close = np.linspace(100, 120, 520)
+    df = pd.DataFrame({"Open": close, "High": close + 1, "Low": close - 1,
+                       "Close": close, "Volume": 100000},
+                      index=pd.bdate_range("2021-01-01", periods=520, name="Date"))
+    df.to_csv(tmp_path / "NVDA.csv")
+
+    def broken(_data, _params):
+        raise RuntimeError("synthetic strategy failure")
+
+    monkeypatch.setitem(STRATEGY_REGISTRY, "broken", broken)
+    result = EvaluationHarness(tickers=["NVDA"], strategies=["broken"],
+                               data_dir=tmp_path, mc_iterations=10).run()
+    assert result.total_evaluated == 0
+    assert result.evaluations[0].verdict == "NOT EVALUATED"
+    assert result.evaluations[0].overall_pass is False
+
+
+def test_snapshot_hash_mismatch_prevents_any_evaluation(tmp_path):
+    snapshot = tmp_path / "NVDA.csv"
+    snapshot.write_text("Date,Open,High,Low,Close,Volume\n2021-01-01,100,101,99,100,1000\n")
+    (tmp_path / "manifest.json").write_text(json.dumps({"sha256": {"NVDA": "0" * 64}}))
+    result = EvaluationHarness(tickers=["NVDA"], strategies=["double_ma"],
+                               data_dir=tmp_path).run()
+    assert result.total_evaluated == 0
+    assert result.evaluations[0].verdict == "NOT EVALUATED"
+
+
+def test_cli_rejects_incomplete_family_before_writing_report(tmp_path, monkeypatch):
+    import sys
+    from eval import run_harness
+
+    _write_synthetic_alpaca_manifest(tmp_path)
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("incomplete run must not generate report artifacts")
+
+    monkeypatch.setattr(report_generator, "generate_report", forbidden)
+    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA",
+                                   "--strategies", "double_ma", "--data-dir", str(tmp_path)])
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 2
+
+
+def test_alpaca_result_defaults_to_private_report_without_charts(tmp_path, monkeypatch):
+    import sys
+    from eval import run_harness
+
+    _write_synthetic_alpaca_manifest(tmp_path)
+    result = HarnessResult(tickers=["NVDA"], strategies=["double_ma"],
+                           evaluations=[StrategyEvaluation("double_ma", "NVDA", verdict="FAIL")],
+                           total_evaluated=1)
+    monkeypatch.setattr(EvaluationHarness, "run", lambda self, progress_callback=None: result)
+    calls = []
+    monkeypatch.setattr(report_generator, "generate_report", lambda *args, **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA", "--strategies", "double_ma",
+                                   "--data-dir", str(tmp_path)])
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 0
+    assert calls == [{"output_path": tmp_path / "evaluation_report.md", "generate_charts": False}]
+
+
+def test_alpaca_result_rejects_tracked_docs_output_before_evaluation(tmp_path, monkeypatch):
+    import sys
+    from eval import run_harness
+
+    _write_synthetic_alpaca_manifest(tmp_path)
+    docs_report = Path(__file__).resolve().parents[1] / "docs/evaluation_report.md"
+    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA", "--strategies", "double_ma",
+                                   "--data-dir", str(tmp_path), "--output", str(docs_report)])
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 2
+
+
+def test_cli_requires_freeze_manifest_for_pinned_data(tmp_path, monkeypatch):
+    import sys
+    from eval import run_harness
+
+    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA",
+                                   "--strategies", "double_ma", "--data-dir", str(tmp_path)])
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 2

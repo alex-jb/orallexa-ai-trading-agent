@@ -18,25 +18,37 @@ unverified; this protocol defines a new cohort, not a reconstruction.**
   numerical performance claims without data that readers may independently
   obtain and reproduce under an appropriate license.
 - Run: `python -m eval.run_harness --tickers NVDA,AAPL,TSLA,GOOG,META,INTC,QQQ,MSFT,AMZN,SPY --strategies double_ma,macd_crossover,bollinger_breakout,rsi_reversal,trend_momentum,alpha_combo,dual_thrust,ensemble_vote,regime_ensemble --data-dir eval/snapshots/2026-09-29 --seed 42 --no-adaptive`.
-  Publish the resulting full `docs/evaluation_report.md` and JSON together
-  with licensed inputs only after checking redistribution rights. An
+  The CLI requires the freeze manifest, verifies all requested CSV hashes,
+  and keeps the default numerical report and JSON inside the ignored snapshot
+  directory, without generated charts or any tracked repo outputs. Publish
+  results together with licensed inputs only after checking redistribution
+  rights. An
   incomplete run exits 2 and cannot support a claim.
 - Walk-forward: 252 trading bars initial training, successive 63-bar OOS
-  windows with 50 prior bars for indicator warmup; fixed strategy defaults.
+  windows; causal indicators and stateful rules use all historical bars
+  available through each test window, then report only the 63 OOS bars.
+  Fixed strategy defaults.
   The rule-based strategies are *not* the multi-agent decision system.
-- Returns: prior-bar signal × daily close-to-close return; charge 10 bps
-  transaction cost plus 10 bps slippage per unit of position change on entry
-  and exit. This is a percentage-of-notional model, with no per-share fee.
+- Returns: a signal made at close on day t is executed at the **next session's
+  open**, t+1. The old position earns close-to-next-open return, and the new
+  position earns that session's open-to-close return. Charge 10 bps
+  transaction cost plus 10 bps slippage per unit of executed position change
+  on entry and exit at the next open. A signal on the final bar cannot execute
+  inside this dataset. This is a percentage-of-notional model, with no per-share fee.
   Results are net of those modeled costs, but do not model spread, borrow,
   taxes, partial fills, or market impact.
 - Tests: one-sided t-test of all OOS daily net returns (including flat days).
   Bonferroni family-wise adjustment and BH FDR across **all 90 planned pairs**;
   unavailable pairs count as p=1. The t-test assumes independent daily
-  observations and is exploratory when returns are serially dependent.
+  observations and is exploratory when returns are serially dependent; BH's
+  formal FDR guarantee also depends on assumptions about null p-values and
+  their dependence. Correlated ticker and strategy results warrant caution.
   Monte Carlo shuffling is descriptive, not an independent evidence gate.
 - Do not label a strategy as having a validated trading edge from this run
   alone. Paper fills, forward behavior, and a matched buy-and-hold comparison
   are separate tests.
+- If any pair's walk-forward/statistical calculation fails or has insufficient
+  observations, the CLI exits 2 without writing numerical report artifacts.
 
 ## Alternative data protocol v2: Alpaca private historical bars
 
@@ -78,9 +90,10 @@ original Yahoo cohort or as a SIP run. Their protocol IDs are
   CSVs.** Alpaca says API market data cannot be redistributed:
   https://alpaca.markets/support/redistribute-alpaca-api . Keep permitted
   copies private and check the current provider agreement before use.
-- A private harness run may point `--data-dir` to the private directory, but
-  the current report generator also writes results/charts under `docs/`. Do
-  not commit these generated numerical reports. Under this project's strict
+- A private harness run may point `--data-dir` to the private directory; the
+  CLI writes numerical reports beside the ignored snapshots and rejects
+  explicitly tracked repo outputs for Alpaca cohorts. Do not commit these
+  generated numerical reports. Under this project's strict
   reproducibility rule, public numerical performance claims stay **blocked**
   until the full input data can be provided to independent reviewers under a
   suitable redistribution license. Code, hashes, and cost assumptions alone
