@@ -130,9 +130,18 @@ Actual Alpaca market orders
 can fill later or partially; pending orders retain their state until a final
 status is reconciled. If the state checkpoint succeeds but the ledger append
 fails, the saved audit row is replayed before the next broker decision;
-an existing row is recognized by its event ID. A malformed ledger fails closed
-and needs operator review. Fees other than assumed paper commission, spread,
-dividends, interest, taxes, and external broker positions are not included.
+an existing row is recognized only when its event ID and serialized contents
+match the saved outbox row. The entire ledger is checked before a new decision.
+An incomplete JSON row, missing final newline, duplicate event ID, or conflicting
+saved row stops the loop before a new paper order. Preserve the state and ledger
+files for operator review; recovery never truncates or repairs the ledger
+automatically. If prior ticker state exists without a ledger or saved outbox,
+new decisions and reports are also blocked. A missing ledger with a saved
+outbox can be the first append's crash window; review any unexpected deletion
+before recovery. These local checks do not make the ledger tamper-proof:
+truncation to a valid prefix is not detectable without a separate anchor.
+Fees other than assumed paper commission, spread, dividends, interest, taxes,
+and external broker positions are not included.
 Stock splits and other corporate actions are not reconciled into the local
 cost basis or benchmark; a broker position mismatch blocks orders and requires
 a fresh reviewed pilot rather than silently continuing. After a mismatch, the
