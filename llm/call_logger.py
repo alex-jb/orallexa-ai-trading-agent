@@ -38,7 +38,9 @@ current_run_id: Optional[str] = None
 # Effective cost is therefore higher — track via estimated_cost_usd × 1.35
 # for budget projections.
 PRICING = {
-    "claude-haiku-4-5-20251001": {"input": 0.80 / 1_000_000, "output":  4.00 / 1_000_000},
+    # First-party Claude API standard pricing, verified 2026-09-30:
+    # https://platform.claude.com/docs/en/about-claude/pricing
+    "claude-haiku-4-5-20251001": {"input": 1.00 / 1_000_000, "output":  5.00 / 1_000_000},
     "claude-sonnet-4-5":         {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
     "claude-sonnet-4-6":         {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
     "claude-opus-4-7":           {"input": 5.00 / 1_000_000, "output": 25.00 / 1_000_000},

@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
+import json
 import sys
 
 import pytest
@@ -23,7 +24,7 @@ def clean_budget(monkeypatch):
 
 
 def test_concurrent_reservations_share_single_week_cap(tmp_path):
-    weekly.activate_weekly_budget("0.0015", tmp_path / "budget.sqlite3")
+    weekly.activate_weekly_budget("0.0020", tmp_path / "budget.sqlite3")
 
     def attempt(_):
         try:
@@ -99,15 +100,31 @@ def test_unknown_model_bad_cap_and_unavailable_database_fail_closed(tmp_path):
 
 
 def test_utc_monday_rollover_excludes_previous_week(tmp_path):
-    budget = weekly.WeeklyLLMBudget("0.0015", tmp_path / "budget.sqlite3")
+    budget = weekly.WeeklyLLMBudget("0.0020", tmp_path / "budget.sqlite3")
     assert budget.week_start(datetime(2026, 9, 27, 23, 59, tzinfo=timezone.utc)) == "2026-09-21"
     assert budget.week_start(datetime(2026, 9, 28, 0, tzinfo=timezone.utc)) == "2026-09-28"
     with budget._connect() as conn:
         conn.execute(
             "INSERT INTO llm_reservations VALUES (?, ?, ?, ?, ?, NULL)",
-            ("old", "2026-09-21", 1_500, MODEL, "2026-09-21T00:00:00Z"),
+            ("old", "2026-09-21", 2_000, MODEL, "2026-09-21T00:00:00Z"),
         )
     assert budget.reserve(MODEL, 100, MESSAGES, PRICING)
+
+
+def test_official_haiku_pricing_drives_cost_and_reservation(tmp_path):
+    from llm.call_logger import _estimate_cost
+
+    assert PRICING[MODEL] == {"input": 1.0 / 1_000_000, "output": 5.0 / 1_000_000}
+    assert _estimate_cost(MODEL, 1_000_000, 1_000_000) == pytest.approx(6.0)
+    budget = weekly.WeeklyLLMBudget("0.0020", tmp_path / "price.sqlite3")
+    reservation = budget.reserve(MODEL, 100, MESSAGES, PRICING)
+    expected_input_tokens = len(json.dumps(MESSAGES, ensure_ascii=False).encode("utf-8")) + 1_024
+    with budget._connect() as conn:
+        amount_micro, = conn.execute(
+            "SELECT amount_micro FROM llm_reservations WHERE id=?", (reservation,)
+        ).fetchone()
+    # $1/MTok input + $5/MTok output => 1 and 5 microdollars/token.
+    assert amount_micro == expected_input_tokens + 100 * 5
 
 
 def test_authenticated_api_configures_budget_and_demo_uses_mocks(tmp_path, monkeypatch):
@@ -189,3 +206,26 @@ def test_budget_store_failure_does_not_block_paper_broker_auth(tmp_path, monkeyp
     with pytest.raises(HTTPException) as exc:
         api_server._require_paid_api_key("test-secret")
     assert exc.value.status_code == 503
+
+
+@pytest.mark.parametrize("provider", ["openai", "gemini", "glm"])
+def test_paid_api_rejects_unsupported_provider_before_route(tmp_path, monkeypatch, provider):
+    import api_server
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("ORALLEXA_API_KEY", "test-secret")
+    monkeypatch.setenv("ORALEXXA_LLM_PROVIDER", provider)
+    monkeypatch.setenv("ORALLEXA_WEEKLY_LLM_BUDGET_DB", str(tmp_path / "unused.sqlite3"))
+    monkeypatch.setattr(api_server, "DEMO_MODE", False)
+    def forbidden_route(**_):
+        raise AssertionError("paid model route should not start")
+
+    with patch.dict(sys.modules, {"engine.scenario_sim": SimpleNamespace(run_scenario=forbidden_route)}):
+        with TestClient(api_server.app) as client:
+            response = client.post(
+                "/api/scenario", data={"scenario": "hypothetical"},
+                headers={"X-API-Key": "test-secret"},
+            )
+    assert response.status_code == 503
+    assert "supports Anthropic only" in response.json()["detail"]
+    assert not (tmp_path / "unused.sqlite3").exists()

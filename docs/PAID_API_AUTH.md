@@ -31,14 +31,17 @@ workers run on more than one host. The file under `logs/` is gitignored. Do
 not delete or rotate the ledger midweek. Unknown model pricing, invalid cap,
 and unavailable ledger fail closed.
 
-This is an admission budget based on the local pricing table and a
+This is an admission budget based on the local first-party Anthropic API
+pricing table (verified on 2026-09-30 at
+https://platform.claude.com/docs/en/about-claude/pricing) and a
 conservative estimate of input tokens plus requested maximum output tokens.
 It is **not an invoice guarantee**: vendor prices can change; image token
 counts, provider retries, unreported billed errors, and actual usage above
 the estimate can differ. It covers calls through `llm.call_logger.logged_create`,
 including chart analysis and trade reflection. Other processes (desktop agent,
-standalone scripts) and the optional OpenAI/Gemini/GLM provider adapters do
-not share this API admission gate unless routed through the same boundary.
+standalone scripts) do not share this API admission gate. Configuring
+`ORALEXXA_LLM_PROVIDER` to OpenAI/Gemini/GLM blocks authenticated paid API
+routes until those adapters implement the shared reservation boundary.
 `engine.token_budget.TokenBudget` remains a separate, optional per-run soft
 budget for deep analysis. The fixed-rule paper loop does not use paid models.
 

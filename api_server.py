@@ -93,6 +93,8 @@ def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
 
 def _admit_paid_api() -> None:
     """Fail closed on paid calls if the shared budget cannot be opened."""
+    if os.environ.get("ORALEXXA_LLM_PROVIDER", "anthropic").strip().lower() != "anthropic":
+        raise HTTPException(status_code=503, detail="API weekly LLM budget supports Anthropic only")
     try:
         _activate_paid_budget()
     except Exception as exc:
