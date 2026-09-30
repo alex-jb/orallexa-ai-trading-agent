@@ -1,7 +1,7 @@
 """Paper loop lifecycle with a fake gateway: no network or broker calls."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -84,6 +84,151 @@ def test_paper_buy_fill_sell_and_matched_buy_hold(tmp_path):
     assert all(row["event_id"] for row in rows)
 
 
+def test_conditional_hold_uses_first_buy_fill_only_after_later_close(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    first = harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert first["conditional_comparison"] is None
+    assert first["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
+    assert harness.report({"NVDA": 110.0}, mark_dates={"NVDA": date(2026, 9, 28)})[
+        "conditional_comparison_aggregate"] is None
+
+    next_bars = BUY_BARS[:-1] + [115.0]
+    later = harness.run_ticker("NVDA", next_bars, now=DAY + timedelta(days=2),
+                               mark_date=date(2026, 9, 30))
+    comparison = later["conditional_comparison"]
+    assert comparison["entry_vwap_usd"] == pytest.approx(110.11)
+    assert comparison["buy_hold_pnl_usd"] == pytest.approx(4.89)
+    assert comparison["strategy_pnl_usd"] == pytest.approx(4.89)
+    aggregate = harness.report({"NVDA": 115.0}, mark_dates={"NVDA": date(2026, 9, 30)})[
+        "conditional_comparison_aggregate"]
+    assert aggregate["difference_usd"] == pytest.approx(0.0)
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+def test_conditional_hold_excludes_initially_flat_tickers_and_no_mark(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    harness.run_ticker("AAPL", SELL_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    comparison = harness.report({"NVDA": 115.0, "AAPL": 90.0},
+                                mark_dates={"NVDA": date(2026, 9, 30),
+                                            "AAPL": date(2026, 9, 30)})
+    assert comparison["conditional_comparison_excluded"] == {
+        "AAPL": "no_completed_paper_buy_order"}
+    assert comparison["conditional_comparison_aggregate"] is None
+    missing_mark = harness.report({"NVDA": 115.0}, mark_dates={"NVDA": date(2026, 9, 30)})
+    assert missing_mark["conditional_comparison_excluded"]["AAPL"] == "missing_completed_mark"
+    assert missing_mark["conditional_comparison_aggregate"] is None
+
+
+def test_conditional_hold_mirrors_partial_buy_schedule_then_waits_after_sell(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = PaperLoop(tmp_path / "state.json", tmp_path / "decisions.jsonl",
+                        qty=2, broker=broker, submit_paper=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    broker.orders["1"].update(status="partially_filled", filled_qty=1,
+                              filled_avg_price=110.0)
+    broker.positions["NVDA"] = 1.0
+    partial = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                                 mark_date=date(2026, 9, 29))
+    assert partial["conditional_comparison_excluded_reason"] == "no_completed_paper_buy_order"
+    assert len(broker.submissions) == 1
+
+    harness = PaperLoop(tmp_path / "state.json", tmp_path / "decisions.jsonl",
+                        qty=2, broker=broker, submit_paper=True)
+    broker.orders["1"].update(status="filled", filled_qty=2, filled_avg_price=111.0)
+    broker.positions["NVDA"] = 2.0
+    complete = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2),
+                                  mark_date=date(2026, 9, 30))
+    assert complete["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
+    assert harness.state["tickers"]["NVDA"]["conditional_entry"]["first_observed_at"] == (
+        DAY + timedelta(days=1)).isoformat()
+    assert harness.state["tickers"]["NVDA"]["conditional_entry"]["entry_vwap"] == pytest.approx(111.0)
+
+    later = harness.run_ticker("NVDA", BUY_BARS[:-1] + [120.0],
+                               now=DAY + timedelta(days=6), mark_date=date(2026, 10, 2))
+    assert later["conditional_comparison"]["strategy_pnl_usd"] == pytest.approx(18.0)
+    assert later["conditional_comparison"]["buy_hold_pnl_usd"] == pytest.approx(18.0)
+
+    broker.immediate = True
+    sell = harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=7),
+                              mark_date=date(2026, 10, 5))
+    assert sell["order_status"] == "filled"
+    assert sell["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
+    later = harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=9),
+                               mark_date=date(2026, 10, 7))
+    assert later["conditional_comparison"]["strategy_pnl_usd"] == pytest.approx(-42.18)
+    assert later["conditional_comparison"]["buy_hold_pnl_usd"] == pytest.approx(-42.0)
+    assert later["conditional_comparison"]["difference_usd"] == pytest.approx(-0.18)
+    assert broker.submissions == [("NVDA", "BUY", 2), ("NVDA", "SELL", 2.0)]
+
+
+def test_conditional_hold_excludes_partial_buy_canceled_before_later_full_buy(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = PaperLoop(tmp_path / "state.json", tmp_path / "decisions.jsonl",
+                        qty=2, broker=broker, submit_paper=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    broker.orders["1"].update(status="partially_filled", filled_qty=1, filled_avg_price=110.0)
+    broker.positions["NVDA"] = 1.0
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                       mark_date=date(2026, 9, 29))
+    broker.orders["1"]["status"] = "canceled"
+    canceled = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2),
+                                  mark_date=date(2026, 9, 30))
+    assert canceled["conditional_comparison_excluded_reason"] == (
+        "partial_buy_order_terminated_before_full_fill")
+
+    harness = PaperLoop(tmp_path / "state.json", tmp_path / "decisions.jsonl",
+                        qty=2, broker=broker, submit_paper=True)
+    broker.immediate = True
+    harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=6),
+                       mark_date=date(2026, 10, 2))
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=7),
+                       mark_date=date(2026, 10, 5))
+    later = harness.run_ticker("NVDA", BUY_BARS[:-1] + [120.0],
+                               now=DAY + timedelta(days=9), mark_date=date(2026, 10, 7))
+    assert later["conditional_comparison"] is None
+    assert later["conditional_comparison_excluded_reason"] == (
+        "partial_buy_order_terminated_before_full_fill")
+    assert harness.report({"NVDA": 120.0}, mark_dates={"NVDA": date(2026, 10, 7)})[
+        "conditional_comparison_aggregate"] is None
+    assert broker.submissions == [("NVDA", "BUY", 2), ("NVDA", "SELL", 1.0),
+                                  ("NVDA", "BUY", 2)]
+
+
+def test_conditional_report_fails_closed_after_reconciliation_error(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert harness.report({"NVDA": 120.0}, mark_dates={"NVDA": date(2026, 9, 30)})[
+        "conditional_comparison_aggregate"] is not None
+
+    broker.immediate = False
+    harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=2),
+                       mark_date=date(2026, 9, 30))
+    broker.order = lambda order_id: (_ for _ in ()).throw(RuntimeError("broker offline"))
+    failed = harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=3),
+                                mark_date=date(2026, 10, 1))
+    assert failed["order_status"] == "broker_error"
+    assert failed["comparison_valid"] is False
+    assert failed["conditional_comparison_excluded_reason"] == "broker_reconciliation_error"
+    with pytest.raises(ValueError, match="unverified broker state"):
+        harness.report({"NVDA": 90.0}, mark_dates={"NVDA": date(2026, 10, 1)})
+    broker.order = lambda order_id: broker.orders[order_id]
+    broker.orders["2"].update(status="filled", filled_qty=1, filled_avg_price=89.91)
+    broker.positions["NVDA"] = 0.0
+    recovered = harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=6),
+                                   mark_date=date(2026, 10, 2))
+    assert recovered["comparison_valid"] is True
+    assert recovered["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
+    harness.run_ticker("NVDA", SELL_BARS, now=DAY + timedelta(days=8),
+                       mark_date=date(2026, 10, 6))
+    assert harness.report({"NVDA": 90.0}, mark_dates={"NVDA": date(2026, 10, 6)})[
+        "conditional_comparison_aggregate"] is not None
+    assert broker.submissions == [("NVDA", "BUY", 1), ("NVDA", "SELL", 1.0)]
+
+
 def test_dry_run_logs_intent_without_order_or_fill(tmp_path):
     harness = loop(tmp_path)
     row = harness.run_ticker("NVDA", BUY_BARS, now=DAY)
@@ -114,6 +259,7 @@ def test_pending_order_is_reconciled_without_resubmission(tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
     assert rows[-2]["event_type"] == "reconciliation" and rows[-2]["filled_qty"] == 1
     assert rows[-2]["order_status"] == "filled"
+    assert rows[-2]["conditional_comparison_excluded_reason"] == "completed_bar_date_unavailable"
     assert harness.state["tickers"]["NVDA"]["position_qty"] == 1
     assert len(broker.submissions) == 1
 
@@ -142,6 +288,7 @@ def test_pending_fill_is_logged_even_when_bars_are_missing(tmp_path):
     broker.positions["NVDA"] = 1.0
     row = harness.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=1))
     assert row["order_status"] == "filled" and row["filled_qty"] == 1
+    assert row["conditional_comparison_excluded_reason"] == "insufficient_completed_bars"
     assert harness.state["tickers"]["NVDA"]["position_qty"] == 1
     assert len(broker.submissions) == 1
 
@@ -185,6 +332,8 @@ def test_no_change_detects_external_position_or_split(tmp_path):
     assert row["strategy_equity_usd"] is None
     with pytest.raises(ValueError, match="invalidates the paper comparison"):
         harness.report({"NVDA": 110.0})
+    with pytest.raises(ValueError, match="invalidates the paper comparison"):
+        harness.report({})
     broker.positions["NVDA"] = 1.0
     assert harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2))["order_status"] == "position_mismatch_requires_review"
     assert len(broker.submissions) == 1
@@ -255,6 +404,21 @@ def test_current_session_daily_bar_is_never_used():
     bars = [SimpleNamespace(timestamp=datetime(2026, 9, day, tzinfo=timezone.utc), close=day)
             for day in (28, 29)]
     assert _completed_daily_closes(bars, DAY) == [28.0]
+
+
+def test_gateway_pairs_completed_bar_close_with_its_session_date():
+    bars = [SimpleNamespace(timestamp=datetime(2026, 9, day, tzinfo=timezone.utc), close=float(day))
+            for day in (29, 27, 28)]
+    gateway = object.__new__(AlpacaPaperGateway)
+    gateway.data = SimpleNamespace(get_stock_bars=lambda request: SimpleNamespace(data={"NVDA": bars}))
+    closes, mark_date = gateway.completed_closes_with_dates("NVDA", DAY)
+    assert closes == [27.0, 28.0]
+    assert mark_date == date(2026, 9, 28)
+
+
+def test_same_session_mark_date_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="completed earlier session"):
+        loop(tmp_path).run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 29))
 
 
 def test_demo_mode_blocks_direct_submission(tmp_path, monkeypatch):

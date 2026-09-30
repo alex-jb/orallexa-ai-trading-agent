@@ -39,7 +39,8 @@ orders are pending.
 
 `logs/paper_harness.jsonl` is append-only and `logs/paper_harness_state.json`
 stores positions, entry fill prices, pending order IDs, realized P&L, first
-benchmark price, peak equity, the fixed quantity, and one audit outbox row for
+benchmark price, the first completed paper BUY order's fill schedule, peak
+equity, the fixed quantity, and one audit outbox row for
 crash recovery. Both are gitignored. Every decision logs:
 
 - UTC timestamp, ticker, signal, completed-bar signal price and SMA20/50;
@@ -48,16 +49,44 @@ crash recovery. Both are gitignored. Every decision logs:
   overnight price gaps and intraday moves before submission, so it is **not**
   an execution slippage or market-impact estimate;
 - assumed paper commission (`fees_usd=0`, labeled as an assumption), realized
-  P&L, strategy equity, peak-to-current drawdown, and buy-and-hold P&L;
+  P&L, strategy equity, peak-to-current drawdown, and benchmark P&L;
 - scoped LLM API cost per week, always $0 because this loop never calls an LLM.
 
-The buy-and-hold benchmark assumes a **hypothetical purchase at the prior
+The pilot-start buy-and-hold benchmark assumes a **hypothetical purchase at the prior
 completed close** on each ticker's first pilot day and holds the fixed share
 quantity through the latest mark. That entry was not executable when the pilot
 first ran after the next open. Its entry time and execution cost are therefore
 not matched to the paper strategy, and the report does not establish an
-apples-to-apples excess return. `report()` aggregates dollar P&L; the
-per-ticker `first_date` records staggered starts. Actual Alpaca market orders
+apples-to-apples excess return. On an order day, its prior-close mark can also
+precede that day's strategy fill; do not interpret that snapshot as a same-time
+performance comparison. `report()` retains this legacy aggregate separately;
+the per-ticker `first_date` records staggered starts.
+
+The optional `conditional_comparison` diagnostic begins with the strategy's
+**first fully filled paper BUY order**. The hypothetical buy-and-hold portfolio
+mirrors that order's fill quantities and weighted average fill price (including
+partial fills), then holds the fixed number of shares. No extra order is sent.
+Its reported strategy P&L excludes any realized P&L before this entry. The
+diagnostic uses the date attached to the latest completed daily bar and only
+reports a value when that date is strictly **after** the last observed paper
+fill date in New York. It therefore withholds comparisons on fill days and
+when the bar date is unknown. `report()` exposes per-ticker results and an
+aggregate only if **every started ticker** has an eligible later mark; it lists
+exclusion reasons otherwise. Tickers that never complete a paper BUY order
+cannot enter this diagnostic. If an early BUY partially fills and terminates
+before the fixed share quantity is acquired, this ticker is excluded from the
+conditional diagnostic for the rest of that pilot, even if it buys again later.
+The earlier fill would otherwise make the later entry schedule ambiguous.
+
+This diagnostic has **selection bias**: it selects only tickers after the
+strategy chose to BUY and omits the initial flat period. Its entry price is a
+paper fill reused for a hypothetical holding portfolio, not an independently
+executed buy-and-hold order. It is not a full-pilot comparison or evidence of
+excess return. Dates recorded for fills are conservative observation times,
+which can be later than Alpaca's actual execution times. The same omitted
+dividends and transaction-cost limitations below apply to both benchmarks.
+
+Actual Alpaca market orders
 can fill later or partially; pending orders retain their state until a final
 status is reconciled. If the state checkpoint succeeds but the ledger append
 fails, the saved audit row is replayed before the next broker decision;
@@ -68,7 +97,10 @@ Stock splits and other corporate actions are not reconciled into the local
 cost basis or benchmark; a broker position mismatch blocks orders and requires
 a fresh reviewed pilot rather than silently continuing. After a mismatch, the
 affected ticker's comparison fields are withheld and `report()` refuses to
-publish an aggregate containing it.
+publish an aggregate containing it. A failed broker reconciliation or position
+lookup also makes the comparison stale: `report()` refuses to publish until a
+later successful reconciliation and broker position check restore verified
+state. Do not treat a temporary broker error as a zero-fill day.
 This is a prospective paper test; no live fill record or measured edge exists
 until the pilot actually runs.
 

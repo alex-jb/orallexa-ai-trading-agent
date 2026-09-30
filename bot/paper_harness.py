@@ -10,7 +10,7 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Protocol
 from zoneinfo import ZoneInfo
@@ -21,6 +21,7 @@ NY = ZoneInfo("America/New_York")
 ROOT = Path(__file__).resolve().parent.parent
 TERMINAL = {"filled", "canceled", "expired", "rejected"}
 BENCHMARK_BASIS = "hypothetical_prior_close_no_executable_entry"
+CONDITIONAL_BASIS = "conditional_first_completed_buy_order_same_paper_fill_schedule"
 
 
 def _value(value) -> str:
@@ -98,6 +99,9 @@ class AlpacaPaperGateway:
         return self._order(self.client.get_order_by_id(order_id))
 
     def completed_closes(self, ticker: str, now: datetime) -> list[float]:
+        return self.completed_closes_with_dates(ticker, now)[0]
+
+    def completed_closes_with_dates(self, ticker: str, now: datetime) -> tuple[list[float], date | None]:
         from alpaca.data.enums import DataFeed
         from alpaca.data.requests import StockBarsRequest
         from alpaca.data.timeframe import TimeFrame
@@ -106,7 +110,12 @@ class AlpacaPaperGateway:
             start=now - timedelta(days=130), end=now, feed=DataFeed.IEX,
         )
         bars = self.data.get_stock_bars(request).data.get(ticker, [])
-        return _completed_daily_closes(bars, now)
+        complete = [bar for bar in bars
+                    if bar.timestamp.astimezone(timezone.utc).date() < now.astimezone(NY).date()
+                    and bar.close > 0]
+        complete.sort(key=lambda bar: bar.timestamp)
+        return [float(bar.close) for bar in complete], (complete[-1].timestamp.astimezone(timezone.utc).date()
+                                                       if complete else None)
 
 
 class PaperLoop:
@@ -191,6 +200,29 @@ class PaperLoop:
         buy_hold_pnl = self.qty * (price - item["benchmark_price"])
         return equity, drawdown, buy_hold_pnl
 
+    def _conditional_mark(self, item: dict, price: float, mark_date: date | None) -> tuple[dict | None, str | None]:
+        """Compare from the first complete BUY fill schedule at a later close."""
+        if item.get("comparison_stale"):
+            return None, item["comparison_stale"]
+        if item.get("conditional_entry_exclusion"):
+            return None, item["conditional_entry_exclusion"]
+        entry = item.get("conditional_entry")
+        if entry is None:
+            return None, "no_completed_paper_buy_order"
+        if mark_date is None:
+            return None, "completed_bar_date_unavailable"
+        last_fill = item.get("last_fill_observed_at", entry["last_observed_at"])
+        if mark_date <= datetime.fromisoformat(last_fill).astimezone(NY).date():
+            return None, "mark_not_after_last_observed_fill"
+        strategy = (item["realized_pnl"] - entry["realized_pnl_before_entry"]
+                    + item["position_qty"] * (price - item["entry_price"]))
+        hold = entry["qty"] * (price - entry["entry_vwap"])
+        return {"strategy_pnl_usd": strategy, "buy_hold_pnl_usd": hold,
+                "difference_usd": strategy - hold, "entry_order_id": entry["order_id"],
+                "first_fill_observed_at": entry["first_observed_at"],
+                "completed_order_observed_at": entry["last_observed_at"],
+                "entry_vwap_usd": entry["entry_vwap"], "mark_date": mark_date.isoformat()}, None
+
     def _reconcile(self, ticker: str, item: dict, row: dict) -> None:
         pending = item.get("pending")
         if not pending or self.broker is None:
@@ -202,6 +234,9 @@ class PaperLoop:
         if delta_qty < -1e-9:
             raise ValueError("Broker filled quantity went backwards")
         if delta_qty > 1e-9:
+            if filled - delta_qty == 0 and pending["side"] == "BUY":
+                pending["first_observed_at"] = row["timestamp"]
+                pending["realized_pnl_before_entry"] = item["realized_pnl"]
             delta_price = (notional - pending["accounted_notional"]) / delta_qty
             if pending["side"] == "BUY":
                 old_qty = item["position_qty"]
@@ -222,18 +257,37 @@ class PaperLoop:
             row["signal_to_fill_drift_bps"] = adverse / pending["signal_price"] * 10000
             row["realized_pnl_delta_usd"] = (delta_qty * (delta_price - pending["entry_price"])
                                              if pending["side"] == "SELL" else 0.0)
+            item["last_fill_observed_at"] = row["timestamp"]
         row["order_status"] = order["status"]
         row["order_id"] = pending["id"]
         row["order_type"] = "market"
         row["qty"] = pending["qty"]
+        if (order["status"] == "filled" and pending["side"] == "BUY"
+                and "conditional_entry" not in item
+                and "conditional_entry_exclusion" not in item
+                and pending.get("first_observed_at") is not None
+                and abs(item["position_qty"] - self.qty) < 1e-9):
+            item["conditional_entry"] = {
+                "order_id": pending["id"], "qty": self.qty,
+                "entry_vwap": item["entry_price"],
+                "realized_pnl_before_entry": pending["realized_pnl_before_entry"],
+                "first_observed_at": pending["first_observed_at"],
+                "last_observed_at": row["timestamp"],
+            }
         if order["status"] in TERMINAL:
+            if (pending["side"] == "BUY" and "conditional_entry" not in item
+                    and 1e-9 < filled < pending["qty"] - 1e-9):
+                item["conditional_entry_exclusion"] = "partial_buy_order_terminated_before_full_fill"
             item.pop("pending", None)
 
-    def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None) -> dict:
+    def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None,
+                   mark_date: date | None = None) -> dict:
         self._deliver_outbox()  # Recover any fill record before reading the broker or making a decision.
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
             raise ValueError("now must be timezone-aware")
+        if mark_date is not None and mark_date >= now.astimezone(NY).date():
+            raise ValueError("mark_date must be a completed earlier session")
         ticker = ticker.upper()
         if not re.fullmatch(r"[A-Z]{1,5}", ticker):
             raise ValueError("Invalid ticker")
@@ -247,17 +301,24 @@ class PaperLoop:
             "strategy_equity_usd": None, "drawdown_pct": None,
             "buy_hold_pnl_usd": None, "buy_hold_return_pct": None,
             "benchmark_basis": BENCHMARK_BASIS,
+            "conditional_benchmark_basis": CONDITIONAL_BASIS,
+            "conditional_comparison": None,
+            "conditional_comparison_excluded_reason": None,
             "comparison_valid": True,
             "llm_api_cost_usd_week": 0.0,
         }
         if len(closes) < 50 or any(p <= 0 for p in closes[-50:]):
             row["order_status"] = "insufficient_completed_bars"
+            row["conditional_comparison_excluded_reason"] = "insufficient_completed_bars"
             item = self.state["tickers"].get(ticker)
             if item and item.get("pending"):
                 try:
                     self._reconcile(ticker, item, row)
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
+                    item["comparison_stale"] = "broker_reconciliation_error"
+                    row["comparison_valid"] = False
+                    row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
                 row["realized_pnl_total_usd"] = item["realized_pnl"]
             self._record(row)
             return row
@@ -281,20 +342,26 @@ class PaperLoop:
                 row["order_status"] = row["order_status"] or "pending"
             except Exception as exc:
                 row.update(order_status="broker_error", error_type=type(exc).__name__)
+                item["comparison_stale"] = "broker_reconciliation_error"
                 reconciliation_error = True
         if had_pending and not item.get("pending") and not reconciliation_error:
             # Persist the prior order's fill before today's decision can log a new order.
             equity, drawdown, buy_hold = self._mark(item, price)
+            conditional, excluded = self._conditional_mark(item, price, mark_date)
             row.update(realized_pnl_total_usd=item["realized_pnl"],
                        strategy_equity_usd=equity, drawdown_pct=drawdown,
                        buy_hold_pnl_usd=buy_hold,
                        buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
+                       conditional_comparison=conditional,
+                       conditional_comparison_excluded_reason=excluded,
                        event_type="reconciliation")
             self._record(row)
             row = {**row, "event_type": "decision", "event_id": None,
                    "order_id": None, "order_status": None, "order_type": None,
                    "qty": 0, "filled_qty": 0.0, "fill_price": None,
-                   "signal_to_fill_drift_bps": None, "realized_pnl_delta_usd": 0.0}
+                   "signal_to_fill_drift_bps": None, "realized_pnl_delta_usd": 0.0,
+                   "conditional_comparison": None,
+                   "conditional_comparison_excluded_reason": None}
         if item.get("blocked_reason"):
             row["order_status"] = item["blocked_reason"]
         elif not item.get("pending") and not reconciliation_error:
@@ -309,8 +376,11 @@ class PaperLoop:
                         if abs(self.broker.position_qty(ticker) - item["position_qty"]) > 1e-6:
                             row["order_status"] = "position_mismatch"
                             item["blocked_reason"] = "position_mismatch_requires_review"
+                        else:
+                            item.pop("comparison_stale", None)
                     except Exception as exc:
                         row.update(order_status="broker_error", error_type=type(exc).__name__)
+                        item["comparison_stale"] = "broker_state_unverified"
             elif not self.submit_paper:
                 row.update(order_type="market", qty=int(self.qty if action == "BUY" else item["position_qty"]),
                            order_status="dry_run")
@@ -327,10 +397,12 @@ class PaperLoop:
                         if abs(broker_qty - item["position_qty"]) > 1e-6:
                             row["order_status"] = "position_mismatch"
                             item["blocked_reason"] = "position_mismatch_requires_review"
-                        elif not self.broker.market_open():
-                            row["order_status"] = "market_closed"
                         else:
-                            order = self.broker.submit_market(ticker, action, order_qty, client_id)
+                            item.pop("comparison_stale", None)
+                            if not self.broker.market_open():
+                                row["order_status"] = "market_closed"
+                            else:
+                                order = self.broker.submit_market(ticker, action, order_qty, client_id)
                     if order is not None:
                         item["pending"] = {
                             "id": order["id"], "side": action, "qty": order_qty,
@@ -341,31 +413,55 @@ class PaperLoop:
                         self._reconcile(ticker, item, row)
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
+                    item["comparison_stale"] = "broker_state_unverified"
 
         row["realized_pnl_total_usd"] = item["realized_pnl"]
         if item.get("blocked_reason"):
             row["comparison_valid"] = False
+            row["conditional_comparison_excluded_reason"] = "broker_position_mismatch"
+        elif item.get("comparison_stale"):
+            row["comparison_valid"] = False
+            row["conditional_comparison_excluded_reason"] = item["comparison_stale"]
         else:
             equity, drawdown, buy_hold = self._mark(item, price)
             row["strategy_equity_usd"] = equity
             row["drawdown_pct"] = drawdown
             row["buy_hold_pnl_usd"] = buy_hold
             row["buy_hold_return_pct"] = (price / item["benchmark_price"] - 1) * 100
+            row["conditional_comparison"], row["conditional_comparison_excluded_reason"] = (
+                self._conditional_mark(item, price, mark_date))
         self._record(row)
         return row
 
-    def report(self, marks: dict[str, float]) -> dict:
-        """Compare identical tickers, start dates, and fixed share quantities."""
+    def report(self, marks: dict[str, float], *, mark_dates: dict[str, date] | None = None) -> dict:
+        """Keep pilot-start and conditional first-buy comparisons distinct."""
         equity = buy_hold = initial = 0.0
+        eligible: dict[str, dict] = {}
+        excluded: dict[str, str] = {}
         for ticker, item in self.state["tickers"].items():
-            if ticker not in marks:
-                continue
             if item.get("blocked_reason"):
                 raise ValueError(f"{ticker}: broker position mismatch invalidates the paper comparison")
+            if item.get("comparison_stale"):
+                raise ValueError(f"{ticker}: unverified broker state invalidates the paper comparison")
+            if ticker not in marks:
+                excluded[ticker] = "missing_completed_mark"
+                continue
             mark, _, hold = self._mark(item, marks[ticker])
             equity += mark
             buy_hold += hold
             initial += item["benchmark_price"] * self.qty
+            comparison, reason = self._conditional_mark(item, marks[ticker], (mark_dates or {}).get(ticker))
+            if comparison is None:
+                excluded[ticker] = reason
+            else:
+                eligible[ticker] = comparison
+        aggregate = None
+        if eligible and not excluded:
+            aggregate = {
+                "strategy_pnl_usd": sum(row["strategy_pnl_usd"] for row in eligible.values()),
+                "buy_hold_pnl_usd": sum(row["buy_hold_pnl_usd"] for row in eligible.values()),
+                "difference_usd": sum(row["difference_usd"] for row in eligible.values()),
+            }
         return {
             "periods": {k: v["first_date"] for k, v in self.state["tickers"].items() if k in marks},
             "strategy_pnl_usd": equity - initial,
@@ -375,6 +471,11 @@ class PaperLoop:
             "llm_cap_usd": self.token_budget.cap_usd,
             "scope": "fixed_rule_harness_only",
             "benchmark_basis": BENCHMARK_BASIS,
+            "conditional_benchmark_basis": CONDITIONAL_BASIS,
+            "conditional_comparison_scope": "only_after_first_completed_paper_buy_excludes_initial_flat_period",
+            "conditional_comparison_by_ticker": eligible,
+            "conditional_comparison_excluded": excluded,
+            "conditional_comparison_aggregate": aggregate,
         }
 
 
@@ -395,20 +496,23 @@ def main() -> None:
     loop = PaperLoop(args.state, args.ledger, qty=args.qty, broker=gateway, submit_paper=args.submit_paper)
     now = datetime.now(timezone.utc)
     marks = {}
+    mark_dates = {}
     for ticker in [s.strip().upper() for s in args.tickers.split(",") if s.strip()]:
         if args.bars_dir:
             import pandas as pd
             df = pd.read_csv(args.bars_dir / f"{ticker}.csv", parse_dates=["Date"])
-            df = df.loc[df["Date"].dt.date < now.astimezone(NY).date()]
+            df = df.loc[df["Date"].dt.date < now.astimezone(NY).date()].sort_values("Date")
             closes = df["Close"].astype(float).tolist()
+            mark_date = df["Date"].dt.date.iloc[-1] if not df.empty else None
         else:
             assert gateway is not None
-            closes = gateway.completed_closes(ticker, now)
-        row = loop.run_ticker(ticker, closes, now=now)
+            closes, mark_date = gateway.completed_closes_with_dates(ticker, now)
+        row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date)
         if row["signal_price"] is not None:
             marks[ticker] = row["signal_price"]
+            mark_dates[ticker] = mark_date
         print(json.dumps(row, sort_keys=True))
-    print(json.dumps(loop.report(marks), sort_keys=True))
+    print(json.dumps(loop.report(marks, mark_dates=mark_dates), sort_keys=True))
 
 
 if __name__ == "__main__":
