@@ -1,11 +1,13 @@
 """Paper loop lifecycle with a fake gateway: no network or broker calls."""
 
 import json
+import sys
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 
+import bot.paper_harness as paper_harness
 from bot.paper_harness import PaperLoop, _completed_daily_closes, AlpacaPaperGateway
 
 
@@ -411,6 +413,17 @@ def test_intent_state_checkpoint_failure_prevents_submission(tmp_path):
     assert not (tmp_path / "state.json").exists()
 
 
+def test_intent_directory_sync_failure_prevents_submission(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    harness._fsync_directory = lambda path: (_ for _ in ()).throw(OSError("directory sync failed"))
+    with pytest.raises(OSError, match="directory sync failed"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert broker.submissions == []
+    saved = json.loads((tmp_path / "state.json").read_text())
+    assert saved["tickers"]["NVDA"]["intent"]["side"] == "BUY"
+
+
 def test_accepted_order_before_state_checkpoint_recovers_old_id_cross_day(tmp_path):
     broker = FakePaperGateway(immediate=False)
     harness = loop(tmp_path, broker, submit=True)
@@ -436,6 +449,37 @@ def test_accepted_order_before_state_checkpoint_recovers_old_id_cross_day(tmp_pa
     assert row["order_id"] == "1" and row["order_status"] == "new"
     assert restarted.state["tickers"]["NVDA"]["pending"]["id"] == "1"
     assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+def test_recovered_intent_withholds_old_price_and_cli_summary(tmp_path, monkeypatch, capsys):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    original_save = harness._save
+
+    def fail_after_broker_acceptance():
+        if harness.state["tickers"].get("NVDA", {}).get("pending"):
+            raise OSError("checkpoint unavailable")
+        original_save()
+
+    harness._save = fail_after_broker_acceptance
+    with pytest.raises(OSError, match="checkpoint unavailable"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 1.0
+    broker.completed_closes_with_dates = lambda ticker, now: (
+        BUY_BARS[:-1] + [115.0], now.date() - timedelta(days=1))
+    monkeypatch.setattr(paper_harness, "AlpacaPaperGateway", lambda: broker)
+    monkeypatch.setattr(sys, "argv", ["paper_harness", "--submit-paper", "--tickers", "NVDA",
+                                  "--state", str(tmp_path / "state.json"),
+                                  "--ledger", str(tmp_path / "decisions.jsonl")])
+    paper_harness.main()
+    row, status = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert row["event_type"] == "intent_recovery"
+    assert row["intent_signal_price"] == 110.0 and row["signal_price"] is None
+    assert status == {"report_status": "withheld_intent_recovery_requires_fresh_mark"}
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+    with pytest.raises(ValueError, match="unverified broker state"):
+        loop(tmp_path, broker, submit=True).report({"NVDA": 115.0})
 
 
 def test_recovered_order_fill_lookup_failure_suppresses_comparison(tmp_path):
@@ -464,6 +508,29 @@ def test_recovered_order_fill_lookup_failure_suppresses_comparison(tmp_path):
     restarted.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2))
     assert len(broker.submissions) == 1
     assert restarted.report({"NVDA": 110.0})["strategy_pnl_usd"] == pytest.approx(-0.11)
+
+
+def test_stale_comparison_survives_fill_reconciliation_until_position_verified(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    original_order = broker.order
+    broker.order = lambda order_id: (_ for _ in ()).throw(OSError("broker offline"))
+    assert harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))[
+        "comparison_valid"] is False
+    broker.order = original_order
+    broker.orders["1"].update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.positions["NVDA"] = 3.0  # External broker activity invalidates local cost basis.
+    without_bars = harness.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=2))
+    assert without_bars["comparison_valid"] is False
+    with pytest.raises(ValueError, match="unverified broker state"):
+        harness.report({"NVDA": 110.0})
+    with_bars = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=3))
+    assert with_bars["order_status"] == "position_mismatch"
+    assert with_bars["comparison_valid"] is False
+    with pytest.raises(ValueError, match="broker position mismatch"):
+        harness.report({"NVDA": 110.0})
+    assert broker.submissions == [("NVDA", "BUY", 1)]
 
 
 def test_uncertain_submission_stays_blocked_until_old_id_is_found(tmp_path):
