@@ -42,7 +42,7 @@ def _row(event_id: str = "a" * 32) -> dict:
 def _inputs(directory: Path) -> tuple[Path, Path]:
     state = directory / "pilot_state.json"
     ledger = directory / "pilot_ledger.jsonl"
-    state.write_bytes(b'{\n  "tickers": {}, "config": {"qty": 1}\n}\n')
+    state.write_bytes(b'{\n  "tickers": {"NVDA": {}}, "config": {"qty": 1}\n}\n')
     ledger.write_bytes((json.dumps(_row()) + "\n").encode())
     return state, ledger
 
@@ -133,6 +133,15 @@ def test_export_rejects_duplicate_event_ids_and_wrong_timestamp(tmp_path):
     ledger.write_text(json.dumps(row) + "\n")
     with pytest.raises(AuditError, match="UTC"):
         export_snapshot(state, ledger, tmp_path / "signed", private)
+
+
+def test_export_rejects_disjoint_state_and_ledger_tickers(tmp_path):
+    private, _ = _keypair(tmp_path)
+    state, ledger = _inputs(tmp_path)
+    state.write_text(json.dumps({"tickers": {"AAPL": {}}, "config": {"qty": 1}}))
+    with pytest.raises(AuditError, match="ticker sets do not match"):
+        export_snapshot(state, ledger, tmp_path / "signed", private)
+    assert not (tmp_path / "signed").exists()
 
 
 @pytest.mark.parametrize("outbox", [{"event_id": "a" * 32}, {}, []])
