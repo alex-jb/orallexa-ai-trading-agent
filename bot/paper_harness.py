@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Protocol
@@ -18,7 +19,8 @@ from engine.token_budget import TokenBudget
 
 NY = ZoneInfo("America/New_York")
 ROOT = Path(__file__).resolve().parent.parent
-TERMINAL = {"filled", "canceled", "expired", "rejected", "done_for_day"}
+TERMINAL = {"filled", "canceled", "expired", "rejected"}
+BENCHMARK_BASIS = "hypothetical_prior_close_no_executable_entry"
 
 
 def _value(value) -> str:
@@ -110,7 +112,7 @@ class AlpacaPaperGateway:
 class PaperLoop:
     def __init__(self, state_path: Path, ledger_path: Path, *, qty: int = 1,
                  broker: PaperGateway | None = None, submit_paper: bool = False):
-        if qty < 1 or qty > 100:
+        if isinstance(qty, bool) or not isinstance(qty, int) or qty < 1 or qty > 100:
             raise ValueError("Fixed share quantity must be between 1 and 100")
         if submit_paper and broker is None:
             raise ValueError("Paper submission requires an Alpaca PAPER gateway")
@@ -125,17 +127,60 @@ class PaperLoop:
         # constraint explicit, including for future extensions.
         self.token_budget = TokenBudget(cap_tokens=0, cap_usd=0.0, label="paper_fixed_rule")
         self.state = json.loads(self.state_path.read_text()) if self.state_path.exists() else {"tickers": {}}
+        configured_qty = self.state.get("config", {}).get("qty")
+        if configured_qty is None and self.state["tickers"]:
+            raise ValueError("Existing pilot state lacks a recorded share quantity; start a new pilot")
+        if configured_qty is not None and configured_qty != qty:
+            raise ValueError("Fixed share quantity differs from the saved pilot configuration")
+        self.state.setdefault("config", {"qty": qty})
 
     def _save(self) -> None:
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.state_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(self.state, indent=2) + "\n", encoding="utf-8")
+        with temporary.open("w", encoding="utf-8") as stream:
+            stream.write(json.dumps(self.state, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
         os.replace(temporary, self.state_path)
 
     def _log(self, row: dict) -> None:
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         with self.ledger_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(row, sort_keys=True) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+
+    def _deliver_outbox(self) -> None:
+        """Replay a saved row after a crash, without duplicating an appended row."""
+        row = self.state.get("outbox")
+        if row is None:
+            return
+        found = False
+        if self.ledger_path.exists():
+            with self.ledger_path.open(encoding="utf-8") as stream:
+                for line in stream:
+                    if json.loads(line).get("event_id") == row["event_id"]:
+                        found = True
+                        break
+        if not found:
+            self._log(row)
+        self.state.pop("outbox")
+        try:
+            self._save()
+        except Exception:
+            # A caller may catch the I/O error and retry using this object.
+            # Keep the persisted audit row in memory until it is checkpointed.
+            self.state["outbox"] = row
+            raise
+
+    def _record(self, row: dict) -> None:
+        """Checkpoint state and an audit row together through a durable outbox."""
+        if self.state.get("outbox") is not None:
+            raise RuntimeError("Unrecovered audit row blocks a new decision")
+        row["event_id"] = uuid.uuid4().hex
+        self.state["outbox"] = row
+        self._save()
+        self._deliver_outbox()
 
     def _mark(self, item: dict, price: float) -> tuple[float, float, float]:
         initial = item["benchmark_price"] * self.qty
@@ -174,7 +219,7 @@ class PaperLoop:
             row["fill_price"] = delta_price
             row["filled_qty"] = delta_qty
             adverse = (delta_price - pending["signal_price"]) if pending["side"] == "BUY" else (pending["signal_price"] - delta_price)
-            row["slippage_bps"] = adverse / pending["signal_price"] * 10000
+            row["signal_to_fill_drift_bps"] = adverse / pending["signal_price"] * 10000
             row["realized_pnl_delta_usd"] = (delta_qty * (delta_price - pending["entry_price"])
                                              if pending["side"] == "SELL" else 0.0)
         row["order_status"] = order["status"]
@@ -185,6 +230,7 @@ class PaperLoop:
             item.pop("pending", None)
 
     def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None) -> dict:
+        self._deliver_outbox()  # Recover any fill record before reading the broker or making a decision.
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
             raise ValueError("now must be timezone-aware")
@@ -195,16 +241,25 @@ class PaperLoop:
             "timestamp": now.isoformat(), "ticker": ticker,
             "signal": "HOLD", "signal_price": None, "sma20": None, "sma50": None,
             "order_type": None, "qty": 0, "order_id": None, "order_status": None,
-            "filled_qty": 0.0, "fill_price": None, "slippage_bps": None,
+            "filled_qty": 0.0, "fill_price": None, "signal_to_fill_drift_bps": None,
             "fees_usd": 0.0, "fees_source": "assumed_zero_paper_commission",
             "realized_pnl_delta_usd": 0.0, "realized_pnl_total_usd": 0.0,
             "strategy_equity_usd": None, "drawdown_pct": None,
             "buy_hold_pnl_usd": None, "buy_hold_return_pct": None,
+            "benchmark_basis": BENCHMARK_BASIS,
+            "comparison_valid": True,
             "llm_api_cost_usd_week": 0.0,
         }
         if len(closes) < 50 or any(p <= 0 for p in closes[-50:]):
             row["order_status"] = "insufficient_completed_bars"
-            self._log(row)
+            item = self.state["tickers"].get(ticker)
+            if item and item.get("pending"):
+                try:
+                    self._reconcile(ticker, item, row)
+                except Exception as exc:
+                    row.update(order_status="broker_error", error_type=type(exc).__name__)
+                row["realized_pnl_total_usd"] = item["realized_pnl"]
+            self._record(row)
             return row
 
         price = float(closes[-1])
@@ -218,18 +273,44 @@ class PaperLoop:
         row["sma50"] = sum(closes[-50:]) / 50
         row["signal"] = "BUY" if row["sma20"] > row["sma50"] else "SELL"
 
-        if item.get("pending"):
+        had_pending = bool(item.get("pending"))
+        reconciliation_error = False
+        if had_pending:
             try:
                 self._reconcile(ticker, item, row)
                 row["order_status"] = row["order_status"] or "pending"
             except Exception as exc:
                 row.update(order_status="broker_error", error_type=type(exc).__name__)
-        else:
+                reconciliation_error = True
+        if had_pending and not item.get("pending") and not reconciliation_error:
+            # Persist the prior order's fill before today's decision can log a new order.
+            equity, drawdown, buy_hold = self._mark(item, price)
+            row.update(realized_pnl_total_usd=item["realized_pnl"],
+                       strategy_equity_usd=equity, drawdown_pct=drawdown,
+                       buy_hold_pnl_usd=buy_hold,
+                       buy_hold_return_pct=(price / item["benchmark_price"] - 1) * 100,
+                       event_type="reconciliation")
+            self._record(row)
+            row = {**row, "event_type": "decision", "event_id": None,
+                   "order_id": None, "order_status": None, "order_type": None,
+                   "qty": 0, "filled_qty": 0.0, "fill_price": None,
+                   "signal_to_fill_drift_bps": None, "realized_pnl_delta_usd": 0.0}
+        if item.get("blocked_reason"):
+            row["order_status"] = item["blocked_reason"]
+        elif not item.get("pending") and not reconciliation_error:
             desired = self.qty if row["signal"] == "BUY" else 0
             action = "BUY" if desired > 0 and item["position_qty"] == 0 else (
                 "SELL" if desired == 0 and item["position_qty"] > 0 else None)
             if action is None:
                 row["order_status"] = "no_change"
+                if self.submit_paper:
+                    try:
+                        assert self.broker is not None
+                        if abs(self.broker.position_qty(ticker) - item["position_qty"]) > 1e-6:
+                            row["order_status"] = "position_mismatch"
+                            item["blocked_reason"] = "position_mismatch_requires_review"
+                    except Exception as exc:
+                        row.update(order_status="broker_error", error_type=type(exc).__name__)
             elif not self.submit_paper:
                 row.update(order_type="market", qty=int(self.qty if action == "BUY" else item["position_qty"]),
                            order_status="dry_run")
@@ -245,6 +326,7 @@ class PaperLoop:
                         broker_qty = self.broker.position_qty(ticker)
                         if abs(broker_qty - item["position_qty"]) > 1e-6:
                             row["order_status"] = "position_mismatch"
+                            item["blocked_reason"] = "position_mismatch_requires_review"
                         elif not self.broker.market_open():
                             row["order_status"] = "market_closed"
                         else:
@@ -260,14 +342,16 @@ class PaperLoop:
                 except Exception as exc:
                     row.update(order_status="broker_error", error_type=type(exc).__name__)
 
-        equity, drawdown, buy_hold = self._mark(item, price)
         row["realized_pnl_total_usd"] = item["realized_pnl"]
-        row["strategy_equity_usd"] = equity
-        row["drawdown_pct"] = drawdown
-        row["buy_hold_pnl_usd"] = buy_hold
-        row["buy_hold_return_pct"] = (price / item["benchmark_price"] - 1) * 100
-        self._save()
-        self._log(row)
+        if item.get("blocked_reason"):
+            row["comparison_valid"] = False
+        else:
+            equity, drawdown, buy_hold = self._mark(item, price)
+            row["strategy_equity_usd"] = equity
+            row["drawdown_pct"] = drawdown
+            row["buy_hold_pnl_usd"] = buy_hold
+            row["buy_hold_return_pct"] = (price / item["benchmark_price"] - 1) * 100
+        self._record(row)
         return row
 
     def report(self, marks: dict[str, float]) -> dict:
@@ -276,6 +360,8 @@ class PaperLoop:
         for ticker, item in self.state["tickers"].items():
             if ticker not in marks:
                 continue
+            if item.get("blocked_reason"):
+                raise ValueError(f"{ticker}: broker position mismatch invalidates the paper comparison")
             mark, _, hold = self._mark(item, marks[ticker])
             equity += mark
             buy_hold += hold
@@ -288,6 +374,7 @@ class PaperLoop:
             "llm_api_cost_usd_week": 0.0,
             "llm_cap_usd": self.token_budget.cap_usd,
             "scope": "fixed_rule_harness_only",
+            "benchmark_basis": BENCHMARK_BASIS,
         }
 
 

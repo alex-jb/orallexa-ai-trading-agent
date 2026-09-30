@@ -28,29 +28,47 @@ override. Submission is blocked when `DEMO_MODE` is on or the paper market is
 closed. It never opens a short and refuses to touch a broker position that
 does not match its own saved state. One deterministic client order ID per
 ticker/side/day prevents retries from submitting a second order. A pending
-order is reconciled before any new decision. Do not delete the state file while
+order is reconciled before any new decision, even when market data is missing.
+A completed order and a new opposite-side decision get separate ledger rows.
+The saved state locks the share quantity: changing `--qty` requires a new pilot
+with separate state and ledger paths. State created by older harness versions
+without a saved quantity also requires a new pilot. Do not delete state while
 orders are pending.
 
 ## Audit records
 
 `logs/paper_harness.jsonl` is append-only and `logs/paper_harness_state.json`
 stores positions, entry fill prices, pending order IDs, realized P&L, first
-benchmark price, and peak equity. Both are gitignored. Every decision logs:
+benchmark price, peak equity, the fixed quantity, and one audit outbox row for
+crash recovery. Both are gitignored. Every decision logs:
 
 - UTC timestamp, ticker, signal, completed-bar signal price and SMA20/50;
-- market order quantity, ID, status, cumulative filled quantity and fill price;
-- signed adverse slippage in bps versus the prior completed close;
+- market order quantity, ID, status, newly accounted filled quantity and fill price;
+- signed `signal_to_fill_drift_bps` versus the prior completed close. It includes
+  overnight price gaps and intraday moves before submission, so it is **not**
+  an execution slippage or market-impact estimate;
 - assumed paper commission (`fees_usd=0`, labeled as an assumption), realized
   P&L, strategy equity, peak-to-current drawdown, and buy-and-hold P&L;
 - scoped LLM API cost per week, always $0 because this loop never calls an LLM.
 
-The benchmark holds the *same fixed share quantity* from each ticker's first
-pilot day through its latest recorded mark. The strategy marks those same
-tickers over that period, including flat days. `report()` aggregates dollar
-P&L; the per-ticker `first_date` records staggered starts. Actual Alpaca
-market orders can fill later or partially; pending orders retain their state
-until reconciled. Fees other than assumed paper commission, spread, dividends,
-interest, taxes, and external broker positions are not included in the P&L.
+The buy-and-hold benchmark assumes a **hypothetical purchase at the prior
+completed close** on each ticker's first pilot day and holds the fixed share
+quantity through the latest mark. That entry was not executable when the pilot
+first ran after the next open. Its entry time and execution cost are therefore
+not matched to the paper strategy, and the report does not establish an
+apples-to-apples excess return. `report()` aggregates dollar P&L; the
+per-ticker `first_date` records staggered starts. Actual Alpaca market orders
+can fill later or partially; pending orders retain their state until a final
+status is reconciled. If the state checkpoint succeeds but the ledger append
+fails, the saved audit row is replayed before the next broker decision;
+an existing row is recognized by its event ID. A malformed ledger fails closed
+and needs operator review. Fees other than assumed paper commission, spread,
+dividends, interest, taxes, and external broker positions are not included.
+Stock splits and other corporate actions are not reconciled into the local
+cost basis or benchmark; a broker position mismatch blocks orders and requires
+a fresh reviewed pilot rather than silently continuing. After a mismatch, the
+affected ticker's comparison fields are withheld and `report()` refuses to
+publish an aggregate containing it.
 This is a prospective paper test; no live fill record or measured edge exists
 until the pilot actually runs.
 
