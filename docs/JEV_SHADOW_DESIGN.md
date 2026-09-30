@@ -21,6 +21,25 @@ and debate scheduling stay as they are. On a timeout, missing key, malformed
 response, or budget exhaustion, record an error and leave the trading pipeline
 untouched. Do not claim Jev saved a debate call while it runs in shadow mode.
 
+## Engineering note on the "100x" illustration
+
+A circulated September 2026 *Jev Engineering* screenshot sketches application
+state -> typed decisions -> code validation and execution. That separation is
+useful for this experiment: the news classifier may label a frozen article,
+while deterministic code checks its schema, budget and audit record. Its first
+page does not provide the benchmark data needed to establish a 100x gain, and
+the original complete document has not been verified here.
+
+[TypeSafe's published workflow evaluation](https://typesafe.ai/blog/introducing-system-one-models-and-jev)
+reports up to 193.6x lower latency and 444.6x lower cost on four workflows
+constructed by its own team. The publisher calls these the high end of
+expected real-world gains and notes possible selection bias. Those results
+measure neither news classification in this repository nor an end-to-end
+trading loop. Compare Jev with the frozen keyword and no-classifier baselines
+below using the same inputs, errors, latency boundaries and price assumptions
+before reporting any Orallexa speed or cost improvement. No return or alpha
+claim follows from a classification result.
+
 ## External Jev trading demo
 
 The [jev-trade repository](https://github.com/aowang-ai/jev-trade) is a
