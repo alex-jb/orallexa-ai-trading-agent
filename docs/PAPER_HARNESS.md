@@ -30,12 +30,24 @@ does not match its own saved state. The deterministic client order ID supports
 same-day deduplication for a single loop. Before a new
 paper order, the loop persists an `order_intent` event and the exact client ID,
 side, quantity, prior-close signal price, rule version, the completed session
-date when available, and a SHA-256 of the canonical last 50 *input close
-values*. This hash is not proof of the raw Alpaca data or its publication
-time. The harness does not currently enforce a maximum age for an otherwise
-completed daily bar. Verify the feed and session date before starting an
-unattended pilot. The state checkpoint and ledger append fsync their files and
-containing directories (including newly created directories); a failed fsync
+date, and a SHA-256 of the canonical last 50 *input close values*. This hash
+is not proof of the raw Alpaca data or its publication time. In submit mode,
+the last bar must have a date **equal to the most recent prior scheduled
+equity session** returned by Alpaca's read-only trading calendar. This handles
+ordinary weekends and scheduled holidays without guessing by calendar-day
+age. A missing, same-day, future, or older date, fewer than 50 valid bars,
+empty calendar, or calendar query failure blocks new paper decisions and
+orders; any outstanding order can still be reconciled.
+The ledger records `data_status`, provided and expected session dates, and
+withholds comparison fields while data is stale. The CLI withholds its aggregate
+report until a later run supplies at least 50 valid bars ending at the current
+completed session and verifies broker position. Dry-run remains an exploratory
+mode: it can log an undated or old
+completed bar, but its signal is not eligible for paper submission. This gate
+checks the scheduled calendar, not whether a particular ticker actually
+traded or whether the IEX close is accurate. Verify source provenance before
+starting an unattended pilot. The state checkpoint and ledger append fsync their
+files and containing directories (including newly created directories); a failed fsync
 before submission prevents an order. This depends on the filesystem honoring
 fsync and does not provide cross-host or concurrent-process coordination.
 A disk failure while writing the intent prevents
@@ -152,3 +164,5 @@ legacy script.
 Alpaca SDK references: [paper TradingClient](https://alpaca.markets/sdks/python/api_reference/trading/trading-client.html),
 [stock bars](https://alpaca.markets/sdks/python/api_reference/data/stock/historical.html),
 and [StockBarsRequest](https://alpaca.markets/sdks/python/api_reference/data/stock/requests.html).
+The date gate uses [TradingClient.get_calendar](https://alpaca.markets/sdks/python/api_reference/trading/calendar.html)
+and [GetCalendarRequest](https://alpaca.markets/sdks/python/api_reference/trading/requests.html).
