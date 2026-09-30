@@ -6,7 +6,7 @@
 - **Space/industry:** Fintech, trading dashboards (Bloomberg Terminal lite + AI coach)
 - **Project type:** Next.js 16 web app (`orallexa-ui/`) + Streamlit prototype (`app_ui.py`)
 - **Canonical UI:** `orallexa-ui/` (Next.js 16 + React 19 + Tailwind 4)
-- **Streamlit:** `app_ui.py` is the prototype/legacy. Should converge toward the Next.js palette over time.
+- **Streamlit:** `app_ui.py` is a private prototype, disabled by default. It requires `ORALLEXA_ENABLE_LEGACY_STREAMLIT=1` and the same strong `ORALLEXA_UI_OWNER_TOKEN` as the Next.js owner UI. Its direct paid SDK calls bypass the API weekly budget; do not expose it publicly.
 
 ## Aesthetic Direction
 - **Direction:** Art Deco Luxury. Geometric precision, gold gradients, stepped corner ornaments, decorative rules with diamond motifs.
