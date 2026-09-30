@@ -4,7 +4,7 @@ Ships 2026-07-02 (Tier-1 #10 wire-up follow-up).
 
 ## What this is
 
-A nightly `launchd` job that runs `check_kill_conditions()` from
+A local installation guide for a nightly `launchd` job that runs `check_kill_conditions()` from
 `engine/kill_conditions.py` against the current portfolio state
 built from disk (paper P&L history + polymarket brier history +
 decision log), then persists the decision to
@@ -47,7 +47,6 @@ cat > ~/.orallexa/orallexa-nightly-cron/run-kill-conditions.sh <<'EOF'
 set -euo pipefail
 REPO="/Users/alexji/Desktop/orallexa-ai-trading-agent"
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-export ORALLEXA_REAL_MONEY="${ORALLEXA_REAL_MONEY:-0}"
 echo "[kill-conditions-nightly] wrapper start $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 cd "$REPO"
 /usr/bin/python3 markets/auto/kill_conditions_cron.py
@@ -134,20 +133,12 @@ launchctl start com.alexji.orallexa.kill-conditions-nightly
 - **1** = check itself crashed — no reliable state written; the morning
   pipeline should treat "kill state stale > 30h" as WAIT
 
-## Real-money mode
+## Paper-only scope
 
-Default is paper. To flip to real money, set env var in the plist
-by adding:
-
-```xml
-<key>EnvironmentVariables</key>
-<dict>
-  <key>ORALLEXA_REAL_MONEY</key>
-  <string>1</string>
-</dict>
-```
-
-**Do NOT flip this without a manual review that all four gates have
-been clear for the paper-days threshold** (default 30). The
-`is_ready_for_real_money(state)` helper in `engine/kill_conditions.py`
-enforces the stricter transition check.
+This repository's broker execution uses Alpaca paper mode. The legacy
+`ORALLEXA_REAL_MONEY` variable is read only by
+`markets/auto/kill_conditions_cron.py` to set a field in a risk-state
+calculation. It does **not** switch the Alpaca client, enable live orders,
+or validate that a real-money transition is safe. Leave it unset. The
+`is_ready_for_real_money(state)` function is an advisory pure predicate;
+its result cannot change the broker connection.

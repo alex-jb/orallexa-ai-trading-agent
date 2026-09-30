@@ -1,5 +1,9 @@
 # Hacker News launch post — Orallexa
 
+> Archived, unpublished draft. Do not post without a fresh evidence review.
+> The 90-pair historical leaderboard has been withdrawn (see
+> `eval/PROTOCOL.md`); broker execution remains Alpaca paper only.
+
 HN's two unwritten rules: **no marketing speak, lead with substance,
 let the work speak**. Title is half the battle. Body should be 2-4
 short paragraphs explaining the technical bit that's actually new.
@@ -12,7 +16,7 @@ short paragraphs explaining the technical bit that's actually new.
 
 **B. "Show HN: Bull/Bear LLM debate before every trade decision (open source)"**
 
-**C. "Show HN: I built a multi-agent trading system that uses Polymarket + Kalshi as alpha"**
+**C. "Show HN: I built a multi-agent paper-trading research system with Polymarket + Kalshi signals"**
 
 **D. "Show HN: Orallexa — self-tuning multi-agent trading agent on Claude Opus 4.7"**
 
@@ -27,7 +31,7 @@ I've been working on an open-source trading research agent for the past
 couple weeks. The architecture worth talking about isn't the LLM debate
 (everyone has one now) — it's the **adaptive signal fusion**.
 
-The system pulls 8 independent signal sources for each ticker:
+The system can combine 8 categories of signal for each ticker:
 
 - Technical indicators
 - ML model ensemble (10 models including Kronos, the new foundation model
@@ -40,29 +44,28 @@ The system pulls 8 independent signal sources for each ticker:
 - Prediction markets (Polymarket + Kalshi merged)
 
 Each source produces a -100..+100 directional score. They fuse with
-weighted voting. The interesting part: weights aren't static. There's
-a JSONL ledger that records every prediction at decision time, then a
-nightly cron pulls forward returns from yfinance and fills in per-source
-hit/miss. Sources with rolling accuracy ≥0.70 get a 2× weight multiplier;
+weighted voting. Optional accuracy weighting uses a JSONL ledger of
+recorded source scores and later observed outcomes. An offline job can
+fill in per-source hit/miss; this does not establish that weighting
+improves trading results. Sources with rolling accuracy ≥0.70 get a 2× weight multiplier;
 sources at ≤0.30 get muted to 0.10×. Renormalized so total weight is
 preserved.
 
-Above that sits a Bull/Bear/Judge debate (Claude Opus 4.7 with xhigh effort
-on the Judge — the most expensive reasoning hop — and Sonnet for the
-adversarial Bull and Bear). Then a Portfolio Manager gate that blocks
-trades before they hit Alpaca: max single-position concentration, sector
-exposure, direction-streak warnings, conviction-scaled position sizing.
+Above that sits a Bull/Bear/Judge debate. The Alpaca paper endpoint has a
+Portfolio Manager check for concentration, sector exposure, and position
+sizing when sufficient portfolio context is supplied; this archived
+snapshot did not force the check for every caller.
 
-The honest result that might surprise: a synthetic backtest of the 8-source
-weights vs the original 5-source legacy weights showed the legacy actually
-edges out under low-SNR assumptions for the new sources. Real-world SNR is
-unknown — and that's exactly why I built the dynamic weighting layer. If
-social sentiment really does have low signal, the system will down-weight
-it automatically once enough records accumulate.
+A deterministic synthetic simulation of the 8-source weights vs the
+original 5-source legacy weights favored the legacy policy under the
+script's low-SNR assumptions for the new sources. Run
+`python scripts/backtest_fusion_partial.py --days 252 --seed 42 --n-trials 5`;
+data are generated in the script, with **no fees or slippage modeled**.
+This is not market-data evidence or an evaluation of the multi-agent system.
 
 Code is MIT. Backend is Python (FastAPI), frontend is Next.js 16 (Art Deco
-theme, bilingual EN/ZH). ~800 backend tests, 245 frontend, 83% scoped
-coverage, full CI.
+theme, bilingual EN/ZH). Run the current suites for test counts and scoped
+coverage; the CI threshold is 70% for modules selected by `.coveragerc`.
 
 **Repo:** https://github.com/alex-jb/orallexa-ai-trading-agent
 **Live demo:** https://orallexa-ui.vercel.app (no API key needed)
@@ -95,9 +98,8 @@ Anticipated tough questions + drafted answers:
 > No, and I won't claim it has. The synthetic backtest in
 > `scripts/backtest_fusion_partial.py` showed mixed results vs the legacy
 > weights (honest finding noted in the commit message). The dynamic
-> weights are designed to converge on whichever sources actually carry
-> alpha for a given ticker/regime — but that needs accumulated forward-
-> return data we're still collecting.
+> weighting is experimental and no net excess return over same-ticker
+> buy-and-hold has been demonstrated.
 
 **Q: Why so many sources?**
 > Diminishing returns at some point, agreed. Each source had to justify
@@ -111,14 +113,13 @@ Anticipated tough questions + drafted answers:
 > Borrowed their Portfolio Manager pattern (acknowledged in commit
 > messages and FURTHER_UPDATES.md). Different in: (1) signal fusion is
 > 8 sources not just analyst voices, (2) prediction markets included,
-> (3) dynamic weights from accuracy ledger, (4) PM gates actual Alpaca
-> orders not just advisory.
+> (3) optional dynamic weights from an accuracy ledger, (4) an Alpaca
+> **paper** order path with optional PM checks in this archived snapshot.
 
 **Q: What's the LLM cost per analysis?**
-> Per `/api/deep-analysis` call: ~$0.05-0.15 depending on context size
-> and whether Opus 4.7 (Judge) fires. TokenBudget enforcer caps callers.
-> Watch for OpusOpus 4.7's 35% tokenizer inflation — flagged in the
-> PRICING constant.
+> No reproducible per-call estimate has been published. Use the local
+> `llm.cost_report` command in `README.md` with redacted call records,
+> a dated model price schedule, and the exact invocation before quoting dollars.
 
 **Q: License?**
 > MIT. Use it, fork it, build on it. PRs welcome.

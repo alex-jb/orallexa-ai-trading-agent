@@ -1,5 +1,9 @@
 # X (Twitter) launch thread — Orallexa
 
+> Archived, unpublished draft. Do not post until the paper-only scope and
+> evaluation status in `README.md` and `eval/PROTOCOL.md` are reflected in
+> every claim. Historical 90-pair returns are unverified.
+
 Style: **builder voice, concrete numbers, no buzzwords, no emojis at the
 start of every line**. Each tweet ≤280 chars. Designed to hook on the
 specific (Bull/Bear debate + 8-source fusion + Polymarket+Kalshi)
@@ -11,8 +15,8 @@ Pin tweet 1 with the demo link + the "what's unique" claim.
 
 ## Thread A — primary launch (8 tweets)
 
-**1/** I built an open-source AI trading agent where every decision
-goes through a Bull/Bear/Judge debate before it executes.
+**1/** I built an open-source AI paper-trading research prototype with
+an optional Bull/Bear/Judge debate.
 
 8 signal sources fuse into one conviction score. Polymarket + Kalshi
 prediction markets count as a vote alongside ML models.
@@ -30,24 +34,24 @@ https://github.com/alex-jb/orallexa-ai-trading-agent
 - Earnings/PEAD drift
 - Prediction markets (Polymarket + Kalshi)
 
-**3/** Each source's weight isn't static. There's an accuracy ledger
-that scores every prediction against the eventual N-day return,
-then dynamically scales weights:
+**3/** Optional accuracy weighting can use recorded source scores and
+later observed outcomes to scale weights; trading improvement is unproven:
 - 0.50 accuracy → 1.0× (random)
 - 0.70 → 2.0×
 - 0.30 → 0.10× (mute)
 
 Sources that earn their seat amplify. Ones that don't get muted.
 
-**4/** Decisions go through a Portfolio Manager gate before any
-Alpaca order:
+**4/** The Alpaca **paper** endpoint supports a Portfolio Manager check
+when enough portfolio context is supplied:
 - Min confidence
 - Max single-position concentration (20%)
 - Max sector exposure (40%)
 - Direction-streak warnings
 - Conviction-scaled position sizing
 
-Rejections return HTTP 409. Real risk control, not advisory.
+This archived route also allowed omission or bypass of the PM check;
+do not claim that all orders were gated.
 
 **5/** Bull/Bear/Judge runs on Claude Sonnet 4.6 by default. The
 Judge — most expensive reasoning hop — upgrades to Claude Opus 4.7
@@ -61,10 +65,9 @@ OpenAI + Gemini are real adapters; Ollama + Grok scaffolded.
 Switch with `ORALEXXA_LLM_PROVIDER=openai`. Same pricing table, same
 JSONL log + PostHog + Langfuse triple sink.
 
-**7/** ~800 backend tests + 245 frontend tests. Coverage gate at 70%
-on core logic (actual: 83.4%). CI green. ~50 commits this week
-landing the 8-source fusion + adaptive weights + Opus 4.7 routing
-+ Kalshi merge + DyTopo dynamic role selection.
+**7/** Run current tests for counts and coverage. CI targets selected
+modules with a 70% gate in `.coveragerc`; no current 83.4% result is
+evidenced here.
 
 **8/** Live demo: https://orallexa-ui.vercel.app (no API key needed,
 demo mode)
@@ -79,12 +82,12 @@ is worth a read.
 
 ## Thread B — alt opening focused on prediction markets
 
-**1/** Prediction markets are the most under-used alpha source for
-trading agents.
+**1/** Prediction-market questions are a candidate input for
+trading research; incremental predictive value is untested.
 
-Polymarket says NVDA has a 12% chance to hit $200 by Friday. That's
-not noise — it's smart money's actual probability estimate. Treat
-it as a vote alongside RSI and earnings drift.
+A prediction-market contract's price is one observed market quote,
+with liquidity and interpretation limits. It can be examined alongside
+RSI and earnings data; the example is not a current stock forecast.
 
 I built this. Open source.
 
@@ -104,10 +107,9 @@ Then Bull/Bear/Judge debate on Claude Opus 4.7.
 
 The one-line pitch:
 
-> Open-source AI trading agent: Bull and Bear debate every decision,
-> 8 sources vote (Polymarket + 10 ML models incl. Kronos),
-> dynamic weights adapt to accuracy, Portfolio Manager gates orders
-> before they hit Alpaca. ~50 commits this week.
+> Open-source paper-trading research prototype with an optional
+> Bull/Bear debate, 8 source categories, optional accuracy weighting,
+> and a Portfolio Manager check for eligible Alpaca paper orders.
 > https://github.com/alex-jb/orallexa-ai-trading-agent
 
 ---
@@ -116,8 +118,8 @@ The one-line pitch:
 
 > Wrote a CORAL-inspired SharedMemory aggregator over per-role +
 > tiered memory. The cross-role consensus injection ('Other roles
-> on NVDA: 8 BULLISH / 2 BEARISH; Aggressive 75% acc') made the
-> Bull/Bear arguments measurably more grounded.
+> on NVDA: 8 BULLISH / 2 BEARISH; Aggressive 75% acc') is an
+> illustrative context string; no measured improvement is claimed.
 >
 > github.com/alex-jb/orallexa-ai-trading-agent
 > engine/shared_memory.py
@@ -127,7 +129,7 @@ The one-line pitch:
 > Ranging → Conservative + Quant.
 > Volatile → all 4 (uncertainty deserves diversity).
 >
-> ~50% LLM call reduction on routine analysis. Code in llm/perspective_panel.py
+> The cost effect has not been benchmarked. Code in llm/perspective_panel.py
 
 ---
 
