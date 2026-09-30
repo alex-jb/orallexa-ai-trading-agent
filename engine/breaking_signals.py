@@ -72,6 +72,8 @@ def _get_last_signal(ticker: str) -> Optional[dict]:
 def detect_breaking(
     current: DecisionOutput,
     ticker: str,
+    *,
+    persist: bool = True,
 ) -> Optional[dict]:
     """
     Compare current decision against last logged signal for same ticker.
@@ -163,8 +165,9 @@ def detect_breaking(
     if len(alerts) > 1:
         primary["additional_alerts"] = [a["type"] for a in alerts[1:]]
 
-    # Save to breaking signals log
-    _save_breaking(primary)
+    # Public read-only analyses can receive the alert without mutating the log.
+    if persist:
+        _save_breaking(primary)
 
     return primary
 
