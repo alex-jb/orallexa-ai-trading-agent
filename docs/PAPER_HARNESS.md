@@ -215,7 +215,8 @@ truncated before the first snapshot; this format has no external earlier
 anchor or independent completeness proof. An older valid bundle can also be
 replayed as if it were the latest unless you independently retain the expected
 snapshot time or hash. The two input files are selected by the exporter caller;
-the exporter checks that their ticker sets match, but the current harness has
+the exporter requires every checkpointed ticker to appear in the ledger, but
+blocked tickers can appear in the ledger without a state checkpoint. The harness has
 no shared pilot ID that binds them before signing. Two different pilots using
 the same tickers can still be paired by mistake or signed deliberately.
 The verifier double-reads bundle members to catch ordinary replacements during
