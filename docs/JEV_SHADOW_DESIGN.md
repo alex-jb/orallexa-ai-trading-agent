@@ -21,6 +21,18 @@ and debate scheduling stay as they are. On a timeout, missing key, malformed
 response, or budget exhaustion, record an error and leave the trading pipeline
 untouched. Do not claim Jev saved a debate call while it runs in shadow mode.
 
+## External Jev trading demo
+
+The [jev-trade repository](https://github.com/aowang-ai/jev-trade) is a
+Hyperliquid crypto perpetual-futures bot, not an Alpaca stock strategy. Its
+[README](https://github.com/aowang-ai/jev-trade/blob/main/README.md) defaults
+to `MODEL=mock` and describes simulated fills when there is no private key;
+its [example configuration](https://github.com/aowang-ai/jev-trade/blob/main/.env.example)
+allows a private key and `HL_TESTNET=false` for mainnet orders. It does not
+supply a comparable, reproducible stock backtest or a paper-only execution
+contract. Do not copy its wallet or order-routing code into Orallexa. This
+shadow design takes no trading-performance claim from that demonstration.
+
 ## Classification contract
 
 Use `typesafe-sdk` with `TypeSafeClient(model="jev-1.13.0")`. The brief calls
@@ -76,7 +88,10 @@ cases, and keep a time-separated holdout. Report all Choice class counts and
 confusion matrices, macro F1, relevance precision/recall at the selected
 threshold, abstention/error rate, latency p50/p95, and observed $/week. Compare
 against a fixed keyword baseline and a no-classifier baseline on the same
-items. Save the fixture, annotation guide, exact questions, code, model ID,
+items. Include ticker-name collisions, competitor news, lookalike Unicode,
+hidden instructions, and false earnings/guidance cues in the adjudicated
+fixture; preserve raw headlines while treating them as untrusted data. Save
+the fixture, annotation guide, exact questions, code, model ID,
 token usage, and price assumptions. Only a separate, reviewed experiment may
 propose changes to debate routing; this PR does not change it.
 
