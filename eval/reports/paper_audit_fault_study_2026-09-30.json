@@ -1,0 +1,145 @@
+{
+  "audit_module_sha256": "dd68e0f3aeb46760fec86ca095c6c36073017dfb185d70fe05444ff81869ccfa",
+  "audit_schema": "orallexa-paper-audit-snapshot-v1",
+  "cost_assumptions": {
+    "assumed_paper_commission_usd": 0.0,
+    "broker_api_cost_usd": 0.0,
+    "broker_calls": 0,
+    "llm_api_cost_usd": 0.0,
+    "llm_calls": 0,
+    "slippage_modeled": false
+  },
+  "cryptography_version": "46.0.0",
+  "fixture": {
+    "ledger_sha256": "97a76d63747f566b2ba3cc59dc6108ebf1660e38936f370459c3d0a3a897f63a",
+    "pre_signature_shortened_ledger_sha256": "d5380e269a7945a82707f376a66600e5a4c50c559dfa3cffc160ed18b436830c",
+    "row_count": 4,
+    "seed": 20260930,
+    "state_sha256": "17a9d971bf81f7f16d1c67cc59be97aca947bec13593de73bf4f9da85f12b7ea",
+    "synthetic": true
+  },
+  "interpretation": "The pre-signature history-loss control is expected to verify; no preexisting completeness proof",
+  "passed": true,
+  "results": [
+    {
+      "case": "intact_signed_bundle",
+      "elapsed_ms": 0.955,
+      "expected_rejected": false,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": false,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "ledger_complete_row_truncation",
+      "elapsed_ms": 0.578,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "ledger_row_reorder",
+      "elapsed_ms": 0.521,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "ledger_valid_row_modify",
+      "elapsed_ms": 0.537,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "state_valid_json_modify",
+      "elapsed_ms": 0.436,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "manifest_canonical_modify",
+      "elapsed_ms": 0.419,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "signature_valid_base64_modify",
+      "elapsed_ms": 0.452,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "missing_bundle_member",
+      "elapsed_ms": 0.061,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "extra_bundle_member",
+      "elapsed_ms": 0.062,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "malformed_tail_after_signing",
+      "elapsed_ms": 0.481,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "wrong_independent_trusted_key",
+      "elapsed_ms": 0.242,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "verify",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "malformed_tail_before_signing",
+      "elapsed_ms": 0.281,
+      "expected_rejected": true,
+      "matched_expected": true,
+      "phase": "export",
+      "rejected": true,
+      "unexpected_error_type": null
+    },
+    {
+      "case": "valid_history_loss_before_first_signature",
+      "elapsed_ms": 1.866,
+      "expected_rejected": false,
+      "matched_expected": true,
+      "phase": "export_then_verify",
+      "rejected": false,
+      "unexpected_error_type": null
+    }
+  ],
+  "script_version": "1.0",
+  "study": "orallexa-offline-paper-audit-fault-injection",
+  "timing_note": "Local perf_counter case durations in ms; descriptive, not a speed benchmark"
+}
