@@ -326,7 +326,8 @@ class PaperLoop:
         item.pop("intent", None)
 
     def run_ticker(self, ticker: str, closes: list[float], *, now: datetime | None = None,
-                   mark_date: date | None = None) -> dict:
+                   mark_date: date | None = None,
+                   data_fetch_error_type: str | None = None) -> dict:
         self._deliver_outbox()  # Recover any fill record before reading the broker or making a decision.
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
@@ -352,6 +353,10 @@ class PaperLoop:
             "comparison_valid": True,
             "llm_api_cost_usd_week": 0.0,
         }
+        if data_fetch_error_type:
+            row.update(data_status="paper_market_data_unavailable",
+                       data_fetch_error_type=data_fetch_error_type,
+                       error_type=data_fetch_error_type)
         item = self.state["tickers"].get(ticker)
         if item and item.get("intent"):
             # Resolve yesterday's client ID before considering today's signal or
@@ -388,15 +393,19 @@ class PaperLoop:
             self._record(row)
             return row
 
-        if len(closes) < 50 or any(not math.isfinite(p) or p <= 0 for p in closes[-50:]):
-            row["order_status"] = "insufficient_completed_bars"
-            row["conditional_comparison_excluded_reason"] = "insufficient_completed_bars"
+        if data_fetch_error_type or len(closes) < 50 or any(
+                not math.isfinite(p) or p <= 0 for p in closes[-50:]):
+            data_status = ("paper_market_data_unavailable" if data_fetch_error_type
+                           else "insufficient_completed_bars")
+            row["order_status"] = data_status
+            row["conditional_comparison_excluded_reason"] = data_status
             item = self.state["tickers"].get(ticker)
+            if self.submit_paper or data_fetch_error_type:
+                row.update(data_status=data_status, comparison_valid=False)
             if self.submit_paper:
-                row.update(data_status="insufficient_completed_bars", comparison_valid=False)
-                self.state.setdefault("data_blocked", {})[ticker] = "insufficient_completed_bars"
+                self.state.setdefault("data_blocked", {})[ticker] = data_status
                 if item:
-                    item.setdefault("comparison_stale", "insufficient_completed_bars")
+                    item.setdefault("comparison_stale", data_status)
             if item and item.get("pending"):
                 try:
                     self._reconcile(ticker, item, row)
@@ -672,6 +681,7 @@ def main() -> None:
     recovered_intent = False
     invalid_paper_data = False
     for ticker in [s.strip().upper() for s in args.tickers.split(",") if s.strip()]:
+        data_fetch_error_type = None
         if args.bars_dir:
             import pandas as pd
             df = pd.read_csv(args.bars_dir / f"{ticker}.csv", parse_dates=["Date"])
@@ -680,8 +690,13 @@ def main() -> None:
             mark_date = df["Date"].dt.date.iloc[-1] if not df.empty else None
         else:
             assert gateway is not None
-            closes, mark_date = gateway.completed_closes_with_dates(ticker, now)
-        row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date)
+            try:
+                closes, mark_date = gateway.completed_closes_with_dates(ticker, now)
+            except Exception as exc:
+                closes, mark_date = [], None
+                data_fetch_error_type = type(exc).__name__
+        row = loop.run_ticker(ticker, closes, now=now, mark_date=mark_date,
+                              data_fetch_error_type=data_fetch_error_type)
         if row.get("event_type") == "intent_recovery":
             recovered_intent = True
         elif row.get("data_status"):
