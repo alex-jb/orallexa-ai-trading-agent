@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { ScenarioResult, PerspectivePanel, RoleMemoryStats, SwarmResult } from "../types";
 import { API } from "../types";
+import { ownerFetch } from "../owner-api";
 import { Mod } from "./atoms";
 
 /* ── Preset scenario templates ─────────────────────────────────────── */
@@ -24,8 +25,8 @@ const PRESETS_ZH = [
 ];
 
 /* ── Scenario Simulator Card ───────────────────────────────────────── */
-export function ScenarioSimulator({ tickers, t, zh }: {
-  tickers: string[]; t: Record<string, string>; zh: boolean;
+export function ScenarioSimulator({ tickers, t, zh, ownerAuthenticated = false, demo = false }: {
+  tickers: string[]; t: Record<string, string>; zh: boolean; ownerAuthenticated?: boolean; demo?: boolean;
 }) {
   const [scenario, setScenario] = useState("");
   const [result, setResult] = useState<ScenarioResult | null>(null);
@@ -36,7 +37,7 @@ export function ScenarioSimulator({ tickers, t, zh }: {
   const presets = zh ? PRESETS_ZH : PRESETS_EN;
 
   const runScenario = async () => {
-    if (!scenario.trim() || loading) return;
+    if (!scenario.trim() || loading || !ownerAuthenticated || demo) return;
     setLoading(true);
     setError("");
     setResult(null);
@@ -45,7 +46,7 @@ export function ScenarioSimulator({ tickers, t, zh }: {
       const form = new FormData();
       form.append("scenario", scenario);
       form.append("tickers", tickers.join(","));
-      const res = await fetch(`${API}/api/scenario`, { method: "POST", body: form });
+      const res = await ownerFetch("scenario", { method: "POST", body: form });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Request failed" }));
         throw new Error(err.detail || `HTTP ${res.status}`);
@@ -91,7 +92,7 @@ export function ScenarioSimulator({ tickers, t, zh }: {
           />
           <button
             onClick={runScenario}
-            disabled={loading || !scenario.trim()}
+            disabled={loading || !scenario.trim() || !ownerAuthenticated || demo}
             className="px-4 py-2 text-[9px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] transition-colors"
             style={{
               background: loading ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.15)",

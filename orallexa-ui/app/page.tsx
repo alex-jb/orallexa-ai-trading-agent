@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { GoldRule, Heading, Mod, Row, BrandMark, MLScoreboard, BreakingBanner, MarketStrip, WatchlistGrid, DecisionCard, SignalToast, BacktestPanel } from "./components";
 import { useNotifications } from "./hooks/use-notifications";
 import { useLiveWS } from "./hooks/use-live-ws";
+import { ownerFetch } from "./owner-api";
 
 const PriceChart = dynamic(() => import("./components/price-chart").then(m => ({ default: m.PriceChart })), { ssr: false });
 const DailyIntelView = dynamic(() => import("./components/daily-intel").then(m => ({ default: m.DailyIntelView })), { ssr: false });
@@ -112,6 +113,44 @@ export default function Home() {
   const [tradeResult, setTradeResult] = useState<{ status: string; order_id?: string; error?: string } | null>(null);
   const [alpacaAccount, setAlpacaAccount] = useState<{ equity: number; cash: number; buying_power: number } | null>(null);
   const [alpacaPositions, setAlpacaPositions] = useState<{ ticker: string; qty: number; unrealized_pnl: number; unrealized_pnl_pct: number; current_price: number }[]>([]);
+  const [ownerAuthenticated, setOwnerAuthenticated] = useState(false);
+  const [ownerPaperEnabled, setOwnerPaperEnabled] = useState(false);
+  const [ownerToken, setOwnerToken] = useState("");
+  const [ownerError, setOwnerError] = useState("");
+  const [ownerBusy, setOwnerBusy] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/owner/session", { cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(status => { setOwnerAuthenticated(status?.authenticated === true); setOwnerPaperEnabled(status?.paperEnabled === true); })
+      .catch(() => setOwnerAuthenticated(false));
+  }, []);
+
+  const signInOwner = async () => {
+    setOwnerBusy(true); setOwnerError("");
+    try {
+      const res = await fetch("/api/owner/session", {
+        method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: ownerToken }),
+      });
+      setOwnerAuthenticated(res.ok);
+      if (res.ok) setOwnerPaperEnabled((await res.json()).paperEnabled === true);
+      if (!res.ok) setOwnerError(lang === "ZH" ? "操作者验证失败或尚未配置" : "Owner access failed or is not configured");
+    } catch { setOwnerError(lang === "ZH" ? "操作者验证不可用" : "Owner access unavailable"); }
+    finally { setOwnerToken(""); setOwnerBusy(false); }
+  };
+
+  const signOutOwner = async () => {
+    try {
+      const response = await fetch("/api/owner/session", { method: "DELETE", cache: "no-store" });
+      if (!response.ok) throw new Error("Sign out failed");
+      setOwnerAuthenticated(false);
+      setOwnerPaperEnabled(false);
+      setAlpacaAccount(null); setAlpacaPositions([]); setDailyIntel(null);
+      setDecision(null); setDeepReport(null); setInvestmentPlan(null);
+      setChartInsight(null); setTradeResult(null); setOwnerError("");
+    } catch { setOwnerError(lang === "ZH" ? "退出失败，请重试" : "Sign out failed; please retry"); }
+  };
 
   const fetchContext = useCallback(async () => {
     if (apiDead.current) {
@@ -134,22 +173,22 @@ export default function Home() {
 
   // Fetch Alpaca account + positions (non-blocking)
   const fetchAlpaca = useCallback(async () => {
-    if (apiDead.current) return;
+    if (apiDead.current || isDemo || !ownerAuthenticated) return;
     try {
       const [aRes, pRes] = await Promise.all([
-        fetch(`${API}/api/alpaca/account`),
-        fetch(`${API}/api/alpaca/positions`),
+        ownerFetch("alpaca/account"),
+        ownerFetch("alpaca/positions"),
       ]);
       if (aRes.ok) { const d = await aRes.json(); if (d.equity) setAlpacaAccount(d); }
       if (pRes.ok) { const d = await pRes.json(); if (Array.isArray(d)) setAlpacaPositions(d); }
     } catch { /* Alpaca optional */ }
-  }, []);
+  }, [isDemo, ownerAuthenticated]);
 
   // Batch initial data load: context + alpaca in parallel
   useEffect(() => { fetchContext(); fetchAlpaca(); }, [fetchContext, fetchAlpaca]);
 
   const executePaperTrade = async () => {
-    if (!decision || decision.decision === "WAIT") return;
+    if (!decision || !["BUY", "SELL"].includes(decision.decision) || !ownerAuthenticated || !ownerPaperEnabled || isDemo || !alpacaAccount) return;
     setTradeLoading(true);
     setTradeResult(null);
     try {
@@ -163,10 +202,14 @@ export default function Home() {
         form.append("take_profit", String(investmentPlan.take_profit));
         form.append("position_pct", String(investmentPlan.position_pct));
       }
-      const res = await fetch(`${API}/api/alpaca/execute`, { method: "POST", body: form });
+      const res = await ownerFetch("alpaca/execute", { method: "POST", body: form });
       const data = await res.json();
-      setTradeResult(data);
-      fetchAlpaca(); // refresh positions
+      if (!res.ok || data.executed === false || !data.status) {
+        setTradeResult({ status: "error", error: data.detail || data.reason || data.error || `Paper order rejected (HTTP ${res.status})` });
+      } else {
+        setTradeResult(data);
+        fetchAlpaca(); // refresh positions after a confirmed submission
+      }
     } catch { setTradeResult({ status: "error", error: "Failed to connect to trading API" }); }
     setTradeLoading(false);
   };
@@ -304,7 +347,10 @@ export default function Home() {
       form.append("ticker", asset); form.append("mode", strategy.toLowerCase()); form.append("timeframe", horizon.toLowerCase());
       if (context.trim()) form.append("context", context.trim());
       if (useClaude) form.append("use_claude", "true");
-      const res = await fetch(`${API}/api/analyze`, { method: "POST", body: form });
+      if (useClaude && !isDemo && !ownerAuthenticated) throw new Error("Owner access is required for Claude analysis");
+      const res = useClaude && !isDemo
+        ? await ownerFetch("analyze", { method: "POST", body: form })
+        : await fetch(`${API}/api/analyze`, { method: "POST", body: form });
       if (!res.ok) { const body = await res.text(); let detail = "Analysis failed"; try { const j = JSON.parse(body); detail = j.detail || detail; } catch {} throw new Error(detail); }
       const data = await res.json();
       setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
@@ -342,7 +388,10 @@ export default function Home() {
     const timer = setTimeout(() => ctrl.abort(), 300000);
     try {
       const form = new FormData(); form.append("ticker", asset);
-      const res = await fetch(`${API}/api/deep-analysis-stream`, { method: "POST", body: form, signal: ctrl.signal });
+      if (!isDemo && !ownerAuthenticated) throw new Error("Owner access is required for deep analysis");
+      const res = isDemo
+        ? await fetch(`${API}/api/deep-analysis-stream`, { method: "POST", body: form, signal: ctrl.signal })
+        : await ownerFetch("deep-analysis-stream", { method: "POST", body: form, signal: ctrl.signal });
       clearTimeout(timer);
       if (!res.ok) { const body = await res.text(); let detail = "Unknown error"; try { const j = JSON.parse(body); detail = j.detail || j.error || body; } catch { detail = body || `HTTP ${res.status}`; } throw new Error(detail.length > 120 ? detail.slice(0, 120) + "..." : detail); }
 
@@ -416,7 +465,10 @@ export default function Home() {
       }
       const form = new FormData();
       form.append("file", chartFile); form.append("ticker", asset); form.append("timeframe", horizon.toLowerCase());
-      const res = await fetch(`${API}/api/chart-analysis`, { method: "POST", body: form });
+      if (!isDemo && !ownerAuthenticated) throw new Error("Owner access is required for chart analysis");
+      const res = isDemo
+        ? await fetch(`${API}/api/chart-analysis`, { method: "POST", body: form })
+        : await ownerFetch("chart-analysis", { method: "POST", body: form });
       if (!res.ok) throw new Error("Chart analysis failed");
       const data = await res.json();
       setDecision(data); setLastAnalyzedAt(new Date().toLocaleTimeString());
@@ -473,17 +525,20 @@ export default function Home() {
         setDailyIntel(Mock.mockDailyIntel() as never);
         return;
       }
+      if (!isDemo && !ownerAuthenticated) return;
       const url = force ? `${API}/api/daily-intel/refresh` : `${API}/api/daily-intel`;
-      const res = await fetch(url, force ? { method: "POST" } : {});
+      const res = isDemo
+        ? await fetch(url, force ? { method: "POST" } : {})
+        : await ownerFetch(force ? "daily-intel/refresh" : "daily-intel", force ? { method: "POST", body: new FormData() } : {});
       if (res.ok) setDailyIntel(await res.json());
     } catch { if (!apiDead.current) setError(zh ? "每日情报加载失败" : "Daily intel failed to load"); }
     finally { setIntelLoading(false); }
-  }, [zh]);
+  }, [zh, isDemo, ownerAuthenticated]);
 
   // Auto-fetch intel when tab switches to "intel"
   useEffect(() => {
-    if (viewMode === "intel" && !dailyIntel) fetchDailyIntel();
-  }, [viewMode, dailyIntel, fetchDailyIntel]);
+    if (viewMode === "intel" && !dailyIntel && (isDemo || ownerAuthenticated || apiDead.current)) fetchDailyIntel();
+  }, [viewMode, dailyIntel, fetchDailyIntel, isDemo, ownerAuthenticated]);
 
   const ns = nsSummary(news);
   const risk: RiskMgmt | null = investmentPlan ? { entry: investmentPlan.entry, stop: investmentPlan.stop_loss, target: investmentPlan.take_profit, size: investmentPlan.position_pct } : null;
@@ -846,9 +901,9 @@ export default function Home() {
           <MarketStrip summary={marketSummary} decision={decision} livePrice={livePrice} priceFlash={priceFlash} wsConnected={ws.isConnected} />
           <DecisionCard d={decision} asset={asset} strategy={strategy} horizon={horizon} news={news} risk={risk} investmentPlan={investmentPlan} t={t} zh={zh} />
           {asset && <PriceChart ticker={asset} t={t} />}
-          {decision && decision.decision !== "WAIT" && (
+          {decision && ["BUY", "SELL"].includes(decision.decision) && (
             <div className="mt-3 flex items-center gap-3">
-              <button onClick={executePaperTrade} disabled={tradeLoading}
+              <button onClick={executePaperTrade} disabled={tradeLoading || !ownerAuthenticated || !ownerPaperEnabled || isDemo || !alpacaAccount}
                 className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-[Josefin_Sans] font-bold uppercase tracking-[0.14em] transition-all disabled:opacity-40"
                 style={{ color: decision.decision === "BUY" ? "#006B3F" : "#8B0000",
                   background: decision.decision === "BUY" ? "rgba(0,107,63,0.08)" : "rgba(139,0,0,0.08)",
@@ -856,6 +911,7 @@ export default function Home() {
                 {tradeLoading && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full anim-spin" />}
                 {zh ? "执行模拟交易" : `Paper ${decision.decision}`}
               </button>
+              {(!ownerAuthenticated || !ownerPaperEnabled || isDemo || !alpacaAccount) && <span className="text-[9px] text-[#8B8E96]">{!ownerPaperEnabled ? (zh ? "纸盘下单尚未由服务端启用" : "Paper orders are disabled by the server") : (zh ? "仅在操作者登录且连接 Alpaca PAPER 后可用" : "Requires owner access and Alpaca PAPER connection")}</span>}
               {tradeResult && (
                 <span className={`text-[10px] font-[DM_Mono] ${tradeResult.status === "filled" || tradeResult.status === "submitted" ? "text-[#006B3F]" : "text-[#8B0000]"}`}>
                   {tradeResult.error || `${tradeResult.status}${tradeResult.order_id ? ` #${tradeResult.order_id.slice(0, 8)}` : ""}`}
@@ -871,7 +927,8 @@ export default function Home() {
               {zh ? "生成每日情报中..." : "Generating daily intel..."}
             </span>
           </div>}
-          <DailyIntelView data={dailyIntel} onSelectTicker={(tk) => { setAsset(tk); setViewMode("signal"); }} t={t} zh={zh} />
+          {!dailyIntel && !isDemo && !ownerAuthenticated && <div role="status" className="text-center text-[11px] text-[#8B8E96] py-5">{zh ? "每日 AI 情报需要操作者登录" : "Daily AI intel requires owner access"}</div>}
+          {(dailyIntel || isDemo || ownerAuthenticated) && <DailyIntelView data={dailyIntel} onSelectTicker={(tk) => { setAsset(tk); setViewMode("signal"); }} t={t} zh={zh} ownerAuthenticated={ownerAuthenticated} demo={isDemo} />}
           {dailyIntel && <div className="mt-3 flex justify-center">
             <button onClick={() => fetchDailyIntel(true)} disabled={intelLoading}
               className="px-4 py-2 text-[9px] font-[Josefin_Sans] font-semibold uppercase tracking-[0.14em] text-[#C5A255] hover:text-[#FFD700] disabled:opacity-40 transition-colors"
@@ -963,6 +1020,18 @@ export default function Home() {
         </Mod>
 
         <Mod title={zh ? "模拟交易" : "Paper Trading"}>
+          {ownerAuthenticated && ownerError && <p role="alert" className="text-[9px] text-[#FF6666] mb-2">{ownerError}</p>}
+          {!isDemo && (ownerAuthenticated ? (
+            <button onClick={signOutOwner} className="text-[9px] text-[#C5A255] mb-2">{zh ? "退出操作者会话" : "Sign out owner session"}</button>
+          ) : (
+            <div className="space-y-2 mb-3">
+              <label htmlFor="owner-token" className="text-[9px] text-[#C5A255]">{zh ? "操作者访问令牌" : "Owner access token"}</label>
+              <input id="owner-token" type="password" autoComplete="off" value={ownerToken} onChange={e => setOwnerToken(e.target.value)}
+                className="w-full px-2 py-1 text-[10px] bg-[#2A2A3E] text-[#F5E6CA]" />
+              <button onClick={signInOwner} disabled={ownerBusy || !ownerToken} className="text-[9px] text-[#C5A255] disabled:opacity-40">{zh ? "登录" : "Sign in"}</button>
+              {ownerError && <p role="alert" className="text-[9px] text-[#FF6666]">{ownerError}</p>}
+            </div>
+          ))}
           {alpacaAccount ? (<>
             <div className="flex items-center gap-1.5 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#006B3F] animate-pulse" />
@@ -991,7 +1060,7 @@ export default function Home() {
                 <span className="text-[8px] font-[Josefin_Sans] text-[#6B6E76] uppercase tracking-[0.14em] font-bold">{zh ? "未连接" : "Not Connected"}</span>
               </div>
               <div className="text-[9px] font-[Lato] text-[#6B6E76] leading-relaxed">
-                {zh ? "设置 ALPACA_API_KEY 和 ALPACA_SECRET_KEY 启用模拟交易" : "Set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env to enable paper trading"}
+                {isDemo ? (zh ? "演示模式不提供模拟下单" : "Paper orders are disabled in demo mode") : !ownerAuthenticated ? (zh ? "先验证操作者身份" : "Sign in as owner to inspect Alpaca PAPER") : (zh ? "检查服务端 Alpaca PAPER 凭据" : "Check server-side Alpaca PAPER credentials")}
               </div>
             </div>
           )}

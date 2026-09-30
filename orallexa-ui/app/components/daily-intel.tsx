@@ -529,8 +529,9 @@ export function MiniSparkline({ data, color, width = 60, height = 20 }: { data: 
 }
 
 /* ── Main Daily Intel View ─────────────────────────────────────────── */
-export function DailyIntelView({ data, onSelectTicker, t, zh }: {
+export function DailyIntelView({ data, onSelectTicker, t, zh, ownerAuthenticated = false, demo = false }: {
   data: DailyIntelData | null; onSelectTicker: (tk: string) => void; t: Record<string, string>; zh: boolean;
+  ownerAuthenticated?: boolean; demo?: boolean;
 }) {
   // Refs must be declared before any early return (React hooks rules)
   const moversRef = useRef<HTMLDivElement>(null);
@@ -809,7 +810,7 @@ export function DailyIntelView({ data, onSelectTicker, t, zh }: {
       {/* What-If Scenario Simulator */}
       <ScenarioSimulator
         tickers={data.ai_picks?.map(p => p.ticker).slice(0, 6) || ["NVDA", "AAPL", "TSLA"]}
-        t={t} zh={zh}
+        t={t} zh={zh} ownerAuthenticated={ownerAuthenticated} demo={demo}
       />
 
       {/* Prediction Bias Tracker */}

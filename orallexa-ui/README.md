@@ -11,6 +11,48 @@ npm run dev          # http://localhost:3000
 
 Set `NEXT_PUBLIC_API_URL` to point at the FastAPI backend (defaults to `http://localhost:8002`).
 
+### Operator access to paper trading and paid analysis
+
+The public dashboard stays a demo. Broker endpoints are inaccessible in demo
+mode. With a non-demo backend, paper orders and paid analysis require an owner
+session; the dashboard never sends the FastAPI API key to the browser.
+
+Configure **runtime** environment variables on the Next.js server:
+
+```bash
+ORALLEXA_UI_OWNER_TOKEN=$(openssl rand -hex 32)
+ORALLEXA_UI_ORIGIN=https://your-frontend.example
+ORALLEXA_SERVER_API_URL=https://your-api.example
+ORALLEXA_API_KEY=<same strong key as the FastAPI server>
+```
+
+The owner token must be exactly 64 lowercase hexadecimal characters generated
+from 32 random bytes. Use separate values for `ORALLEXA_UI_OWNER_TOKEN` and `ORALLEXA_API_KEY`. Set
+them in deployment secrets, never in `NEXT_PUBLIC_*` or a committed `.env`.
+The token is entered only into the owner sign-in field. The resulting signed,
+HttpOnly, SameSite=Strict cookie expires in 15 minutes. The relay is disabled
+if any required setting is absent and only forwards a fixed set of UI
+operations. It refuses redirects and does not cache owner responses.
+
+`ORALLEXA_UI_ORIGIN` must match the exact HTTPS origin used in the browser.
+Local `npm run dev` can use `http://localhost:3000`; for a private HTTP API
+upstream, opt in with `ORALLEXA_ALLOW_HTTP_UPSTREAM=1`. Never enable that
+option for an API exposed over the internet. The existing `docker-compose.yml`
+does not enable the owner bridge and remains demo-only unless separately
+configured. Paper **submission remains off** unless the Next server sets
+`ORALLEXA_ENABLE_PAPER_UI=1`. Enable this only after the mandatory,
+broker-sourced portfolio gate in PR #20 is integrated and verified. The
+backend must still enforce paper-only broker credentials and auth. A signed-in
+dashboard is not evidence that paper performance is validated.
+
+This owner token is a single-operator gate, with no account recovery, MFA,
+central session revocation or distributed rate limiter. Rotate it to invalidate
+all sessions; a stolen session can otherwise be replayed until its 15-minute
+expiry. For a public non-demo deployment, place the UI behind a managed
+identity/access gateway and rate limit sign-in requests. Authenticated users
+can still initiate repeated model calls; this bridge does not impose a weekly
+LLM spending cap. The server must enforce one before broad access.
+
 ## Architecture
 
 ```
