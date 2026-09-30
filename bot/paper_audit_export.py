@@ -224,6 +224,14 @@ def _write(path: Path, data: bytes) -> None:
         os.fsync(stream.fileno())
 
 
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
                     signing_key_path: Path) -> dict:
     """Write a new private bundle. Does not mutate the input files."""
@@ -259,6 +267,8 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
         _write(bundle_path / name, data)
     _write(bundle_path / "manifest.json", encoded)
     _write(bundle_path / "signature.ed25519", signature)
+    _fsync_directory(bundle_path)
+    _fsync_directory(bundle_path.parent)
     return {"bundle": str(bundle_path), "ledger_event_count": count,
             "signer_public_key_sha256": manifest["signer_public_key_sha256"]}
 
@@ -318,9 +328,16 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
     count, last = _validate_ledger(payload["ledger.jsonl"])
     if manifest["ledger_event_count"] != count or manifest["ledger_last_event_id"] != last:
         raise AuditError("Ledger metadata does not match the signed manifest")
-    # A late file replacement/extra member is still refused before returning.
+    # Catch an ordinary replacement after the first read. Verification still
+    # cannot promise a hostile, concurrently writable directory stays fixed.
     if {child.name for child in bundle_path.iterdir()} != FILES:
         raise AuditError("Bundle changed during verification")
+    for name, original in (("manifest.json", manifest_bytes),
+                           ("signature.ed25519", signature_bytes),
+                           *payload.items()):
+        limit = MAX_META_BYTES if name in ("manifest.json", "signature.ed25519") else MAX_SOURCE_BYTES
+        if _read(bundle_path / name, limit=limit) != original:
+            raise AuditError("Bundle changed during verification")
     return {"bundle": str(bundle_path), "ledger_event_count": count,
             "signer_public_key_sha256": fingerprint, "verified": True,
             "evidence_scope": manifest["evidence_scope"]}
