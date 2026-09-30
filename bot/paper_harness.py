@@ -177,24 +177,59 @@ class PaperLoop:
 
     def _log(self, row: dict) -> None:
         self._ensure_directory(self.ledger_path.parent)
-        with self.ledger_path.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(row, sort_keys=True) + "\n")
+        with self.ledger_path.open("ab") as stream:
+            stream.write(self._ledger_line(row))
             stream.flush()
             os.fsync(stream.fileno())
         self._fsync_directory(self.ledger_path.parent)
 
+    @staticmethod
+    def _ledger_line(row: dict) -> bytes:
+        return (json.dumps(row, sort_keys=True) + "\n").encode("utf-8")
+
+    def _require_ledger_for_saved_tickers(self) -> None:
+        if self.state["tickers"] and not self.ledger_path.exists():
+            raise ValueError("Paper audit ledger is missing for existing pilot state")
+
     def _deliver_outbox(self) -> None:
-        """Replay a saved row after a crash, without duplicating an appended row."""
+        """Replay a saved row only after validating the entire append-only ledger.
+
+        An interrupted append can leave even a valid JSON object without its final
+        newline. Never append to, or treat as delivered, an ambiguous tail: the
+        operator must preserve the evidence and repair the ledger explicitly.
+        """
         row = self.state.get("outbox")
         if row is None:
-            return
+            self._require_ledger_for_saved_tickers()
+        if row is not None and (not isinstance(row, dict)
+                                or not isinstance(row.get("event_id"), str)
+                                or not row["event_id"]):
+            raise ValueError("Saved paper audit outbox has no valid event_id")
         found = False
+        seen: set[str] = set()
         if self.ledger_path.exists():
-            with self.ledger_path.open(encoding="utf-8") as stream:
-                for line in stream:
-                    if json.loads(line).get("event_id") == row["event_id"]:
+            with self.ledger_path.open("rb") as stream:
+                for number, line in enumerate(stream, 1):
+                    if not line.endswith(b"\n"):
+                        raise ValueError(f"Paper audit ledger row {number} has no final newline")
+                    try:
+                        existing = json.loads(line)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                        raise ValueError(f"Paper audit ledger row {number} is invalid JSON") from exc
+                    if (not isinstance(existing, dict)
+                            or not isinstance(existing.get("event_id"), str)
+                            or not existing["event_id"]):
+                        raise ValueError(f"Paper audit ledger row {number} has no valid event_id")
+                    event_id = existing["event_id"]
+                    if event_id in seen:
+                        raise ValueError(f"Paper audit ledger row {number} has a duplicate event_id")
+                    seen.add(event_id)
+                    if row is not None and event_id == row["event_id"]:
+                        if line != self._ledger_line(row):
+                            raise ValueError(f"Paper audit ledger row {number} conflicts with saved outbox")
                         found = True
-                        break
+        if row is None:
+            return
         if not found:
             self._log(row)
         self.state.pop("outbox")
@@ -544,6 +579,9 @@ class PaperLoop:
 
     def report(self, marks: dict[str, float], *, mark_dates: dict[str, date] | None = None) -> dict:
         """Keep pilot-start and conditional first-buy comparisons distinct."""
+        if self.state.get("outbox") is not None:
+            raise ValueError("Unrecovered paper audit row invalidates the comparison")
+        self._deliver_outbox()  # No outbox: validate without changing state or ledger.
         equity = buy_hold = initial = 0.0
         eligible: dict[str, dict] = {}
         excluded: dict[str, str] = {}
