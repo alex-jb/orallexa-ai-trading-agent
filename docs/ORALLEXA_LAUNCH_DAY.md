@@ -27,17 +27,11 @@ gh run list --workflow=multimodal-lift.yml --limit 5
 # Expect last 2-3 runs to be ✅ success after commit c28cd0f.
 ```
 
-### 3. Alpaca paper pilot — start the data accumulation BEFORE launch
-
-If you haven't yet:
+### 3. Technical-only decision log (historical launch checklist)
 
 ```bash
-# Fast track per docs/UNBLOCK_30_DAYS.md
-open https://app.alpaca.markets/signup
-# Generate paper keys → add to .env
-
-# Then load the daily cron:
-# (plist contents copied below for convenience)
+# Optional local cron. It logs technical predictions only and does not
+# call Claude or submit paper orders. Alpaca keys are not needed for it.
 cp ~/Desktop/orallexa-ai-trading-agent/scripts/launchd/com.alexji.orallexa-paper-daily.plist \
    ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist
@@ -46,9 +40,9 @@ launchctl load ~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist
 python scripts/run_daily_pilot.py --dry-run
 ```
 
-By Wed launch, you want at least 3-4 days of decision_log entries
-showing real traction. Helps the "we have production decisions
-flowing" line in the maker comment.
+These entries are neither broker fills nor multi-agent debate rows.
+Do not count them as trading traction or DSPy Phase B data. The separate
+fixed-rule PAPER harness is tracked in draft PR #15.
 
 ### 4. Confirm leaderboard URL is sharable
 
