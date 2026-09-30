@@ -115,10 +115,10 @@ state. Do not treat a temporary broker error as a zero-fill day.
 This is a prospective paper test; no live fill record or measured edge exists
 until the pilot actually runs.
 
-The older `scripts/run_daily_pilot.py` calls Claude and is **not** this fixed-rule
-loop. Do not schedule both pilots together; its LLM calls are not included in
-the $0/week figure above. The new harness does not claim to cap that separate
-legacy script.
+The older `scripts/run_daily_pilot.py` is now technical-decision logging only:
+it neither calls Claude nor submits paper orders. Its records are not debate
+rows or evidence of paper performance. Use this harness for a fixed-rule
+signal-to-fill paper test; its $0/week model cost covers this harness alone.
 
 Alpaca SDK references: [paper TradingClient](https://alpaca.markets/sdks/python/api_reference/trading/trading-client.html),
 [stock bars](https://alpaca.markets/sdks/python/api_reference/data/stock/historical.html),
