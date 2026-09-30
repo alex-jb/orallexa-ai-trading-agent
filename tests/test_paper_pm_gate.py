@@ -1,6 +1,7 @@
 """Broker-backed paper PM gate: synthetic clients, no network or order submission."""
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from threading import Event
 from types import SimpleNamespace
 
@@ -78,6 +79,7 @@ def request_paper(monkeypatch):
 
     def request(broker, data, *, pm=None):
         monkeypatch.setattr(AlpacaExecutor, "_make_client", lambda self: broker)
+        monkeypatch.setattr(AlpacaExecutor, "_get_sizing_price", lambda self, ticker, side: 100.0)
         monkeypatch.setattr(AlpacaExecutor, "_sync_to_paper_trader", lambda self, order: None)
         if pm is not None:
             monkeypatch.setattr("engine.portfolio_manager.approve_decision", pm)
@@ -105,6 +107,49 @@ def test_ui_style_omission_uses_paper_positions_and_scales_order(request_paper):
     assert broker.account_reads == 2
     assert broker.position_reads == 1
     assert len(broker.submitted) == 1
+
+
+def test_caller_price_cannot_inflate_paper_market_order(request_paper):
+    broker = FakePaperClient()
+    response = request_paper(broker, _form(entry_price="0.01", position_pct="5"))
+    assert response.status_code == 200
+    assert response.json()["qty"] == 5
+    assert response.json()["entry_price"] == 100.0
+    assert len(broker.submitted) == 1
+    assert broker.submitted[0].qty == 5
+
+
+def test_sizing_quote_is_side_specific_and_recent(monkeypatch):
+    from alpaca.data import historical
+
+    seen = []
+    quote = SimpleNamespace(timestamp=datetime.now(timezone.utc),
+                            ask_price=101.0, bid_price=99.0)
+
+    class FakeDataClient:
+        def __init__(self, key, secret):
+            seen.append((key, secret))
+
+        def get_stock_latest_quote(self, request):
+            assert request.symbol_or_symbols == "NVDA"
+            return {"NVDA": quote}
+
+    monkeypatch.setenv("ALPACA_API_KEY", "synthetic-key")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "synthetic-secret")
+    monkeypatch.setattr(historical, "StockHistoricalDataClient", FakeDataClient)
+    executor = object.__new__(AlpacaExecutor)
+    assert executor._get_sizing_price("NVDA", "BUY") == 101.0
+    assert executor._get_sizing_price("NVDA", "SELL") == 99.0
+    assert len(seen) == 2
+
+    quote.timestamp = datetime.now(timezone.utc) - timedelta(minutes=3)
+    with pytest.raises(ValueError, match="stale"):
+        executor._get_sizing_price("NVDA", "BUY")
+
+    quote.timestamp = datetime.now(timezone.utc)
+    quote.bid_price = float("nan")
+    with pytest.raises(ValueError, match="valid"):
+        executor._get_sizing_price("NVDA", "SELL")
 
 
 def test_spoofed_caller_portfolio_cannot_bypass_real_concentration(request_paper):
@@ -187,6 +232,7 @@ def test_concurrent_requests_recheck_open_orders_after_first_submit(monkeypatch)
     monkeypatch.setattr(api_server, "DEMO_MODE", False)
     monkeypatch.setenv("ORALLEXA_API_KEY", "paper-test-secret")
     monkeypatch.setattr(AlpacaExecutor, "_make_client", lambda self: broker)
+    monkeypatch.setattr(AlpacaExecutor, "_get_sizing_price", lambda self, ticker, side: 100.0)
     monkeypatch.setattr(AlpacaExecutor, "_sync_to_paper_trader", lambda self, order: None)
 
     with TestClient(api_server.app) as client, ThreadPoolExecutor(max_workers=2) as pool:
