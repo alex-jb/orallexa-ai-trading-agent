@@ -139,9 +139,24 @@ def test_export_rejects_disjoint_state_and_ledger_tickers(tmp_path):
     private, _ = _keypair(tmp_path)
     state, ledger = _inputs(tmp_path)
     state.write_text(json.dumps({"tickers": {"AAPL": {}}, "config": {"qty": 1}}))
-    with pytest.raises(AuditError, match="ticker sets do not match"):
+    with pytest.raises(AuditError, match="State ticker is absent"):
         export_snapshot(state, ledger, tmp_path / "signed", private)
     assert not (tmp_path / "signed").exists()
+
+
+def test_blocked_new_ticker_can_be_logged_without_checkpoint(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
+    harness = PaperLoop(state, ledger)
+    harness.run_ticker("AAPL", [], now=datetime(2026, 9, 29, 14, tzinfo=timezone.utc))
+    harness.run_ticker("NVDA", [100.0] * 30 + [110.0] * 20,
+                       now=datetime(2026, 9, 30, 14, tzinfo=timezone.utc))
+    assert set(json.loads(state.read_text())["tickers"]) == {"NVDA"}
+    private, public = _keypair(tmp_path)
+    bundle = tmp_path / "signed"
+    export_snapshot(state, ledger, bundle, private)
+    assert verify_snapshot(bundle, public)["ledger_event_count"] == 2
 
 
 @pytest.mark.parametrize("outbox", [{"event_id": "a" * 32}, {}, []])
