@@ -404,6 +404,111 @@ def test_audit_outbox_deduplicates_crash_after_append(tmp_path):
     assert len({row["event_id"] for row in rows}) == 4
 
 
+def _crash_during_intent_append(tmp_path, *, corrupt):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    ledger = tmp_path / "decisions.jsonl"
+
+    def interrupted_append(row):
+        complete = (json.dumps(row, sort_keys=True) + "\n").encode("utf-8")
+        ledger.write_bytes(corrupt(complete))
+        raise OSError("interrupted ledger append")
+
+    harness._log = interrupted_append
+    with pytest.raises(OSError, match="interrupted ledger append"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert broker.submissions == []
+    assert json.loads((tmp_path / "state.json").read_text())["outbox"]["event_type"] == "order_intent"
+    return broker, ledger
+
+
+@pytest.mark.parametrize("corrupt, error", [
+    (lambda complete: complete[:-1], "no final newline"),
+    (lambda complete: complete[:24], "no final newline"),
+    (lambda complete: complete[:24] + b"\n", "invalid JSON"),
+])
+def test_interrupted_intent_ledger_tail_blocks_paper_order(tmp_path, corrupt, error):
+    broker, ledger = _crash_during_intent_append(tmp_path, corrupt=corrupt)
+    original = ledger.read_bytes()
+    with pytest.raises(ValueError, match=error):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert ledger.read_bytes() == original
+    assert "outbox" in json.loads((tmp_path / "state.json").read_text())
+    assert broker.submissions == []
+
+
+def test_outbox_event_id_requires_exact_saved_row_and_unique_ledger_ids(tmp_path):
+    def changed_payload(complete):
+        row = json.loads(complete)
+        row["qty"] += 1  # Same event ID cannot attest to a different order intent.
+        return (json.dumps(row, sort_keys=True) + "\n").encode("utf-8")
+
+    broker, ledger = _crash_during_intent_append(tmp_path, corrupt=changed_payload)
+    with pytest.raises(ValueError, match="conflicts with saved outbox"):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+
+    saved = json.loads((tmp_path / "state.json").read_text())["outbox"]
+    exact = (json.dumps(saved, sort_keys=True) + "\n").encode("utf-8")
+    ledger.write_bytes(exact + exact)
+    with pytest.raises(ValueError, match="duplicate event_id"):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert json.loads((tmp_path / "state.json").read_text())["outbox"] == saved
+
+
+def test_outbox_match_does_not_skip_corrupt_rows_after_it(tmp_path):
+    broker, ledger = _crash_during_intent_append(tmp_path, corrupt=lambda complete: complete)
+    ledger.write_bytes(ledger.read_bytes() + b'{"event_id":"another"}')
+    with pytest.raises(ValueError, match="no final newline"):
+        loop(tmp_path, broker, submit=True).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert "outbox" in json.loads((tmp_path / "state.json").read_text())
+
+
+def test_prior_ledger_row_without_newline_blocks_new_paper_intent(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    ledger = tmp_path / "decisions.jsonl"
+    ledger.write_bytes(ledger.read_bytes()[:-1])
+    original = ledger.read_bytes()
+    broker = FakePaperGateway()
+    with pytest.raises(ValueError, match="no final newline"):
+        loop(tmp_path, broker, submit=True).run_ticker("AAPL", BUY_BARS,
+                                                      now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert ledger.read_bytes() == original
+    assert "AAPL" not in json.loads((tmp_path / "state.json").read_text())["tickers"]
+
+
+def test_missing_ledger_with_saved_ticker_blocks_order_and_report(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    (tmp_path / "decisions.jsonl").unlink()
+    with pytest.raises(ValueError, match="audit ledger is missing"):
+        harness.report({"NVDA": 110.0})
+
+    broker = FakePaperGateway()
+    with pytest.raises(ValueError, match="audit ledger is missing"):
+        loop(tmp_path, broker, submit=True).run_ticker("AAPL", BUY_BARS,
+                                                      now=DAY + timedelta(days=1))
+    assert broker.submissions == []
+    assert not (tmp_path / "decisions.jsonl").exists()
+    assert "AAPL" not in json.loads((tmp_path / "state.json").read_text())["tickers"]
+
+
+def test_direct_report_rejects_corrupt_saved_ledger(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    ledger = tmp_path / "decisions.jsonl"
+    ledger.write_bytes(ledger.read_bytes() + b'{"event_id":"partial"}')
+    original = ledger.read_bytes()
+    restarted = loop(tmp_path)
+    with pytest.raises(ValueError, match="no final newline"):
+        restarted.report({"NVDA": 110.0})
+    assert ledger.read_bytes() == original
+
+
 def test_intent_audit_failure_prevents_submission_and_blocks_next_day(tmp_path):
     broker = FakePaperGateway(immediate=False)
     harness = loop(tmp_path, broker, submit=True)
