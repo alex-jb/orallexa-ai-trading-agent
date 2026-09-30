@@ -204,13 +204,21 @@ The signing key is never copied into the bundle. Keep the public key and its
 fingerprint in separately trusted storage; the manifest's fingerprint alone
 does not establish trust. Do not publicly upload the bundle without reviewing
 its potentially sensitive local trading records.
+The exporter syncs the bundle files and directory entries before returning;
+storage durability still depends on the filesystem. An interrupted export may
+leave an incomplete directory that needs explicit preservation or removal
+before retrying with a fresh output path.
 
 A valid signature means only that **this local snapshot** has not changed
 since the holder of that key signed it. A signer could sign a ledger already
 truncated before the first snapshot; this format has no external earlier
 anchor or independent completeness proof. An older valid bundle can also be
 replayed as if it were the latest unless you independently retain the expected
-snapshot time or hash. It cannot establish whether the
+snapshot time or hash. The two input files are selected by the exporter caller;
+the current harness has no shared pilot ID that binds them before signing.
+The verifier double-reads bundle members to catch ordinary replacements during
+verification, but a concurrently writable directory needs separate custody
+or an immutable copy. It cannot establish whether the
 recorded signals, order responses, paper fills, or P&L were true. The state and
 ledger contain the fixed-rule loop's derived data; the original raw Alpaca
 bars and broker responses are unavailable here. The intent hash covers its
