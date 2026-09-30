@@ -523,9 +523,11 @@ def test_stale_comparison_survives_fill_reconciliation_until_position_verified(t
     broker.positions["NVDA"] = 3.0  # External broker activity invalidates local cost basis.
     without_bars = harness.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=2))
     assert without_bars["comparison_valid"] is False
+    still_without_bars = harness.run_ticker("NVDA", BUY_BARS[:49], now=DAY + timedelta(days=3))
+    assert still_without_bars["comparison_valid"] is False
     with pytest.raises(ValueError, match="unverified broker state"):
         harness.report({"NVDA": 110.0})
-    with_bars = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=3))
+    with_bars = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=4))
     assert with_bars["order_status"] == "position_mismatch"
     assert with_bars["comparison_valid"] is False
     with pytest.raises(ValueError, match="broker position mismatch"):
