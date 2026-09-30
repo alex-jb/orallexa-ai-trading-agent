@@ -85,6 +85,29 @@ def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
+def _require_paid_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
+    """Permit public demo mocks, but authenticate real paid-model calls."""
+    if not DEMO_MODE:
+        _require_api_key(key)
+
+
+def _require_optional_analysis_key(
+    use_debate: bool = Form(False),
+    use_claude: bool = Form(False),
+    key: str | None = Security(_API_KEY_HEADER),
+) -> None:
+    if use_debate or use_claude:
+        _require_paid_api_key(key)
+
+
+def _require_optional_regime_key(
+    use_llm: bool = False,
+    key: str | None = Security(_API_KEY_HEADER),
+) -> None:
+    if use_llm:
+        _require_paid_api_key(key)
+
+
 # ── Input Validation ─────────────────────────────────────────────────────────
 MAX_CONTEXT_LEN = 500
 
@@ -174,7 +197,7 @@ Output ONLY valid JSON:
     )
 
 
-@app.post("/api/analyze")
+@app.post("/api/analyze", dependencies=[Depends(_require_optional_analysis_key)])
 async def analyze(
     ticker: str = Form("NVDA"),
     mode: str = Form("intraday"),
@@ -270,7 +293,7 @@ async def analyze(
     return out
 
 
-@app.post("/api/deep-analysis")
+@app.post("/api/deep-analysis", dependencies=[Depends(_require_paid_api_key)])
 async def deep_analysis(
     ticker: str = Form("NVDA"),
     token_cap: int = Form(0),
@@ -398,7 +421,7 @@ async def deep_analysis(
         )
 
 
-@app.post("/api/deep-analysis-stream")
+@app.post("/api/deep-analysis-stream", dependencies=[Depends(_require_paid_api_key)])
 async def deep_analysis_stream(
     ticker: str = Form("NVDA"),
 ):
@@ -613,7 +636,7 @@ async def deep_analysis_stream(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-@app.post("/api/chart-analysis")
+@app.post("/api/chart-analysis", dependencies=[Depends(_require_paid_api_key)])
 async def chart_analysis(
     file: UploadFile = File(...),
     ticker: str = Form("NVDA"),
@@ -756,7 +779,7 @@ async def journal():
     return {"entries": []}
 
 
-@app.get("/api/daily-intel")
+@app.get("/api/daily-intel", dependencies=[Depends(_require_paid_api_key)])
 async def daily_intel(force: bool = False):
     """Daily market intelligence — top movers, sectors, news, AI summary, picks. Cached per day."""
     if DEMO_MODE:
@@ -773,7 +796,7 @@ async def daily_intel(force: bool = False):
         return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
 
 
-@app.post("/api/daily-intel/refresh")
+@app.post("/api/daily-intel/refresh", dependencies=[Depends(_require_paid_api_key)])
 async def daily_intel_refresh():
     """Force regenerate daily intelligence report."""
     if DEMO_MODE:
@@ -790,7 +813,7 @@ async def daily_intel_refresh():
         return JSONResponse(status_code=500, content={"detail": str(e)[:200]})
 
 
-@app.get("/api/regime/{ticker}")
+@app.get("/api/regime/{ticker}", dependencies=[Depends(_require_optional_regime_key)])
 async def regime_strategy(ticker: str, use_llm: bool = False):
     """
     Detect current market regime and propose a tailored strategy.
@@ -1105,7 +1128,7 @@ async def role_memory_stats():
         return {"status": "error", "detail": str(e)[:200], "roles": {}}
 
 
-@app.post("/api/scenario")
+@app.post("/api/scenario", dependencies=[Depends(_require_api_key)])
 async def scenario_simulation(
     scenario: str = Form(...),
     tickers: str = Form("NVDA,AAPL,TLT,GLD"),
@@ -1165,7 +1188,7 @@ async def swarm_simulation(
         return {"convergence": "MIXED", "conviction": 0, "detail": str(e)[:200]}
 
 
-@app.post("/api/evolve-strategies")
+@app.post("/api/evolve-strategies", dependencies=[Depends(_require_api_key)])
 async def evolve_strategies(
     ticker: str = Form("NVDA"),
     generations: int = Form(3),
