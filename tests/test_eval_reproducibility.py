@@ -30,6 +30,14 @@ def _write_synthetic_alpaca_manifest(path):
     }))
 
 
+def _declared_90_args(path):
+    from eval.freeze_alpaca_data import TICKERS
+
+    return ["run_harness", "--tickers", ",".join(TICKERS),
+            "--strategies", ",".join(NINE_STRATEGIES),
+            "--data-dir", str(path), "--no-adaptive"]
+
+
 def test_90_pair_adjustment_includes_unobserved_tests():
     raw = [0.0001, 0.001] + [1.0] * 88
     bonf, bh = adjust_pvalues(raw)
@@ -56,7 +64,7 @@ def test_missing_snapshots_stay_in_full_family_and_do_not_pass(tmp_path, monkeyp
     monkeypatch.setattr(report_generator, "_CHARTS", tmp_path / "charts")
     report = report_generator.generate_report(result, output_path=tmp_path / "report.md")
     assert report.count("NOT EVALUATED") >= 90
-    assert "0/90 predeclared" in report
+    assert "0/90 requested" in report
     assert "10 bps" in report
     assert "Raw excess p" in report
     assert "do not validate a trading edge" in report
@@ -188,11 +196,59 @@ def test_cli_rejects_incomplete_family_before_writing_report(tmp_path, monkeypat
         pytest.fail("incomplete run must not generate report artifacts")
 
     monkeypatch.setattr(report_generator, "generate_report", forbidden)
-    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA",
-                                   "--strategies", "double_ma", "--data-dir", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", _declared_90_args(tmp_path))
     with pytest.raises(SystemExit) as exc:
         run_harness.main()
     assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("part,replacement", [
+    ("--tickers", "NVDA"),
+    ("--strategies", "double_ma"),
+    ("--train-days", "253"),
+    ("--test-days", "64"),
+    ("--seed", "43"),
+    ("--mc-iterations", "1001"),
+])
+def test_pinned_cli_rejects_family_or_protocol_drift_before_report(
+        tmp_path, monkeypatch, capsys, part, replacement):
+    import sys
+    from eval import run_harness
+
+    _write_synthetic_alpaca_manifest(tmp_path)
+    argv = _declared_90_args(tmp_path)
+    if part in argv:
+        argv[argv.index(part) + 1] = replacement
+    else:
+        argv.extend([part, replacement])
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("invalid pinned protocol must not evaluate or write a report")
+
+    monkeypatch.setattr(EvaluationHarness, "run", forbidden)
+    monkeypatch.setattr(report_generator, "generate_report", forbidden)
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 2
+    assert "declared 90-pair protocol" in capsys.readouterr().err
+    assert not list(tmp_path.glob("evaluation*"))
+
+
+def test_pinned_cli_rejects_adaptive_parameters(tmp_path, monkeypatch, capsys):
+    import sys
+    from eval import run_harness
+
+    _write_synthetic_alpaca_manifest(tmp_path)
+    argv = _declared_90_args(tmp_path)
+    argv.remove("--no-adaptive")
+    monkeypatch.setattr(EvaluationHarness, "run", lambda *_args, **_kwargs:
+                        pytest.fail("adaptive pinned run must not evaluate"))
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 2
+    assert "--no-adaptive" in capsys.readouterr().err
 
 
 def test_alpaca_result_defaults_to_private_report_without_charts(tmp_path, monkeypatch):
@@ -200,14 +256,16 @@ def test_alpaca_result_defaults_to_private_report_without_charts(tmp_path, monke
     from eval import run_harness
 
     _write_synthetic_alpaca_manifest(tmp_path)
-    result = HarnessResult(tickers=["NVDA"], strategies=["double_ma"],
-                           evaluations=[StrategyEvaluation("double_ma", "NVDA", verdict="FAIL")],
-                           total_evaluated=1)
+    from eval.freeze_alpaca_data import TICKERS
+
+    result = HarnessResult(tickers=list(TICKERS), strategies=NINE_STRATEGIES,
+                           evaluations=[StrategyEvaluation(strategy, ticker, verdict="FAIL")
+                                        for ticker in TICKERS for strategy in NINE_STRATEGIES],
+                           total_evaluated=90)
     monkeypatch.setattr(EvaluationHarness, "run", lambda self, progress_callback=None: result)
     calls = []
     monkeypatch.setattr(report_generator, "generate_report", lambda *args, **kwargs: calls.append(kwargs))
-    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA", "--strategies", "double_ma",
-                                   "--data-dir", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", _declared_90_args(tmp_path))
     with pytest.raises(SystemExit) as exc:
         run_harness.main()
     assert exc.value.code == 0
@@ -220,8 +278,8 @@ def test_alpaca_result_rejects_tracked_docs_output_before_evaluation(tmp_path, m
 
     _write_synthetic_alpaca_manifest(tmp_path)
     docs_report = Path(__file__).resolve().parents[1] / "docs/evaluation_report.md"
-    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA", "--strategies", "double_ma",
-                                   "--data-dir", str(tmp_path), "--output", str(docs_report)])
+    monkeypatch.setattr(sys, "argv", _declared_90_args(tmp_path)
+                        + ["--output", str(docs_report)])
     with pytest.raises(SystemExit) as exc:
         run_harness.main()
     assert exc.value.code == 2
@@ -231,8 +289,27 @@ def test_cli_requires_freeze_manifest_for_pinned_data(tmp_path, monkeypatch):
     import sys
     from eval import run_harness
 
-    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA",
-                                   "--strategies", "double_ma", "--data-dir", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", _declared_90_args(tmp_path))
     with pytest.raises(SystemExit) as exc:
         run_harness.main()
     assert exc.value.code == 2
+
+
+def test_unpinned_exploratory_cli_still_accepts_subset(tmp_path, monkeypatch, capsys):
+    import sys
+    from eval import run_harness
+
+    result = HarnessResult(tickers=["NVDA"], strategies=["double_ma"],
+                           evaluations=[StrategyEvaluation("double_ma", "NVDA", verdict="FAIL")],
+                           total_evaluated=1, num_strategies_tested=1)
+    monkeypatch.setattr(EvaluationHarness, "run", lambda self, progress_callback=None: result)
+    monkeypatch.setattr(sys, "argv", ["run_harness", "--tickers", "NVDA",
+                                   "--strategies", "double_ma", "--output", str(tmp_path / "report.md")])
+    with pytest.raises(SystemExit) as exc:
+        run_harness.main()
+    assert exc.value.code == 0
+    report = (tmp_path / "report.md").read_text()
+    assert "1/1 requested strategy-ticker pairs" in report
+    assert "entire reported 1-pair family" in report
+    assert "predeclared" not in report
+    assert "Family: 1 exploratory pairs" in capsys.readouterr().out

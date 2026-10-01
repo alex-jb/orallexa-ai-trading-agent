@@ -562,7 +562,7 @@ def generate_report(
     bh_passed = sum(1 for e in result.evaluations if e.statistical and e.statistical.bh_significant)
     mc_passed = sum(1 for e in result.evaluations if e.monte_carlo and e.monte_carlo.passed)
 
-    lines.append(f"{result.total_evaluated}/{total} predeclared strategy-ticker pairs evaluated "
+    lines.append(f"{result.total_evaluated}/{total} requested strategy-ticker pairs evaluated "
                  f"across {len(tickers_with_data)} tickers and {result.num_strategies_tested} strategies. "
                  "Missing pairs remain in the table as NOT EVALUATED and count toward corrections.\n")
     lines.append("**Results by gate:**")
@@ -641,7 +641,7 @@ def generate_report(
                  "for subsequent changes. The benchmark holds until the window ends, "
                  "with no forced exit charged to either side. Bootstrap 95% CI describes "
                  "the Sharpe ratio of paired daily excess (5,000 resamples). "
-                 "Bonferroni and Benjamini-Hochberg corrections use the entire predeclared "
+                 "Bonferroni and Benjamini-Hochberg corrections use the entire reported "
                  f"{total}-pair family. These t-tests assume independent daily returns; serial dependence can "
                  "make their p-values optimistic. BH's FDR guarantee also depends on null-p-value "
                  "and dependence assumptions; correlated tickers and strategies warrant caution. "

@@ -20,6 +20,11 @@ from pathlib import Path
 # Make project root importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+DECLARED_90_STRATEGIES = (
+    "double_ma", "macd_crossover", "bollinger_breakout", "rsi_reversal",
+    "trend_momentum", "alpha_combo", "dual_thrust", "ensemble_vote", "regime_ensemble",
+)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -72,6 +77,20 @@ def main():
     args = parser.parse_args()
 
     data_path = Path(args.data_dir) if args.data_dir else None
+    if data_path:
+        from eval.freeze_alpaca_data import PROTOCOL_IDS, TICKERS, START, END_INCLUSIVE
+
+        requested_tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+        requested_strategies = ([s.strip() for s in args.strategies.split(",") if s.strip()]
+                                if args.strategies else [])
+        if (requested_tickers != list(TICKERS)
+                or requested_strategies != list(DECLARED_90_STRATEGIES)
+                or args.train_days != 252 or args.test_days != 63
+                or args.seed != 42 or args.mc_iterations != 1000
+                or not args.no_adaptive):
+            parser.error("Pinned evaluation must match the declared 90-pair protocol: "
+                         "ten tickers, nine strategies in protocol order, 252/63 windows, "
+                         "seed 42, 1000 Monte Carlo iterations, and --no-adaptive")
     manifest_path = data_path / "manifest.json" if data_path else None
     if data_path and not manifest_path.is_file():
         parser.error("Pinned evaluation requires the freeze manifest with per-ticker hashes")
@@ -80,8 +99,6 @@ def main():
     except (OSError, ValueError) as exc:
         parser.error(f"Invalid snapshot manifest: {exc}")
     if data_path:
-        from eval.freeze_alpaca_data import PROTOCOL_IDS, TICKERS, START, END_INCLUSIVE
-
         if not isinstance(manifest, dict):
             parser.error("Snapshot manifest must be a JSON object")
         hashes = manifest.get("sha256")
@@ -198,7 +215,9 @@ def main():
         print(f"  Skipped tickers: {', '.join(result.skipped_tickers)} (insufficient data)")
     print(f"  Report: {output_path}")
     print(f"  JSON: {output_path.parent / 'evaluation_results.json'}")
-    print(f"  Family: {len(tickers) * num_strategies} predeclared pairs (missing pairs remain N/A)")
+    family_label = "predeclared" if data_path else "exploratory"
+    print(f"  Family: {len(tickers) * num_strategies} {family_label} pairs "
+          "(missing pairs remain N/A)")
     print("  Charts: disabled for this evaluation run")
     print(f"{'=' * 60}\n")
 
