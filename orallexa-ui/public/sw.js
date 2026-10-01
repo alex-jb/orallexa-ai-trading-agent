@@ -3,7 +3,7 @@
 
 const STATIC_CACHE = "orallexa-static-v3";
 const RUNTIME_CACHE = "orallexa-runtime-v3";
-const API_CACHE = "orallexa-api-v3";
+const API_CACHE = "orallexa-api-v4";
 
 // App shell — precached on install
 const PRECACHE_URLS = [
@@ -54,6 +54,9 @@ self.addEventListener("fetch", (event) => {
 
   // WebSocket — skip
   if (url.pathname.startsWith("/ws/")) return;
+
+  // Owner account/positions, paid model results and sessions must never be cached.
+  if (url.pathname.startsWith("/api/owner/")) return;
 
   // API calls — network-first, fall back to last cached response offline
   if (url.pathname.startsWith("/api/")) {
