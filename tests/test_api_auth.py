@@ -1,5 +1,10 @@
 """Protected API routes fail closed, including when startup is bypassed."""
 
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +13,9 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 from fastapi.routing import APIRoute
 
-import api_server
+# Import only under a synthetic test key; production import must fail without one.
+with patch.dict(os.environ, {"ORALLEXA_API_KEY": "paper-test-secret"}):
+    import api_server
 
 
 ORDER_ROUTES = [
@@ -19,6 +26,33 @@ ORDER_ROUTES = [
     ("POST", "/api/alpaca/close/NVDA"),
     ("POST", "/api/alpaca/close-all"),
 ]
+
+
+def test_keyless_non_demo_import_fails_before_server_can_listen(tmp_path):
+    """Import is Uvicorn's first step even when --lifespan off disables startup."""
+    # A private copy keeps this test independent of an ignored developer .env.
+    shutil.copyfile(Path(api_server.__file__), tmp_path / "api_server.py")
+    env = os.environ.copy()
+    env.pop("ORALLEXA_API_KEY", None)
+    env["DEMO_MODE"] = "0"
+    result = subprocess.run(
+        [sys.executable, "-c", "import api_server"],
+        cwd=tmp_path, env=env, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode != 0
+    assert "ORALLEXA_API_KEY is required when DEMO_MODE is off" in result.stderr
+
+
+def test_keyless_demo_import_succeeds(tmp_path):
+    shutil.copyfile(Path(api_server.__file__), tmp_path / "api_server.py")
+    env = os.environ.copy()
+    env.pop("ORALLEXA_API_KEY", None)
+    env["DEMO_MODE"] = "1"
+    result = subprocess.run(
+        [sys.executable, "-c", "import api_server"],
+        cwd=tmp_path, env=env, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_every_alpaca_route_requires_api_key():
