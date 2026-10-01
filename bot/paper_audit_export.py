@@ -14,7 +14,7 @@ import os
 import re
 import stat
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -24,11 +24,17 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = "orallexa-paper-audit-snapshot-v1"
 DOMAIN = b"Orallexa PAPER audit snapshot v1\n"
+BOUND_SCHEMA = "orallexa-paper-audit-snapshot-v2"
+BOUND_DOMAIN = b"Orallexa PAPER audit snapshot v2\n"
 FILES = frozenset({"state.json", "ledger.jsonl", "manifest.json", "signature.ed25519"})
 MAX_SOURCE_BYTES = 50 * 1024 * 1024
 MAX_META_BYTES = 16 * 1024
 EVENT_ID = re.compile(r"[0-9a-f]{32}\Z")
 TICKER = re.compile(r"[A-Z]{1,5}\Z")
+INPUT_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+REPLAY_RULE = "sma20_50_long_flat_v1"
+SOURCE_KINDS = frozenset({"alpaca_iex_daily_bars", "csv_date_close",
+                          "caller_supplied_completed_closes"})
 
 
 class AuditError(ValueError):
@@ -115,7 +121,7 @@ def _strict_json(data: bytes) -> object:
     return parsed
 
 
-def _validate_state(data: bytes) -> set[str]:
+def _validate_state(data: bytes) -> tuple[set[str], str | None, int | None, str | None]:
     state = _strict_json(data)
     if not isinstance(state, dict) or not isinstance(state.get("tickers"), dict):
         raise AuditError("Invalid paper state schema")
@@ -126,17 +132,63 @@ def _validate_state(data: bytes) -> set[str]:
     qty = config.get("qty") if isinstance(config, dict) else None
     if type(qty) is not int or not 1 <= qty <= 100:
         raise AuditError("State has no valid fixed share quantity")
+    pilot_id = config.get("pilot_id")
+    if "pilot_id" in config and (not isinstance(pilot_id, str) or not EVENT_ID.fullmatch(pilot_id)):
+        raise AuditError("State has an invalid pilot identity")
+    count = state.get("ledger_event_count")
+    digest = state.get("ledger_sha256")
+    if pilot_id and (type(count) is not int or count < 0
+                     or not isinstance(digest, str) or not INPUT_SHA256.fullmatch(digest)):
+        raise AuditError("Bound state has no valid ledger checkpoint")
     if state.get("outbox") is not None:
         raise AuditError("Unrecovered audit outbox; run recovery before export")
-    return set(state["tickers"])
+    return set(state["tickers"]), pilot_id, count, digest
 
 
-def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
+def _verify_decision_input(row: dict, number: int) -> None:
+    """Replay derived closes; a valid hash alone cannot prove source truth."""
+    if row.get("event_type") not in ("decision", "order_intent"):
+        raise AuditError(f"Ledger row {number} puts decision inputs on a non-decision event")
+    closes = row["input_closes"]
+    if (not isinstance(closes, list) or len(closes) != 50
+            or any(type(price) is not float or not math.isfinite(price) or price <= 0
+                   for price in closes)):
+        raise AuditError(f"Ledger row {number} has invalid transformed closes")
+    if row.get("rule_version") != REPLAY_RULE:
+        raise AuditError(f"Ledger row {number} has an unsupported replay rule")
+    if not isinstance(row.get("source_kind"), str) or row["source_kind"] not in SOURCE_KINDS:
+        raise AuditError(f"Ledger row {number} has an invalid source label")
+    session = row.get("source_as_of_session")
+    if session is not None:
+        try:
+            if not isinstance(session, str) or date.fromisoformat(session).isoformat() != session:
+                raise ValueError("Noncanonical session date")
+        except ValueError as exc:
+            raise AuditError(f"Ledger row {number} has an invalid source session") from exc
+    digest = hashlib.sha256(json.dumps(
+        closes, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+    recorded_digest = row.get("input_closes_sha256")
+    if (not isinstance(recorded_digest, str) or not INPUT_SHA256.fullmatch(recorded_digest)
+            or recorded_digest != digest):
+        raise AuditError(f"Ledger row {number} has an invalid decision input hash")
+    sma20, sma50 = sum(closes[-20:]) / 20, sum(closes) / 50
+    if (any(type(row.get(field)) is not float
+            for field in ("signal_price", "sma20", "sma50"))
+            or row["signal_price"] != closes[-1] or row["sma20"] != sma20
+            or row.get("sma50") != sma50
+            or row.get("signal") != ("BUY" if sma20 > sma50 else "SELL")):
+        raise AuditError(f"Ledger row {number} does not replay the fixed rule")
+
+
+def _validate_ledger(data: bytes) -> tuple[int, str, set[str], dict, set[str], bool]:
     if not data or not data.endswith(b"\n") or b"\r" in data:
         raise AuditError("Ledger must contain JSONL rows with final LF")
     seen: set[str] = set()
     tickers: set[str] = set()
+    pilot_ids: set[str] = set()
+    unbound_row = False
     last = ""
+    replay_eligible = replay_verified = 0
     for number, line in enumerate(data.split(b"\n")[:-1], 1):
         if not line:
             raise AuditError(f"Blank ledger row {number}")
@@ -150,6 +202,13 @@ def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
             raise AuditError("Duplicate ledger event ID")
         seen.add(event_id)
         last = event_id
+        if "pilot_id" in row:
+            pilot_id = row["pilot_id"]
+            if not isinstance(pilot_id, str) or not EVENT_ID.fullmatch(pilot_id):
+                raise AuditError(f"Ledger row {number} has an invalid pilot identity")
+            pilot_ids.add(pilot_id)
+        else:
+            unbound_row = True
         timestamp = row.get("timestamp")
         if not isinstance(timestamp, str):
             raise AuditError(f"Ledger row {number} has no timestamp")
@@ -181,7 +240,20 @@ def _validate_ledger(data: bytes) -> tuple[int, str, set[str]]:
             value = row[field]
             if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
                 raise AuditError(f"Ledger row {number} has an invalid {field}")
-    return len(seen), last, tickers
+        # A pre-replay ledger may contain order intents with only a digest and
+        # old decisions with no explicit event type. Count them as unverified.
+        eligible = row.get("event_type") in ("decision", "order_intent") or (
+            row.get("event_type") is None and row.get("signal_price") is not None
+            and row.get("sma20") is not None and row.get("sma50") is not None)
+        if "input_closes" in row:
+            _verify_decision_input(row, number)
+            replay_verified += 1
+        if eligible:
+            replay_eligible += 1
+    return len(seen), last, tickers, {
+        "eligible_rows": replay_eligible, "verified_rows": replay_verified,
+        "unverified_rows": replay_eligible - replay_verified,
+    }, pilot_ids, unbound_row
 
 
 def _require_matching_tickers(state_tickers: set[str], ledger_tickers: set[str]) -> None:
@@ -189,6 +261,14 @@ def _require_matching_tickers(state_tickers: set[str], ledger_tickers: set[str])
     # created its checkpoint. Every checkpointed ticker must still have a row.
     if not state_tickers.issubset(ledger_tickers):
         raise AuditError("State ticker is absent from the ledger")
+
+
+def _require_matching_pilot(state_id: str | None, ledger_ids: set[str], unbound_row: bool) -> None:
+    if state_id is None:
+        if ledger_ids:
+            raise AuditError("Unbound state cannot be paired with a bound ledger")
+    elif unbound_row or ledger_ids != {state_id}:
+        raise AuditError("State and every ledger row must share the same pilot identity")
 
 
 def _canonical(manifest: dict) -> bytes:
@@ -253,16 +333,19 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
         raise AuditError("Signing key and source files must be separate")
     state = _read(state_path, limit=MAX_SOURCE_BYTES)
     ledger = _read(ledger_path, limit=MAX_SOURCE_BYTES)
-    state_tickers = _validate_state(state)
-    count, last, ledger_tickers = _validate_ledger(ledger)
+    state_tickers, pilot_id, checkpoint_count, checkpoint_hash = _validate_state(state)
+    count, last, ledger_tickers, replay, ledger_ids, unbound_row = _validate_ledger(ledger)
     _require_matching_tickers(state_tickers, ledger_tickers)
+    _require_matching_pilot(pilot_id, ledger_ids, unbound_row)
+    if pilot_id and (checkpoint_count != count or checkpoint_hash != hashlib.sha256(ledger).hexdigest()):
+        raise AuditError("Bound ledger differs from its saved checkpoint")
     # Detect ordinary concurrent writes. This is not a substitute for stopping
     # the writer: the state and ledger have no shared atomic snapshot primitive.
     if state != _read(state_path, limit=MAX_SOURCE_BYTES) or ledger != _read(ledger_path, limit=MAX_SOURCE_BYTES):
         raise AuditError("Paper data changed during export; stop the writer and retry")
     payload = {"state.json": state, "ledger.jsonl": ledger}
     manifest = {
-        "schema": SCHEMA,
+        "schema": BOUND_SCHEMA if pilot_id else SCHEMA,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "signer_public_key_sha256": _fingerprint(key.public_key()),
         "files": {name: {"sha256": hashlib.sha256(data).hexdigest(), "size_bytes": len(data)}
@@ -271,8 +354,10 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
         "ledger_last_event_id": last,
         "evidence_scope": "local_paper_state_and_ledger_bytes_only",
     }
+    if pilot_id:
+        manifest["pilot_id"] = pilot_id
     encoded = _canonical(manifest)
-    signature = base64.b64encode(key.sign(DOMAIN + encoded)) + b"\n"
+    signature = base64.b64encode(key.sign((BOUND_DOMAIN if pilot_id else DOMAIN) + encoded)) + b"\n"
     bundle_path.mkdir(mode=0o700)
     for name, data in payload.items():
         _write(bundle_path / name, data)
@@ -281,7 +366,9 @@ def export_snapshot(state_path: Path, ledger_path: Path, bundle_path: Path,
     _fsync_directory(bundle_path)
     _fsync_directory(bundle_path.parent)
     return {"bundle": str(bundle_path), "ledger_event_count": count,
-            "signer_public_key_sha256": manifest["signer_public_key_sha256"]}
+            "signer_public_key_sha256": manifest["signer_public_key_sha256"],
+            "decision_replay_coverage": replay, "pilot_id": pilot_id,
+            "pilot_identity_status": "bound" if pilot_id else "identity_unverified"}
 
 
 def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
@@ -296,10 +383,16 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
     manifest = _strict_json(manifest_bytes)
     if not isinstance(manifest, dict) or manifest_bytes != _canonical(manifest):
         raise AuditError("Manifest is not canonical JSON")
-    if set(manifest) != {"schema", "created_at_utc", "signer_public_key_sha256", "files",
-                         "ledger_event_count", "ledger_last_event_id", "evidence_scope"}:
+    schema = manifest.get("schema")
+    if schema not in (SCHEMA, BOUND_SCHEMA):
+        raise AuditError("Unsupported manifest version or scope")
+    expected_keys = {"schema", "created_at_utc", "signer_public_key_sha256", "files",
+                     "ledger_event_count", "ledger_last_event_id", "evidence_scope"}
+    if schema == BOUND_SCHEMA:
+        expected_keys.add("pilot_id")
+    if set(manifest) != expected_keys:
         raise AuditError("Unknown manifest schema")
-    if manifest["schema"] != SCHEMA or manifest["evidence_scope"] != "local_paper_state_and_ledger_bytes_only":
+    if manifest["evidence_scope"] != "local_paper_state_and_ledger_bytes_only":
         raise AuditError("Unsupported manifest version or scope")
     try:
         created = datetime.fromisoformat(manifest["created_at_utc"])
@@ -318,7 +411,7 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
         signature = base64.b64decode(signature_bytes[:-1], validate=True)
         if len(signature) != 64 or base64.b64encode(signature) + b"\n" != signature_bytes:
             raise AuditError("Invalid signature encoding")
-        key.verify(signature, DOMAIN + manifest_bytes)
+        key.verify(signature, (BOUND_DOMAIN if schema == BOUND_SCHEMA else DOMAIN) + manifest_bytes)
     except (ValueError, AuditError) as exc:
         raise AuditError("Invalid signature encoding") from exc
     except InvalidSignature as exc:
@@ -335,9 +428,18 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
         if metadata["size_bytes"] != len(raw) or metadata["sha256"] != hashlib.sha256(raw).hexdigest():
             raise AuditError("Snapshot bytes do not match the signed manifest")
         payload[name] = raw
-    state_tickers = _validate_state(payload["state.json"])
-    count, last, ledger_tickers = _validate_ledger(payload["ledger.jsonl"])
+    state_tickers, pilot_id, checkpoint_count, checkpoint_hash = _validate_state(payload["state.json"])
+    count, last, ledger_tickers, replay, ledger_ids, unbound_row = _validate_ledger(payload["ledger.jsonl"])
     _require_matching_tickers(state_tickers, ledger_tickers)
+    _require_matching_pilot(pilot_id, ledger_ids, unbound_row)
+    if pilot_id and (checkpoint_count != count
+                     or checkpoint_hash != hashlib.sha256(payload["ledger.jsonl"]).hexdigest()):
+        raise AuditError("Bound ledger differs from its saved checkpoint")
+    if schema == BOUND_SCHEMA:
+        if not pilot_id or manifest["pilot_id"] != pilot_id:
+            raise AuditError("Signed pilot identity does not match snapshot inputs")
+    elif pilot_id:
+        raise AuditError("Legacy manifest cannot claim a bound pilot")
     if manifest["ledger_event_count"] != count or manifest["ledger_last_event_id"] != last:
         raise AuditError("Ledger metadata does not match the signed manifest")
     # Catch an ordinary replacement after the first read. Verification still
@@ -354,7 +456,9 @@ def verify_snapshot(bundle_path: Path, trusted_public_key_path: Path) -> dict:
             "signer_public_key_sha256": fingerprint, "verified": True,
             "evidence_scope": manifest["evidence_scope"],
             "created_at_utc": manifest["created_at_utc"],
-            "ledger_sha256": manifest["files"]["ledger.jsonl"]["sha256"]}
+            "ledger_sha256": manifest["files"]["ledger.jsonl"]["sha256"],
+            "decision_replay_coverage": replay, "pilot_id": pilot_id,
+            "pilot_identity_status": "bound" if pilot_id else "identity_unverified"}
 
 
 def verify_continuity(previous_bundle_path: Path, bundle_path: Path,
@@ -371,6 +475,8 @@ def verify_continuity(previous_bundle_path: Path, bundle_path: Path,
         raise AuditError("Previous and current bundles must be different")
     previous = verify_snapshot(previous_bundle_path, trusted_public_key_path)
     current = verify_snapshot(bundle_path, trusted_public_key_path)
+    if previous["pilot_id"] != current["pilot_id"]:
+        raise AuditError("Snapshots have different pilot identities")
     if datetime.fromisoformat(current["created_at_utc"]) <= datetime.fromisoformat(previous["created_at_utc"]):
         raise AuditError("Current snapshot is not later than the previous snapshot")
     if current["ledger_event_count"] <= previous["ledger_event_count"]:
@@ -385,7 +491,9 @@ def verify_continuity(previous_bundle_path: Path, bundle_path: Path,
     return {"verified": True, "new_events": current["ledger_event_count"] - previous["ledger_event_count"],
             "previous_ledger_sha256": previous["ledger_sha256"],
             "current_ledger_sha256": current["ledger_sha256"],
-            "evidence_scope": "signed_local_ledger_append_only_continuity"}
+            "evidence_scope": "signed_local_ledger_append_only_continuity",
+            "pilot_id": current["pilot_id"],
+            "pilot_identity_status": current["pilot_identity_status"]}
 
 
 def main() -> None:

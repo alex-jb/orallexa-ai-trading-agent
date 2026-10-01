@@ -51,7 +51,8 @@ class FakePaperGateway:
         if self.immediate:
             self.positions[ticker] = self.position_qty(ticker) + (qty if side == "BUY" else -qty)
         self.orders[order_id] = {
-            "id": order_id, "status": "filled" if self.immediate else "new",
+            "id": order_id, "client_order_id": client_id, "symbol": ticker,
+            "side": side, "qty": qty, "status": "filled" if self.immediate else "new",
             "filled_qty": qty if self.immediate else 0,
             "filled_avg_price": self.fill_prices[side] if self.immediate else 0,
         }
@@ -93,8 +94,8 @@ def test_paper_buy_fill_sell_and_matched_buy_hold(tmp_path):
     assert harness.report({"NVDA": 90.0})["llm_api_cost_usd_week"] == 0.0
     assert harness.token_budget.allow() is False
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
-    assert [r.get("event_type") for r in rows] == ["order_intent", None, None,
-                                                     "order_intent", None]
+    assert [r.get("event_type") for r in rows] == ["order_intent", "decision", "decision",
+                                                     "order_intent", "decision"]
     assert all("timestamp" in row and "ticker" in row and "drawdown_pct" in row for row in rows)
     assert all(row["event_id"] for row in rows)
 
@@ -276,7 +277,10 @@ def test_pending_order_is_reconciled_without_resubmission(tmp_path):
     assert second["order_status"] == "no_change"
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
     assert rows[-2]["event_type"] == "reconciliation" and rows[-2]["filled_qty"] == 1
+    assert "input_closes" not in rows[-2]  # Fill observation is not another rule decision.
     assert rows[-2]["order_status"] == "filled"
+    assert rows[-1]["event_type"] == "decision"
+    assert rows[-1]["input_closes"] == BUY_BARS
     assert rows[-2]["conditional_comparison_excluded_reason"] == "mark_not_after_last_observed_fill"
     assert harness.state["tickers"]["NVDA"]["position_qty"] == 1
     assert len(broker.submissions) == 1
@@ -341,6 +345,35 @@ def test_old_state_without_quantity_requires_new_pilot(tmp_path):
     (tmp_path / "state.json").write_text(json.dumps({"tickers": {"NVDA": {}}}))
     with pytest.raises(ValueError, match="lacks a recorded share quantity"):
         loop(tmp_path)
+
+
+def test_unbound_existing_pilot_and_orphaned_ledger_cannot_resume(tmp_path):
+    state = tmp_path / "state.json"
+    ledger = tmp_path / "decisions.jsonl"
+    state.write_text(json.dumps({"tickers": {}, "config": {"qty": 1}}))
+    with pytest.raises(ValueError, match="no valid identity"):
+        loop(tmp_path, FakePaperGateway(), submit=True)
+    assert not ledger.exists()
+    state.unlink()
+    ledger.write_text('{"event_id":"' + 'a' * 32 + '"}\n')
+    with pytest.raises(ValueError, match="no pilot state"):
+        loop(tmp_path, FakePaperGateway(), submit=True)
+
+
+def test_new_pilot_identity_survives_restart_and_covers_every_event(tmp_path):
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", [], now=DAY)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    pilot_id = harness.pilot_id
+    assert loop(tmp_path).pilot_id == pilot_id
+    rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
+    assert all(row["pilot_id"] == pilot_id for row in rows)
+    assert json.loads((tmp_path / "state.json").read_text())["config"]["pilot_id"] == pilot_id
+
+    rows[0]["pilot_id"] = "a" * 32
+    (tmp_path / "decisions.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    with pytest.raises(ValueError, match="another or unbound pilot"):
+        loop(tmp_path).run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=2))
 
 
 def test_no_change_detects_external_position_or_split(tmp_path):
@@ -567,7 +600,8 @@ def test_accepted_order_before_state_checkpoint_recovers_old_id_cross_day(tmp_pa
         harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
     assert broker.submissions == [("NVDA", "BUY", 1)]
     persisted = json.loads((tmp_path / "state.json").read_text())["tickers"]["NVDA"]
-    assert persisted["intent"]["client_id"].endswith("20260929-NVDA-BUY")
+    assert persisted["intent"]["client_id"] == harness._client_id("NVDA", "BUY", DAY)
+    assert len(persisted["intent"]["client_id"]) <= 48
     assert "pending" not in persisted
 
     restarted = loop(tmp_path, broker, submit=True)
@@ -657,9 +691,9 @@ def test_stale_comparison_survives_fill_reconciliation_until_position_verified(t
         harness.report({"NVDA": 110.0})
     with_bars = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=4),
                                    mark_date=date(2026, 10, 2))
-    assert with_bars["order_status"] == "position_mismatch"
+    assert with_bars["order_status"] == "broker_error"
     assert with_bars["comparison_valid"] is False
-    with pytest.raises(ValueError, match="broker position mismatch"):
+    with pytest.raises(ValueError, match="unverified broker state"):
         harness.report({"NVDA": 110.0})
     assert broker.submissions == [("NVDA", "BUY", 1)]
 
@@ -705,6 +739,154 @@ def test_audit_outbox_remains_blocking_after_checkpoint_failure(tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
     assert len(rows) == 2
     assert len({row["event_id"] for row in rows}) == 2
+
+
+def test_first_outbox_can_recover_without_prior_ledger(tmp_path):
+    harness = loop(tmp_path)
+    harness._log = lambda row: (_ for _ in ()).throw(OSError("first append failed"))
+    with pytest.raises(OSError, match="first append failed"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY)
+    assert not (tmp_path / "decisions.jsonl").exists()
+    assert json.loads((tmp_path / "state.json").read_text())["ledger_event_count"] == 0
+    harness = loop(tmp_path)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1))
+    assert len((tmp_path / "decisions.jsonl").read_text().splitlines()) == 2
+    assert harness.state["ledger_event_count"] == 2
+
+
+def test_lost_committed_ledger_blocks_outbox_recovery_before_broker_read(tmp_path):
+    broker = FakePaperGateway()
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert harness.state["ledger_event_count"] >= 2
+    harness._log = lambda row: (_ for _ in ()).throw(OSError("append interrupted"))
+    with pytest.raises(OSError, match="append interrupted"):
+        harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                           mark_date=date(2026, 9, 29))
+    saved = (tmp_path / "state.json").read_bytes()
+    ledger = tmp_path / "decisions.jsonl"
+    ledger.unlink()
+    with pytest.raises(ValueError, match="history differs from its saved checkpoint"):
+        loop(tmp_path, broker, submit=True).run_ticker(
+            "NVDA", SELL_BARS, now=DAY + timedelta(days=2), mark_date=date(2026, 9, 30))
+    assert not ledger.exists() and (tmp_path / "state.json").read_bytes() == saved
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+def test_new_pilots_cannot_adopt_same_day_order_from_shared_paper_account(tmp_path):
+    broker = FakePaperGateway()
+    first = PaperLoop(tmp_path / "one.json", tmp_path / "one.jsonl",
+                      broker=broker, submit_paper=True)
+    second = PaperLoop(tmp_path / "two.json", tmp_path / "two.jsonl",
+                       broker=broker, submit_paper=True)
+    buy = first.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    other = second.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert first.pilot_id != second.pilot_id
+    assert first._client_id("NVDA", "BUY", DAY) != second._client_id("NVDA", "BUY", DAY)
+    assert buy["order_status"] == "filled"
+    assert other["order_status"] == "position_mismatch" and other["order_id"] is None
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+@pytest.mark.parametrize("bad_field", ["qty", "filled_qty", "broker_position"])
+def test_existing_broker_order_nonfinite_numbers_block_adoption(tmp_path, bad_field):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    client_id = harness._client_id("NVDA", "BUY", DAY)
+    broker.ids[client_id] = "prior"
+    broker.orders["prior"] = {"id": "prior", "client_order_id": client_id,
+                              "symbol": "NVDA", "side": "BUY", "qty": 1,
+                              "filled_qty": 0, "filled_avg_price": 0, "status": "new"}
+    if bad_field == "broker_position":
+        broker.positions["NVDA"] = float("nan")
+    else:
+        broker.orders["prior"][bad_field] = float("nan")
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert row["order_status"] == "broker_error" and row["order_id"] is None
+    assert not broker.submissions and harness.state["tickers"]["NVDA"].get("pending") is None
+
+
+def test_nonfinite_position_blocks_new_order_even_when_client_id_is_absent(tmp_path):
+    broker = FakePaperGateway()
+    broker.positions["NVDA"] = float("nan")
+    harness = loop(tmp_path, broker, submit=True)
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    assert row["order_status"] == "broker_error" and row["comparison_valid"] is False
+    assert not broker.submissions
+
+
+def test_wrong_immediate_submission_response_preserves_saved_intent(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    original_submit = broker.submit_market
+
+    def return_wrong_order(ticker, side, qty, client_id):
+        response = original_submit(ticker, side, qty, client_id)
+        return {**response, "client_order_id": "different-pilot-order"}
+
+    broker.submit_market = return_wrong_order
+    harness = loop(tmp_path, broker, submit=True)
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    item = json.loads((tmp_path / "state.json").read_text())["tickers"]["NVDA"]
+    assert row["order_status"] == "broker_error" and row["comparison_valid"] is False
+    assert item["intent"]["client_id"] == harness._client_id("NVDA", "BUY", DAY)
+    assert "pending" not in item
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+@pytest.mark.parametrize("bad_field", ["filled_qty", "filled_avg_price"])
+def test_nonfinite_fill_cannot_change_position_or_pnl(tmp_path, bad_field):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    broker.orders["1"][bad_field] = float("nan")
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                             mark_date=date(2026, 9, 29))
+    assert row["order_status"] == "broker_error"
+    assert harness.state["tickers"]["NVDA"]["position_qty"] == 0
+    assert harness.state["tickers"]["NVDA"]["realized_pnl"] == 0
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+@pytest.mark.parametrize("wrong_field", ["id", "client_order_id", "symbol", "side", "qty"])
+def test_polled_pending_order_must_match_saved_pilot_order(tmp_path, wrong_field):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    pending = dict(harness.state["tickers"]["NVDA"]["pending"])
+    broker.orders["1"][wrong_field] = {"id": "other", "client_order_id": "other",
+                                       "symbol": "AAPL", "side": "SELL", "qty": 2}[wrong_field]
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                             mark_date=date(2026, 9, 29))
+    assert row["order_status"] == "broker_error" and row["filled_qty"] == 0
+    assert harness.state["tickers"]["NVDA"]["position_qty"] == 0
+    assert harness.state["tickers"]["NVDA"]["pending"] == pending
+    assert broker.submissions == [("NVDA", "BUY", 1)]
+
+
+def test_polled_fill_notional_overflow_blocks_accounting(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = PaperLoop(tmp_path / "state.json", tmp_path / "decisions.jsonl",
+                        qty=2, broker=broker, submit_paper=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    broker.orders["1"].update(filled_qty=2, filled_avg_price=1e308)
+    broker.positions["NVDA"] = 2.0
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                             mark_date=date(2026, 9, 29))
+    assert row["order_status"] == "broker_error" and row["filled_qty"] == 0
+    assert harness.state["tickers"]["NVDA"]["position_qty"] == 0
+
+
+def test_filled_status_without_full_quantity_keeps_pending(tmp_path):
+    broker = FakePaperGateway(immediate=False)
+    harness = loop(tmp_path, broker, submit=True)
+    harness.run_ticker("NVDA", BUY_BARS, now=DAY, mark_date=date(2026, 9, 28))
+    broker.orders["1"].update(status="filled", filled_qty=0, filled_avg_price=0)
+    row = harness.run_ticker("NVDA", BUY_BARS, now=DAY + timedelta(days=1),
+                             mark_date=date(2026, 9, 29))
+    assert row["order_status"] == "broker_error" and row["comparison_valid"] is False
+    assert harness.state["tickers"]["NVDA"]["pending"]["id"] == "1"
+    assert harness.state["tickers"]["NVDA"]["position_qty"] == 0
+    assert broker.submissions == [("NVDA", "BUY", 1)]
 
 
 def test_insufficient_bars_and_broker_error_are_logged(tmp_path):
