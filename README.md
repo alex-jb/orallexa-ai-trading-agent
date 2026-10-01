@@ -66,6 +66,9 @@ echo "ANTHROPIC_API_KEY=your_key" > .env
 # Add ORALLEXA_API_KEY=<a unique random secret> to .env before starting the API.
 # Non-demo startup refuses a missing key at import, including with Uvicorn --lifespan off.
 # DEMO_MODE=1 permits a keyless demo but disables protected endpoints and paper orders.
+# Outside demo mode, model-backed endpoints require X-API-Key. Never put this
+# key in the browser bundle; the current UI needs a trusted server-side relay
+# before its paid features can be used against a non-demo API.
 
 # Terminal 1: API
 python api_server.py
