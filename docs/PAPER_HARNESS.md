@@ -26,12 +26,20 @@ python -m bot.paper_harness --submit-paper --tickers NVDA,AAPL --qty 1
 The gateway constructs `TradingClient(..., paper=True)` with no live URL
 override. Submission is blocked when `DEMO_MODE` is on or the paper market is
 closed. It never opens a short and refuses to touch a broker position that
-does not match its own saved state. The deterministic client order ID supports
-same-day deduplication for a single loop. Before a new
-paper order, the loop persists an `order_intent` event and the exact client ID,
+does not match its own saved state. The deterministic client order ID contains
+the full pilot ID, session date, ticker and side (at most 47 characters). A
+restarted pilot verifies the returned order identity and position before
+adopting it. Before a new paper order, the loop persists an `order_intent` event and the exact client ID,
 side, quantity, prior-close signal price, rule version, the completed session
-date, and a SHA-256 of the canonical last 50 *input close values*. This hash
-is not proof of the raw Alpaca data or its publication time. In submit mode,
+date, the source label, the exact last 50 transformed floating-point closes,
+and a SHA-256 of their canonical JSON representation. The final
+`decision` row records the same inputs even when no order changes (including
+dry-run). A prior fill `reconciliation` row and an `intent_recovery` row are
+separate events with no replay claim; missing/stale data and calendar failures
+also do not claim a rule decision. A valid decision with no order has a BUY or
+SELL *signal* and `no_change` order status; HOLD is reserved for an unavailable
+signal. The input hash and source label are not proof of the raw Alpaca data,
+its publication time, or the actual exchange close. In submit mode,
 the last bar must have a date **equal to the most recent prior scheduled
 equity session** returned by Alpaca's read-only trading calendar. This handles
 ordinary weekends and scheduled holidays without guessing by calendar-day
@@ -73,6 +81,10 @@ the broker. A pending order is reconciled before any new decision, even when
 market data is missing. State plus JSONL are not an atomic multi-worker
 coordinator. Concurrent processes sharing the same state path are not
 serialized by this harness; run a single instance per pilot.
+Run only one active pilot per Alpaca PAPER account, including across separate
+state paths. Two pilots can each see zero shares while their distinct orders
+are still open and submit duplicate paper orders before either fill appears
+in the account position. This harness has no account-level open-order lock.
 After recovering an accepted order, the comparison remains withheld until a
 later successful broker reconciliation **and position check**. A fill query
 alone cannot clear a stale broker-state flag or validate the recorded P&L.
@@ -81,6 +93,19 @@ The saved state locks the share quantity: changing `--qty` requires a new pilot
 with separate state and ledger paths. State created by older harness versions
 without a saved quantity also requires a new pilot. Do not delete state while
 orders are pending.
+New state and ledger files receive a random persistent `pilot_id` on their first
+decision; every row, including blocked-data rows and order intents, carries it.
+The state checkpoints the committed ledger row count and SHA-256. Recovery
+allows a missing ledger only for the first outstanding row with zero prior
+commits; deleted or truncated history blocks writes and orders for review.
+Polled fills are applied only after order ID, client ID, ticker, side, quantity,
+finite fill values and broker position match the saved pending order. The
+checkpoint is local and can be rewritten with the state before independent
+signing.
+An existing state or ledger without that ID is **not upgraded in place**: the
+loop refuses further writes and paper orders. Preserve those files for audit,
+review any pending paper orders separately, and start a new pilot with both
+paths absent. Never delete state while a broker order may still be active.
 
 ## Audit records
 
@@ -206,6 +231,25 @@ that records both SHA-256 hashes, byte lengths, row count, last event ID, and
 the signing public key fingerprint. The verifier rejects changed bytes, missing
 or extra files, symlinks, wrong or untrusted keys, malformed JSONL (including a
 missing final LF), duplicate event IDs, invalid rows, and a pending outbox.
+New identity-bound snapshots use manifest v2 and require the same `pilot_id`
+in state, signed manifest, and every ledger row. A different pilot's state or
+ledger is rejected even if the tickers match. The signed ledger must also
+match the state's count and SHA-256 checkpoint. Existing unbound v1 bundles and
+legacy synthetic fixtures can still be exported and verified, but report
+`pilot_identity_status=identity_unverified` and cannot establish that the two
+files came from the same pilot. Continuity between bound snapshots also
+requires the same ID; a v1-only continuity result remains identity-unverified.
+For rows carrying replay inputs, export and verification independently recompute
+the close-array SHA-256, last-close signal price, SMA20, SMA50, and BUY/SELL
+comparison under `sma20_50_long_flat_v1`. A mismatch blocks export/verification
+even when someone signs a new manifest around the inconsistent row. Results
+include `decision_replay_coverage` counts for eligible, verified, and older
+unverified rows. Older intent rows recorded only an input hash; older decision
+rows omitted the exact closes. Such rows remain signed local records but cannot
+be replayed. A malicious signer can remove replay fields and re-sign a row;
+the resulting row is counted as unverified. Inspect the coverage before making
+any rule-level claim. Reconciliation, recovery, and unavailable-data rows do
+not count as eligible decisions.
 The signing key is never copied into the bundle. Keep the public key and its
 fingerprint in separately trusted storage; the manifest's fingerprint alone
 does not establish trust. Do not publicly upload the bundle without reviewing
@@ -225,19 +269,20 @@ byte prefix matching the earlier signed ledger. Retain earlier bundles outside
 the current export directory and run the check on each adjacent pair; a valid
 older bundle still verifies by itself and cannot establish that it is the
 latest without a separately retained expected snapshot hash or trusted time.
-The two input files are selected by the exporter caller;
-the exporter requires every checkpointed ticker to appear in the ledger, but
-blocked tickers can appear in the ledger without a state checkpoint. The harness has
-no shared pilot ID that binds them before signing. Two different pilots using
-the same tickers can still be paired by mistake or signed deliberately.
+The two input files are selected by the exporter caller; the exporter requires
+every checkpointed ticker to appear in the ledger, but blocked tickers can
+appear without a state checkpoint. Pilot identity guards against accidental
+cross-pilot pairing for new records; a signer who can rewrite both files and
+re-sign can still fabricate a matching ID. V1 lacks this binding entirely.
 The verifier double-reads bundle members to catch ordinary replacements during
 verification, but a concurrently writable directory needs separate custody
 or an immutable copy. It cannot establish whether the
 recorded signals, order responses, paper fills, or P&L were true. The state and
 ledger contain the fixed-rule loop's derived data; the original raw Alpaca
-bars and broker responses are unavailable here. The intent hash covers its
-transformed last 50 closes, not raw market history. Paper commission is
-assumed $0, and this fixed-rule harness scopes LLM API cost to $0/week;
+bars and broker responses are unavailable here. Decision replay checks only
+the transformed last 50 closes and the rule arithmetic. It cannot establish
+that those closes came from Alpaca or that a submitted order or fill occurred.
+Paper commission is assumed $0, and this fixed-rule harness scopes LLM API cost to $0/week;
 neither amount measures outside API usage. Concurrent writes are not an atomic
 two-file snapshot; stop the writer and retry if the exporter detects changes.
 

@@ -72,6 +72,9 @@ cost**, and **$0.00 assumed PAPER commission**. There are zero broker and LLM
 calls. Slippage is not modeled because the rows are fictional and the study
 does not compute P&L. These are study assumptions, not measurements of Alpaca
 fees or a backtest transaction-cost model.
+The fixed-seed fixtures intentionally use the legacy v1 format without a pilot
+ID; their snapshots and continuity checks report `identity_unverified`. The
+study measures byte integrity, not the new v2 cross-pilot binding.
 
 The result supports a narrow statement: these injected errors were accepted or
 rejected by this version of the local exporter/verifier. It cannot establish

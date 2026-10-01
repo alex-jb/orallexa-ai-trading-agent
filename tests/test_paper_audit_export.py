@@ -1,4 +1,6 @@
 """Local-only snapshot validation: generated keys and synthetic rows only."""
+import base64
+import hashlib
 import json
 import os
 import shutil
@@ -12,7 +14,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import bot.paper_audit_export as paper_audit_export
-from bot.paper_audit_export import AuditError, export_snapshot, main, verify_continuity, verify_snapshot
+from bot.paper_audit_export import (AuditError, BOUND_DOMAIN, export_snapshot, main,
+                                    verify_continuity, verify_snapshot)
 
 
 def _keypair(directory: Path, label: str = "signer") -> tuple[Path, Path]:
@@ -63,6 +66,10 @@ def test_snapshot_preserves_exact_bytes_and_uses_external_trust(tmp_path):
     result = verify_snapshot(bundle, public)
     assert result["verified"] is True and result["ledger_event_count"] == 1
     assert result["evidence_scope"] == "local_paper_state_and_ledger_bytes_only"
+    assert result["pilot_identity_status"] == "identity_unverified" and result["pilot_id"] is None
+    assert result["decision_replay_coverage"] == {
+        "eligible_rows": 1, "verified_rows": 0, "unverified_rows": 1,
+    }  # Older intent rows containing only a digest cannot be replayed.
     assert not any(path.name.endswith("private.pem") for path in bundle.iterdir())
     assert bundle.stat().st_mode & 0o077 == 0
     assert all(path.stat().st_mode & 0o077 == 0 for path in bundle.iterdir())
@@ -260,7 +267,11 @@ def test_real_fixed_rule_dry_run_files_export_without_network(tmp_path):
     private, public = _keypair(tmp_path)
     bundle = tmp_path / "signed"
     export_snapshot(state, ledger, bundle, private)
-    assert verify_snapshot(bundle, public)["ledger_event_count"] == 1
+    verified = verify_snapshot(bundle, public)
+    assert verified["ledger_event_count"] == 1
+    assert verified["decision_replay_coverage"] == {
+        "eligible_rows": 1, "verified_rows": 1, "unverified_rows": 0,
+    }
 
 
 def test_real_fixed_rule_paper_fill_rows_export_without_network(tmp_path):
@@ -283,12 +294,14 @@ def test_real_fixed_rule_paper_fill_rows_export_without_network(tmp_path):
 
         def submit_market(self, ticker, side, qty, client_id):
             self.position = float(qty)
-            return {"id": "paper-1", "status": "filled", "filled_qty": qty,
-                    "filled_avg_price": 110.11}
+            self.order_record = {"id": "paper-1", "client_order_id": client_id,
+                                 "symbol": ticker, "side": side, "qty": qty,
+                                 "status": "filled", "filled_qty": qty,
+                                 "filled_avg_price": 110.11}
+            return self.order_record
 
         def order(self, order_id):
-            return {"id": order_id, "status": "filled", "filled_qty": 1,
-                    "filled_avg_price": 110.11}
+            return self.order_record
 
     state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
     harness = PaperLoop(state, ledger, broker=FakePaperGateway(), submit_paper=True)
@@ -371,3 +384,244 @@ def test_continuity_requires_an_independent_trusted_key(tmp_path):
         verify_continuity(previous, current, wrong_public)
     with pytest.raises(AuditError, match="different"):
         verify_continuity(previous, previous, public)
+
+
+def test_new_pilots_reject_same_ticker_cross_pairing_and_continuity(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    private, public = _keypair(tmp_path)
+    sources = []
+    for name in ("first", "second"):
+        state, ledger = tmp_path / f"{name}.json", tmp_path / f"{name}.jsonl"
+        loop = PaperLoop(state, ledger)
+        loop.run_ticker("NVDA", [100.0] * 30 + [110.0] * 20,
+                        now=datetime(2026, 9, 30, 14, tzinfo=timezone.utc))
+        bundle = tmp_path / f"{name}-bundle"
+        assert export_snapshot(state, ledger, bundle, private)["pilot_identity_status"] == "bound"
+        assert verify_snapshot(bundle, public)["pilot_id"] == loop.pilot_id
+        sources.append((state, ledger, bundle))
+
+    with pytest.raises(AuditError, match="same pilot identity"):
+        export_snapshot(sources[0][0], sources[1][1], tmp_path / "mixed", private)
+    assert not (tmp_path / "mixed").exists()
+    with pytest.raises(AuditError, match="different pilot identities"):
+        verify_continuity(sources[0][2], sources[1][2], public)
+
+
+def test_bound_snapshot_refuses_valid_prefix_history_loss_before_signing(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
+    harness = PaperLoop(state, ledger)
+    for day in (29, 30):
+        harness.run_ticker("NVDA", [100.0] * 30 + [110.0] * 20,
+                           now=datetime(2026, 9, day, 14, tzinfo=timezone.utc))
+    ledger.write_bytes(ledger.read_bytes().splitlines(keepends=True)[0])
+    private, _ = _keypair(tmp_path)
+    with pytest.raises(AuditError, match="saved checkpoint"):
+        export_snapshot(state, ledger, tmp_path / "signed", private)
+    assert not (tmp_path / "signed").exists()
+
+
+def test_resigned_v2_bundle_with_other_pilot_state_is_rejected(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    private, public = _keypair(tmp_path)
+    bundles = []
+    for name in ("first", "second"):
+        state, ledger = tmp_path / f"{name}.json", tmp_path / f"{name}.jsonl"
+        PaperLoop(state, ledger).run_ticker("NVDA", [100.0] * 30 + [110.0] * 20,
+                                            now=datetime(2026, 9, 30, 14, tzinfo=timezone.utc))
+        bundle = tmp_path / f"{name}-bundle"
+        export_snapshot(state, ledger, bundle, private)
+        bundles.append(bundle)
+    forged, other = bundles
+    replacement = (other / "state.json").read_bytes()
+    (forged / "state.json").write_bytes(replacement)
+    manifest = json.loads((forged / "manifest.json").read_bytes())
+    manifest["files"]["state.json"] = {"sha256": hashlib.sha256(replacement).hexdigest(),
+                                       "size_bytes": len(replacement)}
+    manifest_bytes = paper_audit_export._canonical(manifest)
+    key = serialization.load_pem_private_key(private.read_bytes(), password=None)
+    (forged / "manifest.json").write_bytes(manifest_bytes)
+    (forged / "signature.ed25519").write_bytes(
+        base64.b64encode(key.sign(BOUND_DOMAIN + manifest_bytes)) + b"\n")
+    with pytest.raises(AuditError, match="same pilot identity"):
+        verify_snapshot(forged, public)
+
+
+def test_replays_buy_no_change_sell(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    class FakePaperGateway:
+        def __init__(self):
+            self.position = 0.0
+            self.orders = {}
+            self.submissions = []
+
+        def market_open(self):
+            return True
+
+        def last_completed_session(self, now):
+            return {(9, 29): date(2026, 9, 28),
+                    (9, 30): date(2026, 9, 29),
+                    (10, 1): date(2026, 9, 30)}[(now.month, now.day)]
+
+        def position_qty(self, ticker):
+            return self.position
+
+        def by_client_id(self, client_id):
+            return self.orders.get(client_id)
+
+        def submit_market(self, ticker, side, qty, client_id):
+            self.submissions.append((side, qty))
+            self.position += qty if side == "BUY" else -qty
+            order = {"id": client_id, "client_order_id": client_id,
+                     "symbol": ticker, "side": side, "qty": qty,
+                     "status": "filled", "filled_qty": qty,
+                     "filled_avg_price": 110.11 if side == "BUY" else 89.91}
+            self.orders[client_id] = order
+            return order
+
+        def order(self, order_id):
+            return self.orders[order_id]
+
+    state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
+    broker = FakePaperGateway()
+    harness = PaperLoop(state, ledger, broker=broker, submit_paper=True)
+    buy = [100.0] * 30 + [110.0] * 20
+    sell = [110.0] * 30 + [90.0] * 20
+    for day, session, bars in [(29, 28, buy), (30, 29, buy), (1, 30, sell)]:
+        month = 9 if day != 1 else 10
+        harness.run_ticker("NVDA", bars, now=datetime(2026, month, day, 14, tzinfo=timezone.utc),
+                           mark_date=date(2026, 9, session), source_kind="alpaca_iex_daily_bars")
+    rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+    assert [row["event_type"] for row in rows] == [
+        "order_intent", "decision", "decision", "order_intent", "decision",
+    ]
+    assert rows[2]["order_status"] == "no_change"
+    assert rows[2]["input_closes"] == buy
+    assert rows[2]["source_kind"] == "alpaca_iex_daily_bars"
+    assert broker.submissions == [("BUY", 1), ("SELL", 1.0)]
+    private, public = _keypair(tmp_path)
+    bundle = tmp_path / "signed"
+    exported = export_snapshot(state, ledger, bundle, private)
+    assert exported["decision_replay_coverage"]["verified_rows"] == 5
+    assert verify_snapshot(bundle, public)["decision_replay_coverage"] == {
+        "eligible_rows": 5, "verified_rows": 5, "unverified_rows": 0,
+    }
+
+
+def test_pending_fill_reconciliation_excluded_from_signed_decision_replay(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    class FakePendingPaperGateway:
+        def __init__(self):
+            self.position = 0.0
+            self.order_record = None
+
+        def market_open(self):
+            return True
+
+        def last_completed_session(self, now):
+            return date(2026, 9, 28) if now.day == 29 else date(2026, 9, 29)
+
+        def position_qty(self, ticker):
+            return self.position
+
+        def by_client_id(self, client_id):
+            return None
+
+        def submit_market(self, ticker, side, qty, client_id):
+            self.order_record = {"id": "paper-1", "client_order_id": client_id,
+                                 "symbol": ticker, "side": side, "qty": qty,
+                                 "status": "new", "filled_qty": 0,
+                                 "filled_avg_price": 0}
+            return self.order_record
+
+        def order(self, order_id):
+            return self.order_record
+
+    state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
+    broker = FakePendingPaperGateway()
+    harness = PaperLoop(state, ledger, broker=broker, submit_paper=True)
+    bars = [100.0] * 30 + [110.0] * 20
+    first = harness.run_ticker("NVDA", bars, now=datetime(2026, 9, 29, 14, tzinfo=timezone.utc),
+                               mark_date=date(2026, 9, 28))
+    assert first["order_status"] == "new"
+    broker.order_record.update(status="filled", filled_qty=1, filled_avg_price=110.11)
+    broker.position = 1.0
+    second = harness.run_ticker("NVDA", bars, now=datetime(2026, 9, 30, 14, tzinfo=timezone.utc),
+                                mark_date=date(2026, 9, 29))
+    assert second["order_status"] == "no_change"
+    rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+    assert [row["event_type"] for row in rows] == [
+        "order_intent", "decision", "reconciliation", "decision",
+    ]
+    assert rows[2]["filled_qty"] == 1
+    assert "input_closes" not in rows[2]
+    assert rows[3]["input_closes"] == bars
+    private, public = _keypair(tmp_path)
+    bundle = tmp_path / "signed"
+    export_snapshot(state, ledger, bundle, private)
+    assert verify_snapshot(bundle, public)["decision_replay_coverage"] == {
+        "eligible_rows": 3, "verified_rows": 3, "unverified_rows": 0,
+    }
+
+
+@pytest.mark.parametrize(("field", "replacement", "error"), [
+    ("signal", "SELL", "does not replay"),
+    ("sma20", 1.0, "does not replay"),
+    ("signal_price", 1.0, "does not replay"),
+    ("input_closes_sha256", "0" * 64, "input hash"),
+])
+def test_validly_resigned_malicious_decision_still_fails_replay(tmp_path, field, replacement, error):
+    from bot.paper_harness import PaperLoop
+
+    state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
+    PaperLoop(state, ledger).run_ticker(
+        "NVDA", [100.0] * 30 + [110.0] * 20,
+        now=datetime(2026, 9, 30, 14, tzinfo=timezone.utc))
+    private_path, public = _keypair(tmp_path)
+    bundle = tmp_path / "signed"
+    export_snapshot(state, ledger, bundle, private_path)
+    forged = json.loads(ledger.read_text().strip())
+    forged[field] = replacement  # Contradicts the stored transformed closes.
+    forged_bytes = (json.dumps(forged, sort_keys=True) + "\n").encode()
+    ledger.write_bytes(forged_bytes)
+    with pytest.raises(AuditError, match=error):
+        export_snapshot(state, ledger, tmp_path / "newly_signed", private_path)
+
+    # Simulate a signer who knowingly signs newly malicious but valid bytes.
+    manifest = json.loads((bundle / "manifest.json").read_bytes())
+    manifest["files"]["ledger.jsonl"] = {
+        "sha256": hashlib.sha256(forged_bytes).hexdigest(), "size_bytes": len(forged_bytes),
+    }
+    manifest_bytes = (json.dumps(manifest, sort_keys=True, separators=(",", ":"),
+                                 ensure_ascii=True, allow_nan=False) + "\n").encode()
+    key = serialization.load_pem_private_key(private_path.read_bytes(), password=None)
+    (bundle / "ledger.jsonl").write_bytes(forged_bytes)
+    (bundle / "manifest.json").write_bytes(manifest_bytes)
+    (bundle / "signature.ed25519").write_bytes(
+        base64.b64encode(key.sign(BOUND_DOMAIN + manifest_bytes)) + b"\n")
+    with pytest.raises(AuditError, match=error):
+        verify_snapshot(bundle, public)
+
+
+def test_data_block_has_no_replay_claim(tmp_path):
+    from bot.paper_harness import PaperLoop
+
+    state, ledger = tmp_path / "state.json", tmp_path / "ledger.jsonl"
+    harness = PaperLoop(state, ledger)
+    blocked = harness.run_ticker("NVDA", [], now=datetime(2026, 9, 29, 14, tzinfo=timezone.utc))
+    assert blocked["signal"] == "HOLD" and "input_closes" not in blocked
+    harness.run_ticker("NVDA", [100.0] * 30 + [110.0] * 20,
+                       now=datetime(2026, 9, 30, 14, tzinfo=timezone.utc))
+    rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+    assert "input_closes" not in rows[0]
+    private, public = _keypair(tmp_path)
+    bundle = tmp_path / "signed"
+    export_snapshot(state, ledger, bundle, private)
+    assert verify_snapshot(bundle, public)["decision_replay_coverage"] == {
+        "eligible_rows": 1, "verified_rows": 1, "unverified_rows": 0,
+    }
