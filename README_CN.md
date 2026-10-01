@@ -117,20 +117,15 @@ Docker 一键启动：`docker compose up --build`
 
 ## Walk-Forward 评估（样本外）
 
+原来的 8 行表声称来自 90 次测试，但仓库仅保留 NVDA 的 9 组报告及更早的 21 组记录，缺少原 90 组的行情快照。原收益数字**尚未核验**。[新预注册评估方案](eval/PROTOCOL.md)固定 90 组，统一计入交易成本、滑点和 Bonferroni/BH 校正；目前没有按该方案可复现的成绩。
+
 <!-- EVAL_TABLE_START -->
-| 策略 | 标的 | 样本外 Sharpe | 评级 | p 值 |
-|------|------|-------------|------|------|
-| rsi_reversal | INTC | **1.41** | PASS | 0.002 |
-| dual_thrust | NVDA | **0.96** | PASS | 0.001 |
-| alpha_combo | NVDA | **0.92** | PASS | 0.016 |
-| macd_crossover | NVDA | **0.91** | PASS | 0.003 |
-| ensemble_vote | NVDA | **0.90** | PASS | 0.001 |
-| trend_momentum | NVDA | **0.74** | PASS | 0.005 |
-| double_ma | GOOG | **0.64** | PASS | 0.049 |
-| ensemble_vote | META | **0.31** | MARGINAL | 0.324 |
+| 策略 | 标的 | 样本外 Sharpe | 评级 | Bonferroni p |
+|------|------|-------------|------|--------------|
+| 待完成固定数据重跑 | — | N/A | NOT EVALUATED | N/A |
 <!-- EVAL_TABLE_END -->
 
-> 90 个策略-标的组合，10 个标的，9 个策略（含组合投票和 regime 感知集成）。1 个 STRONG PASS，7 个 PASS，33 个 MARGINAL。[完整报告 →](docs/evaluation_report.md)
+> [90 组完整状态 →](docs/evaluation_report.md)。历史结果仅供审计，不能证明交易优势。
 
 ---
 
@@ -303,7 +298,7 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 | 每日情报 | 无 | 50+ 标的扫描，板块轮动，AI 晨间简报 |
 | 桌面助手 | 无 | 像素牛 + 语音（Whisper + TTS） |
 | 社交内容 | 无 | 一键"复制到 X" |
-| Walk-Forward 评估 | 无 | 70 个策略-标的组合，样本外 Sharpe |
+| Walk-Forward 评估 | 无 | 固定数据的 90 组成本评估待运行 |
 | 测试 | 有限 | 277 个自动化（139 前端 + 138 后端） |
 | 双语 | 无 | 中英双语 |
 

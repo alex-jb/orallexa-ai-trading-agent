@@ -87,19 +87,41 @@ class TestRunWalkForward:
             assert w.train_start  # Not empty
             assert w.test_start
 
-    def test_strategy_exception_produces_zero_signal(self):
+    def test_strategy_exception_fails_closed(self):
         def bad_strategy(df, params):
             raise ValueError("intentional failure")
 
         df = _make_ohlcv(600)
-        result = run_walk_forward(
-            df=df, strategy_fn=bad_strategy,
-            strategy_name="bad", params={},
-        )
-        # Should complete without raising, all windows have 0 trades
-        assert result.num_windows >= 1
-        for w in result.windows:
-            assert w.num_trades == 0
+        with pytest.raises(ValueError, match="intentional failure"):
+            run_walk_forward(df=df, strategy_fn=bad_strategy,
+                             strategy_name="bad", params={})
+
+    def test_boundary_order_uses_prior_signal_and_next_open(self):
+        from eval.walk_forward import _run_single_window
+
+        close = [100.0] * 4 + [101.0, 130.0, 132.0, 133.0, 134.0, 135.0]
+        opens = [100.0] * 4 + [101.0, 120.0, 131.0, 132.0, 133.0, 134.0]
+        dates = pd.bdate_range("2026-01-01", periods=len(close))
+        df = pd.DataFrame({"Open": opens, "Close": close,
+                           "High": np.maximum(opens, close) + 1,
+                           "Low": np.minimum(opens, close) - 1,
+                           "Volume": [100000] * len(close)}, index=dates)
+
+        def enter_once(data, params):
+            # The day-before-boundary event persists for all later bars.
+            holding = False
+            result = []
+            for price in data["Close"]:
+                if price == 101.0:
+                    holding = True
+                result.append(int(holding))
+            return pd.Series(result, index=data.index)
+
+        window = _run_single_window(df, 0, 5, 5, 10, enter_once, {}, 0)
+        assert window.num_trades == 1
+        assert window.net_returns[0] == pytest.approx((1 - 0.002) * 130 / 120 - 1)
+        # The 101 -> 120 gap occurred before the first executable fill.
+        assert window.net_returns[0] != pytest.approx((1 - 0.002) * 130 / 101 - 1)
 
     def test_information_ratio_computed(self):
         df = _make_ohlcv(600)

@@ -9,7 +9,8 @@ def simple_backtest(
     initial_cash=10000,
     transaction_cost=0.001,
     slippage=0.001,
-    debug=False
+    debug=False,
+    execution_mode="legacy_close",
 ):
     data = df.copy()
 
@@ -38,13 +39,37 @@ def simple_backtest(
     data["return"] = data[price_col].pct_change().fillna(0.0)
     data["market_return"] = data["return"]
 
-    shifted_signal = data[signal_col].shift(1).fillna(0.0)
-    data["gross_strategy_return"] = shifted_signal * data["return"]
-
-    data["position_change"] = data[signal_col].diff().abs().fillna(data[signal_col].abs())
+    if execution_mode == "next_open":
+        if "Open" not in data.columns:
+            raise ValueError("Next-open evaluation requires Open prices")
+        if data[signal_col].isna().any() or not data[signal_col].isin([0, 1]).all():
+            raise ValueError("Next-open evaluation requires finite long/flat signals")
+        if (data["Open"] <= 0).any() or (data[price_col] <= 0).any():
+            raise ValueError("Next-open evaluation requires positive prices")
+        # A decision from close[t-1] becomes an order at open[t]. The
+        # previously held position earns the intervening overnight return;
+        # the new position earns open[t] -> close[t]. Cost is charged at open[t].
+        position = data[signal_col].shift(1).fillna(0.0)
+        prior_position = position.shift(1).fillna(0.0)
+        previous_close = data[price_col].shift(1)
+        overnight = (data["Open"] / previous_close - 1).fillna(0.0)
+        intraday = data[price_col] / data["Open"] - 1
+        overnight_factor = 1 + prior_position * overnight
+        intraday_factor = 1 + position * intraday
+        data["gross_strategy_return"] = overnight_factor * intraday_factor - 1
+        data["position_change"] = (position - prior_position).abs()
+    elif execution_mode == "legacy_close":
+        shifted_signal = data[signal_col].shift(1).fillna(0.0)
+        data["gross_strategy_return"] = shifted_signal * data["return"]
+        data["position_change"] = data[signal_col].diff().abs().fillna(data[signal_col].abs())
+    else:
+        raise ValueError(f"Unknown execution_mode: {execution_mode}")
     data["trade_cost"] = data["position_change"] * (transaction_cost + slippage)
 
-    data["net_strategy_return"] = data["gross_strategy_return"] - data["trade_cost"]
+    if execution_mode == "next_open":
+        data["net_strategy_return"] = overnight_factor * (1 - data["trade_cost"]) * intraday_factor - 1
+    else:
+        data["net_strategy_return"] = data["gross_strategy_return"] - data["trade_cost"]
 
     data["strategy_return"] = data["net_strategy_return"]
 

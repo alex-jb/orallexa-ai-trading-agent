@@ -1,6 +1,7 @@
 # Orallexa — Traction Slide
 
-> Drop into a fundraise deck. Single page. Real numbers, no fluff.
+> Historical draft. Performance figures require the pinned data and reproducible
+> scripts specified in [the new evaluation protocol](../eval/PROTOCOL.md).
 > Updated 2026-05-07.
 
 ---
@@ -15,29 +16,12 @@ Kronos foundation model. Adaptive per-source weights.
 
 ---
 
-## Walk-forward out-of-sample Sharpe (real, not in-sample)
+## Walk-forward evaluation
 
-Every strategy tested against **3 independent statistical gates**:
-
-1. Walk-forward (OOS Sharpe > 0 in > 50% of windows)
-2. p-value < 0.05 (statistical significance)
-3. Monte Carlo bootstrap > 75th percentile
-
-**8 of 90 pairs cleared all three gates.** This is what's defensible.
-
-| Strategy | Ticker | OOS Sharpe | p-value | Verdict |
-|----------|--------|-----------|---------|---------|
-| rsi_reversal | INTC | **1.41** | 0.002 | **STRONG PASS** |
-| dual_thrust | NVDA | 0.96 | 0.001 | PASS |
-| alpha_combo | NVDA | 0.92 | 0.016 | PASS |
-| macd_crossover | NVDA | 0.91 | 0.003 | PASS |
-| ensemble_vote | NVDA | 0.90 | 0.001 | PASS |
-| trend_momentum | NVDA | 0.74 | 0.005 | PASS |
-| double_ma | GOOG | 0.64 | 0.049 | PASS |
-
-> Note: most "AI trading" pitches show in-sample backtest Sharpe.
-> These are **out-of-sample, walk-forward**, with p-values. RSI INTC
-> at 1.41 with p=0.002 is genuinely a defensible alpha.
+The earlier eight-row, 90-pair claim has been withdrawn because the 90-pair
+OHLCV inputs and full results were not retained. No strategy has a verified
+90-pair adjusted significance result yet. See the [full pending status](evaluation_report.md)
+and rerun with the predeclared cohort before making a performance claim.
 
 ---
 
@@ -71,12 +55,11 @@ The gates that matter:
 
 ---
 
-## What we know works (from production)
+## Production evidence pending
 
-- The 4-role panel reaches consensus 68% of the time on NVDA (sample n=200 production decisions)
-- Multi-modal vision-vs-text agreement is **+8% lift** on the latest n=12 pairs (waiting to clear 50-pair threshold for ship/reject)
-- Source-weight adaptation has muted "social" signal -32% vs. baseline (correctly — Reddit is noise on NVDA)
-- Token budget enforcer caps deep-analysis at $0.18/run (was $1.40 unbounded)
+The previously quoted panel agreement, multimodal lift, source-weight change,
+and per-run cost figures have no retained input log and reproducible script in
+this repository. They should not be presented as verified results.
 
 ---
 
@@ -95,7 +78,7 @@ The gates that matter:
 | 1-2 | Alpaca paper trading pilot — 1 real user, 30 days | Live traction is the only thing VCs trust at this stage |
 | 3-4 | Public leaderboard daily update + watchlist heatmap | Recurring data hook for VCs to revisit between meetings |
 | 5-8 | 100 production debates → DSPy Phase B compile fires (existing harness, gated on data) | First system-prompt optimization that's gradient-derived not hand-tuned |
-| 9-12 | Multi-modal lift gate clears (50 pairs) → vision turned on by default | +8% expected lift becomes baseline rather than experiment |
+| 9-12 | Recheck multi-modal lift after 50 paired observations | Decide whether vision adds measurable value |
 
 ---
 
@@ -109,9 +92,8 @@ $1.5M for 18 months runway:
 
 Used right, this gets us to: 200 paying retail users at $99/mo,
 public verifiable trading record, fundamental moat from 100k+
-production debate dataset (DSPy-trained system prompts compounds
-weekly). That's a proven rev-positive crypto-quant style desk in
-SaaS form, defensible because the dataset can't be cloned.
+production debate dataset (DSPy-trained system prompts could be evaluated
+on that data). Those targets remain projections, not measured outcomes.
 
 ---
 

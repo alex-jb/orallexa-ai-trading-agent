@@ -87,20 +87,22 @@ Docker: `docker compose up --build` — that's it.
 
 ## Walk-Forward Evaluation (Out-of-Sample)
 
+The former eight-row table claimed results from 90 tests. The repo contains
+only a nine-pair NVDA report and an older 21-pair run, without the underlying
+OHLCV snapshots for the claimed 90. Those performance numbers are **unverified**.
+The new 90-pair protocol is [predeclared here](eval/PROTOCOL.md); evaluation
+will use all pairs, net costs, a same-ticker buy-and-hold comparison from each
+OOS window's first open, and Bonferroni/BH corrections on paired excess returns.
+The one-sided IID p-values remain exploratory. No current pair
+has a reproducible result under that protocol.
+
 <!-- EVAL_TABLE_START -->
-| Strategy | Ticker | OOS Sharpe | Verdict | p-value |
-|----------|--------|-----------|---------|---------|
-| rsi_reversal | INTC | **1.41** | PASS | 0.002 |
-| dual_thrust | NVDA | **0.96** | PASS | 0.001 |
-| alpha_combo | NVDA | **0.92** | PASS | 0.016 |
-| macd_crossover | NVDA | **0.91** | PASS | 0.003 |
-| ensemble_vote | NVDA | **0.90** | PASS | 0.001 |
-| trend_momentum | NVDA | **0.74** | PASS | 0.005 |
-| double_ma | GOOG | **0.64** | PASS | 0.049 |
-| ensemble_vote | META | **0.31** | MARGINAL | 0.324 |
+| Strategy | Ticker | OOS Sharpe | Verdict | Bonferroni excess p |
+|----------|--------|-----------|---------|---------------------|
+| Pending pinned-data run | — | N/A | NOT EVALUATED | N/A |
 <!-- EVAL_TABLE_END -->
 
-> 90 strategy-ticker pairs across 10 tickers and 9 strategies (including ensemble vote and regime-aware ensemble). 1 STRONG PASS, 7 PASS, 33 MARGINAL. [Full report →](docs/evaluation_report.md)
+> [Full 90-pair status →](docs/evaluation_report.md). Historical results are archived for audit, not evidence of a trading edge.
 
 ---
 
@@ -290,7 +292,7 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 | Daily Intelligence | No | 50+ tickers, sector rotation, AI morning brief |
 | Desktop Assistant | No | Pixel bull with voice (Whisper + TTS) |
 | Social Content | No | One-click "Copy for X" on every section |
-| Walk-Forward Eval | No | 70 strategy-ticker pairs, OOS Sharpe |
+| Walk-Forward Eval | No | New 90-pair cost-aware evaluation pending pinned data |
 | Tests | Limited | 698 automated (261 frontend + 437 backend) |
 | Bilingual | No | EN/ZH |
 

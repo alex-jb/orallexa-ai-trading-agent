@@ -13,7 +13,7 @@ Minimum 20 trades required for meaningful statistical tests.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Sequence
 
 import numpy as np
 from scipy import stats
@@ -33,6 +33,10 @@ class StatisticalTestResult:
     t_statistic: float = 0.0
     p_value: float = 1.0
     returns_significant: bool = False
+    p_bonferroni: float = 1.0
+    p_bh: float = 1.0
+    bonferroni_significant: bool = False
+    bh_significant: bool = False
 
     # Bootstrap confidence intervals on Sharpe
     sharpe_ci_lower: float = 0.0
@@ -54,6 +58,27 @@ class AggregateStatResult:
     num_dsr_passed: int = 0
 
 
+def adjust_pvalues(p_values: Sequence[float]) -> tuple[list[float], list[float]]:
+    """Bonferroni FWER and Benjamini-Hochberg FDR for one declared family.
+
+    Callers include missing/insufficient tests as p=1 so the family size never
+    shrinks after looking at the data. The BH q-values are monotone in rank.
+    """
+    values = np.asarray(p_values, dtype=float)
+    if not np.all(np.isfinite(values)) or np.any((values < 0) | (values > 1)):
+        raise ValueError("p-values must be finite values in [0, 1]")
+    m = len(values)
+    if m == 0:
+        return [], []
+    bonferroni = np.minimum(1.0, values * m)
+    order = np.argsort(values, kind="stable")
+    ranked = values[order] * m / np.arange(1, m + 1)
+    adjusted = np.minimum.accumulate(ranked[::-1])[::-1]
+    bh = np.empty(m)
+    bh[order] = np.minimum(1.0, adjusted)
+    return bonferroni.tolist(), bh.tolist()
+
+
 def ttest_returns(returns: np.ndarray) -> tuple[float, float]:
     """
     One-sample t-test: are strategy returns significantly > 0?
@@ -63,11 +88,13 @@ def ttest_returns(returns: np.ndarray) -> tuple[float, float]:
     """
     if len(returns) < MIN_TRADES_FOR_STATS:
         return 0.0, 1.0
+    if not np.all(np.isfinite(returns)) or np.std(returns) == 0:
+        return 0.0, 1.0
 
     t_stat, p_two = stats.ttest_1samp(returns, 0.0)
     # One-sided: we care if returns > 0
     p_one = p_two / 2 if t_stat > 0 else 1.0 - p_two / 2
-    return float(t_stat), float(p_one)
+    return float(t_stat), float(p_one) if np.isfinite(p_one) else 1.0
 
 
 def bootstrap_sharpe_ci(
@@ -191,6 +218,14 @@ def run_statistical_tests(
             ticker=ticker,
             n_observations=n,
             sufficient_data=False,
+            num_strategies_tested=num_strategies_tested,
+        )
+    if not np.all(np.isfinite(trade_returns)) or np.std(trade_returns) == 0:
+        return StatisticalTestResult(
+            strategy_name=strategy_name,
+            ticker=ticker,
+            n_observations=n,
+            sufficient_data=True,
             num_strategies_tested=num_strategies_tested,
         )
 

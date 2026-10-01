@@ -11,12 +11,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import logging
 import sys
 from pathlib import Path
 
 # Make project root importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+DECLARED_90_STRATEGIES = (
+    "double_ma", "macd_crossover", "bollinger_breakout", "rsi_reversal",
+    "trend_momentum", "alpha_combo", "dual_thrust", "ensemble_vote", "regime_ensemble",
+)
 
 
 def main():
@@ -26,6 +33,10 @@ def main():
     parser.add_argument(
         "--tickers", required=True,
         help="Comma-separated ticker symbols (e.g., NVDA,AAPL)",
+    )
+    parser.add_argument(
+        "--strategies", default=None,
+        help="Comma-separated predeclared strategies (default: all registered strategies)",
     )
     parser.add_argument(
         "--output", default=None,
@@ -44,8 +55,12 @@ def main():
         help="Test window in days (default: 63)",
     )
     parser.add_argument(
-        "--seed", type=int, default=None,
-        help="Random seed for reproducibility",
+        "--seed", type=int, default=42,
+        help="Random seed for bootstrap and Monte Carlo (default: 42)",
+    )
+    parser.add_argument(
+        "--data-dir", default=None,
+        help="Directory of pinned TICKER.csv OHLCV snapshots (Date,Open,High,Low,Close,Volume)",
     )
     parser.add_argument(
         "--years", type=int, default=5,
@@ -60,6 +75,58 @@ def main():
         help="Enable verbose logging",
     )
     args = parser.parse_args()
+
+    data_path = Path(args.data_dir) if args.data_dir else None
+    if data_path:
+        from eval.freeze_alpaca_data import PROTOCOL_IDS, TICKERS, START, END_INCLUSIVE
+
+        requested_tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+        requested_strategies = ([s.strip() for s in args.strategies.split(",") if s.strip()]
+                                if args.strategies else [])
+        if (requested_tickers != list(TICKERS)
+                or requested_strategies != list(DECLARED_90_STRATEGIES)
+                or args.train_days != 252 or args.test_days != 63
+                or args.seed != 42 or args.mc_iterations != 1000
+                or not args.no_adaptive):
+            parser.error("Pinned evaluation must match the declared 90-pair protocol: "
+                         "ten tickers, nine strategies in protocol order, 252/63 windows, "
+                         "seed 42, 1000 Monte Carlo iterations, and --no-adaptive")
+    manifest_path = data_path / "manifest.json" if data_path else None
+    if data_path and not manifest_path.is_file():
+        parser.error("Pinned evaluation requires the freeze manifest with per-ticker hashes")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path and manifest_path.is_file() else {}
+    except (OSError, ValueError) as exc:
+        parser.error(f"Invalid snapshot manifest: {exc}")
+    if data_path:
+        if not isinstance(manifest, dict):
+            parser.error("Snapshot manifest must be a JSON object")
+        hashes = manifest.get("sha256")
+        if (manifest.get("tickers") != list(TICKERS)
+                or not isinstance(hashes, dict) or set(hashes) != set(TICKERS)
+                or any(not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{64}", value)
+                       for value in hashes.values())):
+            parser.error("Snapshot manifest must declare all ten tickers and their SHA-256 hashes")
+        protocol = manifest.get("protocol_id")
+        if protocol in PROTOCOL_IDS.values():
+            params = manifest.get("parameters", {})
+            feed = params.get("feed") if isinstance(params, dict) else None
+            if (manifest.get("source") != "Alpaca Historical Stock Bars GET API"
+                    or feed not in PROTOCOL_IDS or protocol != PROTOCOL_IDS[feed]
+                    or params.get("adjustment") != "split,dividend"
+                    or params.get("start") != START or params.get("last_session_required") != END_INCLUSIVE):
+                parser.error("Alpaca manifest does not match the declared cohort")
+        elif (manifest.get("source") != "yfinance download, auto_adjust=True"
+              or manifest.get("start") != START or manifest.get("end_exclusive") != "2026-09-29"):
+            parser.error("Unknown or mismatched snapshot protocol")
+    output_path = Path(args.output) if args.output else (
+        data_path / "evaluation_report.md" if data_path else Path("results/unpinned/evaluation_report.md")
+    )
+    repo = Path(__file__).resolve().parents[1]
+    resolved = output_path.resolve()
+    ignored_roots = [repo / "eval/snapshots", repo / "eval/private_snapshots", repo / "results"]
+    if resolved.is_relative_to(repo) and not any(resolved.is_relative_to(root) for root in ignored_roots):
+        parser.error("Numerical evaluation output must stay outside tracked repo paths")
 
     # Setup logging
     level = logging.DEBUG if args.verbose else logging.INFO
@@ -85,7 +152,9 @@ def main():
     from eval.report_generator import generate_report
     from engine.strategies import STRATEGY_REGISTRY
 
-    num_strategies = len(STRATEGY_REGISTRY)
+    strategies = ([s.strip() for s in args.strategies.split(",") if s.strip()]
+                  if args.strategies else list(STRATEGY_REGISTRY))
+    num_strategies = len(strategies)
     total_tasks = len(tickers) * num_strategies
 
     print(f"\n{'=' * 60}")
@@ -105,6 +174,8 @@ def main():
         mc_iterations=args.mc_iterations,
         mc_seed=args.seed,
         data_years=args.years,
+        data_dir=args.data_dir,
+        strategies=strategies,
     )
     harness.adaptive = adaptive
 
@@ -121,9 +192,15 @@ def main():
         result = harness.run(progress_callback=_progress)
         print()
 
+    # An exception in a strategy or statistical calculation must not leave
+    # numerical artifacts in the tracked docs directory as a 'complete' run.
+    if result.total_evaluated != total_tasks:
+        print(f"Incomplete evaluation: {result.total_evaluated}/{total_tasks} pairs have valid OOS calculations. "
+              "No report was written; do not publish performance claims from this run.")
+        sys.exit(2)
+
     # Generate report
-    output_path = args.output or None
-    report = generate_report(result, output_path=output_path)
+    generate_report(result, output_path=output_path, generate_charts=False)
 
     # Summary
     verdicts = [e.verdict for e in result.evaluations]
@@ -136,15 +213,13 @@ def main():
           f"FAIL: {verdicts.count('FAIL')}")
     if result.skipped_tickers:
         print(f"  Skipped tickers: {', '.join(result.skipped_tickers)} (insufficient data)")
-    print(f"  Report: {output_path or 'docs/evaluation_report.md'}")
-    print(f"  JSON: docs/evaluation_results.json")
-    print(f"  Charts: docs/charts/")
+    print(f"  Report: {output_path}")
+    print(f"  JSON: {output_path.parent / 'evaluation_results.json'}")
+    family_label = "predeclared" if data_path else "exploratory"
+    print(f"  Family: {len(tickers) * num_strategies} {family_label} pairs "
+          "(missing pairs remain N/A)")
+    print("  Charts: disabled for this evaluation run")
     print(f"{'=' * 60}\n")
-
-    # Exit code: 0 if at least one strategy passed, 1 if all failed or no data
-    if result.total_evaluated == 0:
-        print("Error: No tickers had sufficient data for evaluation.")
-        sys.exit(1)
 
     sys.exit(0)
 
