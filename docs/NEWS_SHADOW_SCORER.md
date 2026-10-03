@@ -12,13 +12,14 @@ Use UTF-8 JSON for the manifest and JSONL with exactly one object per line for h
 {
   "cohort_id": "frozen-news-test-v1",
   "sample_kind": "stratified",
+  "relevance_confidence_thresholds": [0.0, 0.5, 0.8, 0.95, 1.0],
   "frozen_at_utc": "2026-09-30T00:00:00Z",
   "primary_class_rule": "If both guidance and earnings occur, label guidance; otherwise label the main event.",
   "cases": [
     {
       "case_id": "news-001:ACME", "source_id": "filing-001", "source_sha256": "<64 lowercase hex digits>",
       "source_url": "https://example.org/filing-001", "source_rights": "licensed-for-internal-evaluation",
-      "event_group_id": "earnings-q3-acme", "split": "test", "ticker": "ACME",
+      "event_group_id": "earnings-q3-acme", "split": "test", "ticker": "ACME", "language": "en",
       "published_at_utc": "2026-09-01T11:00:00Z", "available_at_utc": "2026-09-01T11:05:00Z",
       "evidence_span_ids": ["paragraph-12"]
     }
@@ -43,6 +44,20 @@ python -m pytest -q tests/test_news_shadow_score.py
 ```
 
 No report file is created on validation failure. The output includes SHA-256 hashes of the exact input bytes that were parsed, model revision/pricing in the manifest, and declared cohort/sample type. For an empirical study, archive immutable input files, source snapshots or licensed retrieval receipts, runner version/commit, prompts, frozen splits and adjudication records with the report. A hash or URL alone does **not** prove that the original article bytes, timestamp, rights statement or human labels are true; the scorer checks the hash string and the source ID's consistency, not the source content.
+
+## Confidence gates and language slices (report schema v2)
+
+The report now includes `selective_company_relevance` for each model. This describes the coverage/error tradeoff at each **frozen** confidence threshold. Supply a strictly increasing, nonempty array in `[0, 1]` as `relevance_confidence_thresholds`; omitted arrays use the code defaults shown above. Freeze the manifest **and the scorer commit** before inspecting model outputs. The manifest hash binds custom thresholds to that input, and `thresholds_source` discloses whether the defaults were used. The scorer cannot prove that a freeze happened before results existed. It never ranks thresholds or selects one for deployment. Choose any operational threshold on a separate development cohort, then lock it before a held-out test.
+
+For P(article explicitly concerns ticker) = `p`, the confidence of an emitted `true` label is `p`, and the confidence of an emitted `false` label is `1-p`. A row is accepted in a curve only if it answered, supplied this numeric probability, and its emitted-label confidence is at least the threshold. The code does **not** switch labels to their most probable value. Contradictory labels/probabilities are counted as `label_probability_disagreements`; a confident wrong answer still contributes an error. Probabilities of the event category are not available in this schema, so this is a **binary-relevance gate**, not a confidence test of the whole news analysis.
+
+Every declared test case remains in the coverage denominator. Model abstentions, provider failures and answered rows without numeric probabilities are visibly withheld. Their usage and latency remain in the original complete-cohort totals. A threshold accepting zero cases returns `null` for its error rate and joint accuracy; it is not a perfect classifier. The accepted-set relevance error and event-plus-relevance accuracy are separate, because getting the company right does not mean getting the event right. Accepted-set diagnostics never replace the existing full-cohort F1, accuracy or Brier score. No threshold executes a model, changes a signal or authorizes an order.
+
+Each manifest case may declare a lowercase language tag such as `en`, `zh` or `zh-hans`. Omitted tags become `und` (unknown), without guessing from text. The supported syntax is a two- or three-letter base followed by optional hyphen-separated 2–8 character alphanumeric segments; this is a shape check, not language identification or a complete language-tag registry. Unknown and mixed-language labeling policies must be fixed in advance. Reports include per-language case/event-group counts, abstentions, full-cohort classification metrics, probability coverage and the same relevance curves. A missing probability withholds Brier for that slice and for the total cohort; another fully covered slice can still report its own Brier. Train cases never enter these slices.
+
+These slices are descriptive. Differences can reflect content, source, event mix, label ambiguity and sample size as well as language. Translations and repeated ticker cases may share an event group; do not treat slice rows as independent samples. Keep paired translations in the same event group and split. The script does not estimate uncertainty or establish a causal language effect.
+
+Research motivation: [MIT's RLCR paper](https://arxiv.org/abs/2507.16806) studies training for calibrated answers, while [Stanford's cross-language measurement paper](https://arxiv.org/abs/2605.17173) separates factors hidden by one aggregate score. These diagnostics borrow their evaluation motivation. They do not implement RLCR training, reproduce Stanford's measurement model, or demonstrate calibrated financial predictions.
 
 ## Denominators and limits
 

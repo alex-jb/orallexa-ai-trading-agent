@@ -18,7 +18,9 @@ from pathlib import Path
 
 EVENTS = ("earnings", "guidance", "regulatory", "other")
 FAILURES = ("timeout", "provider_error", "schema_error", "missing_source")
+DEFAULT_RELEVANCE_THRESHOLDS = (0.0, 0.5, 0.8, 0.95, 1.0)
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_LANGUAGE = re.compile(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 
 
 class InvalidCohort(ValueError):
@@ -47,6 +49,15 @@ def _integer(value, where):
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise InvalidCohort(f"{where}: expected nonnegative integer")
     return value
+
+
+def _confidence_thresholds(value):
+    if not isinstance(value, (list, tuple)) or not value:
+        raise InvalidCohort("relevance_confidence_thresholds: expected nonempty array")
+    thresholds = [_number(v, "relevance_confidence_thresholds") for v in value]
+    if any(v > 1 for v in thresholds) or any(a >= b for a, b in zip(thresholds, thresholds[1:])):
+        raise InvalidCohort("relevance_confidence_thresholds: must increase strictly within [0, 1]")
+    return thresholds
 
 
 def _utc(value, where):
@@ -118,6 +129,7 @@ def _read_manifest(path):
         raise InvalidCohort("manifest.sample_kind: expected synthetic, stratified, or representative")
     _string(data.get("primary_class_rule"), "manifest.primary_class_rule")
     frozen = _utc(data.get("frozen_at_utc"), "manifest.frozen_at_utc")
+    _confidence_thresholds(data.get("relevance_confidence_thresholds", DEFAULT_RELEVANCE_THRESHOLDS))
     rows = data.get("cases")
     if not isinstance(rows, list) or not rows:
         raise InvalidCohort("manifest.cases: expected nonempty array")
@@ -152,7 +164,11 @@ def _read_manifest(path):
             raise InvalidCohort(f"{case_id}: future article after freeze")
         allowed = _ids(row.get("evidence_span_ids"), f"{case_id}.evidence_span_ids")
         _string(row.get("ticker"), f"{case_id}.ticker")
-        cases[case_id] = {"split": split, "group": group, "source": source, "hash": source_sha, "allowed": allowed}
+        language = row.get("language", "und")
+        if not isinstance(language, str) or not _LANGUAGE.fullmatch(language):
+            raise InvalidCohort(f"{case_id}.language: expected lowercase language tag, or und if unknown")
+        cases[case_id] = {"split": split, "group": group, "source": source, "hash": source_sha,
+                          "allowed": allowed, "language": language}
         groups.setdefault(group, set()).add(split)
     if not split_counts["test"]:
         raise InvalidCohort("manifest: no test cases")
@@ -285,19 +301,82 @@ def _percentile(values, percentile):
     return ordered[math.ceil(len(ordered) * percentile) - 1]
 
 
+def _relevance_metrics(gold, rows):
+    n = len(gold)
+    classes = _class_metrics(gold, rows, (False, True), 1)
+    errors = [(row["probability"] - float(gold[key][1])) ** 2
+              for key, row in rows.items() if row["probability"] is not None]
+    return {
+        "per_class": classes,
+        "macro_f1": statistics.mean(v["f1"] for v in classes.values()),
+        "accuracy_full_cohort": sum(not row["label"][3] and row["label"][1] == gold[key][1]
+                                    for key, row in rows.items()) / n,
+        "brier_full_cohort": sum(errors) / n if len(errors) == n else None,
+        "brier_probability_coverage": len(errors),
+        "brier_withheld_reason": None if len(errors) == n else
+        "requires an explicit probability on every test case, including abstentions",
+    }
+
+
+def _selective_relevance(gold, rows, thresholds):
+    """Describe a frozen binary-relevance gate; never select a winning threshold."""
+    n = len(gold)
+    eligible = {
+        key: row["probability"] if row["label"][1] else 1.0 - row["probability"]
+        for key, row in rows.items() if not row["label"][3] and row["probability"] is not None
+    }
+    curve = []
+    for threshold in thresholds:
+        accepted = [key for key, confidence in eligible.items() if confidence >= threshold]
+        mistakes = sum(rows[key]["label"][1] != gold[key][1] for key in accepted)
+        joint_correct = sum(rows[key]["label"][:2] == gold[key][:2] for key in accepted)
+        curve.append({
+            "confidence_threshold": threshold, "accepted": len(accepted),
+            "withheld": n - len(accepted), "coverage_full_cohort": len(accepted) / n,
+            "relevance_errors": mistakes,
+            "relevance_error_rate_accepted": mistakes / len(accepted) if accepted else None,
+            "joint_event_and_relevance_accuracy_accepted": joint_correct / len(accepted) if accepted else None,
+        })
+    return {
+        "scope": "binary company relevance only; not event confidence, evidence truth or trading",
+        "test_cases": n, "eligible_answered_with_probability": len(eligible),
+        "excluded_abstentions": sum(row["label"][3] for row in rows.values()),
+        "excluded_answered_without_probability": sum(not row["label"][3] and row["probability"] is None
+                                                    for row in rows.values()),
+        "label_probability_disagreements": sum(confidence < 0.5 for confidence in eligible.values()),
+        "curve": curve,
+    }
+
+
+def _language_slices(gold, rows, cases, thresholds):
+    results = {}
+    for language in sorted({cases[key]["language"] for key in gold}):
+        subset_gold = {key: value for key, value in gold.items() if cases[key]["language"] == language}
+        subset_rows = {key: rows[key] for key in subset_gold}
+        events = _class_metrics(subset_gold, subset_rows, EVENTS, 0)
+        results[language] = {
+            "test_cases": len(subset_gold),
+            "test_event_groups": len({cases[key]["group"] for key in subset_gold}),
+            "abstentions": sum(row["label"][3] for row in subset_rows.values()),
+            "event_type": {"per_class": events, "macro_f1": statistics.mean(v["f1"] for v in events.values())},
+            "company_relevance": _relevance_metrics(subset_gold, subset_rows),
+            "selective_company_relevance": _selective_relevance(subset_gold, subset_rows, thresholds),
+        }
+    return results
+
+
 def score(manifest_path, gold_path, predictions_path):
     """Validate every declared test example and return a deterministic JSON-ready report."""
     manifest, cases, pricing, counts, test_groups, manifest_hash = _read_manifest(manifest_path)
     gold, gold_hash = _read_gold(gold_path, cases)
     predictions, prediction_hash = _read_predictions(predictions_path, cases, pricing)
+    thresholds = _confidence_thresholds(manifest.get("relevance_confidence_thresholds", DEFAULT_RELEVANCE_THRESHOLDS))
     results = {}
     for model, rows in sorted(predictions.items()):
         events = _class_metrics(gold, rows, EVENTS, 0)
-        relevance = _class_metrics(gold, rows, (False, True), 1)
         answered = sum(not v["label"][3] for v in rows.values())
         eligible = [key for key in gold if gold[key][2]]
         exact = sum(not rows[key]["label"][3] and rows[key]["label"][2] == gold[key][2] for key in eligible)
-        probabilities = [((row["probability"] - float(gold[key][1])) ** 2) for key, row in rows.items() if row["probability"] is not None]
         billed = [row["billed_usd"] for row in rows.values() if row["billed_usd"] is not None]
         rate = pricing[model]["rate"]
         estimate = (sum(row["tokens"]["input_tokens"] * rate["input"] + row["tokens"]["output_tokens"] * rate["output"] for row in rows.values()) / 1_000_000) if rate is not None else None
@@ -308,11 +387,9 @@ def score(manifest_path, gold_path, predictions_path):
             "abstentions_by_kind": {"policy_or_unclassified": sum(v["label"][3] and v["failure_kind"] is None for v in rows.values()),
                                     **{kind: sum(v["failure_kind"] == kind for v in rows.values()) for kind in FAILURES}},
             "event_type": {"per_class": events, "macro_f1": statistics.mean(v["f1"] for v in events.values())},
-            "company_relevance": {"per_class": relevance, "macro_f1": statistics.mean(v["f1"] for v in relevance.values()),
-                                  "accuracy_full_cohort": sum(row["label"][1] == gold[key][1] and not row["label"][3] for key, row in rows.items()) / n,
-                                  "brier_full_cohort": sum(probabilities) / n if len(probabilities) == n else None,
-                                  "brier_probability_coverage": len(probabilities),
-                                  "brier_withheld_reason": None if len(probabilities) == n else "requires an explicit probability on every test case, including abstentions"},
+            "company_relevance": _relevance_metrics(gold, rows),
+            "selective_company_relevance": _selective_relevance(gold, rows, thresholds),
+            "language_slices": _language_slices(gold, rows, cases, thresholds),
             "evidence_exact": {"capable": pricing[model]["evidence_capable"], "eligible_nonempty_gold": len(eligible),
                                "cases": exact if pricing[model]["evidence_capable"] else None,
                                "rate_eligible": exact / len(eligible) if eligible and pricing[model]["evidence_capable"] else None,
@@ -326,16 +403,21 @@ def score(manifest_path, gold_path, predictions_path):
                       "pricing_usd_per_million_tokens": rate},
         }
     file_hashes = {"manifest": manifest_hash, "gold": gold_hash, "predictions": prediction_hash}
-    return {"cohort_id": manifest["cohort_id"], "frozen_at_utc": manifest["frozen_at_utc"],
+    return {"report_schema_version": 2, "cohort_id": manifest["cohort_id"], "frozen_at_utc": manifest["frozen_at_utc"],
             "sample_kind": manifest.get("sample_kind"),
             "input_sha256": file_hashes,
             "manifest_cases": len(cases), "train_cases_checked_for_leakage": counts["train"],
+            "relevance_confidence_thresholds": thresholds,
+            "thresholds_source": "manifest" if "relevance_confidence_thresholds" in manifest else "code_default",
             "test_cases_scored": counts["test"], "test_event_groups": test_groups, "models": results,
             "notes": ["Synthetic inputs are not empirical performance.",
                       "Only declared test cases are scored; train cases are checked for event/source leakage.",
                       "Abstentions count as misses in full-cohort F1; explicit probabilities on abstentions can contribute to Brier if all test cases have them.",
                       "Evidence is N/A for classification-only arms; exact match uses nonempty gold citations only, not independent proof that evidence is true.",
-                      "Billed cost requires all per-case billed amounts; token-rate estimates omit unreported fees and are separate."]}
+                      "Billed cost requires all per-case billed amounts; token-rate estimates omit unreported fees and are separate.",
+                      "Selective coverage uses the full cohort; abstentions and missing probabilities remain withheld. Empty accepted sets have null error rates.",
+                      "Thresholds and language tags must be frozen before model outputs. This scorer cannot attest preregistration or select a deployment threshold.",
+                      "Language slices are descriptive and may share event groups; differences are not causal language effects or independent significance tests."]}
 
 
 def main(argv=None):
