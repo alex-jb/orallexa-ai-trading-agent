@@ -88,6 +88,13 @@ def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
+def _can_persist_analysis(key: str | None) -> bool:
+    """Public rule-based analysis must not write trusted research records."""
+    expected_key = os.environ.get("ORALLEXA_API_KEY", "").strip()
+    return (not DEMO_MODE and bool(expected_key) and bool(key)
+            and hmac.compare_digest(key, expected_key))
+
+
 def _require_paid_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
     """Permit public demo mocks, but authenticate real paid-model calls."""
     if not DEMO_MODE:
@@ -210,6 +217,7 @@ async def analyze(
     context: str = Form(""),
     portfolio_json: str = Form(""),
     portfolio_value: float = Form(0.0),
+    key: str | None = Security(_API_KEY_HEADER),
 ):
     """
     Fast analysis — scalp / intraday / swing. Optional Claude overlay + debate.
@@ -221,6 +229,7 @@ async def analyze(
     if DEMO_MODE:
         from engine.demo_data import mock_analyze
         return mock_analyze(ticker, mode, timeframe, context)
+    persist_analysis = _can_persist_analysis(key)
 
     # Parse portfolio inputs once — reject malformed silently so the
     # analysis still runs without PM gating.
@@ -269,18 +278,19 @@ async def analyze(
     breaking = None
     try:
         from engine.breaking_signals import detect_breaking
-        breaking = detect_breaking(result, ticker.upper())
+        breaking = detect_breaking(result, ticker.upper(), persist=persist_analysis)
     except Exception as exc:
         from core.logger import get_logger
         get_logger("api").warning("Breaking signal detection failed: %s", exc)
 
-    # Save to decision log
-    try:
-        from engine.decision_log import save_decision
-        save_decision(decision=result, ticker=ticker.upper(), mode=mode, timeframe=timeframe)
-    except Exception as exc:
-        from core.logger import get_logger
-        get_logger("api").warning("Failed to save decision log: %s", exc)
+    # Only authenticated operator analyses may enter the training-grade log.
+    if persist_analysis:
+        try:
+            from engine.decision_log import save_decision
+            save_decision(decision=result, ticker=ticker.upper(), mode=mode, timeframe=timeframe)
+        except Exception as exc:
+            from core.logger import get_logger
+            get_logger("api").warning("Failed to save decision log: %s", exc)
 
     out = result.to_dict()
     # Surface PM verdict at the top level for UI convenience (extra already
