@@ -4,12 +4,12 @@
 
 <br>
 
-### Self-tuning multi-agent AI trading system with a public calibration log
+### Multi-agent AI paper-trading research system with calibration diagnostics
 
-**8-source signal fusion · 10 ML models incl. Kronos · Bull/Bear/Judge debate on Claude Opus 4.7**<br>
-Polymarket + Kalshi prediction markets vote alongside ML models. Weights adapt to per-source accuracy automatically.
+**8-source signal fusion · 10 ML models incl. Kronos · Claude-based Bull/Bear/Judge debate**<br>
+Polymarket + Kalshi prediction markets can contribute to signal fusion. Per-source accuracy weighting is optional and needs measured outcomes.
 
-**Different from other AI-trading repos.** Orallexa isn't a hedge-fund simulator. It's a calibrated multi-agent decision system with a published Brier log, a FinPos-style Risk Sizer that keeps direction and position sizing on separate agents, and a hard kill switch. Paper-only. Real money is gated behind a written Brier improvement, not vibes.
+**Research prototype.** Orallexa has multi-agent decision components, Brier-score audit tools, a Risk Sizer that separates direction from sizing, and kill-condition checks. Brier tooling does not establish that forecasts are calibrated or trades have an edge. Broker execution in this repository is **Alpaca paper only**; a Brier threshold cannot enable live orders.
 
 <br>
 
@@ -19,9 +19,6 @@ Polymarket + Kalshi prediction markets vote alongside ML models. Weights adapt t
 [![Claude](https://img.shields.io/badge/Claude_Opus_4.7-1A1A2E?style=for-the-badge&logo=anthropic&logoColor=D4AF37)](https://anthropic.com)
 [![Multi-Provider](https://img.shields.io/badge/Anthropic_·_OpenAI_·_Gemini-1A1A2E?style=for-the-badge&logoColor=D4AF37)](docs/NEW_MODULES.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/333_Tests-Passing-22c55e?style=for-the-badge)](tests/)
-[![Coverage](https://img.shields.io/badge/Coverage-83%25-22c55e?style=for-the-badge)](.coveragerc)
-[![Issues](https://img.shields.io/badge/Open_Issues-0-22c55e?style=for-the-badge)](https://github.com/alex-jb/orallexa-ai-trading-agent/issues)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -40,7 +37,7 @@ Polymarket + Kalshi prediction markets vote alongside ML models. Weights adapt t
 
 Most AI trading projects: feed data into a model, get a signal, done.
 
-Orallexa runs a **multi-agent intelligence pipeline**. 4 AI analysts with different risk profiles debate the trade. A 20-agent swarm simulates market reactions. 5 independent signal sources vote. A bias tracker corrects the system's own mistakes. Then it executes.
+Orallexa has a **multi-agent intelligence pipeline**. A perspective panel and Bull/Bear/Judge debate can inform a decision; a rule-based swarm runs hypothetical scenarios. Signal fusion combines available sources, and a bias tracker records past errors. A separate, explicitly requested execution path can submit an Alpaca paper order.
 
 ```
 Market Data → 9 ML Models → 4-Role Panel + Bull/Bear Debate
@@ -48,7 +45,7 @@ Market Data → 9 ML Models → 4-Role Panel + Bull/Bear Debate
     → Risk Plan → Portfolio Manager → Paper Execution → Dashboard → Social Content
 ```
 
-Every stage automated. Every stage observable. The system learns from itself.
+These components are research tools; their effect on prospective net returns has not been established.
 
 ---
 
@@ -67,6 +64,7 @@ echo "ANTHROPIC_API_KEY=your_key" > .env
 # Terminal 1: API
 python api_server.py
 
+```
 
 ## ⚠️ Educational research, not financial advice
 
@@ -77,6 +75,7 @@ predict future results. Do not use any output as the basis for a real
 trading, investment, or hedging decision without independent professional
 verification. The author accepts no liability for losses.
 
+```bash
 # Terminal 2: UI
 cd orallexa-ui && npm install && npm run dev
 ```
@@ -121,20 +120,20 @@ has a reproducible result under that protocol.
 | Component | Detail |
 |-----------|--------|
 | **9 ML Models** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
-| **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with **regime-aware DyTopo dynamic selection** (subset by regime, ~50% LLM call savings) |
+| **4-Role Perspective Panel** | Conservative / Aggressive / Macro / Quant analysts with optional regime-aware role selection; cost effect has not been benchmarked here |
 | **CORAL Shared Memory** | Unified read aggregator over per-role + tiered memory; cross-role consensus injected into prompts |
 | **Adversarial Debate** | Bull/Bear/Judge via Claude Sonnet + Haiku, full text stashed on `decision.extra` for offline eval-set assembly |
 | **8-Source Signal Fusion** | Technical + ML + News + Options + Institutional + Social (Reddit/X) + Earnings/PEAD + Prediction Markets (Polymarket + Kalshi) |
 | **10-Model ML Ensemble** | RF, XGB, LR + EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN + **Kronos** (foundation model trained on 45+ global exchanges, 4 sizes) |
-| **Adaptive Source Weights** | Per-source rolling accuracy → dynamic weight scaling. Sources that earn their seat amplify; ones that don't get muted. |
+| **Adaptive Source Weights** | Optional scaling from recorded per-source outcomes; predictive improvement has not been demonstrated |
 | **Regime-Conditional Strategies** | Detects trending / ranging / volatile and proposes a tuned strategy + params (heuristic or LLM-backed) |
 | **What-If Scenarios** | Claude Opus 4.7 simulates impact of hypothetical events on your portfolio |
 | **20-Agent Micro Swarm** | Rule-based Monte Carlo convergence simulation |
 | **Bias Self-Correction** | Tracks prediction accuracy, auto-adjusts confidence |
-| **Strategy Evolution** | LLM generates Python strategies → sandbox tests → evolves winners |
+| **Strategy Evolution** | LLM generates candidate Python strategies for sandbox tests; a sandbox pass is not evidence of future returns |
 | **10 Rule-Based Strategies** | Double MA, MACD, Bollinger, RSI reversal, trend-momentum, alpha combo, dual thrust, ensemble vote, regime ensemble, **VWAP reversion** |
 | **DSPy Phase B harness** | Compile pipeline ready: synthetic eval set → MIPROv2 → A/B vs hand-tuned baseline → 5%-gate ship/reject. Awaits 100 production debates worth of training data. |
-| **Multi-modal Debate** | Quant persona reads the K-line image alongside the numbers via Claude Vision. Lift harness compares vision-vs-text decision agreement against forward returns; cron runs nightly. Off by default (vision ~5× text cost) until ≥50 production pairs clear the +5% absolute-lift gate. |
+| **Multi-modal Debate** | Optional chart input for a Quant persona. An offline harness can compare vision and text decisions against later outcomes; disabled by default, with no measured cost or lift claimed here. |
 | **Daily Intel** | 50+ tickers, sector rotation, volume spikes, earnings watchlist, AI morning brief |
 
 </td>
@@ -145,7 +144,7 @@ has a reproducible result under that protocol.
 | Component | Detail |
 |-----------|--------|
 | **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing — runs on `analyze`, `deep-analysis`, AND `alpaca/execute` (rejected trades never hit the broker) |
-| **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
+| **Token & Cost Budgets** | Optional per-request TokenBudget can skip LLM-heavy deep-analysis steps after its configured cap; it does not cover every paid code path |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
 | **LLM Observability** | Triple sink: JSONL log + PostHog (`$ai_generation` events) + Langfuse (`generation-create` traces, prompt versioning, evals) |
@@ -161,7 +160,7 @@ has a reproducible result under that protocol.
 
 ## Example Output
 
-What one NVDA analysis produces:
+Illustrative NVDA-shaped output (not a live recommendation or measured forecast):
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -188,7 +187,7 @@ What one NVDA analysis produces:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Not just a number. A structured argument with transparent reasoning and an actionable risk plan.
+The output format contains a structured argument and a hypothetical risk plan; its probabilities are not calibrated by this example.
 
 ---
 
@@ -238,23 +237,25 @@ A floating pixel bull that lives on your desktop:
 
 ## Cost-Aware AI
 
-Not every task needs the expensive model:
+The debate can route structured steps to Haiku and reasoning steps to Sonnet;
+local signal fusion and bias tracking do not call an LLM themselves. Actual
+spend depends on enabled features, input/output tokens, retries, and current
+provider prices. The earlier per-call and per-report dollar estimates had no
+representative token-level input data or stated pricing snapshot, so they are
+withdrawn. To inspect *your own* estimated API usage from the local, ignored
+`logs/llm_calls.jsonl`, run:
 
-| Task | Model | Cost |
-|------|-------|------|
-| Bull/Bear arguments | Haiku 4.5 | ~$0.001 |
-| 4-Role perspective panel | Haiku 4.5 | ~$0.002 |
-| Judge verdict | Sonnet 4.6 | ~$0.005 |
-| Deep market report | Sonnet 4.6 | ~$0.005 |
-| What-if scenario | Sonnet 4.6 | ~$0.005 |
-| Signal fusion + swarm | Local (no LLM) | $0 |
-| Bias tracking | Local (no LLM) | $0 |
+```bash
+python -c "from llm.cost_report import print_cost_report; print_cost_report()"
+```
 
-**One full analysis: ~$0.005.** One daily intel report: ~$0.05.
+The report uses `llm/call_logger.py`'s configured per-token rates and may
+differ from provider invoices; publish any future cost benchmark with its
+redacted call records, exact model prices, date range, and invocation script.
 
-`ORALLEXA_USE_CACHE=1` short-circuits every daily-grain yfinance call (earnings calendar, PEAD stats, watchlist volume, SPY 6-month, GNN per-ticker features, MarketDataSkill). Cache hits cost nothing and complete in milliseconds. Intraday and `fast_info` paths intentionally bypass — those need real-time data.
+`ORALLEXA_USE_CACHE=1` enables a cache for supported daily-grain yfinance paths. Intraday and `fast_info` paths intentionally bypass it. Cache hit rates and latency depend on the request and have not been benchmarked here.
 
-`ORALLEXA_MULTIMODAL_SAMPLE=0.0..1.0` controls vision-augmented debate sampling. Default `0` is off (zero behavior change vs text-only). Setting e.g. `0.2` runs the Quant Researcher with both text and a K-line chart on ~20% of deep-analysis calls; the per-call diff is stashed on `decision_log.extra.multimodal_diff` and the nightly **Multimodal Lift — Vision vs Text Eval** workflow rolls it into a ship/reject verdict. Vision adds ~5× cost per sampled call, so `0.1`–`0.2` is the recommended prod range.
+`ORALLEXA_MULTIMODAL_SAMPLE=0.0..1.0` controls optional vision-augmented debate sampling; the default is `0` (off). An enabled call can run the Quant Researcher with text and a K-line chart and store a comparison in `decision_log.extra.multimodal_diff` for offline review. No measured lift or cost multiplier is claimed.
 
 > Two patterns from this repo have been extracted as standalone Python packages + Claude Code skills:
 > - **[claude-tier-router](https://github.com/alex-jb/claude-tier-router)** — the Haiku/Sonnet dual-tier routing (`pip install claude-tier-router`)
@@ -268,10 +269,10 @@ Not every task needs the expensive model:
 |---------|-----------------|----------|
 | Isolated signals | One model, one prediction | 8 sources fused: technical + ML + news + options + institutional + social + earnings + prediction markets |
 | No reasoning | "BUY 73%" — why? | 4 analysts debate, Bull/Bear argue, Judge decides with evidence |
-| No self-correction | Same mistakes repeated | Bias tracker detects overconfidence, auto-adjusts future calls |
+| No self-correction | Same mistakes repeated | Bias tracker records errors and can adjust confidence |
 | Static analysis | Can't test hypotheticals | "What if Fed hikes 50bp?" — scenario simulation with swarm |
-| Expensive AI | Every call hits GPT-4 | Haiku for 80%, Sonnet only where reasoning matters |
-| Manual workflow | Notebook → read → decide → execute | Automated: signal → debate → risk plan → paper order |
+| Expensive AI | Every call uses one tier | Routes eligible steps by model tier; cost depends on actual token usage |
+| Manual workflow | Notebook → read → decide → execute | Analysis and an explicitly requested Alpaca paper order are separate paths |
 | No context | Each stock analyzed alone | GNN propagates signals across 17 related stocks |
 | Not shareable | Screenshot your terminal | "Copy for X" on every section |
 
@@ -286,14 +287,12 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 | ML Models | 0 (LLM-only) | 9 (RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR) |
 | Model Ranking | No | Auto-ranked by Sharpe ratio |
 | LLM Providers | OpenAI, Groq, Anthropic, DeepSeek | Claude Sonnet + Haiku (dual-tier routing) |
-| Cost per Analysis | ~$0.03+ (single-tier) | ~$0.003 (80% Haiku, 20% Sonnet) |
 | Real-time Dashboard | Basic web UI | Next.js 16 with WebSocket, Art Deco theme |
 | Paper Trading | No execution | Alpaca bracket orders (stop-loss + take-profit) |
 | Daily Intelligence | No | 50+ tickers, sector rotation, AI morning brief |
 | Desktop Assistant | No | Pixel bull with voice (Whisper + TTS) |
 | Social Content | No | One-click "Copy for X" on every section |
 | Walk-Forward Eval | No | New 90-pair cost-aware evaluation pending pinned data |
-| Tests | Limited | 698 automated (261 frontend + 437 backend) |
 | Bilingual | No | EN/ZH |
 
 ---
@@ -316,42 +315,18 @@ Inspired by [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund). We share 
 
 ## Testing
 
-**922 backend tests + 245 frontend = 1,167 total.** 0 failures. CI on every push. 0 open issues.
+Run the current suites to obtain counts and coverage for this checkout. CI
+runs on pushes to `master` and pull requests targeting `master`; its backend
+job excludes selected long-running or external-call tests. The coverage gate
+is **70% over modules included by `.coveragerc`**, not a repository-wide
+coverage measurement.
 
 ```bash
-python -m pytest tests/ -v             # Backend (922 tests)
-cd orallexa-ui && npm test             # Frontend (245 unit tests)
-cd orallexa-ui && npm run test:coverage # Frontend with coverage
-cd orallexa-ui && npx playwright test   # E2E (16+ specs)
+python -m pytest tests/ -v                     # Backend; environment may require external dependencies
+(cd orallexa-ui && npm ci && npm test)         # Frontend unit tests
+(cd orallexa-ui && npm run test:coverage)      # Frontend coverage
+(cd orallexa-ui && npx playwright test)        # E2E; install browsers if needed
 ```
-
-<details>
-<summary><b>Full test breakdown</b></summary>
-
-| Suite | Tests | Coverage |
-|-------|-------|----------|
-| Engine Core | 62 | Backtest, 10 strategies, market analyst |
-| Engine Integration | 34 | TA indicators, strategies, backtest, brain routing |
-| ML/RL Signals | 20 | Feature extraction, RL env, PPO trainer |
-| ML Regression | 13 | All 9 models — ensures upgrades don't degrade |
-| API E2E + Healthz | 21 | Every endpoint via FastAPI TestClient + liveness probe |
-| Unit Tests | 47 | DecisionOutput, BehaviorMemory, risk, scalping |
-| Desktop Agent | 30 | Intent detection, ticker/mode/TF extraction |
-| i18n (en/zh/ja) | 14 | Trilingual coverage + placeholder consistency |
-| Daily Intel | 10 | Price fetch, constants, cache path |
-| Sentiment | 21 | FinBERT/VADER fallbacks, rag/news mocks |
-| VWAP Reversion | 13 | Signal gates, threshold band, edge cases |
-| Historical Cache | 37 | get_prices, period helper, 4 wired call sites |
-| Debate Stash | 7 | Bull/Bear/Judge → decision_log → eval-set extraction |
-| DSPy Phase B Harness | 24 | Synthesizer, splitter, evaluator, readiness gates, loader |
-| DSPy Judge | 13 | Phase A + load_compiled_judge with stubbed dspy |
-| Backend Other | 67 | Monte Carlo, walk-forward, regime, ensemble, statistics |
-| Backend Misc | 488 | Param optimizer, strategy evolver, breaking signals, … |
-| UI Components | 245 | All 14 component suites + hooks + mock data |
-| Playwright E2E | 16+ | Dashboard, components, responsive, offline |
-| **Total** | **1,167** | **922 backend + 245 frontend** |
-
-</details>
 
 ---
 
@@ -444,11 +419,11 @@ orallexa/
 │
 ├── orallexa-ui/                # Dashboard (Next.js 16)
 │   ├── app/components/         # 13 UI components (incl. RegimeCard, PortfolioManagerCard)
-│   ├── app/__tests__/          # 245 unit tests (vitest)
-│   └── e2e/                    # 14 E2E tests (Playwright)
+│   ├── app/__tests__/          # Vitest unit tests
+│   └── e2e/                    # Playwright E2E tests
 ├── desktop_agent/              # Desktop AI coach
 ├── bot/                        # Execution layer (Alpaca)
-├── tests/                      # ~800 backend tests
+├── tests/                      # Backend tests
 ├── scripts/                    # Demo + eval + cron utilities
 │   ├── demo_pipeline_e2e.py    # Live fusion → decision → PM smoke test
 │   ├── compare_fusion_variants.py  # 5-src vs 8-src on identical inputs

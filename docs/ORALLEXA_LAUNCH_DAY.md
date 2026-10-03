@@ -1,8 +1,14 @@
 # Orallexa — Launch Day Runbook
 
+> **Archived 2026-05 plan; do not execute or reuse its outreach copy.** The
+> former 90-pair leaderboard and Sharpe figures cannot be reproduced from
+> retained data. The current protocol in `eval/PROTOCOL.md` has no numerical
+> result, and this project is Alpaca paper only. Any new public claim needs
+> fresh evidence and an independent review.
+
 **Target:** parallel-launch with VibeXForge, Wed 2026-05-13.
 Different audience (quant traders + AI infra crowd vs. AI tinkerers),
-different pitch (production-grade Sharpe + multi-agent debate vs. evolution-RPG-as-a-product),
+different pitch (paper-trading research architecture + multi-agent debate vs. evolution-RPG-as-a-product),
 same week.
 
 > docs/ in this repo isn't in any vercel ignoreCommand — every commit
@@ -46,16 +52,15 @@ launchctl load ~/Library/LaunchAgents/com.alexji.orallexa-paper-daily.plist
 python scripts/run_daily_pilot.py --dry-run
 ```
 
-By Wed launch, you want at least 3-4 days of decision_log entries
-showing real traction. Helps the "we have production decisions
-flowing" line in the maker comment.
+If a paper pilot generates decisions, describe them as paper observations;
+do not present log entries as live performance or validated traction.
 
 ### 4. Confirm leaderboard URL is sharable
 
 ```bash
 open https://orallexa-ui.vercel.app/leaderboard
-# Should render Art Deco dark page, table sorted by OOS Sharpe DESC,
-# rsi_reversal INTC at top with 1.41.
+# Historical leaderboard numbers are withdrawn; the current README marks
+# the new cohort NOT EVALUATED until a reproducible run exists.
 ```
 
 This is the URL you're sharing in every distribution post. Make sure
@@ -70,8 +75,8 @@ VibeX targets indie hackers and AI tinkerers. Orallexa targets:
 - **AI infra builders** (Latent Space, swyx's circle, MOIRAI/Chronos paper authors who care about Kronos foundation model integration)
 - **Solo prop-trading curious** (hedge fund ICs thinking about going solo)
 
-Pitch should NOT be "look at my AI bot." Pitch SHOULD be "production-grade
-walk-forward verified system, with the engineering to back it up."
+Any eventual pitch should state that this is a paper-only research prototype
+with an evaluation protocol, not a verified profitable strategy.
 
 ---
 
@@ -84,8 +89,8 @@ Use `~/.marketing_agent/queue/pending/20260507T053417Z-orallexa-hacker_news.md`.
 Title to swap to (sharper for HN):
 
 ```
-Show HN: Walk-forward Sharpe 1.41 OOS for an AI-judged trading system.
-What I learned about Bull/Bear/Judge debate in production.
+Show HN: A paper-only multi-agent trading research prototype.
+What I learned about designing a reproducible evaluation protocol.
 ```
 
 URL: `https://orallexa-ui.vercel.app/leaderboard?ref=hn`
@@ -105,9 +110,8 @@ defensively.
 
 Use `~/.marketing_agent/queue/pending/20260507T053417Z-orallexa-reddit.md`.
 
-The leaderboard URL is the hook. Lead with the result, then methodology.
-This subreddit allergic to "AI bot" hype but very receptive to
-"here's my walk-forward setup, here's the OOS Sharpe, roast it."
+The earlier leaderboard cannot be used as a performance hook. If sharing
+research methods, disclose that no corrected numerical result is available.
 
 ---
 
@@ -136,7 +140,7 @@ Use the dev_to draft. Title swap to:
 
 ```
 How I built a Bull/Bear/Judge debate engine on Claude Opus 4.7
-for trading decisions. 990 tests, walk-forward Sharpe 1.41.
+for paper-trading research, with an unrun 90-pair evaluation protocol.
 ```
 
 Tags: ai, python, trading, postgres, claude.

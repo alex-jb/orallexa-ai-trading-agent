@@ -1,11 +1,15 @@
 ---
-title: "Building a self-tuning multi-agent trading agent in 50 commits"
+title: "Building an optional signal-weighting layer for a paper-trading research agent"
 published: false
 description: How adaptive signal weighting, multi-source fusion, and a Portfolio Manager gate interact in an open-source trading agent built on Claude Opus 4.7
 tags: ai, opensource, llm, fintech
 canonical_url: https://github.com/alex-jb/orallexa-ai-trading-agent
 cover_image: https://orallexa-ui.vercel.app/og-image.png
 ---
+
+> Archived, unpublished draft. Do not publish without rechecking this copy
+> against the paper-only execution path and `eval/PROTOCOL.md`. Historical
+> 90-pair returns are unverified.
 
 I spent the last two weeks building an open-source multi-agent trading
 agent. Not a YouTube-ready bot that beats SPY 12% a year (no claim, no
@@ -43,14 +47,13 @@ Weighted vote. Conviction = Σ score_i × weight_i.
 | 7 | Earnings/PEAD | Calendar + post-earnings drift |
 | 8 | Prediction markets | Polymarket + Kalshi merged |
 
-Each source is independent in the statistical sense — Polymarket's
-estimate isn't derived from RSI, Kronos's forecast doesn't see the
-news. They genuinely vote.
+The sources come from different inputs; their statistical independence
+and incremental predictive value have not been established.
 
 ## The interesting bit: adaptive weights
 
-Static weights are guesses. We have eight guesses. The system fixes
-itself:
+Static weights are choices. Optional dynamic weighting records source
+outcomes and can adjust them; improvement has not been established:
 
 ```python
 # engine/source_accuracy.py
@@ -60,8 +63,8 @@ class SourceAccuracy:
     def get_rolling_accuracy(self, window=50): ...
 ```
 
-Every `fuse_signals()` call appends per-source scores to a JSONL ledger.
-A nightly cron pulls forward returns from yfinance and fills in
+When dynamic logging is enabled, source scores can be written to a JSONL
+ledger. An offline job can pull forward returns and fill in
 hit/miss verdicts (sign-of-score == sign-of-return). Rolling accuracy
 maps to a multiplier:
 
@@ -80,19 +83,21 @@ threshold (±15 for direction labels) comparable across runs.
 
 ## The honest finding
 
-A synthetic backtest of the 8-source weights vs the legacy 5-source
-weights showed the legacy actually edges out under low-SNR assumptions
-for the new sources (`scripts/backtest_fusion_partial.py`):
+A deterministic synthetic comparison of 8-source and legacy 5-source
+weights favors the legacy under the script's assumed source SNR. Reproduce
+with `python scripts/backtest_fusion_partial.py --days 252 --seed 42 --n-trials 5`.
+The script generates the input data and models **no commissions, spread,
+slippage, borrowing, or market impact**; the values below are not evidence
+of market returns (`scripts/backtest_fusion_partial.py`):
 
 ```
 5-src legacy:  Sharpe 0.391  Return  0.08%
 8-src Phase 8: Sharpe 0.225  Return  0.04%
 ```
 
-This isn't a bug — it's exactly why the dynamic weighting layer exists.
-If social sentiment really does have low signal in 2026, the system
-will down-weight it automatically once enough records accumulate. I
-flagged it in the commit message rather than burying it.
+This toy result does not validate a trading edge. Dynamic weighting is a
+candidate method to test prospectively against fixed weights and
+same-ticker buy-and-hold after transaction costs.
 
 ## Bull/Bear/Judge debate, then Portfolio Manager gate
 
@@ -102,7 +107,8 @@ Above the fusion sits a 3-call debate:
 2. **Bear** (Sonnet 4.6) — argue AGAINST, with Bull's argument visible
 3. **Judge** (Claude Opus 4.7 + xhigh effort) — synthesize
 
-Then a Portfolio Manager that runs BEFORE any Alpaca order:
+The archived Alpaca **paper** endpoint supports a Portfolio Manager check
+when sufficient portfolio context is supplied:
 
 ```python
 verdict = approve_decision(
@@ -114,9 +120,9 @@ verdict = approve_decision(
 # → {approved: True, scaled_position_pct: 5.6, warnings: ["Sector Tech 35%"]}
 ```
 
-PM rejection returns HTTP 409 from `/api/alpaca/execute` — order never
-hits the broker. PM approval caps the caller's requested position at
-the PM-scaled value.
+A PM rejection returns HTTP 409, but this archived snapshot also permits
+callers to omit the context or request a bypass. It therefore does not
+guarantee a PM review for every paper order.
 
 ## Multi-provider, multi-platform, multi-everything
 
@@ -133,8 +139,9 @@ the PM-scaled value.
 
 ## Tests + CI
 
-~800 backend tests, 245 frontend tests, 83% scoped coverage with a
-`fail_under=70` gate enforced in CI. Linux float arithmetic surfaced
+Run the current suites for test counts. `.coveragerc` selects the modules
+for a 70% CI coverage gate; no current 83% result is evidenced here. Linux
+float arithmetic surfaced
 exactly the kind of platform-dependent test fragility you'd expect
 on this much code:
 
@@ -164,9 +171,9 @@ concern.
 The architecture is unusually composable. Every module — signal source,
 LLM provider, prediction-market platform, memory store — is swappable
 behind a thin interface. You can run it with just Polymarket and
-Anthropic, or with all 8 sources and OpenAI as primary. The dynamic
-weighting layer means you don't need to manually re-tune when sources
-get added or removed.
+Anthropic, or with all 8 sources and OpenAI as primary. Optional dynamic
+weighting can update source weights when recorded outcomes accumulate;
+its effect on future returns is unknown.
 
 ## Try it
 

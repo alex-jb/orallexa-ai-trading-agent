@@ -4,10 +4,10 @@
 
 <br>
 
-### AI 交易操作系统
+### 多智能体模拟交易研究系统
 
-**9 个 ML 模型，对抗辩论，一键执行。**<br>
-别猜市场。让 AI 先吵一架。
+**多源信号融合、对抗辩论、Alpaca 模拟交易。**<br>
+这是研究原型；概率校准和超额收益尚未得到独立验证。仓库中的 broker 执行仅限 Alpaca paper，Brier 门槛不能开启真钱下单。
 
 <br>
 
@@ -16,8 +16,6 @@
 [![Next.js](https://img.shields.io/badge/Next.js_16-1A1A2E?style=for-the-badge&logo=next.js&logoColor=D4AF37)](https://nextjs.org)
 [![Claude](https://img.shields.io/badge/Claude_Sonnet_4.6-1A1A2E?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNEMkE5NzAiLz48L3N2Zz4=&logoColor=D4AF37)](https://anthropic.com)
 [![CI](https://img.shields.io/github/actions/workflow/status/alex-jb/orallexa-ai-trading-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI%20—%20Tests%20%26%20Build&color=22c55e)](https://github.com/alex-jb/orallexa-ai-trading-agent/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/1300%2B_测试-全部通过-22c55e?style=for-the-badge)](tests/)
-[![Issues](https://img.shields.io/badge/未关闭议题-0-22c55e?style=for-the-badge)](https://github.com/alex-jb/orallexa-ai-trading-agent/issues)
 [![License](https://img.shields.io/badge/MIT-1A1A2E?style=for-the-badge)](LICENSE)
 
 <br>
@@ -36,28 +34,28 @@
 
 大多数 AI 交易项目：把数据喂给模型，得到信号，结束。
 
-Orallexa 跑一条**多智能体情报管道**。4 个不同风险偏好的 AI 分析师辩论交易。20 个 Agent 群体模拟市场反应。5 个独立信号源投票。偏差追踪器纠正系统自己的错误。然后执行。
+Orallexa 提供**多智能体分析管道**：多视角面板和多空辩论生成研究意见，规则群体进行假设推演，信号融合结合可用数据源，偏差追踪器记录历史错误。下单需要另行主动请求，且仅发送到 Alpaca 模拟账户。
 
 ```
 市场数据 → 9 个 ML 模型 → 4 角色面板 + 多空辩论
-    → 5 源信号融合 → 裁判判决 → 假设场景推演
+    → 多源信号融合 → 裁判判决 → 假设场景推演
     → 风控计划 → 模拟执行 → 实时仪表盘 → 社交内容
 ```
 
-每个阶段自动化。每个阶段可观测。系统从自身学习。
+这些模块能记录和分析决策；尚未证明它们能改善未来净收益。
 
 ---
 
 ## 2026-07-02 深度研究 shipping burst
 
-一次深度研究 session,ship 了 8 个 Tier-1/Tier-2 上升项目,257 个新测试全绿。commit 范围 `8ec872c..c8587c7`。全部 opt-in / back-compat,cron 行为不变直到调用方传新 kwargs。
+以下是历史功能记录，代码变更见 `8ec872c..c8587c7`。这不是当前部署状态、实盘资格或收益证明。
 
 ### Tier-1 primitives(安全 + 校准)
 
-- **`engine/kill_conditions.py`** — 4 gate kill decision(累计亏损 $500 cap、14 日 Sharpe > 0、drawdown < 15%、30 日 Brier < 0.20)。解决 2026-06-30 audit 里 #1 的 danger finding "no kill condition on paper loss"。任一 gate WAIT 短路。**已 LIVE 到 launchd,每晚 21:00 NY 自动跑,状态写到 `~/.orallexa/markets/kill_state.json`**。见 `markets/auto/README-kill-conditions-cron.md`。
+- **`engine/kill_conditions.py`** — 纸盘风险条件检查；安装说明见 `markets/auto/README-kill-conditions-cron.md`。仓库不能证明用户机器上的定时任务正在运行。
 - **`markets/auto/brier_audit.render_reliability_section`** — 10-bin reliability diagram + 中间带 ECE 和尾带 ECE 分开算。直接暴露 Prophet Arena 中间带塌陷病(arxiv 2510.17638),单一 Brier 分会掩盖。
 - **`markets/auto/polymarket_daily.py` audit block** — 每次 fire 持久化 model_id + prompt_sha256 + call_started_utc + call_completed_utc + response_tokens_hint,给 6 个月 replay audit 用。Sonnet 4.6 通过 `ORALLEXA_ESTIMATOR_MODEL` 提升为默认 estimator。
-- **`markets/auto/portfolio_paper.py`** — ATR 止损默认 ON(之前 opt-in 了 5 周,backtest 显示 +$5,950 vs baseline -$873)。`--no-atr-stops` 逃生阀留给回归测试。
+- **`markets/auto/portfolio_paper.py`** — 模拟器的 ATR 止损默认开启，可用 `--no-atr-stops` 对照。先前美元收益对比缺少完整数据和成本假设，故撤回。
 - **`edge_thesis` 强制字段** 加进 Haiku estimator 提示。conviction 会自动降级如果模型说不出经济驱动因子(Longmore "no theory of edge" 规则)。
 
 ### Tier-2 primitives(edge)
@@ -79,12 +77,7 @@ Orallexa 跑一条**多智能体情报管道**。4 个不同风险偏好的 AI �
 
 ### 测试
 
-跨所有模块 +257。测试面分解:
-kelly=29 · DC=25 · Platt=26 · CPCV=23 · PM insider=12 · PM kill=9 ·
-brier reliability=14 · trade_intel wire=12 · insider_signal=15 ·
-kill_conditions=27 · export_flow=17 · insider_join=16。
-
-完整 commit 范围: `8ec872c..c8587c7` on master。
+测试数量请以当前 checkout 的测试命令为准；历史 commit 范围为 `8ec872c..c8587c7`。
 
 ### Refs
 
@@ -143,14 +136,14 @@ Docker 一键启动：`docker compose up --build`
 
 | 组件 | 详情 |
 |------|------|
-| **9 个 ML 模型** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR |
+| **ML 模型组件** | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR，以及 Kronos 包装器 |
 | **4 角色多视角面板** | 保守分析师 / 激进交易员 / 宏观策略师 / 量化研究员，带持久化记忆 |
 | **对抗辩论** | 多空裁判制，Claude Sonnet + Haiku 双层路由 |
-| **5 源信号融合** | 技术面 + ML 集成 + 新闻情绪 + 期权异动 + 机构数据 |
+| **多源信号融合** | 技术面、ML、新闻、期权、机构、社交、财报和预测市场等可用来源；准确率动态权重可选，收益改善未验证 |
 | **假设场景推演** | Claude 模拟假设事件对组合的影响 |
 | **20 Agent 群体模拟** | 规则驱动的蒙特卡洛收敛模拟 |
 | **偏差自修正** | 追踪预测准确率，自动调整置信度 |
-| **策略进化** | LLM 生成 Python 策略 → 沙盒测试 → 进化赢家 |
+| **策略进化** | LLM 生成候选 Python 策略供沙盒测试；通过测试不等于未来盈利 |
 | **每日情报** | 50+ 标的扫描，板块轮动，成交量异动，AI 晨间简报 |
 
 </td>
@@ -173,7 +166,7 @@ Docker 一键启动：`docker compose up --build`
 
 ## 示例输出
 
-NVDA 单次分析的结果：
+示意性 NVDA 输出（非当前建议、非已校准预测）：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -200,13 +193,13 @@ NVDA 单次分析的结果：
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-不只是一个数字。结构化论证 + 透明推理 + 可执行风控计划。
+这是输出格式示例；其中的概率和价格不构成当前市场预测或交易建议。
 
 ---
 
-## 9 个 ML 模型 — 评分排名
+## ML 模型组件与诊断指标
 
-每次分析运行所有可用模型。ML 记分板并排展示 Sharpe、收益、胜率。
+模型记分板可展示历史 Sharpe、收益及胜率；这类诊断指标不证明未来交易优势。运行哪些模型取决于可用依赖和配置。
 
 | 模型 | 类型 | 功能 |
 |------|------|------|
@@ -219,6 +212,7 @@ NVDA 单次分析的结果：
 | **DDPM Diffusion** | 生成模型 | 50 条价格路径 → VaR 和置信区间 |
 | **PPO RL Agent** | 强化学习 | Gymnasium 环境，Sharpe 奖励 |
 | **GNN (GAT)** | 图网络 | 17 只股票关系图，跨股票信号传播 |
+| **Kronos** | 基础模型包装器 | 可选的 K 线信号 |
 
 所有模型在 CPU 上运行。
 
@@ -250,21 +244,15 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 ## 成本优化 AI
 
-不是每个任务都需要最贵的模型：
+部分辩论步骤可按任务选择 Haiku 或 Sonnet；本地信号融合和偏差追踪本身不调用 LLM。实际费用取决于启用的功能、输入/输出 token、重试和当时的供应商价格。旧版单次调用及日报的美元估算缺少可复核的 token 记录与定价快照，现已撤回。可检查本机未纳入版本控制的 `logs/llm_calls.jsonl` 估算费用：
 
-| 任务 | 模型 | 成本 |
-|------|------|------|
-| 多空论证 | Haiku 4.5 | ~$0.001 |
-| 4 角色面板 | Haiku 4.5 | ~$0.002 |
-| 裁判判决 | Sonnet 4.6 | ~$0.005 |
-| 深度报告 | Sonnet 4.6 | ~$0.005 |
-| 假设场景 | Sonnet 4.6 | ~$0.005 |
-| 信号融合 + 群体模拟 | 本地（无 LLM） | $0 |
-| 偏差追踪 | 本地（无 LLM） | $0 |
+```bash
+python -c "from llm.cost_report import print_cost_report; print_cost_report()"
+```
 
-**单次完整分析：~$0.005。** 每日情报报告：~$0.05。
+这不是供应商账单。将来发布成本基准时，应同时提供脱敏调用记录、模型单价、日期范围和运行脚本。
 
-`ORALLEXA_MULTIMODAL_SAMPLE=0.0..1.0` 控制视觉增强辩论的采样率。默认 `0` 关闭(行为完全等同纯文本)。设为 `0.2` 时,~20% 的深度分析调用会让 Quant Researcher 同时跑文本和 K 线图;每次调用的差异会被存到 `decision_log.extra.multimodal_diff`,夜间 **Multimodal Lift — Vision vs Text Eval** workflow 据此聚合出 ship/reject 结论。被采样的调用 ~5× 成本,推荐生产值 `0.1`–`0.2`。
+`ORALLEXA_MULTIMODAL_SAMPLE=0.0..1.0` 控制可选的视觉辩论采样；默认 `0` 为关闭。启用后可记录文字与图表分析差异，供离线评估。这里不宣称经过测量的效果或费用倍数。
 
 ---
 
@@ -274,10 +262,10 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 |------|---------|----------|
 | 孤立信号 | 一个模型，一个预测 | 5 源融合：技术面 + ML + 新闻 + 期权 + 机构 |
 | 没有推理 | "买入 73%" — 为什么？ | 4 个分析师辩论，Bull/Bear 对抗，Judge 用证据裁决 |
-| 不会自我纠正 | 重复同样的错误 | 偏差追踪器检测过度自信，自动调整未来预测 |
+| 不会自我纠正 | 重复同样的错误 | 偏差追踪器记录错误，可调整置信度 |
 | 静态分析 | 无法测试假设 | "如果美联储加息 50bp？" — 场景推演 + 群体模拟 |
-| AI 太贵 | 每次都调 GPT-4 | 80% 用 Haiku，Sonnet 只在推理处用 |
-| 手动流程 | Notebook → 看结果 → 决策 → 执行 | 自动化：信号 → 辩论 → 风控 → 模拟下单 |
+| AI 太贵 | 每次调用同一模型 | 部分步骤按任务选择模型；费用取决于实际 token 用量 |
+| 手动流程 | Notebook → 看结果 → 决策 → 执行 | 分析与主动请求的 Alpaca 模拟下单是不同路径 |
 | 没有上下文 | 每只股票独立分析 | GNN 在 17 只相关股票间传播信号 |
 | 不能分享 | 截图你的终端 | 每个板块都有"复制到 X"按钮 |
 
@@ -289,17 +277,15 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 | 功能 | ai-hedge-fund | Orallexa |
 |------|:------------:|:--------:|
-| ML 模型 | 0（纯 LLM） | 9 个（RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR） |
+| ML 组件 | 0（纯 LLM） | RF, XGB, EMAformer, MOIRAI-2, Chronos-2, DDPM, PPO RL, GNN, LR 和 Kronos 包装器 |
 | 模型排名 | 无 | 按 Sharpe 自动排名 |
 | LLM 供应商 | OpenAI, Groq, Anthropic, DeepSeek | Claude Sonnet + Haiku（双层路由） |
-| 单次分析成本 | ~$0.03+（单层） | ~$0.003（80% Haiku，20% Sonnet） |
 | 实时仪表盘 | 基础 Web UI | Next.js 16 + WebSocket，Art Deco 主题 |
 | 模拟交易 | 无执行 | Alpaca 括号单（止损 + 止盈） |
 | 每日情报 | 无 | 50+ 标的扫描，板块轮动，AI 晨间简报 |
 | 桌面助手 | 无 | 像素牛 + 语音（Whisper + TTS） |
 | 社交内容 | 无 | 一键"复制到 X" |
 | Walk-Forward 评估 | 无 | 固定数据的 90 组成本评估待运行 |
-| 测试 | 有限 | 277 个自动化（139 前端 + 138 后端） |
 | 双语 | 无 | 中英双语 |
 
 ---
@@ -322,27 +308,14 @@ Art Deco 主题。Polymarket 概率展示。移动端适配。中英双语。
 
 ## 测试
 
-277 个自动化测试。0 个失败。每次推送 CI。
+当前测试数量请以此 checkout 的运行结果为准。CI 在推送到 `master` 或 PR 目标为 `master` 时触发；后端 CI 排除了部分较慢或依赖外部服务的测试。`.coveragerc` 的 70% 门槛只覆盖列入统计的模块，并非全仓覆盖率。
 
 ```bash
-python -m pytest tests/ -v           # 后端（138 个测试）
-cd orallexa-ui && npm test           # 前端（139 个测试）
+python -m pytest tests/ -v                 # 后端；部分测试需额外依赖
+(cd orallexa-ui && npm ci && npm test)     # 前端单元测试
+(cd orallexa-ui && npm run test:coverage)  # 前端覆盖率
+(cd orallexa-ui && npx playwright test)    # E2E；必要时安装浏览器
 ```
-
-<details>
-<summary><b>完整测试分布</b></summary>
-
-| 套件 | 数量 | 覆盖范围 |
-|------|------|---------|
-| 引擎集成 | 34 | 技术指标、策略、回测、大脑路由 |
-| ML 回归 | 13 | 所有 9 个模型 — 确保升级不降质 |
-| API E2E | 19 | 所有端点，FastAPI TestClient |
-| 单元测试 | 47 | DecisionOutput, BehaviorMemory, 风控, 剥头皮 |
-| 类型与工具 | 28 | 显示函数、颜色映射、i18n |
-| 组件测试 | 67 | DecisionCard, Breaking, MarketStrip, ML Scoreboard, Watchlist, DailyIntel |
-| Mock 数据 | 31 | 所有 mock 生成器 |
-
-</details>
 
 ---
 
@@ -380,7 +353,7 @@ orallexa/
 ├── api_server.py               # FastAPI + WebSocket 服务
 ├── docker-compose.yml          # 一键部署
 │
-├── engine/                     # 交易引擎（9 个模型）
+├── engine/                     # 交易引擎与模型组件
 │   ├── multi_agent_analysis.py # LangGraph 辩论管道
 │   ├── ml_signal.py            # 模型对比框架
 │   ├── strategies.py           # 7 个规则策略
@@ -399,7 +372,7 @@ orallexa/
 ├── orallexa-ui/                # 仪表盘（Next.js 16）
 ├── desktop_agent/              # 桌面 AI 教练
 ├── bot/                        # 执行层（Alpaca）
-├── tests/                      # 138 个后端测试
+├── tests/                      # 后端测试
 └── .github/workflows/          # CI/CD
 ```
 

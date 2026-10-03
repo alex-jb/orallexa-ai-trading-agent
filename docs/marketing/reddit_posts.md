@@ -1,5 +1,8 @@
 # Reddit launch posts — Orallexa
 
+> Archived, unpublished drafts. Recheck every claim against `README.md`
+> and `eval/PROTOCOL.md`; the project is Alpaca paper only.
+
 **Hard rule**: each subreddit gets a tailored post. Cross-posting the same
 copy gets you removed by mods. Always read 5 recent posts in the sub
 before submitting to match tone and avoid auto-removal triggers.
@@ -33,8 +36,8 @@ weighting approach since this sub will spot the holes.
 
 **The interesting bit — adaptive weights:**
 
-JSONL ledger records every fuse_signals call's per-source scores. Nightly
-cron pulls forward returns from yfinance, fills in per-source hit/miss
+Optional JSONL logging can record per-source scores. An offline job can
+pull forward returns and fill in per-source hit/miss
 verdicts. Rolling accuracy → multiplier:
 
 ```
@@ -49,9 +52,10 @@ comparable).
 
 **Honest finding from synthetic backtest** (no historical Polymarket/
 Reddit data exists): under low-SNR assumptions for social sentiment,
-the legacy 5-source weights actually edge out 8-source. The dynamic
-weighting is designed to fix this in real-world data — sources that
-don't earn alpha get muted automatically.
+the legacy 5-source weights outperform the 8-source policy only in this
+cost-free toy simulation. Run `python scripts/backtest_fusion_partial.py
+--days 252 --seed 42 --n-trials 5`; inputs are synthetic and fees,
+slippage, and market impact are not modeled. No market edge is established.
 
 **Questions for you:**
 1. Is the ±2% return threshold for outcome labelling too narrow on
@@ -157,8 +161,8 @@ With it, individual roles already know what siblings concluded recently
 and can argue against / build on rather than restating.
 
 Also added DyTopo-style dynamic role selection — pick 2-4 of the 4
-roles based on detected market regime. Saves ~50% of LLM calls in
-trending/ranging markets without measurable degradation.
+roles based on detected market regime. The cost and decision-quality
+effects have not been benchmarked here.
 
 **Repo:** github.com/alex-jb/orallexa-ai-trading-agent
 **Code:** `engine/shared_memory.py` + `llm/perspective_panel.py`
@@ -184,17 +188,16 @@ without blowing through the budget.
 
 **The setup:**
 
-Bull/Bear/Judge debate. Bull and Bear stay on Sonnet 4.6 (~$0.003 per
-debate). Judge — the synthesis hop where reasoning quality matters most —
+Bull/Bear/Judge debate. Bull and Bear use Sonnet 4.6; no reproducible
+per-debate dollar estimate has been published. Judge — the synthesis hop —
 upgrades to Opus 4.7 with `effort="xhigh"`.
 
 `logged_create()` in `llm/call_logger.py` passes `output_config={"effort":
-"xhigh"}` to the SDK with TypeError fallback for older versions. Pricing
-table updated for Opus 4.7's $5/$25 per 1M with a NEW_TOKENIZER_INFLATION
-= 1.35 constant since the new tokenizer uses ~35% more tokens for the
-same fixed text.
+"xhigh"}` to the SDK with TypeError fallback for older versions. Cost
+reporting is estimated; use dated provider prices and logged token counts
+before quoting an API dollar figure.
 
-**TokenBudget enforcer** caps any agentic loop client-side:
+**Optional TokenBudget** applies to selected client-side paths:
 ```python
 b = TokenBudget(cap_tokens=100_000, cap_usd=0.50)
 if b.allow():
