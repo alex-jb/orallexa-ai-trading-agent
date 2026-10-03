@@ -26,12 +26,28 @@ import os
 import base64
 import re
 from datetime import datetime
+from pathlib import Path
+
+from dotenv import load_dotenv
+import streamlit as st
+
+from legacy_streamlit_gate import require_owner_session
+
+# Standalone Streamlit runs do not pass through api_server.py's .env loader.
+# Preserve explicit process environment values while reading the ignored local file.
+load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
+st.set_page_config(
+    page_title="Orallexa Capital",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={},
+)
+require_owner_session(st, os.environ)
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
-import streamlit as st
 from openai import OpenAI
 import anthropic
 
@@ -48,16 +64,6 @@ from rag.vector_store import LocalRAGStore
 from skills.market_data import MarketDataSkill
 from skills.news import NewsSkill
 from skills.technical_analysis_v2 import TechnicalAnalysisSkillV2 as TechnicalAnalysisSkill
-
-# ══════════════════════════════════════════════════════════
-# CONFIG
-# ══════════════════════════════════════════════════════════
-st.set_page_config(
-    page_title="Orallexa Capital",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={}
-)
 
 # ── ORALLEXA CAPITAL ENGINE — Design System ──────────────────────────────────
 # Direction: Wall Street luxury × Gatsby × old money × Bull Engine × OpenClaw
@@ -2378,5 +2384,4 @@ elif page == "Analysis":
                 if r.get("rag_context"):
                     st.markdown("**Retrieved RAG Context**")
                     st.text(r["rag_context"])
-
 
