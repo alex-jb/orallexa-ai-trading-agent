@@ -38,7 +38,9 @@ current_run_id: Optional[str] = None
 # Effective cost is therefore higher — track via estimated_cost_usd × 1.35
 # for budget projections.
 PRICING = {
-    "claude-haiku-4-5-20251001": {"input": 0.80 / 1_000_000, "output":  4.00 / 1_000_000},
+    # First-party Claude API standard pricing, verified 2026-09-30:
+    # https://platform.claude.com/docs/en/about-claude/pricing
+    "claude-haiku-4-5-20251001": {"input": 1.00 / 1_000_000, "output":  5.00 / 1_000_000},
     "claude-sonnet-4-5":         {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
     "claude-sonnet-4-6":         {"input": 3.00 / 1_000_000, "output": 15.00 / 1_000_000},
     "claude-opus-4-7":           {"input": 5.00 / 1_000_000, "output": 25.00 / 1_000_000},
@@ -227,6 +229,11 @@ def logged_create(
     if effort:
         kwargs["output_config"] = {"effort": effort}
 
+    # API-process budget is configured by api_server after authentication.
+    # Reserve before the first SDK request; an exception here sends no call.
+    from llm.weekly_budget import reserve_if_active, settle_if_active
+    reservation = reserve_if_active(model, max_tokens, messages, PRICING)
+
     t0 = time.monotonic()
     error_msg = None
     input_tokens = 0
@@ -249,6 +256,14 @@ def logged_create(
         error_msg = str(e)[:200]
         raise
     finally:
+        settlement_error = None
+        if error_msg is None and input_tokens > 0 and output_tokens > 0:
+            # Missing usage keeps the full reservation. A failed request may
+            # still be billed by the provider, so it also keeps the reserve.
+            try:
+                settle_if_active(reservation, _estimate_cost(model, input_tokens, output_tokens))
+            except Exception as exc:
+                settlement_error = exc
         latency_ms = int((time.monotonic() - t0) * 1000)
         record = LLMCallRecord(
             timestamp=datetime.now(timezone.utc).isoformat(),
@@ -272,6 +287,8 @@ def logged_create(
             pass  # logging must never break the main flow
         _send_to_posthog(record)
         _send_to_langfuse(record)
+        if settlement_error is not None:
+            raise settlement_error  # Log the billable call even when the ledger fails.
 
     return response, record
 

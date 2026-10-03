@@ -20,14 +20,33 @@ own, stricter dependency and remain disabled in demo mode.
 | `POST /api/evolve-strategies` | Every run; limit applies per run only | 403, no model call |
 
 Other listed analysis endpoints use local rules/data sources and remain public.
-Authentication blocks anonymous requests, but **does not enforce an aggregate
-weekly cost cap** for authenticated callers. The strategy evolution engine's
-`MAX_COST_PER_RUN` is per invocation, and a repeated caller can still incur
-multiple charges. Deployments should add an authenticated account-level spend
-limit before opening a non-demo API to untrusted users.
+Authentication blocks anonymous requests. The API now also reserves an
+estimated worst-case amount before every Anthropic model call in these routes.
+The shared SQLite ledger enforces `ORALLEXA_WEEKLY_LLM_BUDGET_USD` (default
+`5.00`, or `0` to block spending) across requests and processes using the
+same file, with a Monday 00:00 UTC reset. A successful provider response with
+usage releases excess reservation; an error or missing usage retains it. Set
+`ORALLEXA_WEEKLY_LLM_BUDGET_DB` to a **persistent shared volume** when API
+workers run on more than one host. The file under `logs/` is gitignored. Do
+not delete or rotate the ledger midweek. Unknown model pricing, invalid cap,
+and unavailable ledger fail closed.
+
+This is an admission budget based on the local first-party Anthropic API
+pricing table (verified on 2026-09-30 at
+https://platform.claude.com/docs/en/about-claude/pricing) and a
+conservative estimate of input tokens plus requested maximum output tokens.
+It is **not an invoice guarantee**: vendor prices can change; image token
+counts, provider retries, unreported billed errors, and actual usage above
+the estimate can differ. It covers calls through `llm.call_logger.logged_create`,
+including chart analysis and trade reflection. Other processes (desktop agent,
+standalone scripts) do not share this API admission gate. Configuring
+`ORALEXXA_LLM_PROVIDER` to OpenAI/Gemini/GLM blocks authenticated paid API
+routes until those adapters implement the shared reservation boundary.
+`engine.token_budget.TokenBudget` remains a separate, optional per-run soft
+budget for deep analysis. The fixed-rule paper loop does not use paid models.
 
 Verify without broker or model credentials:
 
 ```bash
-python -m pytest tests/test_api_auth.py tests/test_api_paid_auth.py -q
+python -m pytest tests/test_api_auth.py tests/test_api_paid_auth.py tests/test_weekly_llm_budget.py -q
 ```
