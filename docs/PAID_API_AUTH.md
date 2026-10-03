@@ -20,6 +20,9 @@ own, stricter dependency and remain disabled in demo mode.
 | `POST /api/evolve-strategies` | Every run; limit applies per run only | 403, no model call |
 
 Other listed analysis endpoints use local rules/data sources and remain public.
+Public `POST /api/analyze` requests return rule-based results without writing
+the decision or breaking-signal logs. A valid `X-API-Key` is required to persist
+those records for later analysis/training.
 Authentication blocks anonymous requests, but **does not enforce an aggregate
 weekly cost cap** for authenticated callers. The strategy evolution engine's
 `MAX_COST_PER_RUN` is per invocation, and a repeated caller can still incur
