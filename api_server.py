@@ -17,10 +17,12 @@ Endpoints:
 """
 from __future__ import annotations
 
-import json
 import hmac
+import json
+import math
 import os
 import sys
+import threading
 from datetime import date
 from pathlib import Path
 
@@ -74,6 +76,7 @@ app.add_middleware(
 
 # ── API Key Authentication ────────────────────────────────────────────────────
 _API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+_PAPER_ORDER_LOCK = threading.Lock()
 
 
 def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
@@ -1401,7 +1404,7 @@ async def alpaca_orders(limit: int = 10):
 
 
 @app.post("/api/alpaca/execute", dependencies=[Depends(_require_api_key)])
-async def alpaca_execute(
+def alpaca_execute(
     ticker: str = Form("NVDA"),
     decision: str = Form("BUY"),
     confidence: float = Form(50.0),
@@ -1416,74 +1419,92 @@ async def alpaca_execute(
     """
     Execute a signal as an Alpaca paper order.
 
-    When portfolio_json (list of {ticker, value_usd, sector?}) +
-    portfolio_value are supplied, the Portfolio Manager gate runs
-    BEFORE the order is placed. PM rejection → 409 Conflict with the
-    rejection reason. PM approval overrides `position_pct` with the
-    scaled value so concentration limits are honored.
-
-    Pass skip_pm=true to bypass (e.g. manual override), but this is
-    dangerous and only recommended for test/debug flows.
+    The Portfolio Manager uses the Alpaca PAPER account and positions on every
+    actionable request. Legacy caller-supplied portfolio fields are ignored;
+    skip_pm is disabled. Unavailable broker state or a failing gate blocks the
+    order before execute_signal is called.
     """
     from fastapi.responses import JSONResponse
 
-    pm_verdict = None
-    if portfolio_json and portfolio_value > 0 and not skip_pm:
-        try:
-            from engine.portfolio_manager import Position, approve_decision
-            raw = json.loads(portfolio_json)
-            portfolio = [
-                Position(
-                    ticker=str(p.get("ticker", "")).upper(),
-                    value_usd=float(p.get("value_usd", 0) or 0),
-                    sector=p.get("sector") or None,
-                )
-                for p in raw if isinstance(raw, list) and p.get("ticker")
-            ] if isinstance(raw, list) else []
-
-            pm_verdict = approve_decision(
-                ticker=ticker.upper(),
-                decision={
-                    "decision": decision.upper(),
-                    "confidence": int(confidence),
-                    "signal_strength": int(confidence),  # reuse conf as strength proxy
-                },
-                portfolio=portfolio,
-                portfolio_value=portfolio_value,
-            )
-            if not pm_verdict["approved"]:
-                return JSONResponse(
-                    status_code=409,
-                    content={
-                        "executed": False,
-                        "reason": "rejected_by_portfolio_manager",
-                        "portfolio_manager": pm_verdict,
-                    },
-                )
-            # PM-approved — use its scaled position size (can be <= user request)
-            scaled = float(pm_verdict.get("scaled_position_pct") or position_pct)
-            if scaled > 0:
-                position_pct = min(position_pct, scaled)
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
-            # Malformed PM inputs → log and proceed without gating rather
-            # than blocking a valid trade on a caller payload bug
-            from core.logger import get_logger
-            get_logger("api").warning("PM gate skipped (bad input): %s", e)
+    if skip_pm:
+        return JSONResponse(status_code=403, content={
+            "executed": False, "status": "blocked",
+            "error": "Paper Portfolio Manager bypass is disabled",
+            "reason": "paper_portfolio_manager_bypass_disabled",
+        })
+    decision = decision.upper()
+    if decision not in {"BUY", "SELL", "WAIT"}:
+        raise HTTPException(status_code=422, detail="Decision must be BUY, SELL, or WAIT")
+    if decision == "WAIT":
+        return {"status": "skipped", "reason": "WAIT signal — no action"}
+    if not math.isfinite(confidence) or not 0 <= confidence <= 100:
+        raise HTTPException(status_code=422, detail="Confidence must be between 0 and 100")
+    if not math.isfinite(position_pct) or position_pct <= 0:
+        raise HTTPException(status_code=422, detail="Position percentage must be positive")
 
     from bot.alpaca_executor import AlpacaExecutor
-    executor = AlpacaExecutor()
-    result = executor.execute_signal(
-        ticker=ticker.upper(),
-        decision=decision.upper(),
-        confidence=confidence,
-        entry_price=entry_price,
-        stop_loss=stop_loss,
-        take_profit=take_profit,
-        position_pct=position_pct,
-    )
-    if pm_verdict:
+    # Serialize the local snapshot → risk check → submit critical section.
+    # Broker open-order state is authoritative; other hosts need a shared
+    # coordinator to close the remaining distributed race.
+    with _PAPER_ORDER_LOCK:
+        executor = AlpacaExecutor()
+        try:
+            from engine.portfolio_manager import Position, approve_decision
+            snapshot = executor.get_risk_snapshot()
+            if executor.has_open_order(ticker.upper()):
+                return JSONResponse(status_code=409, content={
+                    "executed": False, "status": "blocked",
+                    "error": "An Alpaca PAPER order is already open on this symbol",
+                    "reason": "paper_open_order_exists",
+                })
+            portfolio = [Position(**position) for position in snapshot["positions"]]
+            pm_verdict = approve_decision(
+                ticker=ticker.upper(),
+                decision={"decision": decision, "confidence": int(confidence),
+                          "signal_strength": int(confidence)},
+                portfolio=portfolio,
+                portfolio_value=snapshot["portfolio_value"],
+            )
+            if not isinstance(pm_verdict, dict) or "approved" not in pm_verdict:
+                raise ValueError("Invalid Portfolio Manager verdict")
+        except Exception as exc:
+            from core.logger import get_logger
+            get_logger("api").warning("Paper Portfolio Manager unavailable: %s", type(exc).__name__)
+            return JSONResponse(status_code=503, content={
+                "executed": False, "status": "blocked",
+                "error": "Paper account, open orders, or Portfolio Manager is unavailable",
+                "reason": "paper_portfolio_manager_unavailable",
+            })
+        if pm_verdict["approved"] is not True:
+            return JSONResponse(status_code=409, content={
+                "executed": False, "status": "blocked",
+                "error": str(pm_verdict.get("reason") or "Portfolio Manager rejected this order"),
+                "reason": "rejected_by_portfolio_manager",
+                "portfolio_manager": pm_verdict,
+            })
+        try:
+            scaled = float(pm_verdict["scaled_position_pct"])
+        except (KeyError, TypeError, ValueError):
+            scaled = float("nan")
+        if not math.isfinite(scaled) or scaled <= 0:
+            return JSONResponse(status_code=409, content={
+                "executed": False, "status": "blocked",
+                "error": "Portfolio Manager returned no permitted order size",
+                "reason": "portfolio_manager_zero_size",
+                "portfolio_manager": pm_verdict,
+            })
+        position_pct = min(position_pct, scaled)
+        result = executor.execute_signal(
+            ticker=ticker.upper(),
+            decision=decision,
+            confidence=confidence,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            position_pct=position_pct,
+        )
         result["portfolio_manager"] = pm_verdict
-    return result
+        return result
 
 
 @app.post("/api/alpaca/close/{ticker}", dependencies=[Depends(_require_api_key)])

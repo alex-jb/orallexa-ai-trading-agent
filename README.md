@@ -145,7 +145,7 @@ Docker: `docker compose up --build` — that's it.
 
 | Component | Detail |
 |-----------|--------|
-| **Portfolio Manager Gate** | Final approval layer — concentration, sector, streak checks + position sizing — runs on `analyze`, `deep-analysis`, AND `alpaca/execute` (rejected trades never hit the broker) |
+| **Portfolio Manager Gate** | `alpaca/execute` reads Alpaca PAPER equity, positions, and open orders for the target symbol before each BUY/SELL; missing data, open orders, and PM errors block the order. A local lock serializes risk checks and submissions within one API process. Caller-provided portfolio fields and `skip_pm` cannot bypass it. Analysis routes apply their own PM gate when given portfolio context. Other hosts or workers can still race; broker order visibility can lag. Sector, recent-decision history, and kill-state are not in this gate. |
 | **Token & Cost Budgets** | Client-side TokenBudget enforcer caps any agentic loop; deep-analysis short-circuits LLM-heavy steps gracefully when cap hits |
 | **Paper Trading** | Alpaca bracket orders with auto stop-loss/take-profit |
 | **Real-time Stream** | WebSocket prices every 5s + signal change alerts |
@@ -157,6 +157,20 @@ Docker: `docker compose up --build` — that's it.
 </td>
 </tr>
 </table>
+
+Open bracket exit legs block additional `/api/alpaca/execute` orders on their
+symbol until Alpaca reports no open orders. The lock is local to one API
+process; use a shared, durable coordinator before running multiple workers
+or hosts. Alpaca order visibility can lag, so this gate does not guarantee
+cross-request idempotency. A caller's `entry_price` is only a signal reference;
+market-order quantity is calculated from a recent Alpaca ask (BUY) or bid
+(SELL). A market order can fill at another price, so the percentage cap
+controls estimated sizing rather than a hard filled-dollar amount.
+
+The current Portfolio Manager can approve a SELL with a zero permitted size
+when an existing position exceeds its concentration cap. `alpaca/execute`
+blocks that order. Use `/api/alpaca/close/{ticker}` to close the entire paper
+position; partial reductions need a separate sizing rule.
 
 ---
 

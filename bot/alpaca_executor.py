@@ -20,8 +20,9 @@ Usage:
 """
 from __future__ import annotations
 
+import math
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from core.logger import get_logger
@@ -110,6 +111,76 @@ class AlpacaExecutor:
             logger.warning("Failed to get positions: %s", e)
             return []
 
+    def get_risk_snapshot(self) -> dict:
+        """Fetch a strict PAPER account snapshot for the pre-order risk gate.
+
+        Unlike the dashboard helpers, failures must propagate: an empty list
+        is a valid portfolio, but a failed position query is not.
+        """
+        if self._client is None:
+            raise RuntimeError("Alpaca PAPER account is not connected")
+        account = self._client.get_account()
+        equity = float(account.equity)
+        if not math.isfinite(equity) or equity <= 0:
+            raise ValueError("Invalid Alpaca PAPER account equity")
+        raw_positions = self._client.get_all_positions()
+        if raw_positions is None:
+            raise ValueError("Alpaca PAPER positions are unavailable")
+        positions = []
+        for position in raw_positions:
+            symbol = str(position.symbol).strip().upper()
+            value = float(position.market_value)
+            if not symbol or symbol == "NONE" or not math.isfinite(value):
+                raise ValueError("Invalid Alpaca PAPER position")
+            # Market value of a short can be negative; count gross exposure.
+            positions.append({"ticker": symbol, "value_usd": abs(value)})
+        return {"portfolio_value": equity, "positions": positions}
+
+    def has_open_order(self, ticker: str) -> bool:
+        """Check for an unsettled PAPER order on this symbol, failing closed.
+
+        Query each leg separately: an exit leg of a filled bracket order is
+        still an active order and must prevent another order on the symbol.
+        """
+        if self._client is None:
+            raise RuntimeError("Alpaca PAPER account is not connected")
+        from alpaca.trading.enums import QueryOrderStatus
+        from alpaca.trading.requests import GetOrdersRequest
+
+        orders = self._client.get_orders(GetOrdersRequest(
+            status=QueryOrderStatus.OPEN, symbols=[ticker], limit=1, nested=False,
+        ))
+        if not isinstance(orders, list):
+            raise ValueError("Alpaca PAPER open orders are unavailable")
+        return bool(orders)
+
+    def _get_sizing_price(self, ticker: str, decision: str) -> float:
+        """Use a recent market-data quote, never a caller's signal price, for sizing.
+
+        The submitted order is a market order. A quote can bound the *estimated*
+        allocation, but it cannot guarantee its eventual fill notional.
+        """
+        from alpaca.data.requests import StockLatestQuoteRequest
+        from alpaca.data.historical import StockHistoricalDataClient
+
+        data_client = StockHistoricalDataClient(
+            os.environ.get("ALPACA_API_KEY", ""), os.environ.get("ALPACA_SECRET_KEY", ""),
+        )
+        quotes = data_client.get_stock_latest_quote(
+            StockLatestQuoteRequest(symbol_or_symbols=ticker)
+        )
+        quote = quotes.get(ticker) if isinstance(quotes, dict) else None
+        stamp = getattr(quote, "timestamp", None)
+        if not isinstance(stamp, datetime) or stamp.tzinfo is None:
+            raise ValueError("Alpaca quote timestamp is unavailable")
+        age_seconds = (datetime.now(timezone.utc) - stamp.astimezone(timezone.utc)).total_seconds()
+        if age_seconds < -5 or age_seconds > 120:
+            raise ValueError("Alpaca quote is stale")
+        price = float(getattr(quote, "ask_price" if decision == "BUY" else "bid_price", 0))
+        if not math.isfinite(price) or price <= 0:
+            raise ValueError("Alpaca quote has no valid executable-side price")
+        return price
+
     def execute_signal(
         self,
         ticker: str,
@@ -154,17 +225,13 @@ class AlpacaExecutor:
             # Calculate position size
             account = self._client.get_account()
             portfolio_value = float(account.portfolio_value)
+            if not math.isfinite(portfolio_value) or portfolio_value <= 0:
+                raise ValueError("Invalid Alpaca PAPER portfolio value")
             allocation = portfolio_value * (position_pct / 100)
 
-            # Get current price if entry not specified
-            if entry_price <= 0:
-                from alpaca.data.requests import StockLatestQuoteRequest
-                from alpaca.data.historical import StockHistoricalDataClient
-                api_key = os.environ.get("ALPACA_API_KEY", "")
-                secret_key = os.environ.get("ALPACA_SECRET_KEY", "")
-                data_client = StockHistoricalDataClient(api_key, secret_key)
-                quote = data_client.get_stock_latest_quote(StockLatestQuoteRequest(symbol_or_symbols=ticker))
-                entry_price = float(quote[ticker].ask_price or quote[ticker].bid_price)
+            # entry_price is an untrusted signal/reference price. Market orders
+            # always size from a fresh broker-data quote, even when it is set.
+            entry_price = self._get_sizing_price(ticker, decision)
 
             qty = int(allocation / entry_price)
             if qty < 1:
