@@ -42,6 +42,12 @@ if not DEMO_MODE and not os.environ.get("ORALLEXA_API_KEY", "").strip():
     raise RuntimeError("ORALLEXA_API_KEY is required when DEMO_MODE is off")
 
 
+def _activate_paid_budget() -> None:
+    from llm.weekly_budget import activate_weekly_budget
+    path = Path(os.environ.get("ORALLEXA_WEEKLY_LLM_BUDGET_DB", str(_ROOT / "logs" / "weekly_llm_budget.sqlite3")))
+    activate_weekly_budget(os.environ.get("ORALLEXA_WEEKLY_LLM_BUDGET_USD", "5.00"), path)
+
+
 # ── Warm up heavy imports at startup (avoids 30s cold start on first request) ──
 @app.on_event("startup")
 async def _warmup():
@@ -88,10 +94,27 @@ def _require_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
+def _admit_paid_api() -> None:
+    """Fail closed on paid calls if the shared budget cannot be opened."""
+    if os.environ.get("ORALEXXA_LLM_PROVIDER", "anthropic").strip().lower() != "anthropic":
+        raise HTTPException(status_code=503, detail="API weekly LLM budget supports Anthropic only")
+    try:
+        _activate_paid_budget()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="API LLM budget is unavailable") from exc
+
+
 def _require_paid_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
     """Permit public demo mocks, but authenticate real paid-model calls."""
     if not DEMO_MODE:
         _require_api_key(key)
+        _admit_paid_api()
+
+
+def _require_paid_protected_api_key(key: str | None = Security(_API_KEY_HEADER)) -> None:
+    """Paid routes without demo mocks are disabled even with a key in demo."""
+    _require_api_key(key)
+    _admit_paid_api()
 
 
 def _require_optional_analysis_key(
@@ -1131,7 +1154,7 @@ async def role_memory_stats():
         return {"status": "error", "detail": str(e)[:200], "roles": {}}
 
 
-@app.post("/api/scenario", dependencies=[Depends(_require_api_key)])
+@app.post("/api/scenario", dependencies=[Depends(_require_paid_protected_api_key)])
 async def scenario_simulation(
     scenario: str = Form(...),
     tickers: str = Form("NVDA,AAPL,TLT,GLD"),
@@ -1191,7 +1214,7 @@ async def swarm_simulation(
         return {"convergence": "MIXED", "conviction": 0, "detail": str(e)[:200]}
 
 
-@app.post("/api/evolve-strategies", dependencies=[Depends(_require_api_key)])
+@app.post("/api/evolve-strategies", dependencies=[Depends(_require_paid_protected_api_key)])
 async def evolve_strategies(
     ticker: str = Form("NVDA"),
     generations: int = Form(3),
