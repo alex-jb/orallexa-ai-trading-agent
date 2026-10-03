@@ -2,6 +2,8 @@
 
 This is a dated research plan for Orallexa, a **paper-only** research prototype. It is not a claim of trading performance or production compliance. The links below were checked on 2026-09-30; competition and hiring pages can change.
 
+**Later update, checked 2026-10-03:** see [the university research and deployment update](AI_RESEARCH_UPDATE_2026-10-03.md). The repository now includes open draft #38 (pilot identity), #39 (later opportunity map) and #40 (offline ICAIF weights). #37 grew from the historical 13-case study below to 17 predeclared cases. #34 now adds complete-cohort selective-relevance curves and language slices, validated by 46 synthetic tests. The body below remains the dated September 30 snapshot; its first-iteration counts, missing-identity description and deadline table are not current project status. None of these drafts has been merged or establishes observed broker fills or market edge.
+
 ## Current evidence boundary
 
 - `master` still contains the historical README's 90-pair walk-forward claim, but `docs/evaluation_report.md` contains only nine NVDA pairs. The original 90-pair input cohort is unavailable. [Draft PR #14](https://github.com/alex-jb/orallexa-ai-trading-agent/pull/14) withdraws the unsupported leaderboard, declares all 90 intended pairs, and marks unavailable pairs **NOT EVALUATED**; it has not been merged.
