@@ -19,6 +19,7 @@ from pathlib import Path
 EVENTS = ("earnings", "guidance", "regulatory", "other")
 FAILURES = ("timeout", "provider_error", "schema_error", "missing_source")
 DEFAULT_RELEVANCE_THRESHOLDS = (0.0, 0.5, 0.8, 0.95, 1.0)
+MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _LANGUAGE = re.compile(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 
@@ -128,6 +129,8 @@ def _read_manifest(path):
     if data.get("sample_kind") not in ("synthetic", "stratified", "representative"):
         raise InvalidCohort("manifest.sample_kind: expected synthetic, stratified, or representative")
     _string(data.get("primary_class_rule"), "manifest.primary_class_rule")
+    if not isinstance(data.get("require_source_bundle", False), bool):
+        raise InvalidCohort("manifest.require_source_bundle: expected boolean")
     frozen = _utc(data.get("frozen_at_utc"), "manifest.frozen_at_utc")
     _confidence_thresholds(data.get("relevance_confidence_thresholds", DEFAULT_RELEVANCE_THRESHOLDS))
     rows = data.get("cases")
@@ -200,6 +203,127 @@ def _read_manifest(path):
             rate = {key: _number(rates.get(key), f"{name}.pricing.{key}") for key in ("input", "output")}
         pricing[name] = {"rate": rate, "evidence_capable": entry["evidence_capable"]}
     return data, cases, pricing, split_counts, len({case["group"] for case in cases.values() if case["split"] == "test"}), digest
+
+
+def _snapshot_bytes(root: Path, relative_path: str) -> bytes:
+    """Read only a regular UTF-8 snapshot within the declared bundle directory."""
+    relative_path = _string(relative_path, "source.snapshot_path")
+    if ("\\" in relative_path or "\x00" in relative_path or ":" in relative_path
+            or any(part in ("", ".", "..") for part in relative_path.split("/"))):
+        raise InvalidCohort("source.snapshot_path: expected normalized relative path")
+    try:
+        path = (root / relative_path).resolve(strict=True)
+        if not path.is_relative_to(root) or not path.is_file():
+            raise InvalidCohort("source.snapshot_path: must be a regular file within the bundle directory")
+        with path.open("rb") as handle:
+            raw = handle.read(MAX_SNAPSHOT_BYTES + 1)
+        if not raw or len(raw) > MAX_SNAPSHOT_BYTES:
+            raise InvalidCohort("source snapshot: expected 1 byte to 16 MiB")
+        raw.decode("utf-8")
+        return raw
+    except (OSError, UnicodeError, ValueError, RuntimeError) as exc:
+        if isinstance(exc, InvalidCohort):
+            raise
+        raise InvalidCohort(f"source.snapshot_path: unreadable UTF-8 snapshot: {exc}") from exc
+
+
+def _verify_source_bundle(manifest: dict, bundle_path: str | Path) -> dict:
+    bundle, digest = _read_json(bundle_path)
+    bundle = _object(bundle, "source bundle")
+    if type(bundle.get("bundle_schema_version")) is not int or bundle["bundle_schema_version"] != 1:
+        raise InvalidCohort("source bundle: expected bundle_schema_version 1")
+    if bundle.get("cohort_id") != manifest["cohort_id"]:
+        raise InvalidCohort("source bundle: cohort_id does not match manifest")
+    entries = bundle.get("sources")
+    if not isinstance(entries, list):
+        raise InvalidCohort("source bundle.sources: expected array")
+    root = Path(bundle_path).resolve().parent
+    expected = {}
+    for case in manifest["cases"]:
+        expected.setdefault(case["source_id"], []).append(case)
+    frozen = _utc(manifest["frozen_at_utc"], "manifest.frozen_at_utc")
+    verified = {}
+    for entry in entries:
+        entry = _object(entry, "source bundle.source")
+        source_id = _string(entry.get("source_id"), "source bundle.source_id")
+        if source_id not in expected or source_id in verified:
+            raise InvalidCohort(f"source bundle: unknown or duplicate source_id {source_id}")
+        source_cases = expected[source_id]
+        published = _utc(entry.get("published_at_utc"), f"{source_id}.published_at_utc")
+        available = _utc(entry.get("available_at_utc"), f"{source_id}.available_at_utc")
+        captured = _utc(entry.get("captured_at_utc"), f"{source_id}.captured_at_utc")
+        if not published <= available <= captured <= frozen:
+            raise InvalidCohort(f"{source_id}: require publication <= availability <= capture <= freeze")
+        for case in source_cases:
+            for key in ("source_sha256", "source_url", "source_rights"):
+                if entry.get(key) != case[key]:
+                    raise InvalidCohort(f"{source_id}: {key} does not match manifest")
+            if (published != _utc(case["published_at_utc"], source_id)
+                    or available != _utc(case["available_at_utc"], source_id)):
+                raise InvalidCohort(f"{source_id}: source timestamps do not match every manifest case")
+        raw = _snapshot_bytes(root, entry.get("snapshot_path"))
+        if hashlib.sha256(raw).hexdigest() != source_cases[0]["source_sha256"]:
+            raise InvalidCohort(f"{source_id}: snapshot bytes do not match source_sha256")
+        spans = entry.get("evidence_spans")
+        if not isinstance(spans, list):
+            raise InvalidCohort(f"{source_id}.evidence_spans: expected array")
+        allowed = set().union(*(set(case["evidence_span_ids"]) for case in source_cases))
+        checked = set()
+        for span in spans:
+            span = _object(span, f"{source_id}.evidence_span")
+            span_id = _string(span.get("span_id"), f"{source_id}.span_id")
+            if span_id not in allowed or span_id in checked:
+                raise InvalidCohort(f"{source_id}: unknown or duplicate evidence span {span_id}")
+            start = _integer(span.get("start_byte"), f"{span_id}.start_byte")
+            end = _integer(span.get("end_byte"), f"{span_id}.end_byte")
+            if not 0 <= start < end <= len(raw):
+                raise InvalidCohort(f"{source_id}:{span_id}: invalid byte range")
+            excerpt = raw[start:end]
+            try:
+                if not excerpt.decode("utf-8").strip():
+                    raise InvalidCohort(f"{source_id}:{span_id}: empty evidence text")
+            except UnicodeError as exc:
+                raise InvalidCohort(f"{source_id}:{span_id}: byte range splits UTF-8 text") from exc
+            if hashlib.sha256(excerpt).hexdigest() != span.get("span_sha256"):
+                raise InvalidCohort(f"{source_id}:{span_id}: evidence bytes do not match span_sha256")
+            checked.add(span_id)
+        if checked != allowed:
+            raise InvalidCohort(f"{source_id}: missing evidence spans {sorted(allowed - checked)}")
+        verified[source_id] = {
+            "source_id": source_id, "source_sha256": source_cases[0]["source_sha256"],
+            "snapshot_path": entry["snapshot_path"], "snapshot_bytes": len(raw),
+            "captured_at_utc": entry["captured_at_utc"], "verified_spans": len(checked),
+        }
+    if set(verified) != set(expected):
+        raise InvalidCohort(f"source bundle: missing sources {sorted(set(expected) - set(verified))}")
+    return {
+        "mode": "snapshot_bytes_verified", "bundle_sha256": digest,
+        "verified_sources": len(verified),
+        "verified_spans": sum(source["verified_spans"] for source in verified.values()),
+        "sources": [verified[key] for key in sorted(verified)],
+        "limits": "Byte and metadata consistency only; not source authenticity, timestamp truth, use rights, reviewer independence or proof of model input.",
+    }
+
+
+def preflight_sources(manifest_path: str | Path, source_bundle_path: str | Path) -> dict:
+    """Verify archived inputs before labels or model outputs exist; never invent gold."""
+    manifest, _, _, counts, _, manifest_hash = _read_manifest(manifest_path)
+    verification = _verify_source_bundle(manifest, source_bundle_path)
+    return {
+        "report_kind": "news_source_preflight", "report_schema_version": 1,
+        "cohort_id": manifest["cohort_id"], "sample_kind": manifest["sample_kind"],
+        "manifest_cases": len(manifest["cases"]), "test_cases": counts["test"],
+        "input_sha256": {"manifest": manifest_hash, "source_bundle": verification["bundle_sha256"]},
+        "source_verification": verification, "gold_status": "not_checked", "predictions_status": "not_checked",
+        "unreviewed_cases": [
+            {"case_id": case["case_id"], "source_id": case["source_id"],
+             "source_sha256": case["source_sha256"], "ticker": case["ticker"],
+             "allowed_evidence_span_ids": case["evidence_span_ids"],
+             "status": "unreviewed", "reviewer_id": None, "event_type": None,
+             "concerns_company": None, "evidence_span_ids": []}
+            for case in manifest["cases"] if case["split"] == "test"
+        ],
+    }
 
 
 def _labels(row, case, where, *, prediction=False, evidence_capable=True):
@@ -365,9 +489,15 @@ def _language_slices(gold, rows, cases, thresholds):
     return results
 
 
-def score(manifest_path, gold_path, predictions_path):
+def score(manifest_path, gold_path, predictions_path, *, source_bundle_path=None):
     """Validate every declared test example and return a deterministic JSON-ready report."""
     manifest, cases, pricing, counts, test_groups, manifest_hash = _read_manifest(manifest_path)
+    if source_bundle_path is None and manifest.get("require_source_bundle", False):
+        raise InvalidCohort("manifest requires a source bundle; supply --source-bundle")
+    verification = (_verify_source_bundle(manifest, source_bundle_path) if source_bundle_path is not None
+                    else {"mode": "metadata_only", "bundle_sha256": None,
+                          "verified_sources": 0, "verified_spans": 0,
+                          "limits": "No snapshot bytes or evidence ranges were checked."})
     gold, gold_hash = _read_gold(gold_path, cases)
     predictions, prediction_hash = _read_predictions(predictions_path, cases, pricing)
     thresholds = _confidence_thresholds(manifest.get("relevance_confidence_thresholds", DEFAULT_RELEVANCE_THRESHOLDS))
@@ -403,9 +533,12 @@ def score(manifest_path, gold_path, predictions_path):
                       "pricing_usd_per_million_tokens": rate},
         }
     file_hashes = {"manifest": manifest_hash, "gold": gold_hash, "predictions": prediction_hash}
-    return {"report_schema_version": 2, "cohort_id": manifest["cohort_id"], "frozen_at_utc": manifest["frozen_at_utc"],
+    if source_bundle_path is not None:
+        file_hashes["source_bundle"] = verification["bundle_sha256"]
+    return {"report_schema_version": 3, "cohort_id": manifest["cohort_id"], "frozen_at_utc": manifest["frozen_at_utc"],
             "sample_kind": manifest.get("sample_kind"),
             "input_sha256": file_hashes,
+            "source_verification": verification,
             "manifest_cases": len(cases), "train_cases_checked_for_leakage": counts["train"],
             "relevance_confidence_thresholds": thresholds,
             "thresholds_source": "manifest" if "relevance_confidence_thresholds" in manifest else "code_default",
@@ -425,10 +558,11 @@ def main(argv=None):
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--gold", required=True, type=Path)
     parser.add_argument("--predictions", required=True, type=Path)
+    parser.add_argument("--source-bundle", type=Path, help="Verify local snapshot bytes and evidence byte ranges")
     parser.add_argument("--output", type=Path, help="Write report only after complete validation")
     args = parser.parse_args(argv)
     try:
-        report = score(args.manifest, args.gold, args.predictions)
+        report = score(args.manifest, args.gold, args.predictions, source_bundle_path=args.source_bundle)
     except InvalidCohort as exc:
         parser.exit(2, f"invalid cohort: {exc}\n")
     payload = json.dumps(report, indent=2, sort_keys=True) + "\n"

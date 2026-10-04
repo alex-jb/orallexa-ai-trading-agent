@@ -213,7 +213,7 @@ def test_incomplete_billed_cost_not_extrapolated(tmp_path):
 def test_selective_coverage_does_not_call_empty_acceptance_perfect(tmp_path):
     _, _, _, write = _fixture(tmp_path)
     report = score(*write())
-    assert report["report_schema_version"] == 2
+    assert report["report_schema_version"] == 3
     assert report["thresholds_source"] == "code_default"
     result = report["models"]["cited"]["selective_company_relevance"]
     curve = {row["confidence_threshold"]: row for row in result["curve"]}

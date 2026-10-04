@@ -12,6 +12,7 @@ Use UTF-8 JSON for the manifest and JSONL with exactly one object per line for h
 {
   "cohort_id": "frozen-news-test-v1",
   "sample_kind": "stratified",
+  "require_source_bundle": true,
   "relevance_confidence_thresholds": [0.0, 0.5, 0.8, 0.95, 1.0],
   "frozen_at_utc": "2026-09-30T00:00:00Z",
   "primary_class_rule": "If both guidance and earnings occur, label guidance; otherwise label the main event.",
@@ -34,18 +35,21 @@ Use UTF-8 JSON for the manifest and JSONL with exactly one object per line for h
 }
 ```
 
-Gold JSONL object: `{"case_id":"news-001:ACME","source_id":"filing-001","source_sha256":"<same hash>","status":"adjudicated","reviewer_ids":["reviewer-a","reviewer-b"],"event_type":"earnings","concerns_company":true,"evidence_span_ids":["paragraph-12"]}`. Reviewers should independently label blind to model outputs, then adjudicate. The scorer checks two distinct reviewer **ID claims** and `status`, but cannot verify reviewer independence, whether the event was correctly labeled, the source bytes, or data-use rights. Unresolved ambiguous or missing-source records cause the entire report to fail: resolve their status under a predeclared policy and preserve their original case IDs; do not remove hard examples after examining model outputs.
+Gold JSONL object: `{"case_id":"news-001:ACME","source_id":"filing-001","source_sha256":"<same hash>","status":"adjudicated","reviewer_ids":["reviewer-a","reviewer-b"],"event_type":"earnings","concerns_company":true,"evidence_span_ids":["paragraph-12"]}`. Reviewers should independently label blind to model outputs, then adjudicate. The scorer checks two distinct reviewer **ID claims** and `status`, but cannot verify reviewer independence, whether the event was correctly labeled, or data-use rights. Local source bytes and evidence ranges are checked only when a [source bundle](NEWS_SOURCE_PREFLIGHT.md) is supplied. Unresolved ambiguous or missing-source records cause the entire report to fail: resolve their status under a predeclared policy and preserve their original case IDs; do not remove hard examples after examining model outputs.
 
 Prediction JSONL object: `{"model_id":"candidate","case_id":"news-001:ACME","source_id":"filing-001","source_sha256":"<same hash>","event_type":"earnings","concerns_company":true,"abstain":false,"concerns_company_probability":0.83,"latency_ms":290,"usage":{"input_tokens":800,"output_tokens":50,"billed_usd":0.002}}`. For `evidence_capable=true`, add `"evidence_span_ids":["paragraph-12"]` to **every** row; for classification-only arms, omit it. A deliberate threshold abstention uses `abstain:true`, null event/relevance labels and no evidence; it **may retain** a valid numeric probability for calibration, and still requires latency and usage. If a provider fails, record its case as abstained with `failure_kind` set to `timeout`, `provider_error`, `schema_error` or `missing_source`, and include all attempts' latency, tokens and billed cost; retain a separate runner error trace. Failed calls must not supply a scored probability. Deliberate abstention has no `failure_kind`; counts are separate in the report. Never silently omit a failed or timed-out case. `billed_usd` can be omitted or null if unknown, but a partially observed bill is reported as incomplete, not extrapolated.
 
 ```bash
-python -m eval.news_shadow_score --manifest /path/to/manifest.json --gold /path/to/gold.jsonl --predictions /path/to/predictions.jsonl --output /path/to/report.json
+python -m eval.news_source_preflight --manifest /path/to/manifest.json --source-bundle /path/to/bundle.json --output /path/to/preflight.json
+python -m eval.news_shadow_score --manifest /path/to/manifest.json --gold /path/to/gold.jsonl --predictions /path/to/predictions.jsonl --source-bundle /path/to/bundle.json --output /path/to/report.json
 python -m pytest -q tests/test_news_shadow_score.py
 ```
 
-No report file is created on validation failure. The output includes SHA-256 hashes of the exact input bytes that were parsed, model revision/pricing in the manifest, and declared cohort/sample type. For an empirical study, archive immutable input files, source snapshots or licensed retrieval receipts, runner version/commit, prompts, frozen splits and adjudication records with the report. A hash or URL alone does **not** prove that the original article bytes, timestamp, rights statement or human labels are true; the scorer checks the hash string and the source ID's consistency, not the source content.
+No report file is created or replaced on validation failure; an older output may still exist, so consume a report only after exit status 0 and input-hash checks. The output includes SHA-256 hashes of the exact input bytes that were parsed, model revision/pricing in the manifest, and declared cohort/sample type. For an empirical study, archive immutable input files, source snapshots and licensed retrieval receipts, runner version/commit, prompts, frozen splits and adjudication records with the report. A hash or URL alone does **not** prove the article's authenticity, timestamp, rights statement or human labels.
 
-## Confidence gates and language slices (report schema v2)
+Report schema v3 adds `source_verification`. Supplying `--source-bundle` checks every train/test source's UTF-8 snapshot against its manifest SHA-256, verifies all preindexed evidence byte ranges and span hashes, and binds the bundle bytes to the report. Set `require_source_bundle:true` in a real-study manifest before freezing it to prevent accidental scoring without those archives. Legacy manifests default to false and can still run without a bundle, but are explicitly marked `metadata_only`. Byte verification does not prove what a provider actually consumed, when a fact first became public, or that a model's training excluded future outcomes. Preflight produces only unreviewed case rows; it does not assign human labels or model predictions.
+
+## Confidence gates and language slices (introduced in report schema v2)
 
 The report now includes `selective_company_relevance` for each model. This describes the coverage/error tradeoff at each **frozen** confidence threshold. Supply a strictly increasing, nonempty array in `[0, 1]` as `relevance_confidence_thresholds`; omitted arrays use the code defaults shown above. Freeze the manifest **and the scorer commit** before inspecting model outputs. The manifest hash binds custom thresholds to that input, and `thresholds_source` discloses whether the defaults were used. The scorer cannot prove that a freeze happened before results existed. It never ranks thresholds or selects one for deployment. Choose any operational threshold on a separate development cohort, then lock it before a held-out test.
 
