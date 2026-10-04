@@ -1,5 +1,7 @@
 # Orallexa research update — 2026-10-03
 
+Later implementation: the [October 4 financial-research update](AI_RESEARCH_UPDATE_2026-10-04.md) adds local source preflight and scorer schema v3. The v2 implementation and 46-test status below describe October 3.
+
 ## Decision
 
 Continue the trading-research objective while making each result easier to inspect: dated source → bounded news task → recorded analysis → risk decision → paper outcome. The immediate engineering investment is **measurement and explanation**, with a separate prospective study still needed for trading value. No paper fill, profitability, customer adoption or new model accuracy is established by this update.
