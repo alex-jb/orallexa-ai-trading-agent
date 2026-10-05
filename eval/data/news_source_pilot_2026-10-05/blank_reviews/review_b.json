@@ -1,0 +1,116 @@
+{
+  "annotation_schema_version": 1,
+  "cases": [
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-wfc-20180202-wfc",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-wfc-20180202",
+      "source_sha256": "36fb2a83cf236363348beae3117423b1e6380014e30134eb33c9b95fce8a89dc",
+      "status": "unreviewed",
+      "ticker": "WFC"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-wfc-20180202-jpm",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-wfc-20180202",
+      "source_sha256": "36fb2a83cf236363348beae3117423b1e6380014e30134eb33c9b95fce8a89dc",
+      "status": "unreviewed",
+      "ticker": "JPM"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-wfc-20250603-wfc",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-wfc-20250603",
+      "source_sha256": "5a43466f6a9459b16463ec2f9f4f97ef165fdcf85db75661579b76ef77895e6a",
+      "status": "unreviewed",
+      "ticker": "WFC"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-wfc-20250603-jpm",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-wfc-20250603",
+      "source_sha256": "5a43466f6a9459b16463ec2f9f4f97ef165fdcf85db75661579b76ef77895e6a",
+      "status": "unreviewed",
+      "ticker": "JPM"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-wfc-20260305-wfc",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-wfc-20260305",
+      "source_sha256": "879695d4cfde762dad845ccfc7a5e6d12c2190ba3c5a41e2ecd47f1eea3849d7",
+      "status": "unreviewed",
+      "ticker": "WFC"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-wfc-20260305-jpm",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-wfc-20260305",
+      "source_sha256": "879695d4cfde762dad845ccfc7a5e6d12c2190ba3c5a41e2ecd47f1eea3849d7",
+      "status": "unreviewed",
+      "ticker": "JPM"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-fomc-20260916-wfc",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-fomc-20260916",
+      "source_sha256": "ceb29ffa378af473776ee78d2f2e2ce299a9132146cfbf28947664e7e2bce444",
+      "status": "unreviewed",
+      "ticker": "WFC"
+    },
+    {
+      "allowed_evidence_span_ids": [
+        "headline"
+      ],
+      "case_id": "fed-fomc-20260916-jpm",
+      "concerns_company": null,
+      "event_type": null,
+      "evidence_span_ids": [],
+      "source_id": "fed-fomc-20260916",
+      "source_sha256": "ceb29ffa378af473776ee78d2f2e2ce299a9132146cfbf28947664e7e2bce444",
+      "status": "unreviewed",
+      "ticker": "JPM"
+    }
+  ],
+  "cohort_id": "fed-headline-development-pilot-2026-10-05",
+  "document_kind": "news_independent_review",
+  "input_sha256": {
+    "manifest": "3e755ca3584d469d1323ad5c6335275d272dceaf57cdee4c1b92600f3a91ea7f",
+    "source_bundle": "6bf512233a60932740b5f7aca5ae6ee3fdea50563e4b696fd1e2d04fc831fa58"
+  },
+  "reviewer_id": null
+}
