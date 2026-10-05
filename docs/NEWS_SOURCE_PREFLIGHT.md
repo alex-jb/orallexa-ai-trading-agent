@@ -52,4 +52,6 @@ Set manifest `require_source_bundle:true` before the study freeze. The scorer re
 
 Preflight returns source counts/hashes and test-only `unreviewed_cases`. Reviewer ID, event type and company relevance are null; evidence selection is empty. Keep two independent reviewer copies blind to model outputs, then preserve adjudication records and prepare the separate gold JSONL. A preflight report cannot be used as adjudicated gold. The tool deliberately provides no event, sentiment or relevance guesses and does not attest reviewer identity.
 
+Use [the annotation workflow](NEWS_ANNOTATION.md) to prepare separate blank files, compare submissions without dropping cases, and require explicit adjudication before gold. The [October 5 real-headline development seed](../eval/data/news_source_pilot_2026-10-05/README.md) demonstrates this input preparation while preserving null labels.
+
 Only consume an output after exit status 0 and matching input hashes. Validation failures return status 2 and do not create or replace an output; an older report can remain on disk. Preflight's `gold_status` and `predictions_status` are `not_checked`; success does not mean the cohort is ready for model ranking. Source rights, representative sampling, annotation and event-cluster uncertainty still need their own evidence.

@@ -1,0 +1,86 @@
+{
+  "cohort_id": "fed-headline-development-pilot-2026-10-05",
+  "policy_url": "https://www.federalreserve.gov/disclaimer.htm",
+  "policy_checked_date_utc": "2026-10-05",
+  "records": [
+    {
+      "source_id": "fed-wfc-20180202",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20180202a.htm",
+      "retrieval_reference": "turn21view3",
+      "snapshot_created_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_sha256": "36fb2a83cf236363348beae3117423b1e6380014e30134eb33c9b95fce8a89dc",
+      "selection": "First sentence of official headline; second sentence omitted.",
+      "published_time_basis": "Official release date/time converted from stated EST/EDT to UTC.",
+      "availability_basis": "First availability of this selected input to this repository, recorded at extraction; historical first-market availability unknown.",
+      "input_scope": "headline_excerpt",
+      "transformation_version": "manual-headline-selection-v1",
+      "transformation": "Select the stated headline sentence(s) from web-open extracted text; preserve punctuation; append one LF; encode UTF-8.",
+      "raw_html_archived": false,
+      "acquisition_method": "Web open of official release; retrieval reference is a session-local receipt, not an authenticated timestamp."
+    },
+    {
+      "source_id": "fed-wfc-20250603",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20250603a.htm",
+      "retrieval_reference": "turn21view2",
+      "snapshot_created_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_sha256": "5a43466f6a9459b16463ec2f9f4f97ef165fdcf85db75661579b76ef77895e6a",
+      "selection": "Complete official headline.",
+      "published_time_basis": "Official release date/time converted from stated EST/EDT to UTC.",
+      "availability_basis": "First availability of this selected input to this repository, recorded at extraction; historical first-market availability unknown.",
+      "input_scope": "headline_excerpt",
+      "transformation_version": "manual-headline-selection-v1",
+      "transformation": "Select the stated headline sentence(s) from web-open extracted text; preserve punctuation; append one LF; encode UTF-8.",
+      "raw_html_archived": false,
+      "acquisition_method": "Web open of official release; retrieval reference is a session-local receipt, not an authenticated timestamp."
+    },
+    {
+      "source_id": "fed-wfc-20260305",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260305a.htm",
+      "retrieval_reference": "turn21view1",
+      "snapshot_created_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_sha256": "879695d4cfde762dad845ccfc7a5e6d12c2190ba3c5a41e2ecd47f1eea3849d7",
+      "selection": "Complete official headline.",
+      "published_time_basis": "Official release date/time converted from stated EST/EDT to UTC.",
+      "availability_basis": "First availability of this selected input to this repository, recorded at extraction; historical first-market availability unknown.",
+      "input_scope": "headline_excerpt",
+      "transformation_version": "manual-headline-selection-v1",
+      "transformation": "Select the stated headline sentence(s) from web-open extracted text; preserve punctuation; append one LF; encode UTF-8.",
+      "raw_html_archived": false,
+      "acquisition_method": "Web open of official release; retrieval reference is a session-local receipt, not an authenticated timestamp."
+    },
+    {
+      "source_id": "fed-fomc-20260916",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+      "retrieval_reference": "turn20view0",
+      "snapshot_created_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_sha256": "ceb29ffa378af473776ee78d2f2e2ce299a9132146cfbf28947664e7e2bce444",
+      "selection": "Complete official headline.",
+      "published_time_basis": "Official release date/time converted from stated EST/EDT to UTC.",
+      "availability_basis": "First availability of this selected input to this repository, recorded at extraction; historical first-market availability unknown.",
+      "input_scope": "headline_excerpt",
+      "transformation_version": "manual-headline-selection-v1",
+      "transformation": "Select the stated headline sentence(s) from web-open extracted text; preserve punctuation; append one LF; encode UTF-8.",
+      "raw_html_archived": false,
+      "acquisition_method": "Web open of official release; retrieval reference is a session-local receipt, not an authenticated timestamp."
+    }
+  ],
+  "ticker_aliases": [
+    {
+      "ticker": "WFC",
+      "name": "Wells Fargo & Company",
+      "aliases": [
+        "Wells Fargo"
+      ],
+      "verified_source_url": "https://newsroom.wf.com/news-releases/news-details/2026/Wells-Fargo-2018-Federal-Reserve-Consent-Order-Terminated/default.aspx"
+    },
+    {
+      "ticker": "JPM",
+      "name": "JPMorgan Chase & Co.",
+      "aliases": [
+        "JPMorganChase",
+        "JPMorgan Chase"
+      ],
+      "verified_source_url": "https://www.jpmorganchase.com/ir/news/2026/jpmc-announces-2027-investor-day"
+    }
+  ]
+}

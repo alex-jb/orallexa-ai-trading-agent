@@ -1,0 +1,78 @@
+{
+  "bundle_schema_version": 1,
+  "cohort_id": "fed-headline-development-pilot-2026-10-05",
+  "sources": [
+    {
+      "source_id": "fed-wfc-20180202",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20180202a.htm",
+      "published_at_utc": "2018-02-02T23:15:00Z",
+      "source_sha256": "36fb2a83cf236363348beae3117423b1e6380014e30134eb33c9b95fce8a89dc",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_path": "snapshots/fed-wfc-20180202.txt",
+      "captured_at_utc": "2026-10-05T17:30:21.956519Z",
+      "evidence_spans": [
+        {
+          "span_id": "headline",
+          "start_byte": 0,
+          "end_byte": 167,
+          "span_sha256": "c14f45f16bab3c758aad777d6fc726a03e61f1ff1538bc4a5296b0384b489306"
+        }
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20250603",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20250603a.htm",
+      "published_at_utc": "2025-06-03T20:00:00Z",
+      "source_sha256": "5a43466f6a9459b16463ec2f9f4f97ef165fdcf85db75661579b76ef77895e6a",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_path": "snapshots/fed-wfc-20250603.txt",
+      "captured_at_utc": "2026-10-05T17:30:21.956519Z",
+      "evidence_spans": [
+        {
+          "span_id": "headline",
+          "start_byte": 0,
+          "end_byte": 150,
+          "span_sha256": "4444a59b330ebd7d9a647a24bb5d9ed43d9c503ffa1b7afb34e08bcef316d9cd"
+        }
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20260305",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260305a.htm",
+      "published_at_utc": "2026-03-05T16:00:00Z",
+      "source_sha256": "879695d4cfde762dad845ccfc7a5e6d12c2190ba3c5a41e2ecd47f1eea3849d7",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_path": "snapshots/fed-wfc-20260305.txt",
+      "captured_at_utc": "2026-10-05T17:30:21.956519Z",
+      "evidence_spans": [
+        {
+          "span_id": "headline",
+          "start_byte": 0,
+          "end_byte": 82,
+          "span_sha256": "d8bf88be371c3269c30ff9b5ac1559d160c2f40803af34b55aa50e0b240c2133"
+        }
+      ]
+    },
+    {
+      "source_id": "fed-fomc-20260916",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+      "published_at_utc": "2026-09-16T18:00:00Z",
+      "source_sha256": "ceb29ffa378af473776ee78d2f2e2ce299a9132146cfbf28947664e7e2bce444",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "snapshot_path": "snapshots/fed-fomc-20260916.txt",
+      "captured_at_utc": "2026-10-05T17:30:21.956519Z",
+      "evidence_spans": [
+        {
+          "span_id": "headline",
+          "start_byte": 0,
+          "end_byte": 37,
+          "span_sha256": "08600faaa1aa24c58ff36f849d3eda66adceb0bef62f00e74aece293cfbc1b18"
+        }
+      ]
+    }
+  ]
+}

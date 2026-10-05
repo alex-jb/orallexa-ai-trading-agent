@@ -126,8 +126,8 @@ def _read_manifest(path):
     payload, digest = _read_json(path)
     data = _object(payload, "manifest")
     _string(data.get("cohort_id"), "manifest.cohort_id")
-    if data.get("sample_kind") not in ("synthetic", "stratified", "representative"):
-        raise InvalidCohort("manifest.sample_kind: expected synthetic, stratified, or representative")
+    if data.get("sample_kind") not in ("synthetic", "development_pilot", "stratified", "representative"):
+        raise InvalidCohort("manifest.sample_kind: expected synthetic, development_pilot, stratified, or representative")
     _string(data.get("primary_class_rule"), "manifest.primary_class_rule")
     if not isinstance(data.get("require_source_bundle", False), bool):
         raise InvalidCohort("manifest.require_source_bundle: expected boolean")

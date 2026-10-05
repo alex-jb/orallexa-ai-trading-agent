@@ -1,0 +1,148 @@
+{
+  "cohort_id": "fed-headline-development-pilot-2026-10-05",
+  "sample_kind": "development_pilot",
+  "frozen_at_utc": "2026-10-05T17:30:21.956875Z",
+  "require_source_bundle": true,
+  "input_scope": "headline_excerpt",
+  "evaluation_status": "public-development-seed-unreviewed-no-provider-outputs",
+  "primary_class_rule": "Classify the selected input, not unseen body text. If multiple labels apply, guidance takes precedence over earnings, then regulatory, then other. Company relevance requires explicit company identity or an unambiguous alias; sector-wide exposure alone is insufficient. Mark insufficient evidence ambiguous; adjudicate all cases before scoring.",
+  "sampling_policy": "Purposive four-source workflow seed: three stages of one WFC enforcement lifecycle and one FOMC headline, each queried against WFC and JPM. No random sampling or representative/held-out claim.",
+  "models": [
+    {
+      "model_id": "unselected",
+      "revision": "placeholder-no-provider-configured",
+      "evidence_capable": true,
+      "configuration_status": "not_selected"
+    }
+  ],
+  "cases": [
+    {
+      "source_id": "fed-wfc-20180202",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20180202a.htm",
+      "published_at_utc": "2018-02-02T23:15:00Z",
+      "source_sha256": "36fb2a83cf236363348beae3117423b1e6380014e30134eb33c9b95fce8a89dc",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-wfc-20180202-wfc",
+      "ticker": "WFC",
+      "event_group_id": "wfc-2018-enforcement-lifecycle",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20180202",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20180202a.htm",
+      "published_at_utc": "2018-02-02T23:15:00Z",
+      "source_sha256": "36fb2a83cf236363348beae3117423b1e6380014e30134eb33c9b95fce8a89dc",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-wfc-20180202-jpm",
+      "ticker": "JPM",
+      "event_group_id": "wfc-2018-enforcement-lifecycle",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20250603",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20250603a.htm",
+      "published_at_utc": "2025-06-03T20:00:00Z",
+      "source_sha256": "5a43466f6a9459b16463ec2f9f4f97ef165fdcf85db75661579b76ef77895e6a",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-wfc-20250603-wfc",
+      "ticker": "WFC",
+      "event_group_id": "wfc-2018-enforcement-lifecycle",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20250603",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20250603a.htm",
+      "published_at_utc": "2025-06-03T20:00:00Z",
+      "source_sha256": "5a43466f6a9459b16463ec2f9f4f97ef165fdcf85db75661579b76ef77895e6a",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-wfc-20250603-jpm",
+      "ticker": "JPM",
+      "event_group_id": "wfc-2018-enforcement-lifecycle",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20260305",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260305a.htm",
+      "published_at_utc": "2026-03-05T16:00:00Z",
+      "source_sha256": "879695d4cfde762dad845ccfc7a5e6d12c2190ba3c5a41e2ecd47f1eea3849d7",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-wfc-20260305-wfc",
+      "ticker": "WFC",
+      "event_group_id": "wfc-2018-enforcement-lifecycle",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-wfc-20260305",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260305a.htm",
+      "published_at_utc": "2026-03-05T16:00:00Z",
+      "source_sha256": "879695d4cfde762dad845ccfc7a5e6d12c2190ba3c5a41e2ecd47f1eea3849d7",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-wfc-20260305-jpm",
+      "ticker": "JPM",
+      "event_group_id": "wfc-2018-enforcement-lifecycle",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-fomc-20260916",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+      "published_at_utc": "2026-09-16T18:00:00Z",
+      "source_sha256": "ceb29ffa378af473776ee78d2f2e2ce299a9132146cfbf28947664e7e2bce444",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-fomc-20260916-wfc",
+      "ticker": "WFC",
+      "event_group_id": "fomc-2026-09-16",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    },
+    {
+      "source_id": "fed-fomc-20260916",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+      "published_at_utc": "2026-09-16T18:00:00Z",
+      "source_sha256": "ceb29ffa378af473776ee78d2f2e2ce299a9132146cfbf28947664e7e2bce444",
+      "source_rights": "Federal Reserve Board public-domain information unless otherwise indicated; selected Board-authored headline text only; see https://www.federalreserve.gov/disclaimer.htm",
+      "available_at_utc": "2026-10-05T17:30:21.956519Z",
+      "case_id": "fed-fomc-20260916-jpm",
+      "ticker": "JPM",
+      "event_group_id": "fomc-2026-09-16",
+      "split": "test",
+      "language": "en",
+      "evidence_span_ids": [
+        "headline"
+      ]
+    }
+  ]
+}
