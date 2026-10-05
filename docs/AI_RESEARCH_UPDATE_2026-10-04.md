@@ -1,5 +1,7 @@
 # Orallexa financial AI research update — 2026-10-04
 
+Later work: the [October 5 update](AI_RESEARCH_UPDATE_2026-10-05.md) adds a real-headline development seed, independent review/adjudication tooling and new MIT/financial-AI/robotics findings. The 90-test status and data gap below describe October 4.
+
 ## Decision
 
 Keep three questions separate: whether news explicitly concerns a company, whether it changes the prior public information or valuation picture, and whether a subsequent trading decision adds value. The current news scorer answers the first classification question plus a primary event label. It does not answer the latter two. This update adds archived-input checking before collecting empirical model results; it does not produce a model ranking or returns.
