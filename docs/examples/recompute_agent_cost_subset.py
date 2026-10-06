@@ -25,6 +25,9 @@ COHORTS = (
     ("tb2-terminus2", "terminal-bench", "terminus2", 89),
 )
 TOLERANCE_USD = 1e-8
+# Author-reported mean reversal percentages, Table 6 of arXiv v2; these are
+# source values for comparison, not numbers calculated from the shared files.
+PAPER_TABLE6_MEAN_PERCENT = {"cybench": 35.7, "gaia": 28.6, "terminal-bench": 25.0}
 
 
 def git(root: Path, *args: str) -> str:
@@ -174,6 +177,8 @@ def reaggregate(root: Path) -> dict:
             "published_split_metadata": None, "queries_per_model": expected_n,
             "comparisons": comparisons, "tied_pairs": tied_pairs,
             "reversals": len(reversals), "reversal_rate": len(reversals) / comparisons,
+            "paper_table6_author_reported_mean_reversal_percent": PAPER_TABLE6_MEAN_PERCENT[dataset],
+            "matches_paper_table6_at_one_decimal": round(100 * len(reversals) / comparisons, 1) == PAPER_TABLE6_MEAN_PERCENT[dataset],
             "models": rows, "reversal_pairs": reversals,
         })
     return {
@@ -208,6 +213,7 @@ def reaggregate(root: Path) -> dict:
             "top_level_cost_and_reported_accuracy_aggregation": "passed",
             "provider_billing_reconciliation": "not established",
             "independent_regrading_or_model_identity_authentication": "not performed",
+            "paper_table6_same_task_mean_rates": "does not fully match; artifact/version provenance unresolved",
         },
         "illustrative_conditional_tariff_residual": illustrative_row,
         "inputs": inputs, "results": results,
@@ -217,6 +223,7 @@ def reaggregate(root: Path) -> dict:
             "Empty shared responses/prompts/gold prevent replay and independent answer grading from these files.",
             "Task variants come from experiment_config/file prefixes; the result files' split metadata is null.",
             "The 25/84 subset rate is not a replication of the full paper's rounded 32% statistic.",
+            "Shared-file Cybench/GAIA mean reversal rates differ from paper v2 Table 6; Terminal-Bench agrees at one decimal. The cause has not been resolved.",
             "All costs, including records scored incorrect, stay in the aggregation.",
             "No current price lookup, model call, GPU computation or Orallexa news prediction occurs.",
         ],

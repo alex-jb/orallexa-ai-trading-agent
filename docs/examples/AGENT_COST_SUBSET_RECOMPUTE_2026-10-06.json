@@ -6,7 +6,7 @@
   "paper_version_reviewed": "https://arxiv.org/html/2603.23971v2",
   "pricing_metadata_last_updated": "2026-05-01",
   "scope": "3 agentic task subsets, 8 model names; not the full 12-task paper",
-  "script_sha256": "e58ba667048e3fac49ab27b9ee5b52672ffcc52d1ec884a12a434affbf0d3444",
+  "script_sha256": "590e5adc78762e88224e22b03a9b9e7d51a9197e83a077a54fa150c042ba9b39",
   "quantile_definition": "nearest rank: sorted values at ceil(n*p)-1",
   "conditional_tariff_assumptions": [
     "prompt_tokens are fresh input; cache_tokens are all cache reads",
@@ -32,7 +32,8 @@
     "finite_nonnegative_numbers_and_binary_scores": "passed",
     "top_level_cost_and_reported_accuracy_aggregation": "passed",
     "provider_billing_reconciliation": "not established",
-    "independent_regrading_or_model_identity_authentication": "not performed"
+    "independent_regrading_or_model_identity_authentication": "not performed",
+    "paper_table6_same_task_mean_rates": "does not fully match; artifact/version provenance unresolved"
   },
   "illustrative_conditional_tariff_residual": {
     "dataset": "cybench",
@@ -212,6 +213,8 @@
       "tied_pairs": 0,
       "reversals": 11,
       "reversal_rate": 0.39285714285714285,
+      "paper_table6_author_reported_mean_reversal_percent": 35.7,
+      "matches_paper_table6_at_one_decimal": false,
       "models": [
         {
           "model": "gpt-5.4",
@@ -409,6 +412,8 @@
       "tied_pairs": 0,
       "reversals": 7,
       "reversal_rate": 0.25,
+      "paper_table6_author_reported_mean_reversal_percent": 28.6,
+      "matches_paper_table6_at_one_decimal": false,
       "models": [
         {
           "model": "gpt-5.4",
@@ -586,6 +591,8 @@
       "tied_pairs": 0,
       "reversals": 7,
       "reversal_rate": 0.25,
+      "paper_table6_author_reported_mean_reversal_percent": 25.0,
+      "matches_paper_table6_at_one_decimal": true,
       "models": [
         {
           "model": "gpt-5.4",
@@ -761,6 +768,7 @@
     "Empty shared responses/prompts/gold prevent replay and independent answer grading from these files.",
     "Task variants come from experiment_config/file prefixes; the result files' split metadata is null.",
     "The 25/84 subset rate is not a replication of the full paper's rounded 32% statistic.",
+    "Shared-file Cybench/GAIA mean reversal rates differ from paper v2 Table 6; Terminal-Bench agrees at one decimal. The cause has not been resolved.",
     "All costs, including records scored incorrect, stay in the aggregation.",
     "No current price lookup, model call, GPU computation or Orallexa news prediction occurs."
   ]
