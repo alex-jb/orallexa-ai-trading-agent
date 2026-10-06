@@ -1,5 +1,7 @@
 # Orallexa AI research update — 2026-10-05
 
+Continuation: the [October 5 evening / October 6 UTC note](AI_RESEARCH_UPDATE_2026-10-06.md) examines CLM-8B, editable agent context, recovery training and imperfect-information planning, and records a synthetic schema probe plus a future news study protocol.
+
 ## Decision
 
 Advance the evidence workflow with a small real-source development seed and independently completed review records. Three current research signals support checking whether an output is grounded, repairable and economically useful. They do not establish model superiority or trading returns. Sources were checked October 5; dates below distinguish recent announcements from an undated dataset card.
