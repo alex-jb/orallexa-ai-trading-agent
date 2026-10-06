@@ -11,7 +11,8 @@ Prophet Arena (arxiv 2510.17638) found LLM forecasters — including
 Haiku, Sonnet, GPT-4o — systematically compress p_yes into the
 middle band (~0.30–0.70) even when the true probability is far off.
 The `brier_reliability` middle-bin ECE audit shipped 2026-07-02
-(Tier-1 #8) surfaces this pathology; this module FIXES it.
+(Tier-1 #8) surfaces this pathology; this module provides a candidate
+post-hoc correction that still needs held-out evaluation.
 
 Bridgewater's AIA Forecaster (arxiv 2511.07678, 2025-09-15) adds
 Platt scaling as a post-hoc supervisor step. Same idea as Platt's
@@ -19,9 +20,9 @@ original 1999 SVM calibration paper — fit a sigmoid
     p_calibrated = 1 / (1 + exp(A * p_raw + B))
 to historical (p_raw, actual_outcome) pairs via logistic regression.
 
-Two knobs (A, B) are enough to un-compress the middle band without
-overfitting on n=50-200 calibration observations. Deterministic,
-cheap, no LLM per market.
+Two parameters (A, B) can change the probability mapping. Training
+improvement alone does not establish performance on future events.
+Deterministic, no LLM per market.
 
 Contract
 --------
@@ -32,13 +33,9 @@ raw probability to a calibrated one.
 
 Consumers
 ---------
-- markets/auto/polymarket_daily.py estimate_p_yes(): apply Platt
-  calibration to raw Haiku/Sonnet output before persisting to
-  polymarket_history.jsonl. The audit block records BOTH raw and
-  calibrated values so we can measure the improvement.
-- markets/auto/brier_audit.py: the calibrator itself can be
-  updated weekly from the last 30-90 days of history — the
-  brier_audit run is the natural cadence.
+- markets/auto/brier_audit.py fits an in-memory training diagnostic.
+- load_or_refit() is available to future callers; the current
+  polymarket_daily.py forecast path does not call this utility.
 
 Refs
 ----
@@ -75,12 +72,14 @@ class PlattCalibrator:
 
     p_calibrated = 1 / (1 + exp(A * p_raw + B))
 
-    A negative → calibration steepens (spreads mid-band toward tails)
-    A ≈ 0     → identity (no calibration needed)
+    A negative gives an increasing sigmoid; its magnitude sets the
+    slope. A = 0 gives a constant probability, not an identity map.
+    n_train = 0 denotes an unfitted, exact no-op calibrator; A and B
+    are unused in that state, including when loading legacy caches.
     """
     A: float
     B: float
-    n_train: int          # observations used for fit
+    n_train: int          # observations used for fit; zero means no-op
     train_brier_raw: float
     train_brier_calibrated: float
 
@@ -90,16 +89,15 @@ class PlattCalibrator:
         Degenerate inputs (NaN, Inf, out of [0,1]) are passed through
         unchanged — the caller should have already validated inputs.
         """
-        if math.isnan(p_raw) or math.isinf(p_raw):
+        if self.n_train == 0 or not (0 <= p_raw <= 1):
             return p_raw
         return _platt_transform(p_raw, self.A, self.B)
 
     def improvement_pct(self) -> float:
         """Fractional Brier score improvement on the training set.
 
-        Positive → calibration helped. Negative → identity would have
-        been better (which suggests overfitting or already-calibrated
-        raw outputs).
+        Positive means the fitted map scored better on its training
+        observations. This is not a held-out improvement estimate.
         """
         if self.train_brier_raw <= 0:
             return 0.0
@@ -233,22 +231,13 @@ def fit(history: Iterable[dict], *,
 def identity() -> PlattCalibrator:
     """Return a no-op calibrator for the cold-start case.
 
-    Under the fitted Platt sigmoid,
-        p = 1 / (1 + exp(A * p_raw + B))
-    the identity mapping p_cal = p_raw is achieved by A = -∞, but
-    numerically we approximate it with A = -60, B = 30. This gives
-    p_cal ≈ 1 - 1e-13 at p_raw = 1 and p_cal ≈ 1e-13 at p_raw = 0,
-    with p_cal ≈ 0.5 at p_raw ≈ 0.5.
+    An affine sigmoid of p_raw cannot equal p_raw across [0, 1].
+    Instead, n_train=0 makes calibrate() return the input exactly.
+    Parameters are placeholders and the cache schema is unchanged.
     """
-    # For a true near-identity we want:
-    #   p = 1/(1 + exp(A*p_raw + B))
-    #   at p_raw=0:   p ≈ 0, so exp(B) large → B large positive
-    #   at p_raw=0.5: p ≈ 0.5, so A*0.5 + B ≈ 0 → A ≈ -2B
-    #   at p_raw=1:   p ≈ 1, so exp(A + B) small → A + B large negative
-    # A=-60, B=30 satisfies all three within numerical precision.
     return PlattCalibrator(
-        A=-60.0,
-        B=30.0,
+        A=0.0,
+        B=0.0,
         n_train=0,
         train_brier_raw=0.0,
         train_brier_calibrated=0.0,

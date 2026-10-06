@@ -17,9 +17,9 @@ Aggregates by ticker and weekday. Writes:
 
   ~/Desktop/.../alex-brain/research/brier-audit/YYYY-MM-DD.md
 
-This is the audit that tells us whether Orallexa's "BUY 59% confidence"
-really means a 59% chance of moving up — or whether the system is
-poorly calibrated (e.g., always saying 50-60% regardless of actual edge).
+This audits the event probabilities in probabilities.up/down. The
+separately scaled and capped UI confidence score is not the forecast
+probability evaluated here.
 
 Honest calibration shows where the system is weak; fix the prompt
 chain there, not the symptom.
@@ -196,9 +196,9 @@ def render_platt_whatif_section(results: list[dict]) -> list[str]:
     Brier score WOULD have been under calibration. What-if only —
     does not persist a calibrator and does not change any decisions.
 
-    Purpose: give Alex empirical evidence before flipping the live
-    wire-up flag on polymarket_daily.py / stock decision path. If
-    Platt drops Brier by ≥ 5% here, the wire-up is worth shipping.
+    Parameters and Brier scores use the same observations. This is a
+    training diagnostic, not evidence of improvement on future events.
+    Deployment requires evaluation on later, held-out forecasts.
 
     Refs
     ----
@@ -207,8 +207,9 @@ def render_platt_whatif_section(results: list[dict]) -> list[str]:
       pass — Platt is the deterministic post-hoc step of that framework.
     """
     lines: list[str] = ["", "## Platt what-if calibration",
-                        "*What would Brier have been if we applied Platt "
-                        "post-hoc calibration to the exact same forecasts?*",
+                        "*Training-set diagnostic: parameters and scores use "
+                        "the same resolved decisions; no held-out performance "
+                        "is measured.*",
                         ""]
     try:
         from engine.platt_calibration import fit as _platt_fit
@@ -232,16 +233,18 @@ def render_platt_whatif_section(results: list[dict]) -> list[str]:
     improvement = cal.improvement_pct()
     delta = cal.train_brier_raw - cal.train_brier_calibrated
     verdict = (
-        "🟢 **Ship the wire-up** — Platt materially improves calibration."
+        "Training fit improves Brier; evaluate on later held-out forecasts "
+        "before enabling calibration."
         if improvement >= 0.05 else
-        "🟡 Marginal — Platt helps but < 5% Brier drop. Wait for more data."
+        "Small training-set Brier reduction (< 5%); evaluate on later "
+        "held-out forecasts before enabling calibration."
         if improvement > 0 else
-        "🔴 **Do NOT ship** — Platt makes it worse. Forecasts already "
-        "well-calibrated or fit overfit on this sample."
+        "No training-set Brier improvement; review the fit and evaluate "
+        "on later held-out forecasts before changing calibration."
     )
     lines.extend([
-        f"- Raw Brier         : {cal.train_brier_raw:.4f}",
-        f"- Calibrated Brier  : {cal.train_brier_calibrated:.4f}",
+        f"- Raw Brier (training)         : {cal.train_brier_raw:.4f}",
+        f"- Calibrated Brier (training)  : {cal.train_brier_calibrated:.4f}",
         f"- Δ Brier           : {delta:+.4f}  ({improvement * 100:+.1f}%)",
         f"- Fit params        : A={cal.A:+.3f}, B={cal.B:+.3f}, "
         f"n_train={cal.n_train}",

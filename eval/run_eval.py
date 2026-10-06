@@ -57,9 +57,9 @@ def main():
                 print(f"    [{mark}] {d['ticker']} {d['decision']} → {d['forward_return']:+.2%} (conf: {d['confidence']:.0f}%)")
         print()
 
-    # 2. Confidence Calibration
+    # 2. Confidence Score Accuracy (legacy CLI/JSON key: calibration)
     if args.eval in ("calibration", "all"):
-        print("── Confidence Calibration ──")
+        print("── Confidence Score Accuracy ──")
         cal = confidence_calibration(
             evaluated_decisions=results.get("direction_accuracy", {}).get("details"),
             forward_days=args.forward_days, days=args.days,

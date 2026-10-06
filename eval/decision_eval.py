@@ -5,7 +5,7 @@ Decision quality evaluation using historical data.
 
 Metrics:
   1. direction_accuracy — was BUY/SELL correct vs N-day forward return?
-  2. confidence_calibration — higher confidence = more accurate?
+  2. confidence_calibration — accuracy by capped confidence score
   3. explanation_consistency — same market → same direction?
   4. strategy_backtest_eval — decisions as signals → backtest vs buy-and-hold
 
@@ -22,6 +22,8 @@ from typing import Optional
 
 import pandas as pd
 import yfinance as yf
+
+from models.confidence import MAX_CONFIDENCE
 
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -130,7 +132,7 @@ def direction_accuracy(
     }
 
 
-# ── 2. Confidence Calibration ────────────────────────────────────────────
+# ── 2. Confidence Score Accuracy ─────────────────────────────────────────
 
 def confidence_calibration(
     evaluated_decisions: list[dict] = None,
@@ -138,26 +140,34 @@ def confidence_calibration(
     days: int = 30,
 ) -> dict:
     """
-    Group decisions by confidence bucket and check accuracy per bucket.
-    A well-calibrated system has monotonically increasing accuracy.
+    Group decisions by displayed confidence score and report accuracy.
+
+    Increasing accuracy measures score ordering, not probability
+    calibration: the capped UI score is not a validated probability.
+    Buckets cover [0, MAX_CONFIDENCE], with an inclusive final endpoint.
+    total_evaluated includes all input rows, even scores outside that range.
     """
     if evaluated_decisions is None:
         result = direction_accuracy(forward_days=forward_days, days=days)
         evaluated_decisions = result["details"]
 
-    buckets = [(0, 30), (30, 50), (50, 65), (65, 82)]
+    buckets = [(0, 30), (30, 50), (50, 65), (65, MAX_CONFIDENCE)]
     calibration = []
 
     for lo, hi in buckets:
-        in_bucket = [d for d in evaluated_decisions if lo <= d.get("confidence", 0) < hi]
+        in_bucket = [
+            d for d in evaluated_decisions
+            if lo <= d.get("confidence", 0) < hi
+            or (hi == MAX_CONFIDENCE and d.get("confidence", 0) == hi)
+        ]
         if not in_bucket:
-            calibration.append({"range": f"{lo}-{hi}", "count": 0, "accuracy": None, "avg_return": None})
+            calibration.append({"range": f"{lo:g}-{hi:g}", "count": 0, "accuracy": None, "avg_return": None})
             continue
 
         correct = sum(1 for d in in_bucket if d.get("correct"))
         avg_return = sum(d.get("forward_return", 0) for d in in_bucket) / len(in_bucket)
         calibration.append({
-            "range": f"{lo}-{hi}",
+            "range": f"{lo:g}-{hi:g}",
             "count": len(in_bucket),
             "accuracy": round(correct / len(in_bucket), 3),
             "avg_return": round(avg_return, 4),
