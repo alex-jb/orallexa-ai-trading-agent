@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "record_kind": "model_hub_git_pointer_metadata_only",
+  "observed_at_utc": "2026-10-06T06:02:00.825949+00:00",
+  "repository": "https://huggingface.co/Contrastive-LM/CLM-v0.1-8B",
+  "hub_revision": "e939398d4556fcd9400c76fa8c5a513202f42b0a",
+  "hub_commit_date": "2026-09-24T21:37:19Z",
+  "head_filename": "CLM_v0.1-8B.pt",
+  "git_pointer_blob_oid": "5a1f441795a2ee74e510c62a75fbb3d0903e9e32",
+  "pointer_bytes": 133,
+  "pointer_sha256": "0a4b56e9a371d04d191e08e32125c33975674aa82272fcb592bba49512dc60e0",
+  "published_target_sha256": "b2b4a8c9c2d39263eff78a351eb909a342ce9b3bf21a3f07c1d1bf15f1c4eda5",
+  "published_target_size_bytes": 75557149,
+  "source_code_revision_reviewed": "d5f9ef0fd9bde185df0ceaad4f4ecc6cfe8c34f6",
+  "primary_web_corroboration": [
+    "https://huggingface.co/Contrastive-LM/CLM-v0.1-8B/blob/main/CLM_v0.1-8B.pt",
+    "https://huggingface.co/Contrastive-LM/CLM-v0.1-8B/commit/a6cabbc226257a8ad572e818e13a23f2e1c8b9d7",
+    "https://huggingface.co/Contrastive-LM/CLM-v0.1-8B/commit/e939398d4556fcd9400c76fa8c5a513202f42b0a"
+  ],
+  "fixed_revision_target_url": "https://huggingface.co/Contrastive-LM/CLM-v0.1-8B/resolve/e939398d4556fcd9400c76fa8c5a513202f42b0a/CLM_v0.1-8B.pt",
+  "checks": {
+    "git_revision_and_pointer": "verified from read-only clone",
+    "published_pointer_hash_crosscheck": "matches official Hub pointer details",
+    "downloaded_target_bytes": "not downloaded; actual target hash not recomputed",
+    "encoder_tokenizer_serving_pins": "not resolved",
+    "inference_or_gpu_measurement": "not performed"
+  },
+  "limitations": [
+    "This identifies an immutable Hub revision and expected projection-head identity, not a complete serving configuration.",
+    "The hash/size concern the projection head, not the frozen Qwen3-8B encoder.",
+    "No target weight file was downloaded or loaded, and no model quality/latency claim follows.",
+    "A future run must download explicitly by revision, verify target bytes and separately pin encoder/tokenizer/pooling/runtime."
+  ]
+}

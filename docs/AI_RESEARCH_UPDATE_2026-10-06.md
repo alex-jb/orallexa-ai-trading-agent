@@ -6,6 +6,8 @@ Prioritize a small, source-grounded comparison of **CLM-8B for company-news scre
 
 Sources and source-code revisions were checked October 6 UTC, while it was still October 5 in New York. Publication dates below are the original sources' dates. See the [earlier October 5 note](AI_RESEARCH_UPDATE_2026-10-05.md) for the real-headline pilot and independent annotation workflow.
 
+The [October 6 New York continuation](AI_RESEARCH_SESSION_2026-10-06.md) adds task-cost reaggregation, RAC coordination research, MIT HardFlow, market release checks and a later model-Hub pointer verification. This dated note preserves the earlier turn's status.
+
 ## Four findings
 
 | Primary source | Verified finding and boundary | Orallexa adaptation |

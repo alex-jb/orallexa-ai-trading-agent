@@ -10,6 +10,8 @@ This protocol specifies a future comparison for Orallexa's existing news task. I
 
 The inspected upstream README/source describe separate state/action computations and reusable embeddings; the model card specifies the frozen Qwen3-8B encoder. Reported speedups concern the authors' tasks, and verifier results use fine-tuned heads. Those claims are not Orallexa measurements. No immutable weight revision or checkpoint hash has been verified here.
 
+Later metadata-only follow-up: the [October 6 receipt](examples/CLM_WEIGHT_METADATA_2026-10-06.json) verifies Hub Git revision `e939398d4556fcd9400c76fa8c5a513202f42b0a` and its projection-head pointer, including the published expected SHA-256 and size. The target weight bytes were not downloaded or hashed; encoder/tokenizer/pooling/runtime identities and an inference runner remain outstanding. The paragraph above records the earlier schema probe's scope. For a separate end-to-end briefing experiment, see the [quality and total-cost protocol](NEWS_PIPELINE_QUALITY_COST_PROTOCOL.md); it does not replace this classifier study's primary endpoint.
+
 ## Map each field to one task
 
 | Upstream field | Observed schema meaning | Planned use |
