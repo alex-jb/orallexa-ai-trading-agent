@@ -1,0 +1,494 @@
+{
+  "schema": "orallexa.memory-calibration-source-probe.v1",
+  "date": "2026-10-06",
+  "script_sha256": "f7242ddbc994ce13166770d9fcf1be1ba42fc2aee069625d96d270296e689b5c",
+  "source_inputs": [
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "graphiti_core/search/search_filters.py",
+      "bytes": 9819,
+      "git_blob_sha1": "7d45f4b66cc55d0cea90504817bff9f025d48045",
+      "sha256": "a8be03eb976a8c781b04df9a987a3b57704d6ad729ef0417300f31f7487e298f"
+    },
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "graphiti_core/edges.py",
+      "bytes": 33631,
+      "git_blob_sha1": "28c170355e02a569b60c5e070f019572889ace82",
+      "sha256": "0151d72ebfb057033c6d52a163e22f252f67b915722e14315b685c7831b3b1c6"
+    },
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "graphiti_core/utils/maintenance/edge_operations.py",
+      "bytes": 37412,
+      "git_blob_sha1": "80a1ef384088c09d1bb33700ccdb0fbe7a6998b8",
+      "sha256": "42556652453fc302f9e54821c96bb3f7e0e333bac3c6957b36fbb4ded71d9bcb"
+    },
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "graphiti_core/search/search.py",
+      "bytes": 33042,
+      "git_blob_sha1": "51c65d217000033bde1e772cfb2b1ddd97e8d0c9",
+      "sha256": "9fe64da1825864950285b1733a4920001d70c780e3f0386837e98eedbfed7529"
+    },
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "graphiti_core/graphiti.py",
+      "bytes": 77835,
+      "git_blob_sha1": "be7375e6fef97c9b96d7c981d2edb7957a24b2ef",
+      "sha256": "3b19cd31e065f66acef67ac25844d6fa2ae85b948940c61f6a2b7696f5c342af"
+    },
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "README.md",
+      "bytes": 31417,
+      "git_blob_sha1": "48ef8e013e97cfb498d6ca9c494e4d65ab42c06a",
+      "sha256": "72c09aa0f12b7835f8c2919000788bca43306cf847269d4c3a7f35c957218689"
+    },
+    {
+      "project": "graphiti",
+      "commit": "689de295c209631405c00e19e0af4f9735142f13",
+      "path": "LICENSE",
+      "bytes": 11325,
+      "git_blob_sha1": "5feb0d9d299a1107adfa8331306b13cc0eff2d78",
+      "sha256": "2825300b20d7b951209835a4a331f29e24725a39d65168e4b831df53aa372650"
+    },
+    {
+      "project": "orallexa",
+      "commit": "9bdb4d955d006a04159feb2d8b8b207402ddc33d",
+      "path": "engine/platt_calibration.py",
+      "bytes": 13389,
+      "git_blob_sha1": "c10a93c3bc8d45eb4e1e05f6a6a2c925e71428c0",
+      "sha256": "64ead787528a1687249658b9a2afdb5ebe5f611317e08ad5c9b5dae91ad28b0d"
+    },
+    {
+      "project": "orallexa",
+      "commit": "9bdb4d955d006a04159feb2d8b8b207402ddc33d",
+      "path": "eval/decision_eval.py",
+      "bytes": 10770,
+      "git_blob_sha1": "03e7e4dc78526fc86a3659cc52e7783fa938cdfe",
+      "sha256": "40eb61bbb02eea74e57abdc1f4e71e1077af07476b3b198e961aceb8e5081ff8"
+    },
+    {
+      "project": "orallexa",
+      "commit": "9bdb4d955d006a04159feb2d8b8b207402ddc33d",
+      "path": "models/confidence.py",
+      "bytes": 8242,
+      "git_blob_sha1": "c056c0db8f9387ef82688c76221235dbd542926c",
+      "sha256": "fc9344978146032f4e71424022f77baf6ae3574be08a5876c681b70cee1926eb"
+    },
+    {
+      "project": "orallexa",
+      "commit": "9bdb4d955d006a04159feb2d8b8b207402ddc33d",
+      "path": "tests/test_platt_calibration.py",
+      "bytes": 13055,
+      "git_blob_sha1": "254c283a05aa663f2912ec81e5d99d2685c11be4",
+      "sha256": "8140583127bd9fb7c3d1e0dd373e28a77baab954c48caef855dd9a00da9a3263"
+    },
+    {
+      "project": "orallexa",
+      "commit": "9bdb4d955d006a04159feb2d8b8b207402ddc33d",
+      "path": "markets/auto/brier_audit.py",
+      "bytes": 19767,
+      "git_blob_sha1": "1a1381bc4037bf95031f41ee2003773a7e9cc1c3",
+      "sha256": "de27e63900beef8667d456102b3223c2fb855a4fb4fc8632acd36e3093547465"
+    },
+    {
+      "project": "orallexa",
+      "commit": "9bdb4d955d006a04159feb2d8b8b207402ddc33d",
+      "path": "markets/auto/polymarket_daily.py",
+      "bytes": 29985,
+      "git_blob_sha1": "19e8baac03ccaa0fb25c3915d6b699287fc71034",
+      "sha256": "822eb2946fa8e239a540ab4f4636073f088a0e1a95b00fa3616d28d60280a813"
+    }
+  ],
+  "case_count": 26,
+  "cases": [
+    {
+      "id": "cold_start_0",
+      "input_probability": 0,
+      "actual_probability": 9.357622968839299e-14,
+      "absolute_change": 9.357622968839299e-14
+    },
+    {
+      "id": "cold_start_0.1",
+      "input_probability": 0.1,
+      "actual_probability": 3.7751345441365816e-11,
+      "absolute_change": 0.09999999996224866
+    },
+    {
+      "id": "cold_start_0.2",
+      "input_probability": 0.2,
+      "actual_probability": 1.522997951276035e-08,
+      "absolute_change": 0.1999999847700205
+    },
+    {
+      "id": "cold_start_0.25",
+      "input_probability": 0.25,
+      "actual_probability": 3.059022269256247e-07,
+      "absolute_change": 0.24999969409777306
+    },
+    {
+      "id": "cold_start_0.4",
+      "input_probability": 0.4,
+      "actual_probability": 0.0024726231566347743,
+      "absolute_change": 0.39752737684336525
+    },
+    {
+      "id": "cold_start_0.5",
+      "input_probability": 0.5,
+      "actual_probability": 0.5,
+      "absolute_change": 0.0
+    },
+    {
+      "id": "cold_start_0.6",
+      "input_probability": 0.6,
+      "actual_probability": 0.9975273768433653,
+      "absolute_change": 0.39752737684336537
+    },
+    {
+      "id": "cold_start_0.75",
+      "input_probability": 0.75,
+      "actual_probability": 0.999999694097773,
+      "absolute_change": 0.249999694097773
+    },
+    {
+      "id": "cold_start_0.8",
+      "input_probability": 0.8,
+      "actual_probability": 0.9999999847700205,
+      "absolute_change": 0.19999998477002046
+    },
+    {
+      "id": "cold_start_0.9",
+      "input_probability": 0.9,
+      "actual_probability": 0.9999999999622486,
+      "absolute_change": 0.09999999996224862
+    },
+    {
+      "id": "cold_start_1",
+      "input_probability": 1,
+      "actual_probability": 0.9999999999999065,
+      "absolute_change": 9.348077867343818e-14
+    },
+    {
+      "id": "cold_start_synthetic_brier",
+      "synthetic": true,
+      "n": 200,
+      "groups": [
+        {
+          "p": 0.25,
+          "n": 100,
+          "positive": 25
+        },
+        {
+          "p": 0.75,
+          "n": 100,
+          "positive": 75
+        }
+      ],
+      "raw_brier": 0.1875,
+      "mapped_brier": 0.24999984704898012
+    },
+    {
+      "id": "monotonic_accuracy_is_not_probability_calibration",
+      "synthetic": true,
+      "input_groups": [
+        {
+          "confidence": 20,
+          "n": 10,
+          "correct": 5
+        },
+        {
+          "confidence": 40,
+          "n": 10,
+          "correct": 6
+        },
+        {
+          "confidence": 60,
+          "n": 10,
+          "correct": 7
+        },
+        {
+          "confidence": 75,
+          "n": 10,
+          "correct": 8
+        }
+      ],
+      "source_function_result": {
+        "buckets": [
+          {
+            "range": "0-30",
+            "count": 10,
+            "accuracy": 0.5,
+            "avg_return": 0.0
+          },
+          {
+            "range": "30-50",
+            "count": 10,
+            "accuracy": 0.6,
+            "avg_return": 0.002
+          },
+          {
+            "range": "50-65",
+            "count": 10,
+            "accuracy": 0.7,
+            "avg_return": 0.004
+          },
+          {
+            "range": "65-82",
+            "count": 10,
+            "accuracy": 0.8,
+            "avg_return": 0.006
+          }
+        ],
+        "total_evaluated": 40
+      },
+      "ece_if_score_were_probability": 0.16249999999999998,
+      "interpretation": "conditional diagnostic, not measured project ECE"
+    },
+    {
+      "id": "capped_confidence_82_missing_from_buckets",
+      "synthetic": true,
+      "raw_confidence": 100,
+      "source_scaled_confidence": 82.0,
+      "source_function_result": {
+        "buckets": [
+          {
+            "range": "0-30",
+            "count": 0,
+            "accuracy": null,
+            "avg_return": null
+          },
+          {
+            "range": "30-50",
+            "count": 0,
+            "accuracy": null,
+            "avg_return": null
+          },
+          {
+            "range": "50-65",
+            "count": 0,
+            "accuracy": null,
+            "avg_return": null
+          },
+          {
+            "range": "65-82",
+            "count": 0,
+            "accuracy": null,
+            "avg_return": null
+          }
+        ],
+        "total_evaluated": 1
+      },
+      "sum_bucket_counts": 0
+    },
+    {
+      "id": "default_no_time_filter",
+      "actual_query_fragments": [],
+      "actual_parameters": {},
+      "scope": "source query builder with attribute stubs; no database execution"
+    },
+    {
+      "id": "event_time_only",
+      "actual_query_fragments": [
+        "((e.valid_at <= $valid_at_0))"
+      ],
+      "actual_parameters": {
+        "valid_at_0": "2026-10-02T00:00:00+00:00"
+      },
+      "scope": "source query builder with attribute stubs; no database execution"
+    },
+    {
+      "id": "explicit_event_and_ingestion_time",
+      "actual_query_fragments": [
+        "((e.valid_at <= $valid_at_0))",
+        "((e.created_at <= $created_at_0))"
+      ],
+      "actual_parameters": {
+        "valid_at_0": "2026-10-02T00:00:00+00:00",
+        "created_at_0": "2026-10-03T00:00:00+00:00"
+      },
+      "scope": "source query builder with attribute stubs; no database execution"
+    },
+    {
+      "id": "expiry_null_or_later",
+      "actual_query_fragments": [
+        "((e.expired_at IS NULL) OR (e.expired_at > $expired_at_0))"
+      ],
+      "actual_parameters": {
+        "expired_at_0": "2026-10-03T00:00:00+00:00"
+      },
+      "scope": "source query builder with attribute stubs; no database execution"
+    },
+    {
+      "id": "valid_at_two_or_ranges_reuse_parameter_names",
+      "intended_ranges": [
+        [
+          "2026-10-01T00:00:00+00:00",
+          "2026-10-02T00:00:00+00:00"
+        ],
+        [
+          "2026-10-03T00:00:00+00:00",
+          "2026-10-04T00:00:00+00:00"
+        ]
+      ],
+      "actual_query_fragments": [
+        "((e.valid_at >= $valid_at_0) AND (e.valid_at < $valid_at_1) OR (e.valid_at >= $valid_at_0) AND (e.valid_at < $valid_at_1))"
+      ],
+      "actual_parameters": {
+        "valid_at_0": "2026-10-03T00:00:00+00:00",
+        "valid_at_1": "2026-10-04T00:00:00+00:00"
+      },
+      "distinct_requested_dates": 4,
+      "bound_parameters": 2,
+      "scope": "parameter overwrite verified; no database execution"
+    },
+    {
+      "id": "invalid_at_two_or_ranges_reuse_parameter_names",
+      "intended_ranges": [
+        [
+          "2026-10-01T00:00:00+00:00",
+          "2026-10-02T00:00:00+00:00"
+        ],
+        [
+          "2026-10-03T00:00:00+00:00",
+          "2026-10-04T00:00:00+00:00"
+        ]
+      ],
+      "actual_query_fragments": [
+        "((e.invalid_at >= $invalid_at_0) AND (e.invalid_at < $invalid_at_1) OR (e.invalid_at >= $invalid_at_0) AND (e.invalid_at < $invalid_at_1))"
+      ],
+      "actual_parameters": {
+        "invalid_at_0": "2026-10-03T00:00:00+00:00",
+        "invalid_at_1": "2026-10-04T00:00:00+00:00"
+      },
+      "distinct_requested_dates": 4,
+      "bound_parameters": 2,
+      "scope": "parameter overwrite verified; no database execution"
+    },
+    {
+      "id": "created_at_two_or_ranges_reuse_parameter_names",
+      "intended_ranges": [
+        [
+          "2026-10-01T00:00:00+00:00",
+          "2026-10-02T00:00:00+00:00"
+        ],
+        [
+          "2026-10-03T00:00:00+00:00",
+          "2026-10-04T00:00:00+00:00"
+        ]
+      ],
+      "actual_query_fragments": [
+        "((e.created_at >= $created_at_0) AND (e.created_at < $created_at_1) OR (e.created_at >= $created_at_0) AND (e.created_at < $created_at_1))"
+      ],
+      "actual_parameters": {
+        "created_at_0": "2026-10-03T00:00:00+00:00",
+        "created_at_1": "2026-10-04T00:00:00+00:00"
+      },
+      "distinct_requested_dates": 4,
+      "bound_parameters": 2,
+      "scope": "parameter overwrite verified; no database execution"
+    },
+    {
+      "id": "expired_at_two_or_ranges_reuse_parameter_names",
+      "intended_ranges": [
+        [
+          "2026-10-01T00:00:00+00:00",
+          "2026-10-02T00:00:00+00:00"
+        ],
+        [
+          "2026-10-03T00:00:00+00:00",
+          "2026-10-04T00:00:00+00:00"
+        ]
+      ],
+      "actual_query_fragments": [
+        "((e.expired_at >= $expired_at_0) AND (e.expired_at < $expired_at_1) OR (e.expired_at >= $expired_at_0) AND (e.expired_at < $expired_at_1))"
+      ],
+      "actual_parameters": {
+        "expired_at_0": "2026-10-03T00:00:00+00:00",
+        "expired_at_1": "2026-10-04T00:00:00+00:00"
+      },
+      "distinct_requested_dates": 4,
+      "bound_parameters": 2,
+      "scope": "parameter overwrite verified; no database execution"
+    },
+    {
+      "id": "late_known_invalidation_mutates_old_event_end",
+      "synthetic": true,
+      "before": {
+        "valid_at": "2026-10-06T09:00:00+00:00",
+        "invalid_at": null,
+        "expired_at": null,
+        "created_at": "2026-10-06T09:01:00+00:00"
+      },
+      "after": {
+        "valid_at": "2026-10-06T09:00:00+00:00",
+        "invalid_at": "2026-10-06T09:30:00+00:00",
+        "expired_at": "2026-10-06T11:00:00+00:00",
+        "created_at": "2026-10-06T09:01:00+00:00"
+      },
+      "cutoff": "2026-10-06T10:00:00+00:00",
+      "event_window_before_update": true,
+      "event_window_after_update": false,
+      "ingestion_window_after_update": true,
+      "scope": "selected mutation helper; illustrative replay predicates, not Graphiti retrieval"
+    },
+    {
+      "id": "finbench_n3_coverage_0.81",
+      "reported_n": 3,
+      "reported_cov80": 0.81,
+      "possible_unweighted_hit_fractions_rounded2": [
+        0.0,
+        0.33,
+        0.67,
+        1.0
+      ],
+      "compatible_with_binary_hit_count_over_reported_n": false,
+      "source": "https://arxiv.org/html/2607.16229v1#S6.T1",
+      "scope": "requires author clarification of coverage denominator/definition"
+    },
+    {
+      "id": "finbench_n3_coverage_0.82",
+      "reported_n": 3,
+      "reported_cov80": 0.82,
+      "possible_unweighted_hit_fractions_rounded2": [
+        0.0,
+        0.33,
+        0.67,
+        1.0
+      ],
+      "compatible_with_binary_hit_count_over_reported_n": false,
+      "source": "https://arxiv.org/html/2607.16229v1#S6.T1",
+      "scope": "requires author clarification of coverage denominator/definition"
+    },
+    {
+      "id": "finbench_n3_coverage_0.83",
+      "reported_n": 3,
+      "reported_cov80": 0.83,
+      "possible_unweighted_hit_fractions_rounded2": [
+        0.0,
+        0.33,
+        0.67,
+        1.0
+      ],
+      "compatible_with_binary_hit_count_over_reported_n": false,
+      "source": "https://arxiv.org/html/2607.16229v1#S6.T1",
+      "scope": "requires author clarification of coverage denominator/definition"
+    }
+  ],
+  "not_performed": [
+    "full upstream package imports",
+    "Platt fitting or held-out evaluation",
+    "memory retrieval/model inference or RL training",
+    "database execution",
+    "FinBench CSV recomputation",
+    "provider/broker calls",
+    "live-path calibration activation or runtime source edits"
+  ]
+}

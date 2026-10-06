@@ -1,0 +1,1224 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-10-06",
+  "data_kind": "synthetic_source_function_probe",
+  "python_version": "3.12.14",
+  "script_sha256": "6f3c88c55a8a27b10f94a1b15a42e6cdf993e04839df1d238657ff536053477c",
+  "sources": [
+    {
+      "repository": "https://github.com/microsoft/sentinel_environments",
+      "revision": "0faca33cc58ea62e97a928b67cd3beec7176b408",
+      "inputs": [
+        {
+          "path": "README.md",
+          "bytes": 12360,
+          "git_blob": "4bd6bd71220634ff9266ff89962618b576abc45d",
+          "sha256": "312d925c29b0dc394b4f8913db37f192d4e05388c4535cbae9a3a19b006f26af"
+        },
+        {
+          "path": "scenarios/microchat/attachment-absolute-active.json",
+          "bytes": 2225,
+          "git_blob": "19a4e8a93e76aa3ae1efc9747338898ff91c783e",
+          "sha256": "a0c9fedcd1f5cdac69500117def7262911d6cfdee780a801fc124dd7678f50a5"
+        },
+        {
+          "path": "scenarios/microchat/attachment-noop.json",
+          "bytes": 2006,
+          "git_blob": "bbd0cea4dd26c853669a1f2a2fe2ad3c24f9a0f2",
+          "sha256": "d47ebad13b168f16ea77f7aab5cc25d0f5d759aaff2765a9fbfb297b04bae24a"
+        },
+        {
+          "path": "scenarios/microchat/mentions-noop.json",
+          "bytes": 1901,
+          "git_blob": "f81d0f203b5a1aea7a18e70263b5e49707a31a20",
+          "sha256": "55919c099ecd09b58828fb9dd0d720667f0a934346d9ab062c5f2347914820f5"
+        },
+        {
+          "path": "scenarios/microchat/mentions-relative-active.json",
+          "bytes": 2120,
+          "git_blob": "b1719fb77e8a6cef7326a06b92d41a0022aeffeb",
+          "sha256": "5977f3d7a878647dd4d5060a8358fa0d09ffc3177904f8a3150a0cf1c6022239"
+        },
+        {
+          "path": "scenarios/microchat/missed-calls-absolute-passive.json",
+          "bytes": 2013,
+          "git_blob": "2c0bbd996568c7b1fad31ee4ecaa0fff904c064e",
+          "sha256": "ebe1f0ae464186f3ea80c19fe2be63ac03a53155e8c55962eb60a67e78ed8c4b"
+        },
+        {
+          "path": "scenarios/microchat/missed-calls-relative-passive.json",
+          "bytes": 2056,
+          "git_blob": "c8dea18ed28b2a0505033e2138d21cd581dfc41a",
+          "sha256": "12358c581c55360b000cef5aea18f6f988ddc289e10e54b4cc917e7bb436e801"
+        },
+        {
+          "path": "scenarios/microchat/unread-absolute-active.json",
+          "bytes": 3225,
+          "git_blob": "19ddd517bea6e40972b90f806b7df131406c0c9f",
+          "sha256": "51ad8afff81a119118793850369e15fa3616f360e4f0e0a9fc10b89d51d33575"
+        },
+        {
+          "path": "scenarios/microchat/unread-absolute-passive.json",
+          "bytes": 2457,
+          "git_blob": "c17fa7280629ae70b00998eeade0cdbb3615438d",
+          "sha256": "f6042a39094731c3c4ae9edfe43822407b280692fa41722aafd8fc48ac0320ae"
+        },
+        {
+          "path": "scenarios/microchat/unread-conversations-relative-passive.json",
+          "bytes": 2190,
+          "git_blob": "3d6ba610df7078147ded4b8a6b9a1bcd1a5937b7",
+          "sha256": "057bdafd47a4cdb1ae4a0dbceb68564d33b3e23c0f8ef08f289cf5a09d8af8c3"
+        },
+        {
+          "path": "scenarios/microchat/urgent-relative-active.json",
+          "bytes": 2146,
+          "git_blob": "66afd99a39ed2cf70bdbe2ef72d411334432ee25",
+          "sha256": "dc99ad97fceffd637e3f8795445440983be152ba9cca066d5aedfdd214da7a35"
+        },
+        {
+          "path": "scenarios/microdin/cobol-noop.json",
+          "bytes": 1895,
+          "git_blob": "f62cd1e4b94b172632866edc4d21a2e5b3dc6d29",
+          "sha256": "bd53d9550e28ccc52af0e5a6040e5aff6f22a25f6eedcf149c8aa79efb3d4f83"
+        },
+        {
+          "path": "scenarios/microdin/connections-absolute-passive.json",
+          "bytes": 2556,
+          "git_blob": "c88f3661e9e1a9dc655c4d39aed7a858ffee8cee",
+          "sha256": "a695dbaa62fec223d7636c7f32d36e9c4730a4ccedd2826923a5fef9f5920c9b"
+        },
+        {
+          "path": "scenarios/microdin/documentation-absolute-active.json",
+          "bytes": 2199,
+          "git_blob": "5ddd8aea86b7b304312529988408e9fcc6f073ee",
+          "sha256": "e7fe268cbac88b7c44f488b8b9942510798df83a61e47e38c533ef089e9e77e8"
+        },
+        {
+          "path": "scenarios/microdin/jobs-absolute-active.json",
+          "bytes": 2227,
+          "git_blob": "94210930cca85177f4cab31965cd479d876c195d",
+          "sha256": "d9da9ba6bae0a839e30e9a8e831de1a6d04771c8e24141edd02535a0d7f95e00"
+        },
+        {
+          "path": "scenarios/microdin/jobs-absolute-passive.json",
+          "bytes": 2262,
+          "git_blob": "88163779780d0afb85d688b280eb6a4e3c210f29",
+          "sha256": "0b43b27ce12acf69a0e87c9a71da9958d4fb59030b2bed45172555a27297c05d"
+        },
+        {
+          "path": "scenarios/microdin/jobs-noop.json",
+          "bytes": 2194,
+          "git_blob": "126481b1b0f29616ed56fa8796b296a21c16a987",
+          "sha256": "496c7ca513cab69d5cdf97ff877ebef5e9e0b10c8da7e9cfa1a8937399e86fb3"
+        },
+        {
+          "path": "scenarios/microdin/notifications-relative-passive.json",
+          "bytes": 2297,
+          "git_blob": "fa234fd3af8e5a5fdd4b4f72c849bf8dd7fb6eea",
+          "sha256": "f6bd2988d8100605777a0ede0eec7e6869cd92ebf5865b1e37806097abee6026"
+        },
+        {
+          "path": "scenarios/microdin/posts-relative-passive.json",
+          "bytes": 2369,
+          "git_blob": "c716d9b660844e7355ec0bf58dc2c9115f8d5749",
+          "sha256": "e5115fcdd26157dff5f8bc66b7954454404a4b8609e1a8f1347f48f6fc5fcac5"
+        },
+        {
+          "path": "scenarios/microdin/python-relative-active.json",
+          "bytes": 2059,
+          "git_blob": "c5bdf6c0b6d9a4f87bd9e38d4a31d66da94dd9c7",
+          "sha256": "3b983cd23f694ccec50ebefc7032cf83f3c649f7f4ad294280da1542cb3b6cfd"
+        },
+        {
+          "path": "scenarios/microdin/react-relative-active.json",
+          "bytes": 2034,
+          "git_blob": "29c93b07cdfbe370a193a321115bb6ef08f0876b",
+          "sha256": "75e1bd524f705371ad9b9687616fea1fcecd368711c68968e7ba84fca041a974"
+        },
+        {
+          "path": "scenarios/microfy/followers-absolute-active.json",
+          "bytes": 2253,
+          "git_blob": "22722403f592ac80894720e2421188339e9f0e23",
+          "sha256": "300f008e6ec17bf6aaa80dac599fe5554c4e5520e57858bfa34e9ed9859d5c0e"
+        },
+        {
+          "path": "scenarios/microfy/followers-noop.json",
+          "bytes": 2163,
+          "git_blob": "f32fdf58747debd46e6ce6ead4f590d521253ec2",
+          "sha256": "19d96482ccc1b214778465870123137caa12a0af6b3d98794d1161628c0b3b30"
+        },
+        {
+          "path": "scenarios/microfy/likes-absolute-active.json",
+          "bytes": 2315,
+          "git_blob": "65068905a666586cdf71acda80d14660389842a2",
+          "sha256": "67f3381d889af8ca4aeacc32c0d769c062cfa90b505cce6239f5725698fa1fa0"
+        },
+        {
+          "path": "scenarios/microfy/lyric-golden-relative-active.json",
+          "bytes": 2533,
+          "git_blob": "d210f3f6c2e5ae450279232109a657e1d2989f18",
+          "sha256": "d3ca10b12b36b9c327690b60561d96c31bc16e498b2732531e7d9177e104cec6"
+        },
+        {
+          "path": "scenarios/microfy/lyric-subway-absolute-active.json",
+          "bytes": 2271,
+          "git_blob": "ef3513fbbbc17264795c4ee48ece2bb1bec5e1e9",
+          "sha256": "5406c5626b4eda60e2a74bb400fdee3a638d7cf7d099d27b0039b3b59a952c25"
+        },
+        {
+          "path": "scenarios/microfy/lyric-tangerine-noop.json",
+          "bytes": 2103,
+          "git_blob": "e5b8a72a691f6c73c73f1c93e46492637047afda",
+          "sha256": "2f6a8aa758f07c296e6a4a9c1a3c7f4ae688624a3d12c371082998b48cf37345"
+        },
+        {
+          "path": "scenarios/microfy/lyric-whiskey-relative-active.json",
+          "bytes": 2431,
+          "git_blob": "400f9fb141d119363622ee1b947b795f12c7f9e9",
+          "sha256": "bfc935144c89dfaba4ab90adb4dc6ab1ea80bae7114b2aeca58a98f8c4a6ba63"
+        },
+        {
+          "path": "scenarios/microfy/new-releases-relative-active.json",
+          "bytes": 2711,
+          "git_blob": "cb56af85c1ab7fa98d042ae2ae58e462e2db685b",
+          "sha256": "865e609daad61e716cc7bbd83b03a9b0b6174fb194693db5be0dcf4c5398a3c2"
+        },
+        {
+          "path": "scenarios/microfy/plays-absolute-active.json",
+          "bytes": 2257,
+          "git_blob": "fe17fc1bf7342615ef17ec756ac937f6d3541b4e",
+          "sha256": "97b0bf271c4ac28b3d287550a16519a1c4cb357222b41dc9e27be82aa5d20d4f"
+        },
+        {
+          "path": "scenarios/microfy/public-playlists-relative-passive.json",
+          "bytes": 1851,
+          "git_blob": "3fab361a2d4b810eeab8e6e7d232c998f56fffe3",
+          "sha256": "d4e9f004e3084db814682e95d8d5154c1365ba20df3912dc17c639cd99c1dfc3"
+        },
+        {
+          "path": "scenarios/microgram/activity-relative-passive.json",
+          "bytes": 1994,
+          "git_blob": "743200534cf924ef9cb9c26d931d4d3a2ddb561e",
+          "sha256": "2365db6a6f9d6b7664a423708298ba26467001edf968996d9906f2501708e8a2"
+        },
+        {
+          "path": "scenarios/microgram/comments-absolute-passive.json",
+          "bytes": 1819,
+          "git_blob": "9b018ddeeadb963208a8cd2d2221c7c684b5972e",
+          "sha256": "dc51fb90f05bc3ee275f54e0784036da68cf98bbfd361258aa10404f200724b7"
+        },
+        {
+          "path": "scenarios/microgram/comments-noop.json",
+          "bytes": 2137,
+          "git_blob": "c254d030a673e8b725e6f9a95556d70ea8700848",
+          "sha256": "1cc38fd232741bfe7292598f8fbf37cfd2f8ff988a8d9c1f60505a3d72d0317c"
+        },
+        {
+          "path": "scenarios/microgram/comments-relative-active.json",
+          "bytes": 2438,
+          "git_blob": "9ed00617f354b42bf1d36d09726bb4b8bd93b733",
+          "sha256": "17a93f01ffabb247db6b7327e6e0484ffde484292d1226f8d95c135cdaa4462c"
+        },
+        {
+          "path": "scenarios/microgram/dm-keyword-absolute-active.json",
+          "bytes": 1950,
+          "git_blob": "2abe6f7931181e00941fe9b8f14a1f4c20fbdbfa",
+          "sha256": "2dd1382921e68a917d6d72c73e4b87a8d6e5193a65bfc3aa559e2dd2dc9b3ccd"
+        },
+        {
+          "path": "scenarios/microgram/dm-merger-noop.json",
+          "bytes": 1835,
+          "git_blob": "23dad4e80becc410dccdfb5e67a9dadfaa31fd28",
+          "sha256": "2950425b1e6be459930e59f11ecd343b25e401f848b9925a1328486be2d59f8d"
+        },
+        {
+          "path": "scenarios/microgram/follows-absolute-active.json",
+          "bytes": 2134,
+          "git_blob": "88e23b336abb422f9f5e0f6940ee4cb33064d079",
+          "sha256": "013de751640e49ac2b9ffd71e1ac03cbdeab509d5df69c362ed278d0722ec08f"
+        },
+        {
+          "path": "scenarios/microgram/likes-absolute-active.json",
+          "bytes": 2282,
+          "git_blob": "c5a2f829bf23b2cbd4832c8d05e9465f3b1385da",
+          "sha256": "38c6050f6c51a5bc6ed76314dd1c02695e5cbcf7f93186a3219df4e2c03c0319"
+        },
+        {
+          "path": "scenarios/microgram/posts-relative-passive.json",
+          "bytes": 2215,
+          "git_blob": "8a39e3a7c327cbb8c059f0da83b2ba2da95a0f7c",
+          "sha256": "92663a6785fc14b762dc29ad4a1b2cccfce3109681f70aa0ac3d02b171dba673"
+        },
+        {
+          "path": "scenarios/microgram/stories-absolute-passive.json",
+          "bytes": 2112,
+          "git_blob": "c943aec9297b71efb73cba6078295de85bcf6a50",
+          "sha256": "7ae4dc259da5740e864de7df17cb5b548655c577ecb629d16e3ea671ad90a621"
+        },
+        {
+          "path": "scenarios/microhood/buy-dip-relative-active.json",
+          "bytes": 1928,
+          "git_blob": "4ba67c2da4fe6ebd21f7acebc6058bb404712d21",
+          "sha256": "9c337fc95d2b63a0439fb4f13de20da29c41ca881569ceaf9339a6d7c79b8308"
+        },
+        {
+          "path": "scenarios/microhood/news-count-relative-passive.json",
+          "bytes": 1782,
+          "git_blob": "318514b8b98c2912b61cd6b4aa404c3b0cb26bbf",
+          "sha256": "b40c466d340228ade455609360766c35a52e4a75dce69bac3635b32f76bf1feb"
+        },
+        {
+          "path": "scenarios/microhood/orders-absolute-active.json",
+          "bytes": 1698,
+          "git_blob": "13c630e262670644bdb6c109a966565f72b5538b",
+          "sha256": "7a6aed951266f06ee20f872d0cfef136e4e3df3f0c993ba35b47a31d70291243"
+        },
+        {
+          "path": "scenarios/microhood/orders-noop.json",
+          "bytes": 1565,
+          "git_blob": "b2fe5761d41357e6e7e9459a2f28f28526b86f18",
+          "sha256": "784299d53c06b69aedafa53bc4410dc9b91b19b45eb5d03fecb68d081d05ab81"
+        },
+        {
+          "path": "scenarios/microhood/portfolio-absolute-passive.json",
+          "bytes": 10182,
+          "git_blob": "0fa7fa53aff3a4e757d6b8fd19834bf954bb67be",
+          "sha256": "ba5e3fd7d64998a47f80616ab737dde1d4e665493c9c199310f9c4b52b1d12da"
+        },
+        {
+          "path": "scenarios/microhood/portfolio-relative-passive.json",
+          "bytes": 10404,
+          "git_blob": "1af0e27ee410919f8f00cf6c8c5354032dd8ceb9",
+          "sha256": "21b01f092a1ab7fae01342cad5476493a63d8427666d095c7f9f18e243c3e854"
+        },
+        {
+          "path": "scenarios/microhood/price-absolute-passive.json",
+          "bytes": 1722,
+          "git_blob": "b99b4441281e8dad23baaf782699a399edebf18c",
+          "sha256": "3b4a555aaaf7c4c3e9781d0e13a7dffa3508311eb2ef568642bd0b2d3dd02176"
+        },
+        {
+          "path": "scenarios/microhood/price-noop.json",
+          "bytes": 1614,
+          "git_blob": "ca374673f96806ed464e0a309c05238366edb560",
+          "sha256": "d11c3e7a54efcb50e52d529cbd6b7ef7cacb2ea64f2f2d5007e1ed0ecf6b52af"
+        },
+        {
+          "path": "scenarios/microhood/rebalance-relative-active.json",
+          "bytes": 1785,
+          "git_blob": "f5d7d8b80e78698612ff2427877584416cb84883",
+          "sha256": "115738c419b748d892668dd3d3e0c9d5cc3fd1e27a8aa53d90342e3b728f6b90"
+        },
+        {
+          "path": "scenarios/microhood/sell-order-absolute-active.json",
+          "bytes": 1718,
+          "git_blob": "45ca922a3c5056b5f490762969139a0bc2d0a9ff",
+          "sha256": "7d129b068a17676b4375aeb8b395573fe4ce34c4d73a3ebb191975adaf40e8e4"
+        },
+        {
+          "path": "scenarios/microhub/body-compliance-absolute-active.json",
+          "bytes": 1459,
+          "git_blob": "bce21ea18c70cb77d19ca73ef43dedc10f9e98b9",
+          "sha256": "cffa966dca06ce9a990da937a21555e1ecdbca82691837cfb010dc63aaa0dc66"
+        },
+        {
+          "path": "scenarios/microhub/body-reproduce-relative-active.json",
+          "bytes": 1593,
+          "git_blob": "af8d8c7a005c1d2dbee4bd408cb62e2fbf1c799e",
+          "sha256": "9bf67c76dc94a2a47fa7141bd34b10bf363a39e9240c42de86cc6c29032382bf"
+        },
+        {
+          "path": "scenarios/microhub/body-unresponsive-relative-active.json",
+          "bytes": 1563,
+          "git_blob": "02daf9def85971eedfcd94cac7fac9ad8741e1f8",
+          "sha256": "bf6a33ff11e01a4552242aca14047d5f4086faa4cd3d16e87df4e0fc0a6078a3"
+        },
+        {
+          "path": "scenarios/microhub/browse-absolute-passive.json",
+          "bytes": 1283,
+          "git_blob": "aa3df315f8c4874e32ee546825a695bd67eebcdc",
+          "sha256": "ae8440540eda2dfa5626fb2c801dcd02d3e260342b53627d5447acfbaa907b3d"
+        },
+        {
+          "path": "scenarios/microhub/contribute-absolute-active.json",
+          "bytes": 1376,
+          "git_blob": "386ef9b7b623df97c650996bcec70d1ff2187ba6",
+          "sha256": "05de494d1f6584485149d9154fccd37cd5bd0e8fbc070aaa90853cec1b8d5550"
+        },
+        {
+          "path": "scenarios/microhub/issues-relative-passive.json",
+          "bytes": 1542,
+          "git_blob": "99ec75bf348ca7fa53bf28ce7909c099026095fa",
+          "sha256": "0eef482d50e9ac26d43de8bd106d7abeda60db6a809308a147708f5ab3b71d42"
+        },
+        {
+          "path": "scenarios/microhub/issues-telemetry-noop.json",
+          "bytes": 1332,
+          "git_blob": "d9558b690dc7776edae9e769e973c660e090f9b4",
+          "sha256": "5395169827a87c96087266b2061f5bcbbbec17a31e8f733095c9d55f9a9a8761"
+        },
+        {
+          "path": "scenarios/microhub/stars-absolute-passive.json",
+          "bytes": 1485,
+          "git_blob": "3f0fce754f9bd59dd5595b26da19f2a1e59c0749",
+          "sha256": "2fe141ded7e4afc06d77db16f07ccaa0e62ccda805cb7d3c4318eed9d61fb08e"
+        },
+        {
+          "path": "scenarios/microhub/stars-noop.json",
+          "bytes": 1370,
+          "git_blob": "cf0610b1faa33bb9b66aef42bf2611c952335677",
+          "sha256": "e689d9d99d97bf1cca71f96b96e72cbbd882a2848be26ba9d9d3ba78dd99649d"
+        },
+        {
+          "path": "scenarios/microhub/stars-relative-passive.json",
+          "bytes": 1610,
+          "git_blob": "51a625e44ce0faac646c8956e51af97fcd5283a2",
+          "sha256": "892c71ca6acb5f0268dd133df3990c779e5335d946c6cb5f5e051087dc4cd6da"
+        },
+        {
+          "path": "scenarios/microlendar/description-analytics-relative-active.json",
+          "bytes": 1848,
+          "git_blob": "7c0318c24a9774aaf5bef9f21951a732dc540ae7",
+          "sha256": "5befa7a75fec07aabd9c2d7782828448e85961674747a1bc0c24ee35beb1bac5"
+        },
+        {
+          "path": "scenarios/microlendar/description-hawaii-absolute-active.json",
+          "bytes": 1801,
+          "git_blob": "a6663ac1895c094647352fffb5e47f29e50f17c5",
+          "sha256": "b2d6bb1ed4174d38f0d02a1b9f3087fd66991d8c75fce3f23afe2fab7d176728"
+        },
+        {
+          "path": "scenarios/microlendar/description-iceland-noop.json",
+          "bytes": 1702,
+          "git_blob": "48bc57274f3431b945bd3e5a20105d0b55464f24",
+          "sha256": "08811a97b8934cc1d99b24fe11da22802aa5727824e04c37bc4111f6ddc293ee"
+        },
+        {
+          "path": "scenarios/microlendar/description-notifications-absolute-active.json",
+          "bytes": 1821,
+          "git_blob": "7a1b5740c2e6170107834364fcf59986a6545ac7",
+          "sha256": "9530479c8b2ae95555ec4167334e87816264e38dbc5536c00cf180f0ba6920dd"
+        },
+        {
+          "path": "scenarios/microlendar/events-absolute-passive.json",
+          "bytes": 2319,
+          "git_blob": "b1c32d110e53e00b9000a4d815208a0c6420875e",
+          "sha256": "ff16b36fd6a890a9f80f54da6d9ce8be90d6a74d3de2ed460aaf9824bb90435e"
+        },
+        {
+          "path": "scenarios/microlendar/events-noop.json",
+          "bytes": 2102,
+          "git_blob": "3f1d910f77a137bfe66d01c0a53460df301dba3a",
+          "sha256": "32fc131d0bbd31266b0feb19d02557bef38935be4c286614b35df1efd5d59d48"
+        },
+        {
+          "path": "scenarios/microlendar/personal-relative-passive.json",
+          "bytes": 2018,
+          "git_blob": "d2b64911e2020277a0a971419fde0e5dca0f85d4",
+          "sha256": "127103c256b26b3839fef5ba332dd9d98fa88c7eae7a66c9c81293ae7da662fb"
+        },
+        {
+          "path": "scenarios/microlendar/tasks-absolute-passive.json",
+          "bytes": 1917,
+          "git_blob": "d347415e75e6f636eabddf974bcbadd6436c5d39",
+          "sha256": "ce4a62d3abd279a11d15732bbea72cf8c3be78c697b7677f65a43398ef7d10d0"
+        },
+        {
+          "path": "scenarios/microlendar/today-events-relative-passive.json",
+          "bytes": 2174,
+          "git_blob": "f23604b2229c3128292e22b33d4e8bb501b3e1b5",
+          "sha256": "cbce15630f7a416a35247b454dfca6bc587288ed055725e8609332c666df18ea"
+        },
+        {
+          "path": "scenarios/microlendar/work-relative-passive.json",
+          "bytes": 2411,
+          "git_blob": "d27b53fd5c1691054370054b434a9f4caf82794a",
+          "sha256": "21c882ebc816adb38c979d444fb30a2f594e7eebd97b6dd8d864e0b5e99f6d5e"
+        },
+        {
+          "path": "scenarios/micromail/attachment-name-absolute-active.json",
+          "bytes": 1775,
+          "git_blob": "413e3dd8434b6a8b17dcfcdb198caa0e2cb9bf0e",
+          "sha256": "2f6c27a73847b1b4833d720997c811bee90e825a4db004ad36e818e1013c60af"
+        },
+        {
+          "path": "scenarios/micromail/attachment-name-noop.json",
+          "bytes": 1589,
+          "git_blob": "c9fbdf71c4102fba4790473cd8c88e45c0d6d640",
+          "sha256": "345568d08af8cc30074cc142fb35b0ff6021ce00977e36172d9ba1a4b4235226"
+        },
+        {
+          "path": "scenarios/micromail/body-december-relative-active.json",
+          "bytes": 1856,
+          "git_blob": "5a8858f8fe5f9aa29c3b099098b247fa19bedce4",
+          "sha256": "a806e90c27d050628582bcf5e821d98e89393cdd1074a1a691fb61757e05fa35"
+        },
+        {
+          "path": "scenarios/micromail/body-keyword-absolute-active.json",
+          "bytes": 1792,
+          "git_blob": "e1a3035b99e2aed5e0c6424b8fcf0c5b537740a4",
+          "sha256": "cfce1a5f1084dcf3a806ee267ecbc61075d2696b4f0b02b58830245fe591f5ba"
+        },
+        {
+          "path": "scenarios/micromail/cc-relative-active.json",
+          "bytes": 1859,
+          "git_blob": "c20c93ebb1540669f8e4fb8644f48ccca5905e04",
+          "sha256": "8b4baec923d4f5c7164a7445bba387b7cf74a140ae88f58b98b397647d44bfd5"
+        },
+        {
+          "path": "scenarios/micromail/inbox-relative-passive.json",
+          "bytes": 1919,
+          "git_blob": "3e80c2426a8a7dd0e878c2a51cfa918ba1d9321e",
+          "sha256": "640abf2e8ba0d8666fca47449ca32941283ca9d28cf103ccd027d6ec208bdf7b"
+        },
+        {
+          "path": "scenarios/micromail/junk-relative-passive.json",
+          "bytes": 1856,
+          "git_blob": "03dfaf9ae916ae267543e0c1755d551e1e73fa62",
+          "sha256": "c178a310bd8a68dc575956e2f53b2ac9da2dc01281cbb82360890cbc82240fa4"
+        },
+        {
+          "path": "scenarios/micromail/sender-absolute-noop.json",
+          "bytes": 1737,
+          "git_blob": "5e3626e71c6023e45d2d32ce9cb2ae6819076559",
+          "sha256": "9339debfd55a22b347a8622232da16deb6c1701b28bdc3250554cddda205fb23"
+        },
+        {
+          "path": "scenarios/micromail/sender-absolute-passive.json",
+          "bytes": 1856,
+          "git_blob": "aecdd0e3d0b80f723e43ee16547ee4a262094980",
+          "sha256": "62f4e458c127fab71027041445a277937dda57ac90b996727835acae9a182473"
+        },
+        {
+          "path": "scenarios/micromail/unread-absolute-passive.json",
+          "bytes": 2328,
+          "git_blob": "511cc9407bf4de2ff6fee046beb898c9b1ea452f",
+          "sha256": "22fbd6f43a99f877557b43b5a3e1d13c9ce1582838e8283b0f49b4a4dacd9f6b"
+        },
+        {
+          "path": "scenarios/microscholar/abstract-relative-active.json",
+          "bytes": 1912,
+          "git_blob": "fdd89f26e54af823def4b263f179c30306c3baa7",
+          "sha256": "eec78cc2fa6d693b3e0d9618f40ed3d2fb645857c6f4d282aed792fc829a47ff"
+        },
+        {
+          "path": "scenarios/microscholar/alert-absolute-passive.json",
+          "bytes": 1142,
+          "git_blob": "427112d59ce6b3fcfb1083468220a916d452a967",
+          "sha256": "506b51976e7fe474f224645500ad42a11019a8785f86cf82d792ced208d5db2c"
+        },
+        {
+          "path": "scenarios/microscholar/alert-noop.json",
+          "bytes": 1010,
+          "git_blob": "64190b57ae35c565c4cbc1b4396f2feb87b59e3e",
+          "sha256": "0b26ebc6809437882243fd45aed584c717bf04c555e0cc370cbcbfeec18f2fb2"
+        },
+        {
+          "path": "scenarios/microscholar/alertcount-relative-passive.json",
+          "bytes": 1577,
+          "git_blob": "837070a968738c9cf8bacada922f21937eaaf0f4",
+          "sha256": "b5f948fea4c340e6971836c9c21c38070e7a6fc29c44c3631128ee32fed01ee4"
+        },
+        {
+          "path": "scenarios/microscholar/papercount-relative-passive.json",
+          "bytes": 1956,
+          "git_blob": "bfc9964780e71583bd2232acb5d75dcfbd9c024f",
+          "sha256": "c78eb6d3b0d0c6b4cb4e129dde99d9cebf50807f559dff5cd434fdab92c6ff2d"
+        },
+        {
+          "path": "scenarios/microscholar/save-relative-active.json",
+          "bytes": 1883,
+          "git_blob": "9ce6949d0b61a94e505d663cc2fd6684f912a2f8",
+          "sha256": "718e82ff140862b17d47b566811aa50702aa572dba147c91364eaf8e29f6c116"
+        },
+        {
+          "path": "scenarios/microscholar/search-absolute-active.json",
+          "bytes": 1848,
+          "git_blob": "108c5cd6c731e8e7080ec2051ca336ded5d37efb",
+          "sha256": "3ce21df3e03627b0b7a6400fcaa239aac2bb2e90015c50904a8a0d870b0df89e"
+        },
+        {
+          "path": "scenarios/microscholar/search-absolute-passive.json",
+          "bytes": 1788,
+          "git_blob": "584d78b6d51e48fc32254f03e9d9c6d3d1a97b45",
+          "sha256": "acddb160065dde5a6d08c13d2a4cda3e06ceab6aa2d84fd84dec499040366e8a"
+        },
+        {
+          "path": "scenarios/microscholar/search-noop.json",
+          "bytes": 1686,
+          "git_blob": "77f6ebcf0f83906c5d34ebb8c4b84b4c83f38124",
+          "sha256": "eb12e66e6ec971ffbe485cde8903568cfad61f7107f4aff259f3dba60a5a4d2c"
+        },
+        {
+          "path": "scenarios/microscholar/snippet-absolute-active.json",
+          "bytes": 1912,
+          "git_blob": "e0d68f5040679da4d08c3ae708ecd41c49baf36f",
+          "sha256": "a1f3c8fb51b02e2a3782e616c45f46b62ef80f1bb68b1e8f6955e2ea2d5f26d4"
+        },
+        {
+          "path": "scenarios/microtube/comment-count-relative-active.json",
+          "bytes": 2306,
+          "git_blob": "fcabde2a02b6483bdd390a707646792f21b2e9fd",
+          "sha256": "baaa24e343183565935c73ac773e0c4d1976b6da6bfa79e30554d2a179271bc9"
+        },
+        {
+          "path": "scenarios/microtube/comment-keyword-absolute-active.json",
+          "bytes": 2349,
+          "git_blob": "869f62a6ace54329631f0244743909529a100124",
+          "sha256": "a2b793d6818d1c3500138a982b86f8fb73492e44b8bf44f848bdffa692832722"
+        },
+        {
+          "path": "scenarios/microtube/comment-minecraft-noop.json",
+          "bytes": 2169,
+          "git_blob": "8b7de9a263c971af96ed9ffaa98af91fa0f42216",
+          "sha256": "3628dbe7afce97f9cdfa1b63b006267e2e18d5b28c1b6043f5b735ff925210ca"
+        },
+        {
+          "path": "scenarios/microtube/notification-count-absolute-passive.json",
+          "bytes": 2428,
+          "git_blob": "c87d43eb33045198f2acbc4b92fe3ec02609d4ce",
+          "sha256": "67d5c352c1f3b87e0c1a47a68438d49a748736807b709300ed160c3fbe625d71"
+        },
+        {
+          "path": "scenarios/microtube/notification-count-relative-passive.json",
+          "bytes": 2375,
+          "git_blob": "bb79a89641432f260b26b07fc0948c1d71c3d195",
+          "sha256": "c30a8628730f9c0fdb932417651659fcfefa42cdeb975646d5bd6ce641fdabf0"
+        },
+        {
+          "path": "scenarios/microtube/notifications-noop.json",
+          "bytes": 1606,
+          "git_blob": "c99324bb3fc605ba7411d32e71ff6c92328a5141",
+          "sha256": "3e66a470e24a1003a010e8b72e7cff059b1884f3d1bfc40d09d726cb036b4126"
+        },
+        {
+          "path": "scenarios/microtube/subscribers-absolute-passive.json",
+          "bytes": 1882,
+          "git_blob": "11faf876a2b84de9af4358ba5265e2d31ecf7c27",
+          "sha256": "2c027838d7b3adf57cd80f887a34eec03c8fe05b6807d0651767fa3ee22c596f"
+        },
+        {
+          "path": "scenarios/microtube/video-absolute-active.json",
+          "bytes": 1719,
+          "git_blob": "8235e9b7de663c1d34d56135b8a7896468c98fa0",
+          "sha256": "07dca2cbb0b25c63115cdcb84f72e6f431131e157dacf330eebced817c16a2a1"
+        },
+        {
+          "path": "scenarios/microtube/video-total-relative-passive.json",
+          "bytes": 2244,
+          "git_blob": "cea4c73a23dabb0e910a33a1a71bb2a7a45cd748",
+          "sha256": "f2d889f9774dbfca9e6bdb3ac10e0a36a0fcfd19dfd922a6c29cabcbbcf21f7b"
+        },
+        {
+          "path": "scenarios/microtube/views-relative-active.json",
+          "bytes": 1936,
+          "git_blob": "356ccd9f88ee8063aacc1265fa7416bff536aa6f",
+          "sha256": "77e6f181d668df4b9648708a8c301d1c8226096230765166787065dae2d9536a"
+        },
+        {
+          "path": "server/eval_harness.py",
+          "bytes": 19560,
+          "git_blob": "6a9038a83698e8c7b59efd4a68d7cbaac266b0e2",
+          "sha256": "c05a1a8512512d323c4ae039e5f847e87f9d9cf4cad617deb7ed3741b1f575a7"
+        },
+        {
+          "path": "server/server.py",
+          "bytes": 106614,
+          "git_blob": "a378cc192ef099a75a055dca3fde2836c766bf10",
+          "sha256": "30fc6fd2afcab651fb58eb54862c7e6f7b2e82a503e911a6a14df2c3024ed165"
+        },
+        {
+          "path": "server/session.py",
+          "bytes": 9357,
+          "git_blob": "fe71dfa07b030d7bb99534a527f5d04dbcb6e739",
+          "sha256": "abd17d2829f90795bd475af40b2df52a9037fc0c6a5fd6402a1a9de4ae45aa07"
+        },
+        {
+          "path": "server/timing.py",
+          "bytes": 2693,
+          "git_blob": "2b847f51f873f32bbea22f884efe79f67a0a6f06",
+          "sha256": "d1e92af119cc31e6ef3c9906d127f45d5ea60dfe31a28c83660101cb66ef1766"
+        },
+        {
+          "path": "tests/test_scenario_schema.py",
+          "bytes": 3483,
+          "git_blob": "1ecb1e11c480574a16e7770b6ef29d82a5bc9674",
+          "sha256": "2a472981b0be642e1ed9a2b9f68818861bd1ea780ecbbbc7d82eb64b23b1daa8"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/QwenQKing/Fin_TIEM",
+      "revision": "f89bc5d8576a29a510143aafeed43a4eef571ba6",
+      "inputs": [
+        {
+          "path": "README.md",
+          "bytes": 6605,
+          "git_blob": "1613e8711e542255d352e8f0ea96d3949b921523",
+          "sha256": "06e31eff88419763ba825568d511a8c2b4ea2f1c06aef180b913f0833dc3a48e"
+        },
+        {
+          "path": "foresight/config.py",
+          "bytes": 5322,
+          "git_blob": "a38841e3eabb50a9e0c163b15f480464df35c55b",
+          "sha256": "e47fc43a6d85b207781d31d5f838d7e9c8b2eeb9692d9e561f1d84bd53db9e42"
+        },
+        {
+          "path": "foresight/reason_loop.py",
+          "bytes": 28108,
+          "git_blob": "2a27ef1a8f1a52349e39aa3a23b1967573dcae2b",
+          "sha256": "30da0dbddb0edb430e862025ddd5b51e61eb611218e0cca91991f8fae07f330e"
+        },
+        {
+          "path": "foresight/stores/experience.py",
+          "bytes": 11642,
+          "git_blob": "3013d51f0cff96befac53155fc2fec147aca2ec6",
+          "sha256": "702ad1b7f66192df0e8682a6af34af11513e25b4604e246117e8260bea440784"
+        },
+        {
+          "path": "foresight/stores/text_kg.py",
+          "bytes": 11638,
+          "git_blob": "6afce01672bcfc9af1ba23a47141b78e0b83d350",
+          "sha256": "c23d7464e9280bfd3617efb1f90d80f6854f2db41e05b9540f2f38a4fce4051b"
+        }
+      ]
+    }
+  ],
+  "sentinel_scenarios": {
+    "tasks": 100,
+    "environment_counts": {
+      "microchat": 10,
+      "microdin": 10,
+      "microfy": 10,
+      "microgram": 10,
+      "microhood": 10,
+      "microhub": 10,
+      "microlendar": 10,
+      "micromail": 10,
+      "microscholar": 10,
+      "microtube": 10
+    },
+    "taxonomy_counts": {
+      "active_absolute": 23,
+      "active_relative": 19,
+      "noop": 20,
+      "passive_absolute": 18,
+      "passive_relative": 20
+    },
+    "event_persistence": {
+      "persistent": 100
+    },
+    "noop_without_sql": 20,
+    "authored_timing_checks": "All sorted, in authored timeline, and condition <= kill <= end",
+    "kill_at_values": [
+      630.0
+    ],
+    "event_timeline_end_values": [
+      720.0
+    ]
+  },
+  "sentinel_scoring": {
+    "method": "Unmodified evaluate() AST with a synthetic session and response stub; no-SQL branch only",
+    "cases": [
+      {
+        "case": "silent_exit_at_one_second",
+        "synthetic_session": {
+          "condition_at": null,
+          "eval_sql": "",
+          "simulation_time": 1.0,
+          "contact_get_time": null,
+          "contact_post_time": null,
+          "contact_message": null
+        },
+        "observed_upstream_success": true
+      },
+      {
+        "case": "no_contact_at_deadline",
+        "synthetic_session": {
+          "condition_at": null,
+          "eval_sql": "",
+          "simulation_time": 630.0,
+          "contact_get_time": null,
+          "contact_post_time": null,
+          "contact_message": null
+        },
+        "observed_upstream_success": true
+      },
+      {
+        "case": "contact_get_before_deadline",
+        "synthetic_session": {
+          "condition_at": null,
+          "eval_sql": "",
+          "simulation_time": 1.0,
+          "contact_get_time": 1,
+          "contact_post_time": null,
+          "contact_message": null
+        },
+        "observed_upstream_success": false
+      },
+      {
+        "case": "post_record_without_get_record",
+        "synthetic_session": {
+          "condition_at": null,
+          "eval_sql": "",
+          "simulation_time": 1.0,
+          "contact_get_time": null,
+          "contact_post_time": 1,
+          "contact_message": "synthetic"
+        },
+        "observed_upstream_success": true
+      }
+    ],
+    "not_executed": [
+      "HTTP routes",
+      "browser agent",
+      "subprocess harness",
+      "SQL gates",
+      "event playback"
+    ],
+    "interpretation": "No-SQL no-op scoring checks contact_get_time, not minimum coverage or contact_post_time. The POST fixture is a scoring-record boundary, not an end-to-end HTTP exploit demonstration.",
+    "harness_static_review": "run_task waits for subprocess completion then calls /evaluate; no separate minimum monitoring duration is required on an early exit in this reviewed path."
+  },
+  "tiem_ancestry": {
+    "method": "Pinned original time/ancestry helper functions only, using synthetic metadata",
+    "cases": [
+      {
+        "case": "all_outcomes_before_cutoff",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": true
+      },
+      {
+        "case": "outcome_equal_to_cutoff",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-06T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "outcome_after_cutoff",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-07T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "empty_ancestry",
+        "synthetic_skill": {
+          "provenance_ancestors": []
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "missing_required_hash",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "invalid_resolve_time",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "invalid",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "merged_late_ancestor",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "late",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-06T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "twenty_two_ancestors_late_last",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "late-22",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-06T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-0",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-1",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-10",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-11",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-12",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-13",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-14",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-15",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-16",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-17",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-18",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-19",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-2",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-20",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-3",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-4",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-5",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-6",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-7",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-8",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "source_catalyst_id": "old-9",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "date_only_prior_day",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06",
+        "date_only_eod": true,
+        "observed_upstream_eligible": true
+      },
+      {
+        "case": "date_only_same_day",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-06",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "date_only_disallowed",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06",
+        "date_only_eod": false,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "mixed_timezone_awareness",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": false
+      },
+      {
+        "case": "nonempty_hash_not_authenticated",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-01T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "unverified-string",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": true
+      },
+      {
+        "case": "decision_after_resolution_not_rejected",
+        "synthetic_skill": {
+          "provenance_ancestors": [
+            {
+              "source_catalyst_id": "old",
+              "decision_time": "2026-10-07T14:00:00+00:00",
+              "resolve_time": "2026-10-05T14:00:00+00:00",
+              "outcome_source_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+              "distillation_prompt_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ]
+        },
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "date_only_eod": true,
+        "observed_upstream_eligible": true
+      }
+    ],
+    "merged_ancestor_count": 2,
+    "large_union_count": 22,
+    "interpretation": "The helper filters all recorded resolve times and fails closed on missing fields, but does not authenticate hashes, verify that ancestry is complete, or validate decision/resolve chronology. Mixed naive/aware timestamps fail closed. Date-only values use naive end-of-day semantics.",
+    "integration_static_review": "retrieve defaults strict_provenance=False, while reason_loop passes CSM_STRICT_PROVENANCE with default '1'; direct helper use and the configured full path are different scopes.",
+    "not_executed": [
+      "vector retrieval",
+      "embedding calls",
+      "distillation",
+      "forecasting",
+      "dataset audit"
+    ]
+  },
+  "tiem_evidence_times": {
+    "method": "Original TextKG.query AST with synthetic one-record retrieval stubs",
+    "cases": [
+      {
+        "case": "uniform_utc_before",
+        "source_time": "2026-10-06T13:00:00+00:00",
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "observed_upstream_retained": true
+      },
+      {
+        "case": "uniform_utc_after",
+        "source_time": "2026-10-06T15:00:00+00:00",
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "observed_upstream_retained": false
+      },
+      {
+        "case": "missing_timestamp",
+        "source_time": "",
+        "cutoff": "2026-10-06T14:00:00+00:00",
+        "observed_upstream_retained": true
+      },
+      {
+        "case": "earlier_instant_different_offset",
+        "source_time": "2026-10-06T13:00:00+00:00",
+        "cutoff": "2026-10-06T10:00:00-04:00",
+        "observed_upstream_retained": false
+      },
+      {
+        "case": "later_instant_different_offset",
+        "source_time": "2026-10-06T09:00:00-07:00",
+        "cutoff": "2026-10-06T10:00:00-04:00",
+        "observed_upstream_retained": true
+      }
+    ],
+    "interpretation": "This method compares nonempty timestamps as strings. Missing timestamps survive this method; offsets must already be normalized for lexical order to represent instant order. These fixtures do not establish that upstream construction emits such records or that full benchmark contexts leaked.",
+    "not_executed": [
+      "source construction",
+      "real embeddings",
+      "vector index",
+      "full retrieval pipeline"
+    ]
+  },
+  "limits": "Source semantics only; no model scores, monitoring deployment, original benchmark reproduction, cost savings, independent gold labels or trading results."
+}

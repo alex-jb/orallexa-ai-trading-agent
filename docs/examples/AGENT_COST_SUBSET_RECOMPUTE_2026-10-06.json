@@ -1,0 +1,775 @@
+{
+  "schema_version": 1,
+  "report_kind": "published_summary_reaggregation_with_provenance_limits",
+  "source_repository": "https://github.com/lchen001/pricing-reversal",
+  "source_revision": "55882d9715ea3cd971abd52a41c2c88e216ba0c1",
+  "paper_version_reviewed": "https://arxiv.org/html/2603.23971v2",
+  "pricing_metadata_last_updated": "2026-05-01",
+  "scope": "3 agentic task subsets, 8 model names; not the full 12-task paper",
+  "script_sha256": "590e5adc78762e88224e22b03a9b9e7d51a9197e83a077a54fa150c042ba9b39",
+  "quantile_definition": "nearest rank: sorted values at ceil(n*p)-1",
+  "conditional_tariff_assumptions": [
+    "prompt_tokens are fresh input; cache_tokens are all cache reads",
+    "completion_tokens include reasoning once; no additional charges",
+    "the supplied pricing snapshot applies to every summary record"
+  ],
+  "conditional_tariff_tolerance_usd": 1e-08,
+  "totals": {
+    "source_files": 26,
+    "model_result_files": 24,
+    "published_records": 2344,
+    "comparisons": 84,
+    "reversals": 25,
+    "reversal_rate": 0.2976190476190476,
+    "conditional_tariff_residual_records": 1370,
+    "nonempty_raw_outputs": 0,
+    "nonempty_prompts": 0,
+    "nonempty_ground_truths": 0
+  },
+  "checks": {
+    "source_revision_and_blob_bytes": "passed",
+    "complete_unique_paired_query_cohorts": "passed",
+    "finite_nonnegative_numbers_and_binary_scores": "passed",
+    "top_level_cost_and_reported_accuracy_aggregation": "passed",
+    "provider_billing_reconciliation": "not established",
+    "independent_regrading_or_model_identity_authentication": "not performed",
+    "paper_table6_same_task_mean_rates": "does not fully match; artifact/version provenance unresolved"
+  },
+  "illustrative_conditional_tariff_residual": {
+    "dataset": "cybench",
+    "model": "gpt-5.4-mini",
+    "record_index": "avatar (hard)",
+    "published_cost_usd": 0.6675249,
+    "conditional_metadata_tariff_cost_usd": 1.7312771999999998,
+    "prompt_tokens": 132466,
+    "cache_tokens": 10907136,
+    "completion_tokens": 180865
+  },
+  "inputs": [
+    {
+      "path": "constant/model_info.json",
+      "git_blob_oid": "2b15f7cebe5d1e0a903b7c14759ec5dc5ceadd4d",
+      "sha256": "0e64a3a833c2de8be801363923bfdaad896a917d281ac97d63b080e4656c380e",
+      "bytes": 4552
+    },
+    {
+      "path": "constant/experiment_config.json",
+      "git_blob_oid": "3df716f29cf93b44c270157f881ec714536d7f69",
+      "sha256": "3644cdd78b285e1ce7172f0fb4773e262cd7deb21836afa848b24c6789026a38",
+      "bytes": 3096
+    },
+    {
+      "path": "data/consolidated/cybench-react-gpt-5.4.json",
+      "git_blob_oid": "ced1bfc75d52d27bf6cd8244eab26f39222fe5e8",
+      "sha256": "54022049d03aeeb3b20d7d2fef782b83704a5a82cfef30ec038c6e3f7536a82c",
+      "bytes": 10808
+    },
+    {
+      "path": "data/consolidated/cybench-react-gpt-5.4-mini.json",
+      "git_blob_oid": "2008e39f463103cf7f3225c88d658adad37adc37",
+      "sha256": "7d1560b0f130c2dc3fdb27724e84aab58425f087c765af2db8680c5e588aa1b4",
+      "bytes": 11007
+    },
+    {
+      "path": "data/consolidated/cybench-react-gemini-3.1-pro.json",
+      "git_blob_oid": "94b7aa03447714b838c5e51be7505d0c0f7eba01",
+      "sha256": "5f2abe4c892c3042566ff6279d4b38877f5d7089441ba9a010a6594858227fcf",
+      "bytes": 10892
+    },
+    {
+      "path": "data/consolidated/cybench-react-gemini-3-flash.json",
+      "git_blob_oid": "607bfce7e152a5a02b5dccbd235d7439d73c05a5",
+      "sha256": "af45b40310088d83d18001bf7d1b990606e8397f796928ec0bedaf4f53da7ab5",
+      "bytes": 11078
+    },
+    {
+      "path": "data/consolidated/cybench-react-claude-opus-4.7.json",
+      "git_blob_oid": "d1b55de6094d5425b5861137fa64013dcbf52a0b",
+      "sha256": "01fc4db16dbe0a6493ce044d2c1d1827c351f3c47c6763feb1e75f58a8974a13",
+      "bytes": 10824
+    },
+    {
+      "path": "data/consolidated/cybench-react-claude-haiku-4.5.json",
+      "git_blob_oid": "59b21dc5aed57c054b598ec643a8c629b168e773",
+      "sha256": "09e3c736fc738f7b481bbd7e4919d75216ec6093c0e281e253b6963e12e4b6d8",
+      "bytes": 11101
+    },
+    {
+      "path": "data/consolidated/cybench-react-kimi-k2.6.json",
+      "git_blob_oid": "2ca03bc298f093893abdfebfb101e9a87e9872ca",
+      "sha256": "bda8aef27e698be72e85442c323c98bef30409b39eea22799ea42072f57d642d",
+      "bytes": 11070
+    },
+    {
+      "path": "data/consolidated/cybench-react-minimax-m2.7.json",
+      "git_blob_oid": "58290e4ec5492965b4d02f20228a6bb4b186b5cf",
+      "sha256": "efb69d5e18b8d1c789176bff64bc9f17c170a8276e6d8b65126e308fbe55b169",
+      "bytes": 11114
+    },
+    {
+      "path": "data/consolidated/gaia-react-gpt-5.4.json",
+      "git_blob_oid": "4cd3957e79344f0ef4797c621ad52ca7cb618a23",
+      "sha256": "14a3e841f8dc7b0bbf9b86db9d01690b4fca7c98cdb3ebcbd5c71c4e211f7518",
+      "bytes": 47739
+    },
+    {
+      "path": "data/consolidated/gaia-react-gpt-5.4-mini.json",
+      "git_blob_oid": "a3d6d1ee6d3b0768cd119d5bf404ddfee386eee7",
+      "sha256": "2f8d559bb35d2bdc318a268ad79175b7c5db48953e9cbbd410b314f6a94199a8",
+      "bytes": 48258
+    },
+    {
+      "path": "data/consolidated/gaia-react-gemini-3.1-pro.json",
+      "git_blob_oid": "e601c940aaa4a608f092e7832d3d8462773be3c0",
+      "sha256": "cf94109fc78d2af5643f6a52fb079f2b8b9500f342c8c9a6cfc6a81f17234724",
+      "bytes": 48100
+    },
+    {
+      "path": "data/consolidated/gaia-react-gemini-3-flash.json",
+      "git_blob_oid": "ff0ee4bb9604293ea9e71251b25d5135e524a7a7",
+      "sha256": "88aba5facafb080e2a808de58ad7938ad81517f4014d934032057cd24e5d72c4",
+      "bytes": 48921
+    },
+    {
+      "path": "data/consolidated/gaia-react-claude-opus-4.7.json",
+      "git_blob_oid": "5f99923ec0a498343a9b1f42fe38e1c96e19d131",
+      "sha256": "088ae1b3a79ba6a6079654b6a2f3acc366a70dd4b2efa8f45494a86e3cad5ead",
+      "bytes": 47541
+    },
+    {
+      "path": "data/consolidated/gaia-react-claude-haiku-4.5.json",
+      "git_blob_oid": "4759a6f2a7cbd5f2b5272e02a7e9b45bb3316fd3",
+      "sha256": "ba69f83939ddae7102365575f3ad9c1ebbd49fabd8a40538fe681d8a2154335f",
+      "bytes": 48526
+    },
+    {
+      "path": "data/consolidated/gaia-react-kimi-k2.6.json",
+      "git_blob_oid": "4559770cb1fe47cd7c4bf1e5682804b364622d08",
+      "sha256": "122cda6b603399abd65e204360a2c19e0bf1f6540419cf89f013784c5d4077c0",
+      "bytes": 48274
+    },
+    {
+      "path": "data/consolidated/gaia-react-minimax-m2.7.json",
+      "git_blob_oid": "1682f05a70c0ce14fd791c064af807d6e62eb089",
+      "sha256": "cdd985c2c383bb2e55f2cc2ae895e344e2d973c752b87c948ec9b11d2d20ad23",
+      "bytes": 48873
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-gpt-5.4.json",
+      "git_blob_oid": "81455789067ae7a74a7a4c410b175ff3f03c50f1",
+      "sha256": "754e9054ccbae79bca2864cf032bf8c929cf89c88145b884c8c2608fd30f58f4",
+      "bytes": 24681
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-gpt-5.4-mini.json",
+      "git_blob_oid": "e5b916a4ecdf5bbc11e752d20bb7baf3396e0217",
+      "sha256": "ba012be6c34bd063c4bdf777778fdca5e42968a29b02dc5f491f865165032edb",
+      "bytes": 24918
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-gemini-3.1-pro.json",
+      "git_blob_oid": "1c032ccfb15cb52e1ea7faa205322a33418e733e",
+      "sha256": "3a6d0757189a0659ebf393caa2dfbf615d321c9cfb19e89244d155f3bb065024",
+      "bytes": 24565
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-gemini-3-flash.json",
+      "git_blob_oid": "15d42116c8fe90bcfed978f278337205ff74c45a",
+      "sha256": "4bfd9de5e0316d5c12dc45727b3ad60a4d4850dd619e9cbb0863b8d1f873f12a",
+      "bytes": 24860
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-claude-opus-4.7.json",
+      "git_blob_oid": "d9178070b0026a7eabbddfa17243d5366f193056",
+      "sha256": "412125857a259888f107465edebfcc944fa2e7938a4af856e6596f810b9e2d28",
+      "bytes": 24738
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-claude-haiku-4.5.json",
+      "git_blob_oid": "81f784c8c54836e6d383e5bd65300207661915e2",
+      "sha256": "16a6300df31c9af0c546de1b887b21df69bcbd4100475b37edeb5adba7623939",
+      "bytes": 25017
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-kimi-k2.6.json",
+      "git_blob_oid": "cc99712786b9e76b5104303bafc0fac19c0839e1",
+      "sha256": "3ad5c8a999f2069faa2c334c61b569bfe39b6119fa0c1dea2194dc4f34cfdf84",
+      "bytes": 24707
+    },
+    {
+      "path": "data/consolidated/tb2-terminus2-minimax-m2.7.json",
+      "git_blob_oid": "e51caca62d81dc130096ca66b44f5bc634e32749",
+      "sha256": "837beedb98872334224555fb7aa4aeb78f1d5e6b7ed5c2ba44267c37e89c385c",
+      "bytes": 24847
+    }
+  ],
+  "results": [
+    {
+      "dataset": "cybench",
+      "configured_task_variant": "react",
+      "published_split_metadata": null,
+      "queries_per_model": 39,
+      "comparisons": 28,
+      "tied_pairs": 0,
+      "reversals": 11,
+      "reversal_rate": 0.39285714285714285,
+      "paper_table6_author_reported_mean_reversal_percent": 35.7,
+      "matches_paper_table6_at_one_decimal": false,
+      "models": [
+        {
+          "model": "gpt-5.4",
+          "records": 39,
+          "listed_price_index_input_plus_output": 17.5,
+          "published_record_cost_sum_usd": 33.5870185,
+          "reported_correct": 39,
+          "reported_accuracy": 1.0,
+          "all_record_cost_per_reported_correct_usd": 0.8612056025641025,
+          "cost_on_reported_incorrect_usd": 0.0,
+          "published_cost_p50_usd": 0.323685,
+          "published_cost_p95_usd": 4.0253535,
+          "reported_turns_p95": 113.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 0.0,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gpt-5.4-mini",
+          "records": 39,
+          "listed_price_index_input_plus_output": 5.25,
+          "published_record_cost_sum_usd": 16.8791513,
+          "reported_correct": 32,
+          "reported_accuracy": 0.8205128205128205,
+          "all_record_cost_per_reported_correct_usd": 0.527473478125,
+          "cost_on_reported_incorrect_usd": 8.68336215,
+          "published_cost_p50_usd": 0.0779282,
+          "published_cost_p95_usd": 2.07768705,
+          "reported_turns_p95": 256.0,
+          "conditional_tariff_residual_count": 39,
+          "conditional_tariff_max_absolute_residual_usd": 4.029254100000001,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gemini-3.1-pro",
+          "records": 39,
+          "listed_price_index_input_plus_output": 14.0,
+          "published_record_cost_sum_usd": 59.6246458,
+          "reported_correct": 36,
+          "reported_accuracy": 0.9230769230769231,
+          "all_record_cost_per_reported_correct_usd": 1.6562401611111113,
+          "cost_on_reported_incorrect_usd": 41.3421168,
+          "published_cost_p50_usd": 0.2587746,
+          "published_cost_p95_usd": 16.9088644,
+          "reported_turns_p95": 409.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 0.0,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gemini-3-flash",
+          "records": 39,
+          "listed_price_index_input_plus_output": 3.5,
+          "published_record_cost_sum_usd": 31.43572515,
+          "reported_correct": 30,
+          "reported_accuracy": 0.7692307692307693,
+          "all_record_cost_per_reported_correct_usd": 1.047857505,
+          "cost_on_reported_incorrect_usd": 21.227559,
+          "published_cost_p50_usd": 0.15048135,
+          "published_cost_p95_usd": 4.6368005,
+          "reported_turns_p95": 280.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 0.0,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "claude-opus-4.7",
+          "records": 39,
+          "listed_price_index_input_plus_output": 30.0,
+          "published_record_cost_sum_usd": 57.441308,
+          "reported_correct": 35,
+          "reported_accuracy": 0.8974358974358975,
+          "all_record_cost_per_reported_correct_usd": 1.6411802285714285,
+          "cost_on_reported_incorrect_usd": 9.805485000000001,
+          "published_cost_p50_usd": 0.65416175,
+          "published_cost_p95_usd": 7.53615925,
+          "reported_turns_p95": 65.0,
+          "conditional_tariff_residual_count": 39,
+          "conditional_tariff_max_absolute_residual_usd": 0.28549499999999917,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "claude-haiku-4.5",
+          "records": 39,
+          "listed_price_index_input_plus_output": 6.0,
+          "published_record_cost_sum_usd": 23.4609105,
+          "reported_correct": 18,
+          "reported_accuracy": 0.46153846153846156,
+          "all_record_cost_per_reported_correct_usd": 1.3033839166666668,
+          "cost_on_reported_incorrect_usd": 19.3226014,
+          "published_cost_p50_usd": 0.5765359,
+          "published_cost_p95_usd": 1.5956141000000001,
+          "reported_turns_p95": 160.0,
+          "conditional_tariff_residual_count": 38,
+          "conditional_tariff_max_absolute_residual_usd": 0.10753700000000022,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "kimi-k2.6",
+          "records": 39,
+          "listed_price_index_input_plus_output": 4.95,
+          "published_record_cost_sum_usd": 60.6580193,
+          "reported_correct": 18,
+          "reported_accuracy": 0.46153846153846156,
+          "all_record_cost_per_reported_correct_usd": 3.3698899611111113,
+          "cost_on_reported_incorrect_usd": 56.6537229,
+          "published_cost_p50_usd": 0.24698140000000002,
+          "published_cost_p95_usd": 8.2552436,
+          "reported_turns_p95": 465.0,
+          "conditional_tariff_residual_count": 39,
+          "conditional_tariff_max_absolute_residual_usd": 1.772472790000002,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "minimax-m2.7",
+          "records": 39,
+          "listed_price_index_input_plus_output": 1.5,
+          "published_record_cost_sum_usd": 24.21649938,
+          "reported_correct": 15,
+          "reported_accuracy": 0.38461538461538464,
+          "all_record_cost_per_reported_correct_usd": 1.614433292,
+          "cost_on_reported_incorrect_usd": 23.41950756,
+          "published_cost_p50_usd": 0.47830278,
+          "published_cost_p95_usd": 2.84257758,
+          "reported_turns_p95": 272.0,
+          "conditional_tariff_residual_count": 39,
+          "conditional_tariff_max_absolute_residual_usd": 0.74920608,
+          "nonempty_raw_outputs": 0
+        }
+      ],
+      "reversal_pairs": [
+        {
+          "lower_listed_price_model": "gemini-3.1-pro",
+          "higher_listed_price_model": "gpt-5.4",
+          "published_cost_ratio": 1.7752288968429872
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "gpt-5.4",
+          "published_cost_ratio": 1.8059959475116851
+        },
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "gpt-5.4-mini",
+          "published_cost_ratio": 1.862399630839259
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "gpt-5.4-mini",
+          "published_cost_ratio": 3.5936652395550244
+        },
+        {
+          "lower_listed_price_model": "minimax-m2.7",
+          "higher_listed_price_model": "gpt-5.4-mini",
+          "published_cost_ratio": 1.434698874936917
+        },
+        {
+          "lower_listed_price_model": "gemini-3.1-pro",
+          "higher_listed_price_model": "claude-opus-4.7",
+          "published_cost_ratio": 1.0380098900254848
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "gemini-3.1-pro",
+          "published_cost_ratio": 1.0173313146960445
+        },
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "claude-haiku-4.5",
+          "published_cost_ratio": 1.3399192307561976
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "claude-opus-4.7",
+          "published_cost_ratio": 1.0559999660871233
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "claude-haiku-4.5",
+          "published_cost_ratio": 2.5854929756455958
+        },
+        {
+          "lower_listed_price_model": "minimax-m2.7",
+          "higher_listed_price_model": "claude-haiku-4.5",
+          "published_cost_ratio": 1.0322062896919537
+        }
+      ]
+    },
+    {
+      "dataset": "gaia",
+      "configured_task_variant": "react",
+      "published_split_metadata": null,
+      "queries_per_model": 165,
+      "comparisons": 28,
+      "tied_pairs": 0,
+      "reversals": 7,
+      "reversal_rate": 0.25,
+      "paper_table6_author_reported_mean_reversal_percent": 28.6,
+      "matches_paper_table6_at_one_decimal": false,
+      "models": [
+        {
+          "model": "gpt-5.4",
+          "records": 165,
+          "listed_price_index_input_plus_output": 17.5,
+          "published_record_cost_sum_usd": 94.5315925,
+          "reported_correct": 128,
+          "reported_accuracy": 0.7757575757575758,
+          "all_record_cost_per_reported_correct_usd": 0.73852806640625,
+          "cost_on_reported_incorrect_usd": 56.1670145,
+          "published_cost_p50_usd": 0.168907,
+          "published_cost_p95_usd": 3.7712725,
+          "reported_turns_p95": 138.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 0.0,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gpt-5.4-mini",
+          "records": 165,
+          "listed_price_index_input_plus_output": 5.25,
+          "published_record_cost_sum_usd": 7.3382149000000005,
+          "reported_correct": 102,
+          "reported_accuracy": 0.6181818181818182,
+          "all_record_cost_per_reported_correct_usd": 0.07194328333333334,
+          "cost_on_reported_incorrect_usd": 4.60077995,
+          "published_cost_p50_usd": 0.0197407,
+          "published_cost_p95_usd": 0.2147435,
+          "reported_turns_p95": 73.0,
+          "conditional_tariff_residual_count": 165,
+          "conditional_tariff_max_absolute_residual_usd": 0.6533479,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gemini-3.1-pro",
+          "records": 165,
+          "listed_price_index_input_plus_output": 14.0,
+          "published_record_cost_sum_usd": 76.08139560000001,
+          "reported_correct": 133,
+          "reported_accuracy": 0.806060606060606,
+          "all_record_cost_per_reported_correct_usd": 0.5720405684210527,
+          "cost_on_reported_incorrect_usd": 26.0084312,
+          "published_cost_p50_usd": 0.359174,
+          "published_cost_p95_usd": 1.2421042,
+          "reported_turns_p95": 77.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 0.0,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gemini-3-flash",
+          "records": 165,
+          "listed_price_index_input_plus_output": 3.5,
+          "published_record_cost_sum_usd": 165.57895715,
+          "reported_correct": 109,
+          "reported_accuracy": 0.6606060606060606,
+          "all_record_cost_per_reported_correct_usd": 1.5190730013761469,
+          "cost_on_reported_incorrect_usd": 127.13576565,
+          "published_cost_p50_usd": 0.26135265,
+          "published_cost_p95_usd": 5.5845769,
+          "reported_turns_p95": 273.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 0.0,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "claude-opus-4.7",
+          "records": 165,
+          "listed_price_index_input_plus_output": 30.0,
+          "published_record_cost_sum_usd": 198.121769,
+          "reported_correct": 129,
+          "reported_accuracy": 0.7818181818181819,
+          "all_record_cost_per_reported_correct_usd": 1.5358276666666666,
+          "cost_on_reported_incorrect_usd": 98.4641055,
+          "published_cost_p50_usd": 0.15858775,
+          "published_cost_p95_usd": 5.26147875,
+          "reported_turns_p95": 144.0,
+          "conditional_tariff_residual_count": 165,
+          "conditional_tariff_max_absolute_residual_usd": 0.5264212499999985,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "claude-haiku-4.5",
+          "records": 165,
+          "listed_price_index_input_plus_output": 6.0,
+          "published_record_cost_sum_usd": 59.34572085,
+          "reported_correct": 55,
+          "reported_accuracy": 0.3333333333333333,
+          "all_record_cost_per_reported_correct_usd": 1.0790131063636363,
+          "cost_on_reported_incorrect_usd": 48.56142305,
+          "published_cost_p50_usd": 0.31011659999999996,
+          "published_cost_p95_usd": 0.93515965,
+          "reported_turns_p95": 49.0,
+          "conditional_tariff_residual_count": 158,
+          "conditional_tariff_max_absolute_residual_usd": 0.09123349999999997,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "kimi-k2.6",
+          "records": 165,
+          "listed_price_index_input_plus_output": 4.95,
+          "published_record_cost_sum_usd": 28.9485858,
+          "reported_correct": 80,
+          "reported_accuracy": 0.48484848484848486,
+          "all_record_cost_per_reported_correct_usd": 0.3618573225,
+          "cost_on_reported_incorrect_usd": 17.0289436,
+          "published_cost_p50_usd": 0.1121732,
+          "published_cost_p95_usd": 0.5553178000000001,
+          "reported_turns_p95": 47.0,
+          "conditional_tariff_residual_count": 165,
+          "conditional_tariff_max_absolute_residual_usd": 0.3132532399999999,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "minimax-m2.7",
+          "records": 165,
+          "listed_price_index_input_plus_output": 1.5,
+          "published_record_cost_sum_usd": 20.90646528,
+          "reported_correct": 85,
+          "reported_accuracy": 0.5151515151515151,
+          "all_record_cost_per_reported_correct_usd": 0.24595841505882352,
+          "cost_on_reported_incorrect_usd": 15.639869699999998,
+          "published_cost_p50_usd": 0.07962467999999999,
+          "published_cost_p95_usd": 0.44915364,
+          "reported_turns_p95": 92.0,
+          "conditional_tariff_residual_count": 164,
+          "conditional_tariff_max_absolute_residual_usd": 0.43325183999999994,
+          "nonempty_raw_outputs": 0
+        }
+      ],
+      "reversal_pairs": [
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "gpt-5.4",
+          "published_cost_ratio": 1.7515727046489775
+        },
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "gpt-5.4-mini",
+          "published_cost_ratio": 22.563928612938277
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "gpt-5.4-mini",
+          "published_cost_ratio": 3.9449084272525186
+        },
+        {
+          "lower_listed_price_model": "minimax-m2.7",
+          "higher_listed_price_model": "gpt-5.4-mini",
+          "published_cost_ratio": 2.8489851503258645
+        },
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "gemini-3.1-pro",
+          "published_cost_ratio": 2.176339640515217
+        },
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "claude-haiku-4.5",
+          "published_cost_ratio": 2.7900740740602195
+        },
+        {
+          "lower_listed_price_model": "gemini-3-flash",
+          "higher_listed_price_model": "kimi-k2.6",
+          "published_cost_ratio": 5.719759793930936
+        }
+      ]
+    },
+    {
+      "dataset": "terminal-bench",
+      "configured_task_variant": "terminus2",
+      "published_split_metadata": null,
+      "queries_per_model": 89,
+      "comparisons": 28,
+      "tied_pairs": 0,
+      "reversals": 7,
+      "reversal_rate": 0.25,
+      "paper_table6_author_reported_mean_reversal_percent": 25.0,
+      "matches_paper_table6_at_one_decimal": true,
+      "models": [
+        {
+          "model": "gpt-5.4",
+          "records": 89,
+          "listed_price_index_input_plus_output": 17.5,
+          "published_record_cost_sum_usd": 84.172774,
+          "reported_correct": 58,
+          "reported_accuracy": 0.651685393258427,
+          "all_record_cost_per_reported_correct_usd": 1.451254724137931,
+          "cost_on_reported_incorrect_usd": 48.180774,
+          "published_cost_p50_usd": 0.387586,
+          "published_cost_p95_usd": 3.9544019999999995,
+          "reported_turns_p95": 50.0,
+          "conditional_tariff_residual_count": 0,
+          "conditional_tariff_max_absolute_residual_usd": 5.329070518200751e-15,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gpt-5.4-mini",
+          "records": 89,
+          "listed_price_index_input_plus_output": 5.25,
+          "published_record_cost_sum_usd": 87.14246805000002,
+          "reported_correct": 41,
+          "reported_accuracy": 0.4606741573033708,
+          "all_record_cost_per_reported_correct_usd": 2.1254260500000006,
+          "cost_on_reported_incorrect_usd": 53.22594015000001,
+          "published_cost_p50_usd": 0.24445605,
+          "published_cost_p95_usd": 3.6893122500000013,
+          "reported_turns_p95": 99.0,
+          "conditional_tariff_residual_count": 5,
+          "conditional_tariff_max_absolute_residual_usd": 1.2496261499999903,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gemini-3.1-pro",
+          "records": 89,
+          "listed_price_index_input_plus_output": 14.0,
+          "published_record_cost_sum_usd": 57.0753588,
+          "reported_correct": 61,
+          "reported_accuracy": 0.6853932584269663,
+          "all_record_cost_per_reported_correct_usd": 0.9356616196721311,
+          "cost_on_reported_incorrect_usd": 28.432199399999995,
+          "published_cost_p50_usd": 0.43314,
+          "published_cost_p95_usd": 1.5800935999999999,
+          "reported_turns_p95": 40.0,
+          "conditional_tariff_residual_count": 1,
+          "conditional_tariff_max_absolute_residual_usd": 0.6296383999999939,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "gemini-3-flash",
+          "records": 89,
+          "listed_price_index_input_plus_output": 3.5,
+          "published_record_cost_sum_usd": 17.791780850000002,
+          "reported_correct": 46,
+          "reported_accuracy": 0.5168539325842697,
+          "all_record_cost_per_reported_correct_usd": 0.3867778445652174,
+          "cost_on_reported_incorrect_usd": 13.677322850000001,
+          "published_cost_p50_usd": 0.10647135,
+          "published_cost_p95_usd": 0.8252398500000001,
+          "reported_turns_p95": 77.0,
+          "conditional_tariff_residual_count": 1,
+          "conditional_tariff_max_absolute_residual_usd": 0.009862600000000388,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "claude-opus-4.7",
+          "records": 89,
+          "listed_price_index_input_plus_output": 30.0,
+          "published_record_cost_sum_usd": 98.27328875000002,
+          "reported_correct": 64,
+          "reported_accuracy": 0.7191011235955056,
+          "all_record_cost_per_reported_correct_usd": 1.5355201367187503,
+          "cost_on_reported_incorrect_usd": 51.842252000000016,
+          "published_cost_p50_usd": 0.35821675,
+          "published_cost_p95_usd": 5.090379250000001,
+          "reported_turns_p95": 74.0,
+          "conditional_tariff_residual_count": 89,
+          "conditional_tariff_max_absolute_residual_usd": 0.5936300000000028,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "claude-haiku-4.5",
+          "records": 89,
+          "listed_price_index_input_plus_output": 6.0,
+          "published_record_cost_sum_usd": 120.06190419999996,
+          "reported_correct": 33,
+          "reported_accuracy": 0.3707865168539326,
+          "all_record_cost_per_reported_correct_usd": 3.63823952121212,
+          "cost_on_reported_incorrect_usd": 114.52705209999995,
+          "published_cost_p50_usd": 0.20989585000000005,
+          "published_cost_p95_usd": 10.715887699999993,
+          "reported_turns_p95": 792.0,
+          "conditional_tariff_residual_count": 85,
+          "conditional_tariff_max_absolute_residual_usd": 0.05011899999997382,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "kimi-k2.6",
+          "records": 89,
+          "listed_price_index_input_plus_output": 4.95,
+          "published_record_cost_sum_usd": 73.7337057,
+          "reported_correct": 48,
+          "reported_accuracy": 0.5393258426966292,
+          "all_record_cost_per_reported_correct_usd": 1.53611886875,
+          "cost_on_reported_incorrect_usd": 65.1530528,
+          "published_cost_p50_usd": 0.14117640000000004,
+          "published_cost_p95_usd": 3.3066354000000002,
+          "reported_turns_p95": 178.0,
+          "conditional_tariff_residual_count": 89,
+          "conditional_tariff_max_absolute_residual_usd": 2.2738840000000007,
+          "nonempty_raw_outputs": 0
+        },
+        {
+          "model": "minimax-m2.7",
+          "records": 89,
+          "listed_price_index_input_plus_output": 1.5,
+          "published_record_cost_sum_usd": 30.11736186,
+          "reported_correct": 46,
+          "reported_accuracy": 0.5168539325842697,
+          "all_record_cost_per_reported_correct_usd": 0.6547252578260869,
+          "cost_on_reported_incorrect_usd": 27.076531919999997,
+          "published_cost_p50_usd": 0.025608,
+          "published_cost_p95_usd": 1.79667366,
+          "reported_turns_p95": 395.0,
+          "conditional_tariff_residual_count": 89,
+          "conditional_tariff_max_absolute_residual_usd": 1.0557119999999998,
+          "nonempty_raw_outputs": 0
+        }
+      ],
+      "reversal_pairs": [
+        {
+          "lower_listed_price_model": "gpt-5.4-mini",
+          "higher_listed_price_model": "gpt-5.4",
+          "published_cost_ratio": 1.035280933594989
+        },
+        {
+          "lower_listed_price_model": "claude-haiku-4.5",
+          "higher_listed_price_model": "gpt-5.4",
+          "published_cost_ratio": 1.426374568574869
+        },
+        {
+          "lower_listed_price_model": "gpt-5.4-mini",
+          "higher_listed_price_model": "gemini-3.1-pro",
+          "published_cost_ratio": 1.526796675170442
+        },
+        {
+          "lower_listed_price_model": "claude-haiku-4.5",
+          "higher_listed_price_model": "gemini-3.1-pro",
+          "published_cost_ratio": 2.1035681023173867
+        },
+        {
+          "lower_listed_price_model": "kimi-k2.6",
+          "higher_listed_price_model": "gemini-3.1-pro",
+          "published_cost_ratio": 1.2918658287961566
+        },
+        {
+          "lower_listed_price_model": "minimax-m2.7",
+          "higher_listed_price_model": "gemini-3-flash",
+          "published_cost_ratio": 1.692768257091026
+        },
+        {
+          "lower_listed_price_model": "claude-haiku-4.5",
+          "higher_listed_price_model": "claude-opus-4.7",
+          "published_cost_ratio": 1.2217145241310543
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Published cost/score columns are author records, not verified invoices or independent labels.",
+    "Conditional tariff residuals do not establish billing errors; cache write/read, model/tariff dates and other provenance remain unresolved.",
+    "Empty shared responses/prompts/gold prevent replay and independent answer grading from these files.",
+    "Task variants come from experiment_config/file prefixes; the result files' split metadata is null.",
+    "The 25/84 subset rate is not a replication of the full paper's rounded 32% statistic.",
+    "Shared-file Cybench/GAIA mean reversal rates differ from paper v2 Table 6; Terminal-Bench agrees at one decimal. The cause has not been resolved.",
+    "All costs, including records scored incorrect, stay in the aggregation.",
+    "No current price lookup, model call, GPU computation or Orallexa news prediction occurs."
+  ]
+}
