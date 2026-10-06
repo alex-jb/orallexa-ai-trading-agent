@@ -156,9 +156,9 @@ def test_platt_whatif_insufficient_data_gracefully():
     assert "Skipped" in md or "skipped" in md
 
 
-def test_platt_whatif_compressed_forecast_ships_verdict():
+def test_platt_whatif_compressed_forecast_requires_held_out_evaluation():
     """Compressed forecaster (Prophet Arena pathology) → what-if
-    section reports non-trivial Brier improvement and a green verdict."""
+    section reports a training improvement without recommending deployment."""
     # 40 events at p=0.30 with actual base rate 0.10 (compressed high)
     # + 40 events at p=0.70 with actual base rate 0.90 (compressed low)
     results = (
@@ -170,19 +170,22 @@ def test_platt_whatif_compressed_forecast_ships_verdict():
     assert "Raw Brier" in md
     assert "Calibrated Brier" in md
     assert "Δ Brier" in md
-    # Should trigger the green "ship the wire-up" verdict on this
-    # heavy-compression synthetic data.
-    assert "Ship the wire-up" in md or "Do NOT ship" in md or "Marginal" in md
+    assert "Raw Brier (training)" in md
+    assert "Calibrated Brier (training)" in md
+    assert "Training fit improves Brier" in md
+    assert "held-out" in md
+    assert "Ship the wire-up" not in md
 
 
 def test_platt_whatif_well_calibrated_no_ship():
     """Already-well-calibrated forecasts → Platt should NOT improve,
-    verdict should be 'Do NOT ship' or Marginal."""
+    the report still identifies the scores as training diagnostics."""
     # 30 events at p=0.6 with actual base rate ~60%
     results = [_make(0.6, 1)] * 18 + [_make(0.6, 0)] * 12 \
               + [_make(0.4, 1)] * 8 + [_make(0.4, 0)] * 12
     lines = render_platt_whatif_section(results)
     md = "\n".join(lines)
     assert "Raw Brier" in md  # section rendered successfully
-    # Verdict is either "Do NOT ship" or "Marginal" — improvement < 5%
-    assert "Ship the wire-up" not in md or "Marginal" in md or "Do NOT ship" in md
+    assert "training" in md.lower()
+    assert "held-out" in md
+    assert "Ship the wire-up" not in md

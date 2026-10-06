@@ -8,7 +8,7 @@ Contract:
   - Both classes required — all-0 or all-1 raises
   - Fitted calibrator improves training Brier score on
     middle-band-compressed data (the Prophet Arena pathology)
-  - identity() returns an approximate no-op mapping
+  - identity() returns an exact no-op mapping, including cached cold starts
   - calibrate(NaN/Inf) passes through unchanged
 """
 from __future__ import annotations
@@ -170,12 +170,24 @@ def test_calibrate_output_in_zero_one():
 # identity()
 # ═══════════════════════════════════════════════════════════════
 
-def test_identity_is_no_op_at_endpoints_and_midpoint():
-    """identity() should map ~0 → ~0, ~0.5 → ~0.5, ~1 → ~1."""
+@pytest.mark.parametrize("p_raw", [0.0, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.75, 0.8, 0.9, 1.0])
+def test_identity_is_exact_no_op(p_raw):
+    """Cold starts must preserve probabilities throughout the valid range."""
     ident = identity()
-    assert ident.calibrate(0.0) < 0.01
-    assert abs(ident.calibrate(0.5) - 0.5) < 0.01
-    assert ident.calibrate(1.0) > 0.99
+    assert ident.calibrate(p_raw) == p_raw
+
+
+@pytest.mark.parametrize("p_raw", [-0.2, 1.2, float("inf"), float("-inf")])
+def test_fitted_calibrator_passes_invalid_inputs_through(p_raw):
+    """Invalid inputs remain visible to the caller instead of becoming probabilities."""
+    cal = PlattCalibrator(-4.0, 2.0, 30, 0.2, 0.18)
+    assert cal.calibrate(p_raw) == p_raw
+
+
+def test_fitted_calibrator_still_uses_sigmoid():
+    cal = PlattCalibrator(-4.0, 2.0, 30, 0.2, 0.18)
+    assert cal.calibrate(0.25) == pytest.approx(1.0 / (1.0 + math.exp(1.0)))
+    assert math.isnan(cal.calibrate(float("nan")))
 
 
 def test_identity_reports_n_train_zero():
@@ -238,6 +250,37 @@ def test_save_and_load_roundtrip(tmp_path):
     assert reloaded.A == pytest.approx(original.A)
     assert reloaded.B == pytest.approx(original.B)
     assert reloaded.n_train == original.n_train
+    assert reloaded.calibrate(0.25) == original.calibrate(0.25)
+
+
+def test_identity_cache_roundtrip_preserves_probabilities(tmp_path):
+    from engine.platt_calibration import load, save
+
+    cache_path = tmp_path / "identity.json"
+    save(identity(), cache_path)
+    reloaded = load(cache_path)
+    assert reloaded is not None
+    for p_raw in [0.0, 0.25, 0.5, 0.75, 1.0]:
+        assert reloaded.calibrate(p_raw) == p_raw
+
+
+@pytest.mark.parametrize("cache_age_days", [0, 30])
+def test_legacy_cold_start_cache_is_no_op(tmp_path, cache_age_days):
+    """Old caches stored steep sigmoid parameters with no fitted observations."""
+    import json
+    from datetime import datetime, timedelta, timezone
+    from engine.platt_calibration import load_or_refit
+
+    cache_path = tmp_path / "legacy.json"
+    cache_path.write_text(json.dumps({
+        "A": -60.0, "B": 30.0, "n_train": 0,
+        "train_brier_raw": 0.0, "train_brier_calibrated": 0.0,
+        "refitted_at": (datetime.now(timezone.utc) - timedelta(days=cache_age_days)).isoformat(),
+    }))
+    result = load_or_refit(cache_path, lambda: [])
+    assert result.n_train == 0
+    assert result.calibrate(0.25) == 0.25
+    assert result.calibrate(0.75) == 0.75
 
 
 def test_load_missing_returns_none(tmp_path):
@@ -295,6 +338,8 @@ def test_load_or_refit_cold_start_falls_back_to_identity(tmp_path):
     tiny = [{"forecast_p": 0.5, "actual": i % 2} for i in range(10)]
     result = load_or_refit(cache_path, lambda: tiny)
     assert result.n_train == 0  # identity()
+    assert result.calibrate(0.25) == 0.25
+    assert result.calibrate(0.75) == 0.75
 
 
 def test_load_or_refit_stale_cache_refits(tmp_path):
