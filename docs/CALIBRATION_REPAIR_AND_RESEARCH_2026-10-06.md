@@ -1,6 +1,6 @@
 # Orallexa：校准边界修复与新研究 · 2026-10-06
 
-本轮把上一轮发现变成可审查的修复，同时核对三项新研究。结论是：回答一致、置信分数排序正确、训练集拟合变好，都不能单独证明未来事件的概率可靠。当前改动在独立草稿中，基线为 `794a2ec0ce0b1271b468814eee47c2cd4edde147`。背景证据见[研究草稿 #31](https://github.com/alex-jb/orallexa-ai-trading-agent/pull/31)。
+本轮把上一轮发现变成可审查的修复，同时核对三项新论文和一项 MIT 部署项目。结论是：回答一致、置信分数排序正确、训练集拟合变好，都不能单独证明未来事件的概率可靠。当前改动在[独立修复草稿 #41](https://github.com/alex-jb/orallexa-ai-trading-agent/pull/41)中，基线为 `794a2ec0ce0b1271b468814eee47c2cd4edde147`。背景证据见[研究草稿 #31](https://github.com/alex-jb/orallexa-ai-trading-agent/pull/31)。
 
 ## 已完成的修复
 
@@ -32,6 +32,17 @@
 
 **对 Orallexa 的推断：** 可探索将分歧用于“需要复核”的排序；在金融标签、阈值选择和完整成本尚未验证前，优先保留为研究候选。
 
+补充小范围源函数试验：只执行上述固定提交的原始 helper 函数和四个配置常量。每例只有一个合成 token，`index=0`、`prob_a=0.9`、无答案 token，设 `theta=0.7`；数值不是由真实模型分布算出的。
+
+| 合成 token 的 JS 字段 | DTC_lin | DTC_prod |
+|---|---:|---:|
+| `js_divergence=0.9` | 0.86 | 0.59049 |
+| 缺少 `js_divergence` | 0.95 | 0.6561 |
+| `js_divergence=None` | 0.95 | 0.6561 |
+| `js_divergence=NaN` | 0.95 | 0.6561 |
+
+这说明在该 helper 中，缺失值和 NaN 不增加分歧计数，却仍可输出高分。没有运行完整上游评分流程，不能断言真实样本会出现这些输入。未来适配器应先检查分歧数据是否完整、有限，避免把“没有测到”当作“没有分歧”。
+
 ### 布朗大学：RMF 预测市场研究
 
 [Can LLMs Predict the Future?，arXiv 2609.32885v1，9 月 26 日](https://arxiv.org/html/2609.32885v1)。作者比较 3,000 个已结算问题上的 Claude/Qwen，采用基础命中率、同题成对 Brier 差和区间。正文表示数据与代码将在接收后公开；本轮没有原始预测重算。
@@ -39,6 +50,12 @@
 有用方法是保持比较题目一致、同时公布解析失败和覆盖率。不过文中统一“post-cutoff”起点为 2025-06-30，表中 Sonnet 4.6 截止日期却为 2026-01；这个分组不能独自保证所有模型未见过结算结果。基础命中率也由评估分组的最终结果计算，是回顾性参考，部署时应另用当时已结算的历史数据。
 
 **对 Orallexa 的推断：** 采用比较方法，暂不据此认定换更大的模型有用或无用。未来实验逐模型登记知识截止信息；对训练内容未知的托管模型保留不确定性。
+
+### MIT Transit Lab：实时信息整合与人工决策
+
+[MIT 官方报道，9 月 30 日](https://news.mit.edu/2026/mit-transit-lab-to-develop-ai-platform-public-transit-agencies-0930)介绍 Public Transit Intelligence Hub。Google.org 于 9 月 15 日宣布给予 210 万美元资助，项目计划整合监控、运营和乘客沟通，并结合预测模型、优化和语言模型推理；最终决策留给运营人员。报道描述三年项目和未来目标，没有提供完成后的效果测量；10 月 5 日的媒体转述不能作为新的技术发布日期。
+
+**对 Orallexa 的推断：** 部署价值值得围绕信息整合和人工判断评估：来源是否可追踪、更正能否及时更新、用户是否更快发现矛盾，以及复核是否提高准确性。项目资助与参与机构不是产品收入、模型效果或金融收益的证据。
 
 ## 下一项概率实验的具体约束
 
@@ -57,3 +74,4 @@
 - Python 编译与 diff 检查通过。完整 CI 结果记录在对应修复草稿的 Validation 中。
 - TTCL 静态来源：`scripts/majority_ttcl/run_majority_ttcl.sh`、`scripts/majority_ttcl/run_majority_ttcl_math500.sh`、`verl/workers/reward_manager/majority_ttcl.py`，均固定在 b3f29c409b9cf67cddaaee59bb52021c154ffc39。
 - DTC 静态来源：`dtc/confidence.py`、`dtc/config.py`，均固定在 b5f7d0d17fa1de58dc19fb4947bb6a608ad462e3。
+- 六个已读取的 TTCL/DTC 来源文件均与固定提交的 Git blob 匹配；四例 DTC helper 试验不包含完整上游模块、模型、训练、网络或 GPU。
