@@ -35,6 +35,7 @@ Note: model checkpoints download from HuggingFace on first use
 from __future__ import annotations
 
 import logging
+from numbers import Integral
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -88,37 +89,47 @@ class KronosSignal:
     """
 
     def __init__(self, model_size: str = "small", lookback: int = 64,
-                 temperature: float = 1.0, top_p: float = 0.9):
+                 temperature: float = 1.0, top_p: float = 0.9,
+                 calendar: str = "XNYS"):
+        if isinstance(lookback, bool) or not isinstance(lookback, Integral) or lookback < 1:
+            raise ValueError("lookback must be a positive integer")
         self.model_size = model_size
         self.lookback = min(lookback, 480)  # leave headroom under 512 max
         self.temperature = temperature
         self.top_p = top_p
+        self.calendar = calendar
 
     def predict(self, df, *, pred_len: int = 5):
         """
-        df:        pandas.DataFrame with at least open/high/low/close + a
-                   datetime-like index OR a 'timestamps' column.
-        pred_len:  trading days to forecast.
+        df:        daily OHLCV bars with session dates in a datetime-like
+                   index or an explicit 'timestamps' column (takes priority).
+                   The caller must supply only bars available at its cutoff.
+                   Dates are provider-local session labels, not UTC instants.
+        pred_len:  future sessions of the configured exchange to forecast.
 
         Returns the forecasted OHLCV DataFrame (Kronos's native shape) or
         None on failure.
         """
+        if (isinstance(pred_len, bool) or not isinstance(pred_len, Integral)
+                or not 1 <= pred_len <= 512):
+            return None
+        if df is None or len(df) < self.lookback:
+            return None
+
         try:
+            import numpy as np
             import pandas as pd
-            predictor = _ensure_kronos(self.model_size)
-        except Exception:
-            return None
+            import exchange_calendars as xcals
 
-        if df is None or len(df) < self.lookback + 1:
-            return None
-
-        try:
             # Normalize columns: Kronos wants lower-case OHLCV
             df_norm = df.copy()
             rename_map = {c: c.lower() for c in df_norm.columns
-                          if c.lower() in ("open", "high", "low", "close",
-                                            "volume", "amount")}
+                          if isinstance(c, str) and c.lower() in (
+                              "open", "high", "low", "close", "volume",
+                              "amount", "timestamps")}
             df_norm = df_norm.rename(columns=rename_map)
+            if not df_norm.columns.is_unique:
+                return None
 
             required = ["open", "high", "low", "close"]
             for col in required:
@@ -127,24 +138,56 @@ class KronosSignal:
 
             cols = required + [c for c in ("volume", "amount")
                                 if c in df_norm.columns]
-            x_df = df_norm.loc[:, cols].iloc[-self.lookback:].reset_index(drop=True)
+            x_df = (df_norm.loc[:, cols].iloc[-self.lookback:]
+                    .astype(float).reset_index(drop=True))
+            if (not np.isfinite(x_df.to_numpy()).all()
+                    or (x_df[required] <= 0).any().any()
+                    or (x_df[[c for c in ("volume", "amount") if c in cols]] < 0)
+                    .any().any()):
+                return None
 
-            # Build timestamps from the index, fall back to a sequential range
-            try:
-                idx = pd.to_datetime(df_norm.index[-self.lookback:])
-                x_timestamp = pd.Series(idx)
-            except Exception:
-                x_timestamp = pd.Series(pd.date_range(end=pd.Timestamp.now(),
-                                                       periods=self.lookback))
+            source = (df_norm["timestamps"].iloc[-self.lookback:]
+                      if "timestamps" in df_norm.columns
+                      else df_norm.index[-self.lookback:])
+            # Numeric indexes otherwise parse as nanoseconds in January 1970.
+            if (pd.api.types.is_numeric_dtype(source)
+                    or any(isinstance(v, (int, float, np.number)) for v in source)):
+                return None
+            dates = pd.DatetimeIndex(pd.to_datetime(source, errors="raise"))
+            if dates.tz is not None:
+                dates = dates.tz_localize(None)
+            dates = dates.normalize()
+            if dates.hasnans or not dates.is_unique or not dates.is_monotonic_increasing:
+                return None
 
-            future_start = x_timestamp.iloc[-1] + pd.Timedelta(days=1)
-            y_timestamp = pd.Series(pd.date_range(start=future_start,
-                                                    periods=pred_len))
+            last = dates[-1]
+            end = last + pd.Timedelta(days=(int(pred_len) + 5) * 4)
+            exchange = xcals.get_calendar(self.calendar, start=dates[0], end=end)
+            if not dates.isin(exchange.sessions).all():
+                return None
+            # Calendar endpoints can themselves fall on holidays. Select
+            # from actual session labels instead of querying beyond its bounds.
+            future = exchange.sessions[exchange.sessions > last][:pred_len]
+            if len(future) != pred_len:
+                return None
+            x_timestamp = pd.Series(dates)
+            y_timestamp = pd.Series(future)
 
+            # Do not load checkpoints until input dates and values are valid.
+            predictor = _ensure_kronos(self.model_size)
             forecast = predictor.predict(
                 df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
                 pred_len=pred_len, T=self.temperature, top_p=self.top_p,
             )
+            if not isinstance(forecast, pd.DataFrame) or len(forecast) != pred_len:
+                return None
+            forecast.attrs["orallexa_forecast"] = {
+                "calendar": self.calendar,
+                "calendar_version": xcals.__version__,
+                "last_session": last.date().isoformat(),
+                "target_sessions": future.strftime("%Y-%m-%d").tolist(),
+                "forecast_kind": "point_path",
+            }
             return forecast
         except Exception as e:
             logger.warning("Kronos predict failed: %s", e)
@@ -156,26 +199,23 @@ class KronosSignal:
         Caller plugs into `ml_result["results"]["kronos"]` before calling
         fuse_signals.
 
-        Shape: {status: 'ok'|'error', metrics: {sharpe, total_return}}.
-        sharpe is synthesized from forecast monotonicity × magnitude;
-        total_return mirrors expected_return_pct / 100. ml_ensemble
-        consumes both via _score_ml's sign-magnitude logic.
+        Forecast evidence is separate from realized backtest metrics.
+        The fusion engine consumes directional_score directly. Empty metrics
+        retains the container shape without inventing Sharpe or realized returns.
         """
         s = self.score_for_fusion(df, pred_len=pred_len)
         if not s.get("available"):
-            return {"status": "error", "metrics": {"sharpe": 0, "total_return": 0}}
-        ret = s.get("expected_return_pct", 0) / 100.0
-        # Synthesize a sharpe-equivalent: monotonicity (-0.5..+0.5)
-        # scaled by 4 so a fully-monotone forecast contributes ±2.
-        monotone = s.get("monotone_pct", 0.5)
-        sharpe = (monotone - 0.5) * 4
-        if ret < 0:
-            sharpe = -abs(sharpe)
+            return {"status": "error", "metrics": {}}
         return {
             "status": "ok",
-            "metrics": {
-                "sharpe": round(sharpe, 3),
-                "total_return": round(ret, 4),
+            "signal_type": "price_forecast",
+            "directional_score": s["score"],
+            "metrics": {},
+            "forecast": {
+                **s.get("forecast_metadata", {}),
+                "expected_return_pct": s["expected_return_pct"],
+                "n_steps": s["n_steps"],
+                "model_size": self.model_size,
             },
         }
 
@@ -191,25 +231,27 @@ class KronosSignal:
             return {"available": False, "score": 0}
 
         try:
+            import numpy as np
             import pandas as pd
             df_norm = df.rename(columns={c: c.lower() for c in df.columns})
             current_close = float(df_norm["close"].iloc[-1])
-            forecast_close = float(forecast["close"].iloc[-1])
-            if current_close <= 0:
+            closes = forecast["close"].to_numpy(dtype=float)
+            if (not np.isfinite(current_close) or current_close <= 0
+                    or not np.isfinite(closes).all() or (closes <= 0).any()):
                 return {"available": False, "score": 0}
+            forecast_close = float(closes[-1])
 
             ret_pct = (forecast_close - current_close) / current_close * 100.0
+            if not np.isfinite(ret_pct):
+                return {"available": False, "score": 0}
 
             # Map expected return to -100..+100 score: ±5% return → ±100
             score = max(-100, min(100, int(ret_pct * 20)))
 
-            # Confidence boost from how monotone the forecast is
-            steps = forecast["close"].tolist()
-            ups = sum(1 for i in range(1, len(steps)) if steps[i] > steps[i - 1])
-            monotone_pct = ups / max(1, len(steps) - 1)
-            if abs(monotone_pct - 0.5) > 0.3:
-                score = int(score * 1.15)
-                score = max(-100, min(100, score))
+            # Descriptive path statistic only; ties are neutral, not bearish.
+            changes = np.diff(closes)
+            monotone_pct = (float(((changes > 0) + 0.5 * (changes == 0)).mean())
+                            if len(changes) else 0.5)
 
             return {
                 "available": True,
@@ -218,6 +260,7 @@ class KronosSignal:
                 "n_steps": pred_len,
                 "monotone_pct": round(monotone_pct, 3),
                 "model_size": self.model_size,
+                "forecast_metadata": forecast.attrs.get("orallexa_forecast", {}),
             }
         except Exception as e:
             logger.warning("Kronos score conversion failed: %s", e)

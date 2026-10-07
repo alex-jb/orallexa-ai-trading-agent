@@ -3,6 +3,8 @@ anthropic
 yfinance
 pandas
 numpy
+# Session dates for daily financial forecasts (including exchange holidays).
+exchange-calendars>=4.11,<5
 matplotlib
 mplfinance
 scikit-learn

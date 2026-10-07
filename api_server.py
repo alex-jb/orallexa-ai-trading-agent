@@ -451,7 +451,8 @@ async def deep_analysis_stream(
             from engine.multi_agent_analysis import _run_market_analyst, _run_news_analyst, _run_ml_analyst
             market_report = _run_market_analyst(summary, tk)
             news_report, news_items = await asyncio.to_thread(_run_news_analyst, tk)
-            ml_report, ml_result = await asyncio.to_thread(_run_ml_analyst, train_df, test_df, tk)
+            ml_report, ml_result = await asyncio.to_thread(
+                _run_ml_analyst, train_df, test_df, tk, forecast_df=ta)
         except Exception as exc:
             yield _send("error", {"detail": f"Analysis failed: {exc}"})
             return
