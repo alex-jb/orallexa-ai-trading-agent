@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
+import exchange_calendars as xcals
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
@@ -34,7 +35,7 @@ def _ohlcv(n: int = 100, drift: float = 0.0):
         "close": close,
         "volume": np.abs(rng.normal(1_000_000, 100_000, n)),
         "amount": np.abs(rng.normal(100_000_000, 10_000_000, n)),
-    }, index=pd.date_range("2024-01-01", periods=n))
+    }, index=xcals.get_calendar("XNYS").sessions_in_range("2024-01-02", "2025-12-31")[:n])
 
 
 def _install_fake_kronos(forecast_df: pd.DataFrame):

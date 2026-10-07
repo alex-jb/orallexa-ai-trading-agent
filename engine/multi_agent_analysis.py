@@ -257,17 +257,20 @@ def _add_kronos_to_ml(ml_result: dict, ticker: str, full_df) -> None:
         logger.debug("Kronos voter unavailable for %s: %s", ticker, e)
 
 
-def _run_ml_analyst(train_df, test_df, ticker: str) -> tuple[str, Optional[dict]]:
-    """Run ML models and generate report. Returns (report, raw_result)."""
+def _run_ml_analyst(train_df, test_df, ticker: str, *, forecast_df=None) -> tuple[str, Optional[dict]]:
+    """Backtest on the split; forecast only from an explicitly supplied context.
+
+    forecast_df must contain only daily bars available at the caller's cutoff.
+    An omitted context skips Kronos rather than forecasting from stale training data.
+    """
     try:
         from engine.ml_signal import run_ml_analysis
         ml_result = run_ml_analysis(train_df=train_df, test_df=test_df, ticker=ticker)
-        # Append Kronos's vote if installed (no-op otherwise). Uses the
-        # full historical df rather than train/test split since Kronos
-        # is autoregressive and wants recent context.
-        if ml_result and not ml_result.get("error"):
+        # Backtest partitions and the current forecasting context serve
+        # different tasks. Never infer the latter from the training partition.
+        if ml_result and not ml_result.get("error") and forecast_df is not None:
             try:
-                _add_kronos_to_ml(ml_result, ticker, train_df.tail(120) if hasattr(train_df, "tail") else train_df)
+                _add_kronos_to_ml(ml_result, ticker, forecast_df)
             except Exception:
                 pass
         if ml_result and not ml_result.get("error"):
@@ -286,6 +289,16 @@ def _run_ml_analyst(train_df, test_df, ticker: str) -> tuple[str, Optional[dict]
                         f"WinRate={m.get('win_rate', 0):.1%}, "
                         f"Trades={m.get('n_trades', 0)}"
                     )
+
+            kronos = results.get("kronos", {})
+            if kronos.get("status") == "ok" and kronos.get("signal_type") == "price_forecast":
+                f = kronos["forecast"]
+                lines.append(
+                    f"**Kronos price forecast:** expected change "
+                    f"{f['expected_return_pct']:+.3f}% over {f['n_steps']} sessions "
+                    f"after {f['last_session']} ({f['calendar']}). "
+                    "This is a forecast, not a backtest return or win rate."
+                )
 
             bh = results.get("buy_and_hold", {}).get("metrics", {})
             if bh:
@@ -512,7 +525,7 @@ def run_multi_agent_analysis(
     news_report, news_items = _run_news_analyst(ticker)
 
     # ── Agent 3: ML Analyst ──
-    ml_report, ml_result = _run_ml_analyst(train_df, test_df, ticker)
+    ml_report, ml_result = _run_ml_analyst(train_df, test_df, ticker, forecast_df=ta)
 
     # ── Build initial decision from technicals ──
     from skills.prediction import PredictionSkill

@@ -321,6 +321,17 @@ def _score_ml(ml_result: Optional[dict]) -> dict:
                  "kronos"):
         data = results.get(name)
         if data and data.get("status", "ok") == "ok":
+            if name == "kronos":
+                # A price-path forecast is not a realized Sharpe/return pair.
+                # Legacy synthesized metrics are deliberately not interpreted.
+                vote = data.get("directional_score")
+                if (data.get("signal_type") != "price_forecast"
+                        or isinstance(vote, (bool, np.bool_))
+                        or not isinstance(vote, (int, float, np.integer, np.floating))
+                        or not np.isfinite(vote) or abs(vote) > 100):
+                    continue
+                scores.append(float(vote) / 2)  # same per-model [-50, 50] scale
+                continue
             metrics = data["metrics"]
             sharpe = metrics.get("sharpe", 0)
             ret = metrics.get("total_return", 0)
