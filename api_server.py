@@ -357,6 +357,7 @@ async def deep_analysis(
             "summary": result.summary or {},
             "perspective_panel": result.perspective_panel or {},
             "signal_fusion": result.signal_fusion or {},
+            "news_research": result.news_research or {},
         }
         # Surface Portfolio Manager verdict if upstream populated decision.extra
         try:
@@ -450,7 +451,10 @@ async def deep_analysis_stream(
         try:
             from engine.multi_agent_analysis import _run_market_analyst, _run_news_analyst, _run_ml_analyst
             market_report = _run_market_analyst(summary, tk)
-            news_report, news_items = await asyncio.to_thread(_run_news_analyst, tk)
+            news_research = {}
+            news_report, news_items = await asyncio.to_thread(
+                _run_news_analyst, tk, audit=news_research,
+            )
             ml_report, ml_result = await asyncio.to_thread(_run_ml_analyst, train_df, test_df, tk)
         except Exception as exc:
             yield _send("error", {"detail": f"Analysis failed: {exc}"})
@@ -477,7 +481,7 @@ async def deep_analysis_stream(
                                   "label_zh": "多空辩论 + 多视角分析..."})
 
         try:
-            rag_context = f"{ml_report}\n\n{news_report}"
+            rag_context = f"{news_report}\n\nML MODELS:\n{ml_report[:400]}"
             from llm.debate import run_lightweight_debate
             from llm.perspective_panel import run_perspective_panel
             from engine.signal_fusion import fuse_signals
@@ -532,6 +536,7 @@ async def deep_analysis_stream(
 
         from models.confidence import guard_decision
         final_decision = guard_decision(debate_decision)
+        final_decision.extra["news_research"] = news_research
         if panel_result:
             pc = panel_result.get("consensus", "NEUTRAL")
             ps = panel_result.get("avg_score", 0)
@@ -597,6 +602,7 @@ async def deep_analysis_stream(
             "summary": summary,
             "perspective_panel": panel_result or {},
             "signal_fusion": fusion_result or {},
+            "news_research": news_research,
         }
         if breaking:
             out["breaking_signal"] = breaking

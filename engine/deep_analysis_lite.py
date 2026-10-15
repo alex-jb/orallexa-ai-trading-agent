@@ -203,26 +203,10 @@ def run_deep_analysis_lite(brain) -> dict:
         logging.warning(f"ML analysis failed for {ticker}: {e}")
         ml_report = f"ML analysis unavailable for {ticker}."
 
-    # ── Step 3: News sentiment (local via yfinance + VADER, instant) ──
-    news_report = ""
-    news_items = []
-    try:
-        import yfinance as yf
-        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-        sia = SentimentIntensityAnalyzer()
-        raw = yf.Ticker(ticker).news or []
-        for r in raw[:6]:
-            content = r.get("content", {})
-            title = content.get("title", "")
-            if title and len(title) > 10:
-                sc = sia.polarity_scores(title)["compound"]
-                sent = "bullish" if sc > 0.1 else "bearish" if sc < -0.1 else "neutral"
-                provider = content.get("provider", {})
-                provider_name = provider.get("displayName", "") if isinstance(provider, dict) else ""
-                news_items.append({"title": title, "sentiment": sent, "score": sc, "provider": provider_name})
-        news_report = _build_news_report(news_items, ticker)
-    except Exception:
-        news_report = f"News unavailable for {ticker}."
+    # ── Step 3: Shared evidence-aware local news path ──
+    from engine.multi_agent_analysis import _run_news_analyst
+    news_research = {}
+    news_report, news_items = _run_news_analyst(ticker, audit=news_research, limit=6)
 
     # ── Step 4: Bull/Bear debate (3 LLM calls, ~10-20s) ──
     # First build initial decision from technical score
@@ -240,7 +224,7 @@ def run_deep_analysis_lite(brain) -> dict:
         )
 
     # Enrich RAG context with ML + news for the debate
-    rag_context = f"{ml_report}\n\n{news_report}"
+    rag_context = f"{news_report}\n\nML MODELS:\n{ml_report[:400]}"
 
     from llm.debate import run_lightweight_debate
     final_decision = run_lightweight_debate(
@@ -250,7 +234,9 @@ def run_deep_analysis_lite(brain) -> dict:
         rag_context=rag_context,
     )
 
+    final_decision.extra["news_research"] = news_research
     return {
+        "news_research": news_research,
         "decision_output": final_decision,
         "reports": {
             "market": market_report,
