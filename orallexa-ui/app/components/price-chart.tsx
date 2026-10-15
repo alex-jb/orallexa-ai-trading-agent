@@ -1,16 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { IChartApi, Time } from "lightweight-charts";
+import { API } from "../types";
+import { parseMarketHistory, type MarketCandle, type MarketHistory } from "../market-history";
 import { Mod } from "./atoms";
 
-interface CandleData {
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume?: number;
-}
+const EMPTY_CANDLES: MarketCandle[] = [];
 
 const PERIODS = [
   { label: "1D", period: "1d", interval: "5m" },
@@ -74,11 +70,19 @@ function calcRSI(closes: number[], period: number = 14): (number | null)[] {
 
 export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, string> }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<ReturnType<typeof import("lightweight-charts").createChart> | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(PERIODS[2]);
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<CandleData[]>([]);
+  const [refresh, setRefresh] = useState(0);
+  const [result, setResult] = useState<{ key: string; history: MarketHistory | null; error: boolean } | null>(null);
+  const [chartErrorKey, setChartErrorKey] = useState<string | null>(null);
   const [indicators, setIndicators] = useState<Set<Indicator>>(new Set(["MA20"]));
+  const symbol = ticker.trim().toUpperCase();
+  const requestKey = `${symbol}:${period.period}:${period.interval}:${refresh}`;
+  const current = result?.key === requestKey ? result : null;
+  const loading = !!symbol && current === null;
+  const history = current?.history;
+  const data = history?.candles ?? EMPTY_CANDLES;
+  const error = current?.error || chartErrorKey === requestKey;
 
   const toggleIndicator = (ind: Indicator) => {
     setIndicators(prev => {
@@ -88,59 +92,41 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
     });
   };
 
-  // Generate mock OHLCV data
-  const generateMock = useCallback((days: number): CandleData[] => {
-    const TICKER_PRICES: Record<string, number> = {
-      NVDA: 142.5, AAPL: 218.3, TSLA: 275.8, MSFT: 432.15, GOOG: 178.9,
-      AMZN: 205.4, META: 615.2, AMD: 128.6, PLTR: 98.3, COIN: 265.7,
-    };
-    let price = TICKER_PRICES[ticker.toUpperCase()] ?? 100;
-    const result: CandleData[] = [];
-    const now = new Date();
-    for (let i = days; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const open = price;
-      const change = (Math.random() - 0.48) * price * 0.03;
-      const close = Math.round((open + change) * 100) / 100;
-      const high = Math.round(Math.max(open, close) * (1 + Math.random() * 0.015) * 100) / 100;
-      const low = Math.round(Math.min(open, close) * (1 - Math.random() * 0.015) * 100) / 100;
-      price = close;
-      result.push({
-        time: d.toISOString().slice(0, 10),
-        open, high, low, close,
-        volume: Math.round(5000000 + Math.random() * 50000000),
-      });
-    }
-    return result;
-  }, [ticker]);
-
   useEffect(() => {
-    if (!ticker) return;
-    setLoading(true);
-    const days = period.label === "1D" ? 1 : period.label === "5D" ? 5 : period.label === "1M" ? 30 : period.label === "3M" ? 90 : 365;
-    const timeout = setTimeout(() => {
-      setData(generateMock(days));
-      setLoading(false);
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [ticker, period, generateMock]);
+    if (!symbol) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const query = new URLSearchParams({ period: period.period, interval: period.interval });
+    (async () => {
+      try {
+        const response = await fetch(`${API}/api/market-history/${encodeURIComponent(symbol)}?${query}`, {
+          signal: controller.signal, cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Market history unavailable");
+        const parsed = parseMarketHistory(await response.json(), symbol, period.period, period.interval);
+        if (!cancelled) setResult({ key: requestKey, history: parsed, error: false });
+      } catch {
+        if (!cancelled) setResult({ key: requestKey, history: null, error: true });
+      } finally { clearTimeout(timeout); }
+    })();
+    return () => { cancelled = true; controller.abort(); clearTimeout(timeout); };
+  }, [symbol, period.period, period.interval, requestKey]);
 
   // Render chart with indicators
   useEffect(() => {
-    if (!containerRef.current || data.length === 0) return;
+    const container = containerRef.current;
+    if (!container || data.length === 0) return;
+    let disposed = false;
+    let ownedChart: IChartApi | null = null;
+    let observer: ResizeObserver | null = null;
 
     const init = async () => {
       const { createChart, CandlestickSeries, HistogramSeries, LineSeries } = await import("lightweight-charts");
 
-      if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
-      }
-
-      if (!containerRef.current) return;
-      const chart = createChart(containerRef.current, {
-        width: containerRef.current.clientWidth,
+      if (disposed) return;
+      const chart = createChart(container, {
+        width: container.clientWidth,
         height: 280,
         layout: {
           background: { color: "#1A1A2E" },
@@ -159,11 +145,12 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
         rightPriceScale: { borderColor: "rgba(212,175,55,0.1)" },
         timeScale: {
           borderColor: "rgba(212,175,55,0.1)",
-          timeVisible: period.label === "1D" || period.label === "5D",
+          timeVisible: period.interval !== "1d",
         },
       });
 
       chartRef.current = chart;
+      ownedChart = chart;
       const closes = data.map(d => d.close);
 
       // Candlesticks
@@ -180,7 +167,7 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
         const ma20Series = chart.addSeries(LineSeries, {
           color: "#D4AF37", lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
         });
-        ma20Series.setData(data.map((d, i) => ({ time: d.time, value: ma20[i] ?? undefined })).filter(d => d.value !== undefined) as { time: string; value: number }[]);
+        ma20Series.setData(data.map((d, i) => ({ time: d.time, value: ma20[i] ?? undefined })).filter(d => d.value !== undefined) as { time: Time; value: number }[]);
       }
 
       // MA50
@@ -189,7 +176,7 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
         const ma50Series = chart.addSeries(LineSeries, {
           color: "#C5A255", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
         });
-        ma50Series.setData(data.map((d, i) => ({ time: d.time, value: ma50[i] ?? undefined })).filter(d => d.value !== undefined) as { time: string; value: number }[]);
+        ma50Series.setData(data.map((d, i) => ({ time: d.time, value: ma50[i] ?? undefined })).filter(d => d.value !== undefined) as { time: Time; value: number }[]);
       }
 
       // Bollinger Bands
@@ -201,12 +188,12 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
         const bbLower = chart.addSeries(LineSeries, {
           color: "rgba(212,175,55,0.35)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
         });
-        bbUpper.setData(data.map((d, i) => ({ time: d.time, value: bb.upper[i] ?? undefined })).filter(d => d.value !== undefined) as { time: string; value: number }[]);
-        bbLower.setData(data.map((d, i) => ({ time: d.time, value: bb.lower[i] ?? undefined })).filter(d => d.value !== undefined) as { time: string; value: number }[]);
+        bbUpper.setData(data.map((d, i) => ({ time: d.time, value: bb.upper[i] ?? undefined })).filter(d => d.value !== undefined) as { time: Time; value: number }[]);
+        bbLower.setData(data.map((d, i) => ({ time: d.time, value: bb.lower[i] ?? undefined })).filter(d => d.value !== undefined) as { time: Time; value: number }[]);
       }
 
       // Volume
-      if (data[0]?.volume) {
+      if (data.some(d => d.volume > 0)) {
         const volumeSeries = chart.addSeries(HistogramSeries, {
           priceFormat: { type: "volume" }, priceScaleId: "volume",
         });
@@ -224,28 +211,26 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
           color: "#D4AF37", lineWidth: 1, priceScaleId: "rsi", priceLineVisible: false, lastValueVisible: false,
         });
         chart.priceScale("rsi").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-        rsiSeries.setData(data.map((d, i) => ({ time: d.time, value: rsi[i] ?? undefined })).filter(d => d.value !== undefined) as { time: string; value: number }[]);
+        rsiSeries.setData(data.map((d, i) => ({ time: d.time, value: rsi[i] ?? undefined })).filter(d => d.value !== undefined) as { time: Time; value: number }[]);
       }
 
       chart.timeScale().fitContent();
 
-      const ro = new ResizeObserver(() => {
-        if (containerRef.current && chartRef.current) {
-          chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
-        }
+      observer = new ResizeObserver(() => {
+        if (!disposed) chart.applyOptions({ width: container.clientWidth });
       });
-      ro.observe(containerRef.current!);
+      observer.observe(container);
     };
 
-    init();
+    init().catch(() => { if (!disposed) setChartErrorKey(requestKey); });
 
     return () => {
-      if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
-      }
+      disposed = true;
+      observer?.disconnect();
+      ownedChart?.remove();
+      if (chartRef.current === ownedChart) chartRef.current = null;
     };
-  }, [data, period.label, indicators]);
+  }, [data, period.interval, indicators, requestKey]);
 
   const INDICATOR_OPTS: { key: Indicator; label: string; color: string }[] = [
     { key: "MA20", label: "MA20", color: "#D4AF37" },
@@ -287,10 +272,20 @@ export function PriceChart({ ticker, t }: { ticker: string; t: Record<string, st
           </button>
         ))}
       </div>
+      {history && <div className="mb-2 text-[9px] font-[DM_Mono] text-[#8B8E96] space-y-1 break-words" data-testid="chart-provenance">
+        <div>{t.chartSource ?? "Source"}: {history.source} · {period.interval} · {t.chartUnadjusted ?? "Unadjusted"}</div>
+        {history.as_of && <div>{t.chartLastBar ?? "Last bar start"}: {new Date(history.as_of).toISOString().replace("T", " ").replace(".000Z", " UTC")}</div>}
+        <div>{t.chartDelayNotice ?? "Historical data may be delayed; the latest bar may still be open."}</div>
+      </div>}
       {loading ? (
         <div className="h-[280px] flex items-center justify-center" role="status" aria-label="Loading chart">
           <span className="inline-block w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full anim-spin" aria-hidden="true" />
-          <span className="sr-only">Loading price chart...</span>
+          <span className="sr-only">{t.chartLoading ?? "Loading price chart..."}</span>
+        </div>
+      ) : error || data.length === 0 ? (
+        <div className="h-[280px] flex flex-col gap-3 items-center justify-center text-center text-[11px] font-[Lato] text-[#8B8E96]" role="status">
+          <span>{error ? (t.chartUnavailable ?? "Price history is unavailable. No simulated candles are shown.") : (t.chartEmpty ?? "No price history is available for this selection.")}</span>
+          {symbol && <button type="button" onClick={() => setRefresh(v => v + 1)} className="border border-[#D4AF37]/40 px-3 py-1 text-[#D4AF37] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FFD700]">{t.chartRetry ?? "Retry"}</button>}
         </div>
       ) : (
         <div ref={containerRef} className="w-full" role="img" aria-label={`${ticker} price chart — ${period.label} period`} style={{ minHeight: 280 }} />

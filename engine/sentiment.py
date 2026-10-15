@@ -124,6 +124,7 @@ def score_text(text: str) -> Dict:
 
 def _score_finbert(text: str) -> Dict:
     """Score using FinBERT. Returns all 3 class probabilities."""
+    global _SCORER_TYPE, _SCORER
     try:
         # FinBERT returns: [{'label': 'positive', 'score': 0.85}, ...]
         results = _SCORER(text[:512])  # BERT max 512 tokens
@@ -148,11 +149,21 @@ def _score_finbert(text: str) -> Dict:
             "neutral": round(neu, 4),
         }
     except Exception:
-        # Fallback to VADER if FinBERT fails on this text
-        if _init_vader():
-            return _score_vader(text)
-        return {"compound": 0.0, "label": "neutral",
-                "positive": 0.0, "negative": 0.0, "neutral": 1.0}
+        # A failed model call is not evidence of neutral sentiment. Continue
+        # through the same optional backends used during initialization.
+        try:
+            if _init_vader():
+                return _score_vader(text)
+        except Exception:
+            pass
+        try:
+            if _init_textblob():
+                return _score_textblob(text)
+        except Exception:
+            pass
+        # "none" is the existing shared scorer's keyword-fallback state.
+        _SCORER_TYPE, _SCORER = "none", None
+        return _score_keywords(text)
 
 
 def _score_vader(text: str) -> Dict:

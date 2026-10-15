@@ -178,46 +178,58 @@ def _run_market_analyst(summary: dict, ticker: str) -> str:
 # ── Agent 2: News Analyst (local, instant) ────────────────────────────────────
 
 def _run_news_analyst(ticker: str) -> tuple[str, list]:
-    """Fetch news via yfinance + FinBERT/VADER sentiment. Returns (report, items)."""
+    """Fetch headlines and score them with the shared sentiment fallback chain."""
+    import math
+
     news_items = []
     try:
         import yfinance as yf
+        from engine.sentiment import score_text, get_scorer_type, _score_keywords
+
         raw = yf.Ticker(ticker).news or []
 
-        # Try FinBERT first, fall back to VADER
-        scorer = None
-        scorer_type = None
-        try:
-            from engine.sentiment import analyze_ticker_sentiment
-            scorer_type = "finbert"
-        except ImportError:
-            pass
-
-        if scorer_type != "finbert":
-            try:
-                from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-                scorer = SentimentIntensityAnalyzer()
-                scorer_type = "vader"
-            except ImportError:
-                scorer_type = "none"
-
         for r in raw[:8]:
-            content = r.get("content", {})
-            title = content.get("title", "")
-            if not title or len(title) < 10:
+            if not isinstance(r, dict):
                 continue
+            content = r.get("content") or {}
+            if not isinstance(content, dict):
+                continue
+            title = content.get("title")
+            if not isinstance(title, str) or len(title.strip()) < 10:
+                continue
+            title = title.strip()
+            summary = content.get("summary") or ""
+            text = f"{title} {summary if isinstance(summary, str) else ''}".strip()
 
-            if scorer_type == "vader" and scorer:
-                sc = scorer.polarity_scores(title)["compound"]
-            else:
-                sc = 0.0
+            try:
+                scored = score_text(text)
+                value = scored["compound"]
+                if isinstance(value, bool):
+                    raise ValueError("Boolean sentiment score")
+                sc = float(value)
+                if not math.isfinite(sc) or abs(sc) > 1:
+                    raise ValueError("Invalid sentiment score")
+                # Read after scoring: initialization or a FinBERT runtime
+                # fallback can select a different backend on this very call.
+                scorer_type = get_scorer_type()
+                if scorer_type == "none":
+                    scorer_type = "keywords"
+            except Exception as exc:
+                logger.warning("News scorer failed for %s; using keywords: %s", ticker, exc)
+                sc = float(_score_keywords(text)["compound"])
+                scorer_type = "keywords"
 
             sent = "bullish" if sc > 0.1 else "bearish" if sc < -0.1 else "neutral"
-            provider = content.get("provider", {})
+            provider = content.get("provider") or {}
             provider_name = provider.get("displayName", "") if isinstance(provider, dict) else ""
+            canonical = content.get("canonicalUrl") or {}
+            url = canonical.get("url", "") if isinstance(canonical, dict) else ""
             news_items.append({
                 "title": title, "sentiment": sent,
                 "score": sc, "provider": provider_name,
+                "url": url,
+                "published": content.get("pubDate") or r.get("providerPublishTime"),
+                "scorer": scorer_type,
             })
 
     except Exception as e:
@@ -231,6 +243,8 @@ def _run_news_analyst(ticker: str) -> tuple[str, list]:
     avg_score = sum(scores) / len(scores) if scores else 0
     sentiment = "Bullish" if avg_score > 0.1 else "Bearish" if avg_score < -0.1 else "Neutral"
     lines.append(f"**Overall Sentiment:** {sentiment} (avg score: {avg_score:.3f})\n")
+    backends = ", ".join(sorted({item["scorer"] for item in news_items}))
+    lines.append(f"**Scoring backends:** {backends}\n")
 
     for item in news_items[:6]:
         sent = item["sentiment"]
