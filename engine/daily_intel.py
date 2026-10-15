@@ -158,124 +158,42 @@ def _fetch_sectors() -> list[dict]:
 
 # ── Step 3: News Scan ────────────────────────────────────────────────────────
 
-def _fetch_headlines(tickers: list[str]) -> list[dict]:
-    """Fetch and score headlines with weighted ranking.
+def _fetch_headlines(tickers: list[str], *, research_audit: dict | None = None) -> list[dict]:
+    """Validate and rank local evidence before sentiment-weighted brief selection."""
+    from engine.multi_agent_analysis import _run_news_analyst
+    from engine.news_research import parse_timestamp
 
-    Ranking formula: weighted_score = |sentiment| * recency_weight * provider_tier
-    - Recency: exponential decay, newer articles score higher
-    - Provider tier: premium sources (Bloomberg, Reuters) get 1.5x multiplier
-    """
-    from skills.news import NewsSkill
-    from datetime import datetime, timezone
-
-    try:
-        from engine.sentiment import score_text
-    except ImportError:
-        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-        _sia = SentimentIntensityAnalyzer()
-        def score_text(text):
-            sc = _sia.polarity_scores(text)
-            return {"compound": sc["compound"], "label": "positive" if sc["compound"] > 0.1 else "negative" if sc["compound"] < -0.1 else "neutral"}
-
-    # Provider credibility tiers
-    _TIER1 = {"bloomberg", "reuters", "wsj", "wall street journal", "financial times",
-              "cnbc", "barron's", "marketwatch", "the wall street journal"}
-    _TIER2 = {"yahoo finance", "seeking alpha", "benzinga", "investopedia",
-              "motley fool", "tipranks", "zacks", "thestreet"}
-
-    def _provider_weight(provider: str) -> float:
-        low = provider.lower()
-        if any(t in low for t in _TIER1):
-            return 1.5
-        if any(t in low for t in _TIER2):
-            return 1.2
-        return 1.0
-
-    def _recency_weight(pub_time: str) -> float:
-        """Exponential decay: 1.0 for now, 0.5 for 12h ago, 0.25 for 24h ago."""
-        try:
-            if pub_time:
-                from dateutil.parser import parse as dateparse
-                dt = dateparse(pub_time)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                hours_ago = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
-                return max(0.2, 0.5 ** (hours_ago / 12))
-        except Exception:
-            pass
-        return 0.7  # default if no timestamp
-
-    # Opt-in: multi-platform RSS aggregation (Google News + Yahoo Finance)
-    # alongside the existing yfinance-backed NewsSkill path. When enabled,
-    # items are merged per-ticker and deduped before scoring.
     use_rss = os.environ.get("DAILY_INTEL_USE_RSS", "").lower() in ("1", "true", "yes")
-
-    def _collect_per_ticker(tk: str) -> list[dict]:
-        items: list[dict] = []
-        try:
-            ys = NewsSkill(tk).fetch_news(limit=4)
-            for it in ys:
-                items.append({
-                    "title": it.get("title", ""),
-                    "url": it.get("link", ""),
-                    "provider": it.get("publisher", ""),
-                    "published": it.get("published", "") or it.get("providerPublishTime", ""),
-                    "source": "yfinance",
-                })
-        except Exception as e:
-            logger.debug("yfinance news fetch failed for %s: %s", tk, e)
-        if use_rss:
-            try:
-                from engine.news_aggregator import fetch_aggregated_news
-                items.extend(fetch_aggregated_news(tk, limit=6))
-            except Exception as e:
-                logger.debug("RSS aggregator failed for %s: %s", tk, e)
-        return items
-
-    def _dedup_merge(items: list[dict]) -> list[dict]:
-        if not use_rss:
-            return items  # single-source path: simple title-set dedup handled below
-        try:
-            from engine.news_aggregator import _dedupe_and_rank
-            return _dedupe_and_rank(items, limit=len(items))
-        except Exception:
-            return items
-
-    all_headlines = []
-    seen_titles = set()
-    for tk in tickers:
-        try:
-            merged = _dedup_merge(_collect_per_ticker(tk))
-            for item in merged:
-                title = item.get("title", "")
-                if not title or len(title) < 15 or title in seen_titles:
-                    continue
-                seen_titles.add(title)
-                scored = score_text(title)
-                compound = scored.get("compound", 0)
-                sentiment = "bullish" if compound > 0.1 else "bearish" if compound < -0.1 else "neutral"
-                provider = item.get("provider", "")
-                pub_time = item.get("published", "")
-
-                # Weighted ranking score
-                recency = _recency_weight(pub_time)
-                tier = _provider_weight(provider)
-                weighted = abs(compound) * recency * tier
-
-                all_headlines.append({
-                    "title": title,
-                    "ticker": tk,
-                    "sentiment": sentiment,
-                    "score": round(compound, 3),
-                    "weighted_score": round(weighted, 4),
-                    "url": item.get("url", ""),
-                    "provider": provider,
-                })
-        except Exception as e:
-            logger.debug("News fetch failed for %s: %s", tk, e)
-
-    all_headlines.sort(key=lambda x: x.get("weighted_score", abs(x["score"])), reverse=True)
-    return all_headlines[:20]
+    tier1 = {"bloomberg", "reuters", "wsj", "wall street journal", "financial times",
+             "cnbc", "barron's", "marketwatch"}
+    tier2 = {"yahoo finance", "seeking alpha", "benzinga", "investopedia",
+             "motley fool", "tipranks", "zacks", "thestreet"}
+    all_headlines, seen_titles = [], set()
+    for ticker in tickers:
+        audit = {}
+        _, items = _run_news_analyst(ticker, audit=audit, limit=6 if use_rss else 4, use_rss=use_rss)
+        if research_audit is not None:
+            research_audit[ticker] = audit
+        cutoff = parse_timestamp(audit["as_of_utc"])
+        for item in items:
+            title = item["title"]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            published = parse_timestamp(item["published_at_utc"])
+            hours = max(0, (cutoff - published).total_seconds() / 3600)
+            recency = max(.2, .5 ** (hours / 12))
+            provider = item["provider"].lower()
+            tier = 1.5 if any(name in provider for name in tier1) else (
+                1.2 if any(name in provider for name in tier2) else 1.0)
+            all_headlines.append({**item, "ticker": ticker,
+                                  "weighted_score": round(abs(item["score"]) * recency * tier, 4)})
+    all_headlines.sort(key=lambda item: item["weighted_score"], reverse=True)
+    selected = all_headlines[:20]
+    if research_audit is not None:
+        # This final brief selection is separate from each ticker's retrieval TopK.
+        research_audit["brief_selected_source_hashes"] = [item["source_sha256"] for item in selected]
+    return selected
 
 
 # ── Step 4: AI Summary (DEEP_MODEL — Sonnet) ────────────────────────────────
@@ -1161,7 +1079,8 @@ def generate_daily_intel(force: bool = False) -> dict:
         + [s["ticker"] for s in spikes[:2]]
         + ["SPY"]
     ))
-    headlines = _fetch_headlines(news_tickers)
+    news_research = {}
+    headlines = _fetch_headlines(news_tickers, research_audit=news_research)
 
     # Step 4: AI summary (Sonnet)
     summary, mood = _generate_summary(gainers, losers, spikes, sectors, headlines)
@@ -1199,6 +1118,7 @@ def generate_daily_intel(force: bool = False) -> dict:
         "volume_spikes": spikes,
         "sectors": sectors,
         "headlines": headlines,
+        "news_research": news_research,
         "ai_picks": picks,
         "orallexa_thread": social.get("thread", []),
         "social_posts": {
