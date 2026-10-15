@@ -1,270 +1,282 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PriceChart } from "../components/price-chart";
+import { API } from "../types";
 
-// Mock lightweight-charts (dynamic import)
-const mockSeries = { setData: vi.fn() };
-const mockPriceScale = { applyOptions: vi.fn() };
-const mockTimeScale = { fitContent: vi.fn() };
-const mockChart = {
-  addSeries: vi.fn(() => mockSeries),
-  priceScale: vi.fn(() => mockPriceScale),
-  timeScale: vi.fn(() => mockTimeScale),
-  applyOptions: vi.fn(),
-  remove: vi.fn(),
-};
-const mockCreateChart = vi.fn(() => mockChart);
+const charts = vi.hoisted(() => {
+  const instances: Array<{
+    series: Array<{ type: unknown; setData: ReturnType<typeof vi.fn> }>;
+    addSeries: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
+    applyOptions: ReturnType<typeof vi.fn>;
+    fitContent: ReturnType<typeof vi.fn>;
+  }> = [];
+  return {
+    instances,
+    createChart: vi.fn(() => {
+      const series: typeof instances[number]["series"] = [];
+      const fitContent = vi.fn();
+      const instance = {
+        series,
+        addSeries: vi.fn((type: unknown) => {
+          const added = { type, setData: vi.fn() };
+          series.push(added);
+          return added;
+        }),
+        remove: vi.fn(),
+        applyOptions: vi.fn(),
+        fitContent,
+        priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+        timeScale: vi.fn(() => ({ fitContent })),
+      };
+      instances.push(instance);
+      return instance;
+    }),
+  };
+});
 
 vi.mock("lightweight-charts", () => ({
-  createChart: mockCreateChart,
-  CandlestickSeries: "CandlestickSeries",
-  HistogramSeries: "HistogramSeries",
-  LineSeries: "LineSeries",
+  createChart: charts.createChart,
+  CandlestickSeries: "candles",
+  HistogramSeries: "volume",
+  LineSeries: "line",
 }));
 
-// Mock ResizeObserver which is not available in jsdom
-globalThis.ResizeObserver = class ResizeObserver {
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
+const fetchMock = vi.fn<typeof fetch>();
+const observers: Array<{ observe: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
+const t = {
+  priceChart: "Price Chart",
+  chartSource: "来源", chartUnadjusted: "未复权", chartLastBar: "最后一根K线起始时间",
+  chartDelayNotice: "历史行情可能延迟；最后一根K线可能尚未收盘。",
 };
 
-const t = { priceChart: "Price Chart" };
+// Fixed provider-contract fixture, not a claim that these are live prices.
+const candles = [
+  { time: 1791984600, open: 182.125, high: 183.875, low: 181.5, close: 183.25, volume: 1042300 },
+  { time: 1791988200, open: 183.25, high: 184.125, low: 182.75, close: 183.875, volume: 803100 },
+];
 
-describe("PriceChart", () => {
-  it("renders with ticker and period buttons", () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-    expect(screen.getByText(/Price Chart — NVDA/)).toBeInTheDocument();
-    expect(screen.getByText("1D")).toBeInTheDocument();
-    expect(screen.getByText("5D")).toBeInTheDocument();
-    expect(screen.getByText("1M")).toBeInTheDocument();
-    expect(screen.getByText("3M")).toBeInTheDocument();
-    expect(screen.getByText("1Y")).toBeInTheDocument();
-  });
+function history(ticker = "NVDA", period = "1mo", interval = "1h") {
+  return {
+    ticker, period, interval, source: "Yahoo Finance via yfinance",
+    fetched_at: "2026-10-15T16:00:00Z", as_of: "2026-10-14T14:30:00Z", adjusted: false,
+    candles: interval === "1d"
+      ? candles.map((c, i) => ({ ...c, time: `2026-10-${13 + i}` }))
+      : candles.map(c => ({ ...c })),
+  };
+}
+function response(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json" } });
+}
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+async function expectChartCount(count = 1) {
+  await waitFor(() => expect(charts.createChart).toHaveBeenCalledTimes(count));
+}
+function candleSeries(index = charts.instances.length - 1) {
+  return charts.instances[index].series.find(s => s.type === "candles")!;
+}
+function request(index = 0) {
+  const [url, options] = fetchMock.mock.calls[index];
+  return { url: new URL(String(url)), signal: options!.signal as AbortSignal, options };
+}
 
-  it("renders indicator toggle buttons", () => {
-    render(<PriceChart ticker="AAPL" t={t} />);
-    expect(screen.getByText("MA20")).toBeInTheDocument();
-    expect(screen.getByText("MA50")).toBeInTheDocument();
-    expect(screen.getByText("BB")).toBeInTheDocument();
-    expect(screen.getByText("RSI")).toBeInTheDocument();
-  });
-
-  it("shows loading spinner initially", () => {
-    render(<PriceChart ticker="TSLA" t={t} />);
-    expect(screen.getByRole("status", { name: /loading chart/i })).toBeInTheDocument();
-  });
-
-  it("toggles indicator active state on click", () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-    const ma50Btn = screen.getByText("MA50");
-    expect(ma50Btn).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(ma50Btn);
-    expect(ma50Btn).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(ma50Btn);
-    expect(ma50Btn).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("switches period on button click", () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-    const btn5d = screen.getByText("5D");
-    fireEvent.click(btn5d);
-    expect(btn5d).toHaveAttribute("aria-pressed", "true");
-    const btn1m = screen.getByText("1M");
-    expect(btn1m).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("MA20 is active by default", () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-    expect(screen.getByText("MA20")).toHaveAttribute("aria-pressed", "true");
+beforeEach(() => {
+  charts.instances.length = 0;
+  charts.createChart.mockClear();
+  observers.length = 0;
+  fetchMock.mockReset();
+  fetchMock.mockImplementation(() => new Promise(() => {}));
+  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("ResizeObserver", class {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+    constructor() { observers.push(this); }
   });
 });
 
-describe("PriceChart — data loading timeout and chart render path", () => {
-  beforeEach(() => {
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+describe("PriceChart real history contract", () => {
+  it("shows loading and requests the normalized ticker without a cache", () => {
+    render(<PriceChart ticker=" nvda " t={t} />);
+    expect(screen.getByRole("status", { name: "Loading chart" })).toBeInTheDocument();
+    expect(request().url.href).toBe(`${API}/api/market-history/NVDA?period=1mo&interval=1h`);
+    expect(request().options).toMatchObject({ cache: "no-store" });
+    expect(request().signal.aborted).toBe(false);
+    expect(charts.createChart).not.toHaveBeenCalled();
+  });
+
+  it("passes provider OHLC and intraday UTC seconds unchanged to the chart", async () => {
+    fetchMock.mockResolvedValue(response(history()));
+    render(<PriceChart ticker="NVDA" t={t} />);
+    await expectChartCount();
+    expect(candleSeries().setData).toHaveBeenCalledWith(candles.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+    const volume = charts.instances[0].series.find(s => s.type === "volume")!;
+    expect(volume.setData).toHaveBeenCalledWith(candles.map(c => expect.objectContaining({ time: c.time, value: c.volume })));
+    expect(charts.instances[0].fitContent).toHaveBeenCalledOnce();
+    expect(screen.getByRole("img", { name: "NVDA price chart — 1M period" })).toBeInTheDocument();
+    expect(screen.getByTestId("chart-provenance")).toHaveTextContent("来源: Yahoo Finance via yfinance · 1h · 未复权");
+    expect(screen.getByTestId("chart-provenance")).toHaveTextContent("最后一根K线起始时间: 2026-10-14 14:30:00 UTC");
+    expect(screen.getByTestId("chart-provenance")).toHaveTextContent(t.chartDelayNotice);
+    expect(screen.queryByRole("status", { name: "Loading chart" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["1D", "1d", "5m"], ["5D", "5d", "15m"], ["1M", "1mo", "1h"],
+    ["3M", "3mo", "1d"], ["1Y", "1y", "1d"],
+  ])("maps %s to its API period and interval", (label, period, interval) => {
+    render(<PriceChart ticker="NVDA" t={t} />);
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    const last = request(fetchMock.mock.calls.length - 1);
+    expect(last.url.searchParams.get("period")).toBe(period);
+    expect(last.url.searchParams.get("interval")).toBe(interval);
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("preserves daily exchange session dates instead of converting them into UTC days", async () => {
+    fetchMock.mockResolvedValueOnce(response(history()));
+    fetchMock.mockResolvedValueOnce(response(history("NVDA", "3mo", "1d")));
+    render(<PriceChart ticker="NVDA" t={t} />);
+    await expectChartCount();
+    fireEvent.click(screen.getByRole("button", { name: "3M" }));
+    await expectChartCount(2);
+    expect(candleSeries().setData).toHaveBeenCalledWith([
+      { time: "2026-10-13", open: 182.125, high: 183.875, low: 181.5, close: 183.25 },
+      { time: "2026-10-14", open: 183.25, high: 184.125, low: 182.75, close: 183.875 },
+    ]);
+    expect(charts.createChart.mock.calls.at(-1)).toEqual(expect.arrayContaining([
+      expect.anything(), expect.objectContaining({ timeScale: expect.objectContaining({ timeVisible: false }) }),
+    ]));
+  });
+
+  it("keeps indicator controls and recalculates overlays without refetching history", async () => {
+    fetchMock.mockResolvedValue(response(history()));
+    render(<PriceChart ticker="NVDA" t={t} />);
+    await expectChartCount();
+    expect(screen.getByRole("button", { name: "MA20" })).toHaveAttribute("aria-pressed", "true");
+    for (const name of ["MA50", "BB", "RSI"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      const before = charts.createChart.mock.calls.length;
+      fireEvent.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "true");
+      await expectChartCount(before + 1);
+      fireEvent.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      await expectChartCount(before + 2);
+    }
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(candleSeries().setData).toHaveBeenCalledWith(candles.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+  });
+});
+
+describe("PriceChart failures and retry", () => {
+  it.each([
+    ["empty", () => response({ ...history(), candles: [], as_of: null }), "No price history is available for this selection."],
+    ["503", () => response({ detail: "provider unavailable" }, 503), "Price history is unavailable. No simulated candles are shown."],
+    ["mismatched ticker", () => response(history("AAPL")), "Price history is unavailable. No simulated candles are shown."],
+    ["invalid OHLC", () => response({ ...history(), candles: [{ ...candles[0], high: 1 }] }), "Price history is unavailable. No simulated candles are shown."],
+    ["bad JSON", () => new Response("not json", { status: 200 }), "Price history is unavailable. No simulated candles are shown."],
+  ])("shows %s without drawing replacement candles", async (_name, makeResponse, message) => {
+    fetchMock.mockResolvedValue(makeResponse());
+    render(<PriceChart ticker="NVDA" t={t} />);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(charts.createChart).not.toHaveBeenCalled();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("retries the same selection and recovers using a new successful response", async () => {
+    fetchMock.mockResolvedValueOnce(response({}, 503)).mockResolvedValueOnce(response(history()));
+    render(<PriceChart ticker="NVDA" t={t} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await expectChartCount();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(request(0).url.href).toBe(request(1).url.href);
+    expect(screen.queryByText(/No simulated candles/)).not.toBeInTheDocument();
+    expect(candleSeries().setData).toHaveBeenCalledWith(candles.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+  });
+
+  it("aborts a pending request at 15 seconds and displays an unavailable state", async () => {
     vi.useFakeTimers();
-    // Reset mock call counts before each test
-    mockSeries.setData.mockClear();
-    mockChart.addSeries.mockClear();
-    mockChart.remove.mockClear();
-    mockCreateChart.mockClear();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("shows loading spinner before 200ms elapses", () => {
+    fetchMock.mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init!.signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    }));
     render(<PriceChart ticker="NVDA" t={t} />);
-    expect(screen.getByRole("status", { name: /loading chart/i })).toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(14999); });
+    expect(request().signal.aborted).toBe(false);
+    expect(screen.getByRole("status", { name: "Loading chart" })).toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(request().signal.aborted).toBe(true);
+    expect(screen.getByText(/No simulated candles/)).toBeInTheDocument();
+    expect(charts.createChart).not.toHaveBeenCalled();
   });
 
-  it("hides loading spinner and shows chart container after 200ms", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-    expect(screen.getByRole("status", { name: /loading chart/i })).toBeInTheDocument();
+  it("does not request or fabricate data for a blank ticker", () => {
+    render(<PriceChart ticker=" " t={t} />);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(charts.createChart).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+});
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(screen.queryByRole("status", { name: /loading chart/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /NVDA price chart/i })).toBeInTheDocument();
+describe("PriceChart request ownership and cleanup", () => {
+  it.each(["ticker", "period"])("ignores a stale %s response even when its provider ignores abort", async change => {
+    const old = deferred<Response>();
+    const latest = deferred<Response>();
+    fetchMock.mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);
+    const { rerender } = render(<PriceChart ticker="NVDA" t={t} />);
+    if (change === "ticker") rerender(<PriceChart ticker="AAPL" t={t} />);
+    else fireEvent.click(screen.getByRole("button", { name: "5D" }));
+    expect(request(0).signal.aborted).toBe(true);
+    await act(async () => { latest.resolve(response(change === "ticker" ? history("AAPL") : history("NVDA", "5d", "15m"))); });
+    await expectChartCount();
+    const accepted = candleSeries().setData.mock.calls[0][0];
+    await act(async () => { old.resolve(response({ ...history(), candles: candles.map(c => ({ ...c, close: c.open })) })); });
+    expect(charts.createChart).toHaveBeenCalledOnce();
+    expect(candleSeries().setData.mock.calls[0][0]).toEqual(accepted);
+    expect(screen.getByRole("img").getAttribute("aria-label")).toContain(change === "ticker" ? "AAPL" : "5D period");
   });
 
-  it("calls createChart with correct layout config after data loads", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-
-    // Allow the async import().then() inside the chart init to resolve
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(mockCreateChart).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        height: 280,
-        layout: expect.objectContaining({
-          background: { color: "#1A1A2E" },
-          textColor: "#8B8E96",
-        }),
-      })
-    );
+  it("removes the old chart immediately while a new ticker is loading", async () => {
+    fetchMock.mockResolvedValueOnce(response(history())).mockImplementationOnce(() => new Promise(() => {}));
+    const { rerender } = render(<PriceChart ticker="NVDA" t={t} />);
+    await expectChartCount();
+    rerender(<PriceChart ticker="AAPL" t={t} />);
+    expect(charts.instances[0].remove).toHaveBeenCalledOnce();
+    expect(observers[0].disconnect).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chart-provenance")).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading chart" })).toBeInTheDocument();
   });
 
-  it("adds CandlestickSeries to chart after data loads", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(mockChart.addSeries).toHaveBeenCalledWith(
-      "CandlestickSeries",
-      expect.objectContaining({ upColor: "#006B3F", downColor: "#8B0000" })
-    );
-  });
-
-  it("calls setData on the candlestick series after data loads", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    // setData is called for candlesticks (and indicator series)
-    expect(mockSeries.setData).toHaveBeenCalled();
-    const firstCall = mockSeries.setData.mock.calls[0][0] as { time: string; open: number; high: number; low: number; close: number }[];
-    expect(Array.isArray(firstCall)).toBe(true);
-    expect(firstCall.length).toBeGreaterThan(0);
-    expect(firstCall[0]).toHaveProperty("time");
-    expect(firstCall[0]).toHaveProperty("open");
-    expect(firstCall[0]).toHaveProperty("close");
-  });
-
-  it("calls fitContent on the time scale after chart is created", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(mockTimeScale.fitContent).toHaveBeenCalled();
-  });
-
-  it("adds MA20 LineSeries when MA20 indicator is active by default", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    // addSeries should be called at least twice: candlestick + MA20
-    expect(mockChart.addSeries).toHaveBeenCalledWith(
-      "LineSeries",
-      expect.objectContaining({ color: "#D4AF37", lineWidth: 1 })
-    );
-  });
-
-  it("re-triggers data load when period changes", async () => {
-    render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-
-    // Switch to 5D period
-    act(() => {
-      fireEvent.click(screen.getByText("5D"));
-    });
-
-    // Should go back to loading
-    expect(screen.getByRole("status", { name: /loading chart/i })).toBeInTheDocument();
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(screen.queryByRole("status", { name: /loading chart/i })).not.toBeInTheDocument();
-  });
-
-  it("uses known ticker price as starting price for AAPL", async () => {
-    render(<PriceChart ticker="AAPL" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    // AAPL starting price is 218.3; the generated candle data should be in that ballpark
-    const candleCall = mockSeries.setData.mock.calls[0][0] as { close: number }[];
-    // First candle close should be within reasonable range of 218.3
-    expect(candleCall[0].close).toBeGreaterThan(100);
-    expect(candleCall[0].close).toBeLessThan(500);
-  });
-
-  it("uses fallback price 100 for unknown ticker", async () => {
-    render(<PriceChart ticker="UNKNOWN" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    const candleCall = mockSeries.setData.mock.calls[0][0] as { close: number }[];
-    expect(candleCall[0].close).toBeGreaterThan(0);
-  });
-
-  it("cleans up chart on unmount", async () => {
+  it("aborts on unmount and ignores a late response without constructing a chart", async () => {
+    const pending = deferred<Response>();
+    fetchMock.mockReturnValueOnce(pending.promise);
     const { unmount } = render(<PriceChart ticker="NVDA" t={t} />);
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
+    const signal = request().signal;
     unmount();
-    expect(mockChart.remove).toHaveBeenCalled();
+    expect(signal.aborted).toBe(true);
+    await act(async () => { pending.resolve(response(history())); });
+    expect(charts.createChart).not.toHaveBeenCalled();
+  });
+
+  it("cleans up the owned chart and resize observer on unmount", async () => {
+    fetchMock.mockResolvedValue(response(history()));
+    const { unmount } = render(<PriceChart ticker="NVDA" t={t} />);
+    await expectChartCount();
+    unmount();
+    expect(charts.instances[0].remove).toHaveBeenCalledOnce();
+    expect(observers[0].disconnect).toHaveBeenCalledOnce();
   });
 });

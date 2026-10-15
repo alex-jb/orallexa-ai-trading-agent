@@ -12,6 +12,7 @@ Endpoints:
     POST /api/deep-analysis    → multi-agent deep analysis
     POST /api/chart-analysis   → screenshot chart analysis
     GET  /api/news/{ticker}    → live news + sentiment
+    GET  /api/market-history/{ticker} → actual historical OHLCV candles
     GET  /api/profile          → trader profile + behavior
     GET  /api/journal          → recent decisions from log
 """
@@ -44,7 +45,7 @@ async def _warmup():
     """Lazy warmup — don't block startup."""
     if DEMO_MODE:
         import logging
-        logging.getLogger("api").info("🎭 DEMO MODE — all endpoints return mock data, no API keys needed")
+        logging.getLogger("api").info("🎭 DEMO MODE — analysis uses mock data; historical chart data is unavailable")
 
 
 @app.get("/healthz")
@@ -94,6 +95,38 @@ def _sanitize_context(context: str) -> str:
 async def status():
     """Health check + demo mode indicator."""
     return {"status": "ok", "demo": DEMO_MODE}
+
+
+@app.get("/api/market-history/{ticker}")
+async def market_history(ticker: str, period: str = "1mo", interval: str = "1h"):
+    """Read-only provider candles. Never returns demo or synthetic prices."""
+    import asyncio
+    from engine.market_chart import (
+        MarketHistoryUnavailable, get_market_history, validate_history_request,
+    )
+
+    try:
+        ticker = validate_history_request(ticker, period, interval)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    if DEMO_MODE:
+        raise HTTPException(
+            status_code=503,
+            detail="Market history is unavailable in demo mode; no synthetic candles are served.",
+        )
+    try:
+        # The provider has an 8-second request timeout. The additional
+        # deadline bounds API latency even if initialization/serialization
+        # hangs; cancellation cannot interrupt a running worker thread.
+        return await asyncio.wait_for(
+            asyncio.to_thread(get_market_history, ticker, period, interval),
+            timeout=12,
+        )
+    except (MarketHistoryUnavailable, TimeoutError):
+        raise HTTPException(
+            status_code=503, detail="Market history is temporarily unavailable.",
+        ) from None
 
 
 def _fast_claude_overlay(result, ticker: str, context: str = ""):
