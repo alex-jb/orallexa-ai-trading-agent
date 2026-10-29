@@ -6,11 +6,15 @@ companies. Existing local classifiers return one label per text; ticker-based
 retrieval does not establish which entity a positive or negative phrase concerns.
 This is a limitation to measure before choosing a replacement model.
 
+Follow-up: the [local GLiNER2.5 experiment](NEWS_ENTITY_MODEL_PROBE.md) now measures
+both small and base checkpoints on this artifact. The results below remain the
+original whole-text diagnostic; no neural extractor is enabled in the application.
+
 ## Open-source candidates and data
 
 | Resource | Verified interface or purpose | Published license | Decision |
 | --- | --- | --- | --- |
-| [GLiNER2](https://github.com/fastino-ai/GLiNER2) and [GLiNER2.5 small](https://huggingface.co/fastino/gliner2.5-small-v1) | Entity spans, relations and span-conditioned attributes; small checkpoint is English, 74M parameters | Code Apache-2.0; selected checkpoint card Apache-2.0 | Candidate for a separately measured local extractor. No weights installed or inference run in this change. |
+| [GLiNER2](https://github.com/fastino-ai/GLiNER2) and [GLiNER2.5 small](https://huggingface.co/fastino/gliner2.5-small-v1) | Entity spans, relations and span-conditioned attributes; small checkpoint is English, 74M parameters | Code Apache-2.0; selected checkpoint card Apache-2.0 | Small and base now measured in the linked follow-up; application extractor remains disabled. |
 | [FinEntity](https://huggingface.co/datasets/yixuantt/FinEntity), [authors' repository](https://github.com/yixuantt/FinEntity), [EMNLP 2023 paper](https://aclanthology.org/2023.emnlp-main.956/) | Public entity/sentiment annotations for financial texts | Dataset card and repository state ODC-BY | Used for the diagnostic below, with attribution. Only aggregate results and hashes are committed; no source news or model training data is vendored. |
 | [FinReflectKG-EvalBench](https://huggingface.co/datasets/domyn/FinReflectKG-EvalBench) | SEC-filing knowledge-graph evaluation with model-generated judgments | CC-BY-NC-4.0 | Research reference; not adopted as a commercial product dependency or human gold-label source. |
 

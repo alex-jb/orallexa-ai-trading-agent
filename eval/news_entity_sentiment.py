@@ -25,6 +25,39 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def validated_annotations(text: str, annotations: list, row_index: int = 0) -> tuple[list, list]:
+    """Validate original offsets once for both broadcast and extraction diagnostics."""
+    candidates, invalid = [], []
+    for annotation_index, annotation in enumerate(annotations):
+        identity = {"row_index": row_index, "annotation_index": annotation_index,
+                    "text_sha256": _hash(text)}
+        if not isinstance(annotation, dict):
+            invalid.append({**identity, "reason": "invalid_annotation"})
+            continue
+        label = annotation.get("label")
+        label = label.lower() if isinstance(label, str) else None
+        if label not in LABELS:
+            invalid.append({**identity, "reason": "invalid_label"})
+            continue
+        try:
+            span = anchor_char_span(text, annotation.get("start"), annotation.get("end"),
+                                    annotation.get("value"))
+        except (ValueError, UnicodeError):
+            invalid.append({**identity, "reason": "span_mismatch"})
+            continue
+        candidates.append({**identity, **span, "label": label,
+                           "start": annotation["start"], "end": annotation["end"]})
+    spans = Counter((a["start_byte"], a["end_byte"]) for a in candidates)
+    valid = []
+    for annotation in candidates:
+        if spans[annotation["start_byte"], annotation["end_byte"]] > 1:
+            invalid.append({"row_index": row_index, "annotation_index": annotation["annotation_index"],
+                            "text_sha256": _hash(text), "reason": "duplicate_or_conflicting_span"})
+        else:
+            valid.append(annotation)
+    return valid, invalid
+
+
 def _metrics(pairs: list[tuple[str, str]], documents: int) -> dict:
     counts = Counter(pairs)
     n = len(pairs)
@@ -69,34 +102,8 @@ def evaluate_document_scorer(rows: list, scorer: Callable[[str], dict]) -> dict:
             audit["invalid_documents"].append({"row_index": row_index, "reason": "invalid_document"})
             continue
         text = row["content"]
-        candidates, invalid = [], []
         audit["input_annotations"] += len(row["annotations"])
-        for annotation_index, annotation in enumerate(row["annotations"]):
-            identity = {"row_index": row_index, "annotation_index": annotation_index,
-                        "text_sha256": _hash(text)}
-            if not isinstance(annotation, dict):
-                invalid.append({**identity, "reason": "invalid_annotation"})
-                continue
-            label = annotation.get("label")
-            label = label.lower() if isinstance(label, str) else None
-            if label not in LABELS:
-                invalid.append({**identity, "reason": "invalid_label"})
-                continue
-            try:
-                span = anchor_char_span(text, annotation.get("start"), annotation.get("end"),
-                                        annotation.get("value"))
-            except (ValueError, UnicodeError):
-                invalid.append({**identity, "reason": "span_mismatch"})
-                continue
-            candidates.append({**identity, **span, "label": label})
-        spans = Counter((a["start_byte"], a["end_byte"]) for a in candidates)
-        valid = []
-        for annotation in candidates:
-            if spans[annotation["start_byte"], annotation["end_byte"]] > 1:
-                invalid.append({"row_index": row_index, "annotation_index": annotation["annotation_index"],
-                                "text_sha256": _hash(text), "reason": "duplicate_or_conflicting_span"})
-            else:
-                valid.append(annotation)
+        valid, invalid = validated_annotations(text, row["annotations"], row_index)
         audit["invalid_annotations"].extend(invalid)
         audit["documents_with_invalid_annotations"] += bool(invalid)
         audit["valid_annotations"] += len(valid)
