@@ -357,6 +357,7 @@ async def deep_analysis(
             "summary": result.summary or {},
             "perspective_panel": result.perspective_panel or {},
             "signal_fusion": result.signal_fusion or {},
+            "news_research": result.news_research or {},
         }
         # Surface Portfolio Manager verdict if upstream populated decision.extra
         try:
@@ -450,7 +451,10 @@ async def deep_analysis_stream(
         try:
             from engine.multi_agent_analysis import _run_market_analyst, _run_news_analyst, _run_ml_analyst
             market_report = _run_market_analyst(summary, tk)
-            news_report, news_items = await asyncio.to_thread(_run_news_analyst, tk)
+            news_research = {}
+            news_report, news_items = await asyncio.to_thread(
+                _run_news_analyst, tk, audit=news_research,
+            )
             ml_report, ml_result = await asyncio.to_thread(_run_ml_analyst, train_df, test_df, tk)
         except Exception as exc:
             yield _send("error", {"detail": f"Analysis failed: {exc}"})
@@ -477,7 +481,9 @@ async def deep_analysis_stream(
                                   "label_zh": "多空辩论 + 多视角分析..."})
 
         try:
-            rag_context = f"{ml_report}\n\n{news_report}"
+            from engine.news_context import news_context_for_role, audit_role_news
+            news_context = news_context_for_role(news_research, "debate")
+            rag_context = f"{news_context}\n\nML MODELS:\n{ml_report[:400]}"
             from llm.debate import run_lightweight_debate
             from llm.perspective_panel import run_perspective_panel
             from engine.signal_fusion import fuse_signals
@@ -489,7 +495,7 @@ async def deep_analysis_stream(
             panel_future = asyncio.to_thread(
                 run_perspective_panel,
                 summary=summary, ticker=tk,
-                news_report=news_report, ml_report=ml_report,
+                news_report=news_context_for_role(news_research, "perspective_panel"), ml_report=ml_report,
             )
             fusion_future = asyncio.to_thread(
                 fuse_signals, ticker=tk, summary=summary,
@@ -514,13 +520,13 @@ async def deep_analysis_stream(
 
             risk_future = asyncio.to_thread(
                 _run_risk_manager, client, debate_decision,
-                market_report, news_report,
+                market_report, news_context_for_role(news_research, "risk_manager"),
                 f"{ml_report}\n\n{panel_summary}\n\nSignal Fusion: {fusion_summary}",
                 tk, summary,
             )
             report_future = asyncio.to_thread(
                 _run_llm_market_report, client,
-                market_report, news_report, ml_report, tk, summary,
+                market_report, news_context_for_role(news_research, "deep_market_report"), ml_report, tk, summary,
             )
             risk_data, deep_market_report = await asyncio.gather(risk_future, report_future)
         except Exception as exc:
@@ -530,8 +536,14 @@ async def deep_analysis_stream(
         yield _send("progress", {"step": 6, "total": 7, "label": "Aggregating perspectives...",
                                   "label_zh": "汇总多视角分析..."})
 
+        audit_role_news(news_research, "debate", {
+            "reasoning": debate_decision.reasoning, "debate": debate_decision.extra.get("debate", {})})
+        audit_role_news(news_research, "perspective_panel", panel_result)
+        audit_role_news(news_research, "risk_manager", risk_data)
+        audit_role_news(news_research, "deep_market_report", deep_market_report)
         from models.confidence import guard_decision
         final_decision = guard_decision(debate_decision)
+        final_decision.extra["news_research"] = news_research
         if panel_result:
             pc = panel_result.get("consensus", "NEUTRAL")
             ps = panel_result.get("avg_score", 0)
@@ -597,6 +609,7 @@ async def deep_analysis_stream(
             "summary": summary,
             "perspective_panel": panel_result or {},
             "signal_fusion": fusion_result or {},
+            "news_research": news_research,
         }
         if breaking:
             out["breaking_signal"] = breaking

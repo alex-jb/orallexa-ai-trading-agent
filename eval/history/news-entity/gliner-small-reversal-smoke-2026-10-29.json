@@ -1,0 +1,62 @@
+{
+  "probe": "synthetic_reversal_smoke",
+  "texts": [
+    "Nvidia's profit rises while AMD's profit falls.",
+    "Nvidia's profit falls while AMD's profit rises."
+  ],
+  "results": [
+    {
+      "entities": {
+        "financial_entity": [
+          {
+            "text": "Nvidia",
+            "confidence": 0.9915184378623962,
+            "start": 0,
+            "end": 6,
+            "sentiment": {
+              "label": "positive",
+              "confidence": 0.410374253988266
+            }
+          },
+          {
+            "text": "AMD",
+            "confidence": 0.9880870580673218,
+            "start": 28,
+            "end": 31,
+            "sentiment": {
+              "label": "negative",
+              "confidence": 0.40228891372680664
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entities": {
+        "financial_entity": [
+          {
+            "text": "Nvidia",
+            "confidence": 0.9926835894584656,
+            "start": 0,
+            "end": 6,
+            "sentiment": {
+              "label": "positive",
+              "confidence": 0.48727720975875854
+            }
+          },
+          {
+            "text": "AMD",
+            "confidence": 0.98469477891922,
+            "start": 28,
+            "end": 31,
+            "sentiment": {
+              "label": "positive",
+              "confidence": 0.5048798322677612
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "seconds": 0.13687161900452338
+}
