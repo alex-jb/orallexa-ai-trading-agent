@@ -92,6 +92,10 @@ def assert_evidence(audit):
     assert len(audit["candidates"]) == 2
     assert audit["candidates"][0]["source_url"] == "https://example.org/good"
     assert audit["candidates"][1]["disposition"] == "rejected"
+    assert audit["sentiment_scope"] == "text_sequence"
+    assert audit["target_sentiment"] == "not_extracted"
+    assert all(row["target_sentiment"] == "not_extracted" for row in audit["sentiment_scores"])
+    assert "entity-specific sentiment are unverified" in audit["prompt_context"]["text"]
 
 
 def test_real_pipeline_filters_before_fusion_and_llm_context(wired):
@@ -301,3 +305,5 @@ def test_complete_daily_generation_saves_each_roles_prepared_context_and_referen
     saved = json.loads(daily.CACHE_PATH.read_text())
     assert saved["news_research"] == result["news_research"]
     assert all(len(row["source_url"]) > 900 for row in saved["headlines"])
+    assert all(row["sentiment_scope"] == "text_sequence" for row in saved["headlines"])
+    assert all(row["target_sentiment"] == "not_extracted" for row in saved["headlines"])

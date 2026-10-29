@@ -3,10 +3,13 @@ engine/sentiment.py
 ────────────────────────────────────────────────────────────────────────────
 News sentiment analysis for Orallexa.
 
-Primary:   FinBERT (ProsusAI/finBERT) — financial domain BERT, ~74% accuracy
+Primary:   FinBERT (ProsusAI/finBERT) — financial text sequence classifier
 Fallback:  VADER + financial lexicon
 Fallback2: TextBlob
 Fallback3: Simple keyword counting
+
+These backends score whole text sequences. They do not resolve entity-specific
+sentiment, identify event time, or estimate future price direction.
 """
 
 import re
@@ -16,6 +19,12 @@ from typing import List, Dict, Optional
 
 _SCORER_TYPE = "none"
 _SCORER = None
+SENTIMENT_SCOPE = "text_sequence"
+
+
+def sentiment_scope() -> Dict:
+    """Describe the scope of local scores, including legacy directional labels."""
+    return {"sentiment_scope": SENTIMENT_SCOPE, "target_sentiment": "not_extracted"}
 
 
 def _init_finbert():
@@ -208,7 +217,7 @@ def score_news_items(news_items: List[Dict]) -> List[Dict]:
     for item in news_items:
         text = f"{item.get('title', '')} {item.get('summary', '')}".strip()
         sentiment = score_text(text)
-        enriched = {**item, **sentiment}
+        enriched = {**item, **sentiment, **sentiment_scope()}
         scored.append(enriched)
     return scored
 
@@ -217,6 +226,7 @@ def aggregate_sentiment(scored_items: List[Dict]) -> Dict:
     """Aggregate sentiment across multiple news items."""
     if not scored_items:
         return {
+            **sentiment_scope(),
             "avg_compound": 0.0, "sentiment_label": "neutral",
             "n_positive": 0, "n_negative": 0, "n_neutral": 0,
             "sentiment_score": 0.0, "signal": "neutral",
@@ -233,6 +243,7 @@ def aggregate_sentiment(scored_items: List[Dict]) -> Dict:
     signal = "bullish" if avg > 0.15 else ("bearish" if avg < -0.15 else "neutral")
 
     return {
+        **sentiment_scope(),
         "avg_compound": round(avg, 4),
         "sentiment_label": label,
         "n_positive": n_pos,
@@ -265,6 +276,7 @@ def analyze_ticker_sentiment(ticker: str, rag_store=None, news_skill=None, limit
 
     if not items:
         return {
+            **sentiment_scope(),
             "ticker": ticker, "error": "No news found",
             "avg_compound": 0.0, "sentiment_label": "neutral",
             "signal": "neutral", "scored_items": [],

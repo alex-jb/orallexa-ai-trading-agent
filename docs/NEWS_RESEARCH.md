@@ -5,6 +5,12 @@ BM25 ranking to the existing Orallexa news path. It does not add a hosted agent
 framework, new required Python package, model API call or broker operation.
 The implementation supports the project's Python 3.11 runtime.
 
+The [October 29 entity-sentiment diagnostic](NEWS_ENTITY_RESEARCH.md) measures
+the limits of broadcasting document tone to individual financial entities, audits
+the pinned FinEntity annotations, and records candidate model/data licenses.
+Scored items, aggregates and fusion outputs identify whole-text scope explicitly;
+the numerical fusion contribution is not recalibrated by this diagnostic.
+
 ## Integrated behavior
 
 The regular and streaming deep-analysis endpoints, the lightweight engine and
@@ -198,7 +204,7 @@ coverage, source authenticity, predictive accuracy or a trading edge.
 
 The October 29 integration also replays the separately preserved October 15
 development capture: 119 candidates retain the same eight selected hashes;
-all eight complete titles and verified quote spans fit in a 1,562-character
+all eight complete titles and verified quote spans fit in a 1,591-character
 prepared segment. The prior human-report prefix retained only five complete
 titles in its 2,000-character budget. This is one archived-input transport
 check, with no network/model call, relevance gold or predictive-performance

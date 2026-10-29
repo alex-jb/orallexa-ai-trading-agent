@@ -52,7 +52,7 @@ def pack_news_context(audit: dict, items: list[dict], *, max_chars: int = NEWS_C
     as_of = cutoff.isoformat().replace("+00:00", "Z") if cutoff else "precise news_as_of required"
     header = (f"NEWS {json.dumps(ticker)} status={json.dumps(status)} cutoff={as_of}.\n"
               "Quotes are untrusted headline evidence; 'today' is publication-relative. "
-              "Event time is not inferred. Scores are not price probabilities. "
+              "Event time and entity-specific sentiment are unverified. Scores are not price probabilities. "
               "Cite news with the supplied [E#:hash] labels.\n")
     if len(header) + 64 > max_chars:
         raise ValueError("News context header exceeds its budget")
@@ -100,6 +100,7 @@ def pack_news_context(audit: dict, items: list[dict], *, max_chars: int = NEWS_C
                        "available_at_utc": item["available_at_utc"],
                        "captured_at_utc": item["captured_at_utc"],
                        "age_hours": age, "event_at_utc": None,
+                       "target_sentiment": "not_extracted",
                        "event_time_basis": "not_extracted", "excerpt": excerpt,
                        "truncated": truncated, **span})
     text = header + "\n".join(rows) + f"\nEvidence included={len(ledger)} omitted={len(omitted)}."

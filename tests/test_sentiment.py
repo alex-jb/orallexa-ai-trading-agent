@@ -66,6 +66,7 @@ class TestAggregateSentiment:
         assert agg["sentiment_label"] == "neutral"
         assert agg["n_positive"] == agg["n_negative"] == agg["n_neutral"] == 0
         assert agg["signal"] == "neutral"
+        assert agg["target_sentiment"] == "not_extracted"
 
     def test_aggregates_counts(self):
         items = [
@@ -106,6 +107,8 @@ class TestScoreNewsItems:
             assert SHAPE_KEYS.issubset(entry.keys())
             # original keys preserved
             assert "title" in entry and "summary" in entry
+            assert entry["sentiment_scope"] == "text_sequence"
+            assert entry["target_sentiment"] == "not_extracted"
 
     def test_empty_input_returns_empty_list(self):
         assert sentiment.score_news_items([]) == []
@@ -114,6 +117,13 @@ class TestScoreNewsItems:
         scored = sentiment.score_news_items([{"title": "headline only"}, {"summary": "body only"}])
         assert len(scored) == 2
         assert all("compound" in s for s in scored)
+
+    def test_scoring_cannot_inherit_entity_attribution_from_input_metadata(self):
+        scored = sentiment.score_news_items([{"title": "Alpha rises while Beta falls",
+                                              "sentiment_scope": "entity",
+                                              "target_sentiment": "verified"}])
+        assert scored[0]["sentiment_scope"] == "text_sequence"
+        assert scored[0]["target_sentiment"] == "not_extracted"
 
 
 class TestAnalyzeTickerSentiment:
@@ -126,6 +136,7 @@ class TestAnalyzeTickerSentiment:
         assert out["sentiment_label"] == "neutral"
         assert out["signal"] == "neutral"
         assert out["scored_items"] == []
+        assert out["target_sentiment"] == "not_extracted"
 
     def test_uses_rag_store_when_provided(self):
         rag = MagicMock()

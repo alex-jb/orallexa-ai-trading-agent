@@ -184,23 +184,26 @@ def _run_news_analyst(ticker: str, *, news_as_of=None, archived_news=None,
     """Filter and preserve evidence before local sentiment or downstream LLMs."""
     from engine.news_research import research_news
     from engine.news_context import pack_news_context
-    from engine.sentiment import score_text, get_scorer_type
+    from engine.sentiment import score_text, get_scorer_type, sentiment_scope
     result = research_news(ticker, as_of=news_as_of, records=archived_news,
                            trade_date=trade_date, limit=limit, use_rss=use_rss)
     sentiment_scores = []
     for item in result.items:
         score = float(score_text(item["title"])["compound"])
         item.update(score=score, sentiment="bullish" if score > .1 else
-                    "bearish" if score < -.1 else "neutral")
-        sentiment_scores.append({"source_sha256": item["source_sha256"], "score": score})
-    result.audit.update(sentiment_scores=sentiment_scores, sentiment_backend=get_scorer_type())
+                    "bearish" if score < -.1 else "neutral", **sentiment_scope())
+        sentiment_scores.append({"source_sha256": item["source_sha256"], "score": score,
+                                 "backend": get_scorer_type(), **sentiment_scope()})
+    result.audit.update(sentiment_scores=sentiment_scores, sentiment_backend=get_scorer_type(),
+                        **sentiment_scope())
     result.audit["prompt_context"] = pack_news_context(result.audit, result.items)
     if audit is not None:
         audit.update(result.audit)
     report = result.report()
     if result.items:
         average = sum(item["score"] for item in result.items) / len(result.items)
-        report += f"\nLocal headline sentiment: {average:+.3f} ({get_scorer_type()}; not a price probability)."
+        report += (f"\nLocal headline tone: {average:+.3f} ({get_scorer_type()}; "
+                   "whole text only, entity-specific sentiment not extracted; not a price probability).")
     return report, result.items
 
 
