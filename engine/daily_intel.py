@@ -193,7 +193,40 @@ def _fetch_headlines(tickers: list[str], *, research_audit: dict | None = None) 
     if research_audit is not None:
         # This final brief selection is separate from each ticker's retrieval TopK.
         research_audit["brief_selected_source_hashes"] = [item["source_sha256"] for item in selected]
+        cutoffs = [parse_timestamp(value.get("as_of_utc")) for value in research_audit.values()
+                   if isinstance(value, dict)]
+        latest = max((cutoff for cutoff in cutoffs if cutoff is not None), default=None)
+        research_audit["as_of_utc"] = latest.isoformat().replace("+00:00", "Z") if latest else None
     return selected
+
+
+def _brief_news_context(headlines: list[dict], role: str, limit: int,
+                        research_audit: dict | None = None) -> str:
+    """Prepare the exact bounded news segment and citations for one brief role."""
+    from engine.news_context import pack_news_context
+    from engine.news_research import parse_timestamp
+    selected = headlines[:limit]
+    cutoff = research_audit.get("as_of_utc") if research_audit is not None else None
+    if cutoff is None:
+        captures = [parse_timestamp(item.get("captured_at_utc")) for item in selected]
+        latest = max((time for time in captures if time is not None), default=None)
+        cutoff = latest.isoformat().replace("+00:00", "Z") if latest else None
+    packed = pack_news_context({"ticker": "MARKET", "as_of_utc": cutoff,
+                                "status": "selected" if selected else "no_usable_evidence"}, selected)
+    packed.update(selection_input_count=len(headlines), role_limit=limit,
+                  outside_role_limit=[{"source_id": row.get("source_id"),
+                                       "source_sha256": row.get("source_sha256")}
+                                      for row in headlines[limit:]])
+    if research_audit is not None:
+        research_audit.setdefault("prompt_contexts", {})[role] = packed
+    return packed["text"]
+
+
+def _audit_brief_references(research_audit: dict, role: str, output) -> None:
+    from engine.news_context import audit_news_references
+    packed = research_audit.get("prompt_contexts", {}).get(role)
+    if packed is not None:
+        packed["returned_references"] = audit_news_references(output, packed)
 
 
 # ── Step 4: AI Summary (DEEP_MODEL — Sonnet) ────────────────────────────────
@@ -204,6 +237,7 @@ def _generate_summary(
     spikes: list[dict],
     sectors: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> tuple[str, str]:
     """Generate high-quality morning brief via Sonnet. Returns (summary, mood)."""
     import llm.claude_client as cc
@@ -214,7 +248,7 @@ def _generate_summary(
     losers_str = "\n".join(f"  {l['ticker']} {l['change_pct']:.1f}% (${l['price']}, vol {l['volume_ratio']:.1f}x avg)" for l in losers[:6])
     spikes_str = "\n".join(f"  {s['ticker']} {s['change_pct']:+.1f}% — volume {s['volume_ratio']:.1f}x average" for s in spikes[:5])
     sectors_str = "\n".join(f"  {s['sector']}: {s['change_pct']:+.1f}%" for s in sectors)
-    headlines_str = "\n".join(f"  [{h['sentiment'].upper()}] {h['ticker']}: {h['title']}" for h in headlines[:12])
+    headlines_str = _brief_news_context(headlines, "summary", 12, research_audit)
 
     prompt = f"""You are a sharp, opinionated financial market analyst writing a daily morning brief that will be read by active traders and posted on social media.
 
@@ -280,6 +314,7 @@ def _generate_playbook(
     spikes: list[dict],
     sectors: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> dict:
     """Generate structured pre-market playbook (EN/ZH bilingual)."""
     import llm.claude_client as cc
@@ -290,7 +325,7 @@ def _generate_playbook(
     worst_sectors = ", ".join(f"{s['sector']} {s['change_pct']:+.1f}%" for s in sectors[-3:])
     top_movers = ", ".join(f"${g['ticker']} {g['change_pct']:+.1f}%" for g in (gainers[:3] + losers[:3]))
     spike_str = ", ".join(f"${s['ticker']} {s['volume_ratio']:.0f}x" for s in spikes[:3]) or "None"
-    headlines_str = "\n".join(f"  {h['ticker']}: {h['title']} ({h['sentiment']})" for h in headlines[:6])
+    headlines_str = _brief_news_context(headlines, "playbook", 6, research_audit)
 
     prompt = f"""You are a senior trading strategist writing a structured pre-market playbook.
 Output ONLY valid JSON (no markdown):
@@ -368,6 +403,7 @@ def _generate_picks(
     losers: list[dict],
     spikes: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> list[dict]:
     """Generate 3-5 'worth watching' picks via Sonnet."""
     import llm.claude_client as cc
@@ -379,7 +415,7 @@ def _generate_picks(
         for m in (gainers[:5] + losers[:5])
     )
     spikes_str = "\n".join(f"  {s['ticker']} vol {s['volume_ratio']:.1f}x, {s['change_pct']:+.1f}%" for s in spikes[:5])
-    headlines_str = "\n".join(f"  {h['ticker']}: {h['title']} ({h['sentiment']})" for h in headlines[:8])
+    headlines_str = _brief_news_context(headlines, "picks", 8, research_audit)
 
     # Build price context for predictions
     price_context = "\n".join(
@@ -449,6 +485,7 @@ def _generate_social_posts(
     picks: list[dict],
     sectors: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> dict:
     """
     Generate per-section social posts + a full thread.
@@ -473,6 +510,7 @@ def _generate_social_posts(
     picks_str = "\n".join(f"  ${p['ticker']}: {p['reason']}" for p in picks[:4])
     top_sector = sectors[0] if sectors else None
     worst_sector = sectors[-1] if sectors else None
+    headlines_str = _brief_news_context(headlines, "social_draft", 8, research_audit)
 
     # ── Build all social content in one LLM call ──
     prompt = f"""You are the social media voice of Orallexa (@orallexatrading), a trading intelligence platform.
@@ -501,6 +539,9 @@ AI Picks:
 {picks_str}
 Morning Brief:
 {summary[:600]}
+
+SOURCE HEADLINES (cite only supplied evidence; this is a draft):
+{headlines_str}
 
 OUTPUT FORMAT — Return ONLY valid JSON (no markdown):
 {{
@@ -1083,20 +1124,27 @@ def generate_daily_intel(force: bool = False) -> dict:
     headlines = _fetch_headlines(news_tickers, research_audit=news_research)
 
     # Step 4: AI summary (Sonnet)
-    summary, mood = _generate_summary(gainers, losers, spikes, sectors, headlines)
+    summary, mood = _generate_summary(gainers, losers, spikes, sectors, headlines,
+                                      research_audit=news_research)
+    _audit_brief_references(news_research, "summary", summary)
 
     # Step 4b: Pre-market playbook (Sonnet)
-    playbook = _generate_playbook(summary, mood, gainers, losers, spikes, sectors, headlines)
+    playbook = _generate_playbook(summary, mood, gainers, losers, spikes, sectors, headlines,
+                                  research_audit=news_research)
+    _audit_brief_references(news_research, "playbook", playbook)
 
     # Step 5: AI picks (Sonnet)
-    picks = _generate_picks(gainers, losers, spikes, headlines)
+    picks = _generate_picks(gainers, losers, spikes, headlines, research_audit=news_research)
+    _audit_brief_references(news_research, "picks", picks)
     # Step 5b: enrich each pick with regime + PM preview (fails gracefully)
     picks = _enrich_picks_with_regime_and_pm(picks)
 
     # Step 6: Social content — thread + per-section posts (Sonnet)
     social = _generate_social_posts(
-        summary, mood, gainers, losers, spikes, picks, sectors, headlines
+        summary, mood, gainers, losers, spikes, picks, sectors, headlines,
+        research_audit=news_research,
     )
+    _audit_brief_references(news_research, "social_draft", social)
 
     # Step 6b: Options flow (Sonnet)
     options_flow = _generate_options_flow(gainers, losers, spikes)

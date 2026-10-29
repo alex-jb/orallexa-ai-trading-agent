@@ -343,6 +343,8 @@ def main() -> int:
         ranking = prior.get("ranking", {}) if prior is not None else {}
         result = research_news(args.ticker, as_of=args.as_of, records=records, use_rss=args.rss,
                                limit=ranking.get("limit", 8), aliases=ranking.get("aliases", []))
+        from engine.news_context import pack_news_context
+        result.audit["prompt_context"] = pack_news_context(result.audit, result.items)
         if args.input:
             result.audit["replay_input_sha256"] = hashlib.sha256(input_bytes).hexdigest()
         payload = json.dumps(result.audit, ensure_ascii=False, indent=2, allow_nan=False) + "\n"

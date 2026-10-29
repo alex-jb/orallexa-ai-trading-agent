@@ -28,10 +28,45 @@ change has no demonstrated model-accuracy, calibration or trading-return lift.
 
 News now precedes ML in the debate context so a long ML report cannot consume
 the entire old 500-character allowance. Debate context is capped at 2,600
-characters; panel/risk/deep-report news is capped at 2,000. These are character
-limits, not token guarantees, and can omit later evidence. Paid input token use
-can increase; existing token-budget and compression behavior remains in place.
-The audit preserves the candidates even when prompts truncate the report.
+characters. Its news segment and panel/risk/deep-report news are prepared by
+`engine.news_context` within 2,000 characters. Full source URLs stay in a
+citation ledger; model text contains complete citation rows with publication
+time, age, ticker and an exact headline quote or explicitly marked prefix.
+These are character limits, not token or billing guarantees. Long inputs can
+still be omitted, with their source keys and reason retained.
+
+### Prepared role inputs and returned citation references
+
+`news_research.prompt_context` holds the prepared text/hash, character budget,
+input/included counts, omitted-source reasons and `citation_ledger`. Each
+ledger row binds a role-visible `E#:hash` label to the full source ID, URL,
+snapshot hash, publication/acquisition times and an exact UTF-8 excerpt range
+and hash. Distinct URLs with identical text retain distinct labels. Invalid
+source bytes or cutoff metadata are excluded from this model segment.
+
+Regular/SSE deep analysis and the lightweight path record intended consumers
+under `context_consumers`. Daily summary/playbook/picks/social drafts keep
+their separate text and ledgers under `news_research.prompt_contexts`, including
+the original selection size, role-specific headline limit and exclusions before
+packing. All of these fields persist through the existing API/log/cache paths.
+
+These records say **prepared**, not provider-executed or model-read. A budget-
+skipped role has no consumer entry. On a returned role value, `returned_references`
+records explicit labels that resolve, labels absent from that role's prepared
+ledger, and available labels not cited. Its states are `references_resolve`,
+`unknown_references` and `no_references`. This checks only the explicit
+`[E<number>:<hash>]` namespace in returned text, which can also be a fallback.
+It does not identify every news claim or decide whether the quoted source
+supports one: `entailment_verified` and `coverage_of_claims_verified` stay false.
+An unknown label is not proof of fabrication; it may come from other context.
+These diagnostics do not override a trade decision or its confidence.
+
+The full human-facing news report retains its links. Optional chained-context
+compression still applies to market/ML text; the already bounded news segment
+and its citation labels are preserved instead of being paraphrased. Input token
+counts can change, and social drafts now receive direct news evidence as well
+as their existing derived summary. No extra model call is added and no cost
+saving is claimed.
 
 ## Time contract
 
@@ -57,6 +92,16 @@ This contract constrains **news inputs only**. The existing technical/ML/price
 paths are not converted into a historical replay by passing `news_as_of` or
 `trade_date`. Archive timestamps remain declarations; this code cannot
 authenticate source receipts or establish that a model had no future knowledge.
+
+The prompt ledger leaves `event_at_utc` null with `event_time_basis=not_extracted`.
+An article's publication time or an EDGAR acceptance claim is not substituted
+for event occurrence or public availability. The existing availability/capture
+checks remain required. `anchor_char_span` verifies an extractor's original-
+text character range before converting it to UTF-8 bytes; for example, the
+Chinese entity in `今天英伟达发布财报。` has character range `[2,5)` but byte range
+`[6,15)`. It never guesses a different occurrence or repairs a mismatching span.
+This supplies a reusable boundary for future event extraction; it does not
+install or run an extraction model.
 
 ## Evidence and ranking
 
@@ -96,7 +141,7 @@ python -m engine.news_research --ticker NVDA --rss --output /tmp/nvda-capture.js
 python -m engine.news_research --ticker NVDA --as-of '<capture as_of_utc>' --input /tmp/nvda-capture.json --output /tmp/nvda-replay.json
 ```
 
-The CLI makes feed requests for capture, but never calls sentiment models,
+The CLI output now also includes the bounded `prompt_context`. Capture makes feed requests but never calls sentiment models,
 LLMs or brokers. Replay reads the prior audit's `candidates`, verifies snapshot
 and span hashes, and binds the exact input-file bytes with `replay_input_sha256`.
 It creates the output exclusively and exits 2 on validation/file errors.
@@ -142,6 +187,7 @@ Precise acquisition cutoffs address a gap that date-only filtering cannot cover.
 
 ```bash
 python -m pytest -q tests/test_news_research.py tests/test_news_research_integration.py tests/test_news_aggregator.py tests/test_daily_intel.py
+python -m pytest -q tests/test_news_context.py
 ```
 
 Tests use synthetic sources, clocks and stubbed market/LLM calls. Integration
@@ -149,3 +195,27 @@ tests run the real research path, filter before fusion and debate context,
 exercise both real HTTP handlers, and verify saved decisions contain the same
 evidence returned to the caller. Passing tests demonstrate mechanics, not news
 coverage, source authenticity, predictive accuracy or a trading edge.
+
+The October 29 integration also replays the separately preserved October 15
+development capture: 119 candidates retain the same eight selected hashes;
+all eight complete titles and verified quote spans fit in a 1,562-character
+prepared segment. The prior human-report prefix retained only five complete
+titles in its 2,000-character budget. This is one archived-input transport
+check, with no network/model call, relevance gold or predictive-performance
+comparison. Synthetic integration tests also inspect actual provider-request
+construction (with the provider stubbed), both HTTP result paths, the lite
+path, compression, budget skips and a complete cached daily generation.
+
+### Research basis and limits
+
+The distinction between evidence transport and evidence use is deliberate.
+[Lost in the Middle](https://aclanthology.org/2024.tacl-1.9/) studies context
+position/length effects; [Attribute or Abstain](https://aclanthology.org/2024.emnlp-main.463/)
+evaluates attribution and reports different behavior across tasks. Neither
+establishes an accuracy or trading benefit for Orallexa or its current models.
+[GLiNER's long-context guide](https://github.com/fastino-ai/GLiNER2/blob/main/tutorial/12-long_context.md)
+describes global character offsets, which motivates explicit byte conversion.
+The [SEC timestamp FAQ](https://www.sec.gov/files/about/webmaster-faq.htm)
+separates acceptance timestamps from first web availability. These references
+guide interface checks; no hosted extractor, reranker or SEC collector is added
+by the context-packing integration.

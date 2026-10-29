@@ -224,7 +224,9 @@ def run_deep_analysis_lite(brain) -> dict:
         )
 
     # Enrich RAG context with ML + news for the debate
-    rag_context = f"{news_report}\n\nML MODELS:\n{ml_report[:400]}"
+    from engine.news_context import news_context_for_role, audit_role_news
+    news_context = news_context_for_role(news_research, "lite_debate")
+    rag_context = f"{news_context}\n\nML MODELS:\n{ml_report[:400]}"
 
     from llm.debate import run_lightweight_debate
     final_decision = run_lightweight_debate(
@@ -234,6 +236,8 @@ def run_deep_analysis_lite(brain) -> dict:
         rag_context=rag_context,
     )
 
+    audit_role_news(news_research, "lite_debate", {
+        "reasoning": final_decision.reasoning, "debate": final_decision.extra.get("debate", {})})
     final_decision.extra["news_research"] = news_research
     return {
         "news_research": news_research,
