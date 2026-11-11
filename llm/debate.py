@@ -31,7 +31,9 @@ def _build_context(summary: dict, ticker: str, rag_context: str) -> str:
         f"BB%: {summary.get('bb_pct')}  ADX: {summary.get('adx')}  Vol Ratio: {summary.get('volume_ratio')}",
     ]
     if rag_context:
-        lines.append(f"\nContext:\n{rag_context[:500]}")
+        # Evidence reports include cutoff and source anchors; the old 500-char
+        # cap could consume the whole allowance with ML text before any news.
+        lines.append(f"\nContext:\n{rag_context[:2600]}")
     return "\n".join(lines)
 
 

@@ -349,9 +349,10 @@ def _score_ml(ml_result: Optional[dict]) -> dict:
 # ── Signal Source: News Sentiment ────────────────────────────────────────────
 
 def _score_news(news_items: list) -> dict:
-    """Convert news items to a sentiment score."""
+    """Convert whole-headline tone to the legacy score, without entity attribution."""
+    from engine.sentiment import sentiment_scope
     if not news_items:
-        return {"score": 0, "available": False}
+        return {"score": 0, "available": False, **sentiment_scope()}
 
     scores = [item.get("score", 0) for item in news_items]
     avg = sum(scores) / len(scores)
@@ -362,6 +363,7 @@ def _score_news(news_items: list) -> dict:
     bearish = sum(1 for s in scores if s < -0.1)
 
     return {
+        **sentiment_scope(),
         "score": max(-100, min(100, score)),
         "available": True,
         "avg_sentiment": round(avg, 3),
@@ -552,6 +554,8 @@ def fuse_signals(
     # 3. News sentiment
     news = _score_news(news_items or [])
     sources["news_sentiment"] = {
+        "sentiment_scope": news["sentiment_scope"],
+        "target_sentiment": news["target_sentiment"],
         "score": news["score"],
         "weight": weights.get("news_sentiment", 0.15) if news.get("available") else 0,
         "available": news.get("available", False),
@@ -664,6 +668,10 @@ def fuse_signals(
     )
     detail_parts = []
     for name, s in ranked[:3]:
+        if name == "news_sentiment":
+            tone = "positive" if s["score"] > 10 else "negative" if s["score"] < -10 else "neutral"
+            detail_parts.append(f"Headline tone: {tone} ({s['score']:+d}; entity sentiment not extracted)")
+            continue
         label = name.replace("_", " ").title()
         dir_word = "bullish" if s["score"] > 10 else "bearish" if s["score"] < -10 else "neutral"
         detail_parts.append(f"{label}: {dir_word} ({s['score']:+d})")

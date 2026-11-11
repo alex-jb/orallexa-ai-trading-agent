@@ -223,7 +223,7 @@ def _build_panel_context(
         f"Vol Ratio: {summary.get('volume_ratio')}",
     ]
     if news_report:
-        lines.append(f"\nNEWS:\n{news_report[:400]}")
+        lines.append(f"\nNEWS:\n{news_report[:2000]}")
     if ml_report:
         lines.append(f"\nML MODELS:\n{ml_report[:400]}")
     return "\n".join(lines)

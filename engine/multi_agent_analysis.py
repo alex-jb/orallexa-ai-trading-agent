@@ -81,6 +81,7 @@ class MultiAgentResult:
     signal_fusion:      dict = None       # multi-source signal fusion result
     token_budget:       dict = None       # final budget snapshot (used/cap/exhausted)
     budget_skipped:     list = None       # names of steps skipped due to budget exhaustion
+    news_research:      dict = None       # exact inputs, cutoff, feed outcomes and exclusions
 
 
 # ── Agent 1: Market Analyst (local, instant) ──────────────────────────────────
@@ -177,69 +178,33 @@ def _run_market_analyst(summary: dict, ticker: str) -> str:
 
 # ── Agent 2: News Analyst (local, instant) ────────────────────────────────────
 
-def _run_news_analyst(ticker: str) -> tuple[str, list]:
-    """Fetch news via yfinance + FinBERT/VADER sentiment. Returns (report, items)."""
-    news_items = []
-    try:
-        import yfinance as yf
-        raw = yf.Ticker(ticker).news or []
-
-        # Try FinBERT first, fall back to VADER
-        scorer = None
-        scorer_type = None
-        try:
-            from engine.sentiment import analyze_ticker_sentiment
-            scorer_type = "finbert"
-        except ImportError:
-            pass
-
-        if scorer_type != "finbert":
-            try:
-                from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-                scorer = SentimentIntensityAnalyzer()
-                scorer_type = "vader"
-            except ImportError:
-                scorer_type = "none"
-
-        for r in raw[:8]:
-            content = r.get("content", {})
-            title = content.get("title", "")
-            if not title or len(title) < 10:
-                continue
-
-            if scorer_type == "vader" and scorer:
-                sc = scorer.polarity_scores(title)["compound"]
-            else:
-                sc = 0.0
-
-            sent = "bullish" if sc > 0.1 else "bearish" if sc < -0.1 else "neutral"
-            provider = content.get("provider", {})
-            provider_name = provider.get("displayName", "") if isinstance(provider, dict) else ""
-            news_items.append({
-                "title": title, "sentiment": sent,
-                "score": sc, "provider": provider_name,
-            })
-
-    except Exception as e:
-        logger.warning(f"News fetch failed for {ticker}: {e}")
-
-    if not news_items:
-        return f"No recent news available for {ticker}.", []
-
-    lines = [f"## {ticker} News Sentiment\n"]
-    scores = [item["score"] for item in news_items]
-    avg_score = sum(scores) / len(scores) if scores else 0
-    sentiment = "Bullish" if avg_score > 0.1 else "Bearish" if avg_score < -0.1 else "Neutral"
-    lines.append(f"**Overall Sentiment:** {sentiment} (avg score: {avg_score:.3f})\n")
-
-    for item in news_items[:6]:
-        sent = item["sentiment"]
-        score = item["score"]
-        icon = "[+]" if sent == "bullish" else "[-]" if sent == "bearish" else "[=]"
-        source = f" ({item['provider']})" if item["provider"] else ""
-        lines.append(f"{icon} [{score:+.3f}] {item['title']}{source}")
-
-    return "\n".join(lines), news_items
+def _run_news_analyst(ticker: str, *, news_as_of=None, archived_news=None,
+                      trade_date=None, audit: dict | None = None,
+                      limit: int = 8, use_rss: bool = False) -> tuple[str, list]:
+    """Filter and preserve evidence before local sentiment or downstream LLMs."""
+    from engine.news_research import research_news
+    from engine.news_context import pack_news_context
+    from engine.sentiment import score_text, get_scorer_type, sentiment_scope
+    result = research_news(ticker, as_of=news_as_of, records=archived_news,
+                           trade_date=trade_date, limit=limit, use_rss=use_rss)
+    sentiment_scores = []
+    for item in result.items:
+        score = float(score_text(item["title"])["compound"])
+        item.update(score=score, sentiment="bullish" if score > .1 else
+                    "bearish" if score < -.1 else "neutral", **sentiment_scope())
+        sentiment_scores.append({"source_sha256": item["source_sha256"], "score": score,
+                                 "backend": get_scorer_type(), **sentiment_scope()})
+    result.audit.update(sentiment_scores=sentiment_scores, sentiment_backend=get_scorer_type(),
+                        **sentiment_scope())
+    result.audit["prompt_context"] = pack_news_context(result.audit, result.items)
+    if audit is not None:
+        audit.update(result.audit)
+    report = result.report()
+    if result.items:
+        average = sum(item["score"] for item in result.items) / len(result.items)
+        report += (f"\nLocal headline tone: {average:+.3f} ({get_scorer_type()}; "
+                   "whole text only, entity-specific sentiment not extracted; not a price probability).")
+    return report, result.items
 
 
 # ── Agent 3: ML Analyst (local, ~2-5s) ────────────────────────────────────────
@@ -338,7 +303,7 @@ MARKET ANALYSIS:
 {market_report[:600]}
 
 NEWS:
-{news_report[:400]}
+{news_report[:2000]}
 
 ML MODELS:
 {ml_report[:400]}
@@ -409,7 +374,7 @@ TECHNICAL DATA:
 {local_market_report[:800]}
 
 NEWS & SENTIMENT:
-{news_report[:600]}
+{news_report[:2000]}
 
 ML MODEL RESULTS:
 {ml_report[:600]}
@@ -460,6 +425,8 @@ def run_multi_agent_analysis(
     *,
     multimodal: bool = False,
     multimodal_roles: Optional[list[str]] = None,
+    news_as_of: Optional[str] = None,
+    archived_news: Optional[list[dict]] = None,
 ) -> MultiAgentResult:
     """
     Run self-contained multi-agent pipeline.
@@ -485,11 +452,15 @@ def run_multi_agent_analysis(
                        "auto"       — extractive < 1.5k chars else llm
                    Run scripts/eval_context_compression.py to verify
                    decision agreement before enabling in production.
+    news_as_of   : precise timezone-aware cutoff for supplied archived_news.
+                   Historical trade_date alone never loads today's headlines.
+                   This constrains news only, not the other market-data paths.
 
     Returns
     -------
     MultiAgentResult with .decision_output + full reports
     """
+    news_trade_date = trade_date  # Preserve whether a caller requested a historical day.
     if trade_date is None:
         trade_date = _date.today().isoformat()
 
@@ -509,7 +480,12 @@ def run_multi_agent_analysis(
     market_report = _run_market_analyst(summary, ticker)
 
     # ── Agent 2: News Analyst ──
-    news_report, news_items = _run_news_analyst(ticker)
+    news_research = {}
+    news_report, news_items = _run_news_analyst(
+        ticker, news_as_of=news_as_of, archived_news=archived_news,
+        trade_date=news_trade_date, audit=news_research,
+    )
+    from engine.news_context import news_context_for_role, audit_role_news
 
     # ── Agent 3: ML Analyst ──
     ml_report, ml_result = _run_ml_analyst(train_df, test_df, ticker)
@@ -532,7 +508,6 @@ def run_multi_agent_analysis(
     skipped: list[str] = []
 
     # ── Agent 4: Debate + Panel + Signal Fusion (parallel) ──
-    rag_context = f"{ml_report}\n\n{news_report}"
     from llm.debate import run_lightweight_debate
     from llm.perspective_panel import run_perspective_panel
     from engine.signal_fusion import fuse_signals
@@ -547,12 +522,13 @@ def run_multi_agent_analysis(
     with ThreadPoolExecutor(max_workers=3) as pool:
         debate_future = None
         if not skip_debate:
+            news_context = news_context_for_role(news_research, "debate")
             debate_future = pool.submit(
                 run_lightweight_debate,
                 initial_decision=initial_decision,
                 summary=summary,
                 ticker=ticker,
-                rag_context=rag_context,
+                rag_context=f"{news_context}\n\nML MODELS:\n{ml_report[:400]}",
             )
         # Detect current regime so DyTopo can pick role subset. Cheap —
         # _detect_regime is pure-pandas. Falls back to None on failure
@@ -572,7 +548,7 @@ def run_multi_agent_analysis(
                 run_perspective_panel,
                 summary=summary,
                 ticker=ticker,
-                news_report=news_report,
+                news_report=news_context_for_role(news_research, "perspective_panel"),
                 ml_report=ml_report,
                 regime=detected_regime,
                 dynamic=True,
@@ -639,8 +615,8 @@ def run_multi_agent_analysis(
             from engine.context_compressor import compress
             market_report = compress(market_report, mode=compress_context,
                                        ticker=ticker)
-            news_report = compress(news_report, mode=compress_context,
-                                    ticker=ticker)
+            # News is already bounded and byte-anchored. Preserve its citations
+            # and the full human-facing report instead of paraphrasing either.
             ml_report = compress(ml_report, mode=compress_context, ticker=ticker)
         except Exception as e:
             logger.debug("Context compression failed for %s: %s", ticker, e)
@@ -653,13 +629,13 @@ def run_multi_agent_analysis(
     with ThreadPoolExecutor(max_workers=2) as pool:
         risk_future = pool.submit(
             _run_risk_manager, client, debate_decision,
-            market_report, news_report,
+            market_report, news_context_for_role(news_research, "risk_manager"),
             f"{ml_report}\n\n{panel_summary}\n\nSignal Fusion: {fusion_summary}",
             ticker, summary,
         ) if not skip_risk else None
         report_future = pool.submit(
             _run_llm_market_report, client,
-            market_report, news_report, ml_report, ticker, summary,
+            market_report, news_context_for_role(news_research, "deep_market_report"), ml_report, ticker, summary,
         ) if not skip_report else None
 
         close = summary.get("close", 0) if summary else 0
@@ -694,8 +670,14 @@ def run_multi_agent_analysis(
             skipped.append("deep_market_report")
 
     # ── Apply edge guards ──
+    audit_role_news(news_research, "debate", {
+        "reasoning": debate_decision.reasoning, "debate": debate_decision.extra.get("debate", {})})
+    audit_role_news(news_research, "perspective_panel", panel_result)
+    audit_role_news(news_research, "risk_manager", risk_data)
+    audit_role_news(news_research, "deep_market_report", deep_market_report)
     from models.confidence import guard_decision
     final_decision = guard_decision(debate_decision)
+    final_decision.extra["news_research"] = news_research
 
     # Add panel consensus, signal fusion, and risk manager reasoning
     panel_consensus = panel_result.get("consensus", "NEUTRAL")
@@ -780,4 +762,5 @@ def run_multi_agent_analysis(
         signal_fusion=fusion_result,
         token_budget=token_budget.report() if token_budget else None,
         budget_skipped=skipped if skipped else None,
+        news_research=news_research,
     )

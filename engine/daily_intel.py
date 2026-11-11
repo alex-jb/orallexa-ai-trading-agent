@@ -158,124 +158,75 @@ def _fetch_sectors() -> list[dict]:
 
 # ── Step 3: News Scan ────────────────────────────────────────────────────────
 
-def _fetch_headlines(tickers: list[str]) -> list[dict]:
-    """Fetch and score headlines with weighted ranking.
+def _fetch_headlines(tickers: list[str], *, research_audit: dict | None = None) -> list[dict]:
+    """Validate and rank local evidence before sentiment-weighted brief selection."""
+    from engine.multi_agent_analysis import _run_news_analyst
+    from engine.news_research import parse_timestamp
 
-    Ranking formula: weighted_score = |sentiment| * recency_weight * provider_tier
-    - Recency: exponential decay, newer articles score higher
-    - Provider tier: premium sources (Bloomberg, Reuters) get 1.5x multiplier
-    """
-    from skills.news import NewsSkill
-    from datetime import datetime, timezone
-
-    try:
-        from engine.sentiment import score_text
-    except ImportError:
-        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-        _sia = SentimentIntensityAnalyzer()
-        def score_text(text):
-            sc = _sia.polarity_scores(text)
-            return {"compound": sc["compound"], "label": "positive" if sc["compound"] > 0.1 else "negative" if sc["compound"] < -0.1 else "neutral"}
-
-    # Provider credibility tiers
-    _TIER1 = {"bloomberg", "reuters", "wsj", "wall street journal", "financial times",
-              "cnbc", "barron's", "marketwatch", "the wall street journal"}
-    _TIER2 = {"yahoo finance", "seeking alpha", "benzinga", "investopedia",
-              "motley fool", "tipranks", "zacks", "thestreet"}
-
-    def _provider_weight(provider: str) -> float:
-        low = provider.lower()
-        if any(t in low for t in _TIER1):
-            return 1.5
-        if any(t in low for t in _TIER2):
-            return 1.2
-        return 1.0
-
-    def _recency_weight(pub_time: str) -> float:
-        """Exponential decay: 1.0 for now, 0.5 for 12h ago, 0.25 for 24h ago."""
-        try:
-            if pub_time:
-                from dateutil.parser import parse as dateparse
-                dt = dateparse(pub_time)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                hours_ago = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
-                return max(0.2, 0.5 ** (hours_ago / 12))
-        except Exception:
-            pass
-        return 0.7  # default if no timestamp
-
-    # Opt-in: multi-platform RSS aggregation (Google News + Yahoo Finance)
-    # alongside the existing yfinance-backed NewsSkill path. When enabled,
-    # items are merged per-ticker and deduped before scoring.
     use_rss = os.environ.get("DAILY_INTEL_USE_RSS", "").lower() in ("1", "true", "yes")
+    tier1 = {"bloomberg", "reuters", "wsj", "wall street journal", "financial times",
+             "cnbc", "barron's", "marketwatch"}
+    tier2 = {"yahoo finance", "seeking alpha", "benzinga", "investopedia",
+             "motley fool", "tipranks", "zacks", "thestreet"}
+    all_headlines, seen_titles = [], set()
+    for ticker in tickers:
+        audit = {}
+        _, items = _run_news_analyst(ticker, audit=audit, limit=6 if use_rss else 4, use_rss=use_rss)
+        if research_audit is not None:
+            research_audit[ticker] = audit
+        cutoff = parse_timestamp(audit["as_of_utc"])
+        for item in items:
+            title = item["title"]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            published = parse_timestamp(item["published_at_utc"])
+            hours = max(0, (cutoff - published).total_seconds() / 3600)
+            recency = max(.2, .5 ** (hours / 12))
+            provider = item["provider"].lower()
+            tier = 1.5 if any(name in provider for name in tier1) else (
+                1.2 if any(name in provider for name in tier2) else 1.0)
+            all_headlines.append({**item, "ticker": ticker,
+                                  "weighted_score": round(abs(item["score"]) * recency * tier, 4)})
+    all_headlines.sort(key=lambda item: item["weighted_score"], reverse=True)
+    selected = all_headlines[:20]
+    if research_audit is not None:
+        # This final brief selection is separate from each ticker's retrieval TopK.
+        research_audit["brief_selected_source_hashes"] = [item["source_sha256"] for item in selected]
+        cutoffs = [parse_timestamp(value.get("as_of_utc")) for value in research_audit.values()
+                   if isinstance(value, dict)]
+        latest = max((cutoff for cutoff in cutoffs if cutoff is not None), default=None)
+        research_audit["as_of_utc"] = latest.isoformat().replace("+00:00", "Z") if latest else None
+    return selected
 
-    def _collect_per_ticker(tk: str) -> list[dict]:
-        items: list[dict] = []
-        try:
-            ys = NewsSkill(tk).fetch_news(limit=4)
-            for it in ys:
-                items.append({
-                    "title": it.get("title", ""),
-                    "url": it.get("link", ""),
-                    "provider": it.get("publisher", ""),
-                    "published": it.get("published", "") or it.get("providerPublishTime", ""),
-                    "source": "yfinance",
-                })
-        except Exception as e:
-            logger.debug("yfinance news fetch failed for %s: %s", tk, e)
-        if use_rss:
-            try:
-                from engine.news_aggregator import fetch_aggregated_news
-                items.extend(fetch_aggregated_news(tk, limit=6))
-            except Exception as e:
-                logger.debug("RSS aggregator failed for %s: %s", tk, e)
-        return items
 
-    def _dedup_merge(items: list[dict]) -> list[dict]:
-        if not use_rss:
-            return items  # single-source path: simple title-set dedup handled below
-        try:
-            from engine.news_aggregator import _dedupe_and_rank
-            return _dedupe_and_rank(items, limit=len(items))
-        except Exception:
-            return items
+def _brief_news_context(headlines: list[dict], role: str, limit: int,
+                        research_audit: dict | None = None) -> str:
+    """Prepare the exact bounded news segment and citations for one brief role."""
+    from engine.news_context import pack_news_context
+    from engine.news_research import parse_timestamp
+    selected = headlines[:limit]
+    cutoff = research_audit.get("as_of_utc") if research_audit is not None else None
+    if cutoff is None:
+        captures = [parse_timestamp(item.get("captured_at_utc")) for item in selected]
+        latest = max((time for time in captures if time is not None), default=None)
+        cutoff = latest.isoformat().replace("+00:00", "Z") if latest else None
+    packed = pack_news_context({"ticker": "MARKET", "as_of_utc": cutoff,
+                                "status": "selected" if selected else "no_usable_evidence"}, selected)
+    packed.update(selection_input_count=len(headlines), role_limit=limit,
+                  outside_role_limit=[{"source_id": row.get("source_id"),
+                                       "source_sha256": row.get("source_sha256")}
+                                      for row in headlines[limit:]])
+    if research_audit is not None:
+        research_audit.setdefault("prompt_contexts", {})[role] = packed
+    return packed["text"]
 
-    all_headlines = []
-    seen_titles = set()
-    for tk in tickers:
-        try:
-            merged = _dedup_merge(_collect_per_ticker(tk))
-            for item in merged:
-                title = item.get("title", "")
-                if not title or len(title) < 15 or title in seen_titles:
-                    continue
-                seen_titles.add(title)
-                scored = score_text(title)
-                compound = scored.get("compound", 0)
-                sentiment = "bullish" if compound > 0.1 else "bearish" if compound < -0.1 else "neutral"
-                provider = item.get("provider", "")
-                pub_time = item.get("published", "")
 
-                # Weighted ranking score
-                recency = _recency_weight(pub_time)
-                tier = _provider_weight(provider)
-                weighted = abs(compound) * recency * tier
-
-                all_headlines.append({
-                    "title": title,
-                    "ticker": tk,
-                    "sentiment": sentiment,
-                    "score": round(compound, 3),
-                    "weighted_score": round(weighted, 4),
-                    "url": item.get("url", ""),
-                    "provider": provider,
-                })
-        except Exception as e:
-            logger.debug("News fetch failed for %s: %s", tk, e)
-
-    all_headlines.sort(key=lambda x: x.get("weighted_score", abs(x["score"])), reverse=True)
-    return all_headlines[:20]
+def _audit_brief_references(research_audit: dict, role: str, output) -> None:
+    from engine.news_context import audit_news_references
+    packed = research_audit.get("prompt_contexts", {}).get(role)
+    if packed is not None:
+        packed["returned_references"] = audit_news_references(output, packed)
 
 
 # ── Step 4: AI Summary (DEEP_MODEL — Sonnet) ────────────────────────────────
@@ -286,6 +237,7 @@ def _generate_summary(
     spikes: list[dict],
     sectors: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> tuple[str, str]:
     """Generate high-quality morning brief via Sonnet. Returns (summary, mood)."""
     import llm.claude_client as cc
@@ -296,7 +248,7 @@ def _generate_summary(
     losers_str = "\n".join(f"  {l['ticker']} {l['change_pct']:.1f}% (${l['price']}, vol {l['volume_ratio']:.1f}x avg)" for l in losers[:6])
     spikes_str = "\n".join(f"  {s['ticker']} {s['change_pct']:+.1f}% — volume {s['volume_ratio']:.1f}x average" for s in spikes[:5])
     sectors_str = "\n".join(f"  {s['sector']}: {s['change_pct']:+.1f}%" for s in sectors)
-    headlines_str = "\n".join(f"  [{h['sentiment'].upper()}] {h['ticker']}: {h['title']}" for h in headlines[:12])
+    headlines_str = _brief_news_context(headlines, "summary", 12, research_audit)
 
     prompt = f"""You are a sharp, opinionated financial market analyst writing a daily morning brief that will be read by active traders and posted on social media.
 
@@ -362,6 +314,7 @@ def _generate_playbook(
     spikes: list[dict],
     sectors: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> dict:
     """Generate structured pre-market playbook (EN/ZH bilingual)."""
     import llm.claude_client as cc
@@ -372,7 +325,7 @@ def _generate_playbook(
     worst_sectors = ", ".join(f"{s['sector']} {s['change_pct']:+.1f}%" for s in sectors[-3:])
     top_movers = ", ".join(f"${g['ticker']} {g['change_pct']:+.1f}%" for g in (gainers[:3] + losers[:3]))
     spike_str = ", ".join(f"${s['ticker']} {s['volume_ratio']:.0f}x" for s in spikes[:3]) or "None"
-    headlines_str = "\n".join(f"  {h['ticker']}: {h['title']} ({h['sentiment']})" for h in headlines[:6])
+    headlines_str = _brief_news_context(headlines, "playbook", 6, research_audit)
 
     prompt = f"""You are a senior trading strategist writing a structured pre-market playbook.
 Output ONLY valid JSON (no markdown):
@@ -450,6 +403,7 @@ def _generate_picks(
     losers: list[dict],
     spikes: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> list[dict]:
     """Generate 3-5 'worth watching' picks via Sonnet."""
     import llm.claude_client as cc
@@ -461,7 +415,7 @@ def _generate_picks(
         for m in (gainers[:5] + losers[:5])
     )
     spikes_str = "\n".join(f"  {s['ticker']} vol {s['volume_ratio']:.1f}x, {s['change_pct']:+.1f}%" for s in spikes[:5])
-    headlines_str = "\n".join(f"  {h['ticker']}: {h['title']} ({h['sentiment']})" for h in headlines[:8])
+    headlines_str = _brief_news_context(headlines, "picks", 8, research_audit)
 
     # Build price context for predictions
     price_context = "\n".join(
@@ -531,6 +485,7 @@ def _generate_social_posts(
     picks: list[dict],
     sectors: list[dict],
     headlines: list[dict],
+    *, research_audit: dict | None = None,
 ) -> dict:
     """
     Generate per-section social posts + a full thread.
@@ -555,6 +510,7 @@ def _generate_social_posts(
     picks_str = "\n".join(f"  ${p['ticker']}: {p['reason']}" for p in picks[:4])
     top_sector = sectors[0] if sectors else None
     worst_sector = sectors[-1] if sectors else None
+    headlines_str = _brief_news_context(headlines, "social_draft", 8, research_audit)
 
     # ── Build all social content in one LLM call ──
     prompt = f"""You are the social media voice of Orallexa (@orallexatrading), a trading intelligence platform.
@@ -583,6 +539,9 @@ AI Picks:
 {picks_str}
 Morning Brief:
 {summary[:600]}
+
+SOURCE HEADLINES (cite only supplied evidence; this is a draft):
+{headlines_str}
 
 OUTPUT FORMAT — Return ONLY valid JSON (no markdown):
 {{
@@ -1161,23 +1120,31 @@ def generate_daily_intel(force: bool = False) -> dict:
         + [s["ticker"] for s in spikes[:2]]
         + ["SPY"]
     ))
-    headlines = _fetch_headlines(news_tickers)
+    news_research = {}
+    headlines = _fetch_headlines(news_tickers, research_audit=news_research)
 
     # Step 4: AI summary (Sonnet)
-    summary, mood = _generate_summary(gainers, losers, spikes, sectors, headlines)
+    summary, mood = _generate_summary(gainers, losers, spikes, sectors, headlines,
+                                      research_audit=news_research)
+    _audit_brief_references(news_research, "summary", summary)
 
     # Step 4b: Pre-market playbook (Sonnet)
-    playbook = _generate_playbook(summary, mood, gainers, losers, spikes, sectors, headlines)
+    playbook = _generate_playbook(summary, mood, gainers, losers, spikes, sectors, headlines,
+                                  research_audit=news_research)
+    _audit_brief_references(news_research, "playbook", playbook)
 
     # Step 5: AI picks (Sonnet)
-    picks = _generate_picks(gainers, losers, spikes, headlines)
+    picks = _generate_picks(gainers, losers, spikes, headlines, research_audit=news_research)
+    _audit_brief_references(news_research, "picks", picks)
     # Step 5b: enrich each pick with regime + PM preview (fails gracefully)
     picks = _enrich_picks_with_regime_and_pm(picks)
 
     # Step 6: Social content — thread + per-section posts (Sonnet)
     social = _generate_social_posts(
-        summary, mood, gainers, losers, spikes, picks, sectors, headlines
+        summary, mood, gainers, losers, spikes, picks, sectors, headlines,
+        research_audit=news_research,
     )
+    _audit_brief_references(news_research, "social_draft", social)
 
     # Step 6b: Options flow (Sonnet)
     options_flow = _generate_options_flow(gainers, losers, spikes)
@@ -1199,6 +1166,7 @@ def generate_daily_intel(force: bool = False) -> dict:
         "volume_spikes": spikes,
         "sectors": sectors,
         "headlines": headlines,
+        "news_research": news_research,
         "ai_picks": picks,
         "orallexa_thread": social.get("thread", []),
         "social_posts": {

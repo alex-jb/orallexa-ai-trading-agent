@@ -1,0 +1,450 @@
+{
+  "schema_version": 1,
+  "protocol_sha256": "42d0644d591b48a626840c19f672e131d012f242c5e7774183b7f5974361b117",
+  "prediction_log_sha256": "6285c3f390b98a82becbd8ee98efcd1c3a003c3d1bb556f39ea3adbb4dcdd5c2",
+  "complete": true,
+  "scope": {
+    "holdout": false,
+    "baselines_previously_inspected": true,
+    "training_contamination_unknown": true,
+    "ticker_linking_evaluated": false,
+    "event_time_evaluated": false,
+    "trading_returns_evaluated": false
+  },
+  "cohorts": {
+    "opposing_polarities": {
+      "documents": 33,
+      "inference_errors": 0,
+      "invalid_prediction_spans": 0,
+      "detection": {
+        "true_positives": 89,
+        "predicted": 125,
+        "gold": 120,
+        "precision": 0.712,
+        "recall": 0.7416666666666667,
+        "f1": 0.726530612244898
+      },
+      "joint_span_and_sentiment": {
+        "true_positives": 67,
+        "predicted": 125,
+        "gold": 120,
+        "precision": 0.536,
+        "recall": 0.5583333333333333,
+        "f1": 0.5469387755102041
+      },
+      "sentiment_on_detected_gold_spans": {
+        "mentions": 89,
+        "accuracy": 0.7528089887640449,
+        "macro_f1": 0.6825536062378168,
+        "abstentions": 0,
+        "per_class": {
+          "negative": {
+            "true_positives": 32,
+            "predicted": 35,
+            "gold": 41,
+            "precision": 0.9142857142857143,
+            "recall": 0.7804878048780488,
+            "f1": 0.8421052631578947
+          },
+          "neutral": {
+            "true_positives": 6,
+            "predicted": 24,
+            "gold": 6,
+            "precision": 0.25,
+            "recall": 1.0,
+            "f1": 0.4
+          },
+          "positive": {
+            "true_positives": 29,
+            "predicted": 30,
+            "gold": 42,
+            "precision": 0.9666666666666667,
+            "recall": 0.6904761904761905,
+            "f1": 0.8055555555555556
+          }
+        },
+        "confusion": {
+          "negative": {
+            "negative": 32,
+            "neutral": 8,
+            "positive": 1,
+            "abstain": 0
+          },
+          "neutral": {
+            "negative": 0,
+            "neutral": 6,
+            "positive": 0,
+            "abstain": 0
+          },
+          "positive": {
+            "negative": 3,
+            "neutral": 10,
+            "positive": 29,
+            "abstain": 0
+          }
+        }
+      },
+      "broadcast_on_same_detected_spans": {
+        "vader": {
+          "mentions": 89,
+          "accuracy": 0.4606741573033708,
+          "macro_f1": 0.3599537037037037,
+          "abstentions": 0,
+          "per_class": {
+            "negative": {
+              "true_positives": 13,
+              "predicted": 23,
+              "gold": 41,
+              "precision": 0.5652173913043478,
+              "recall": 0.3170731707317073,
+              "f1": 0.40625
+            },
+            "neutral": {
+              "true_positives": 1,
+              "predicted": 12,
+              "gold": 6,
+              "precision": 0.08333333333333333,
+              "recall": 0.16666666666666666,
+              "f1": 0.1111111111111111
+            },
+            "positive": {
+              "true_positives": 27,
+              "predicted": 54,
+              "gold": 42,
+              "precision": 0.5,
+              "recall": 0.6428571428571429,
+              "f1": 0.5625
+            }
+          },
+          "confusion": {
+            "negative": {
+              "negative": 13,
+              "neutral": 4,
+              "positive": 24,
+              "abstain": 0
+            },
+            "neutral": {
+              "negative": 2,
+              "neutral": 1,
+              "positive": 3,
+              "abstain": 0
+            },
+            "positive": {
+              "negative": 8,
+              "neutral": 7,
+              "positive": 27,
+              "abstain": 0
+            }
+          }
+        },
+        "keywords": {
+          "mentions": 89,
+          "accuracy": 0.19101123595505617,
+          "macro_f1": 0.19500265816055287,
+          "abstentions": 0,
+          "per_class": {
+            "negative": {
+              "true_positives": 6,
+              "predicted": 14,
+              "gold": 41,
+              "precision": 0.42857142857142855,
+              "recall": 0.14634146341463414,
+              "f1": 0.21818181818181817
+            },
+            "neutral": {
+              "true_positives": 4,
+              "predicted": 60,
+              "gold": 6,
+              "precision": 0.06666666666666667,
+              "recall": 0.6666666666666666,
+              "f1": 0.12121212121212122
+            },
+            "positive": {
+              "true_positives": 7,
+              "predicted": 15,
+              "gold": 42,
+              "precision": 0.4666666666666667,
+              "recall": 0.16666666666666666,
+              "f1": 0.24561403508771928
+            }
+          },
+          "confusion": {
+            "negative": {
+              "negative": 6,
+              "neutral": 28,
+              "positive": 7,
+              "abstain": 0
+            },
+            "neutral": {
+              "negative": 1,
+              "neutral": 4,
+              "positive": 1,
+              "abstain": 0
+            },
+            "positive": {
+              "negative": 7,
+              "neutral": 28,
+              "positive": 7,
+              "abstain": 0
+            }
+          }
+        }
+      },
+      "latency": {
+        "timed_documents": 33,
+        "total_seconds": 4.620032190498023,
+        "mean_seconds": 0.14000097546963705
+      }
+    },
+    "full_corpus": {
+      "documents": 959,
+      "inference_errors": 0,
+      "invalid_prediction_spans": 0,
+      "detection": {
+        "true_positives": 1754,
+        "predicted": 2538,
+        "gold": 2055,
+        "precision": 0.6910953506698188,
+        "recall": 0.8535279805352798,
+        "f1": 0.7637709558023078
+      },
+      "joint_span_and_sentiment": {
+        "true_positives": 1393,
+        "predicted": 2538,
+        "gold": 2055,
+        "precision": 0.5488573680063041,
+        "recall": 0.6778588807785888,
+        "f1": 0.6065752231656869
+      },
+      "sentiment_on_detected_gold_spans": {
+        "mentions": 1754,
+        "accuracy": 0.7941847206385405,
+        "macro_f1": 0.7918251756910871,
+        "abstentions": 0,
+        "per_class": {
+          "negative": {
+            "true_positives": 359,
+            "predicted": 513,
+            "gold": 396,
+            "precision": 0.6998050682261209,
+            "recall": 0.9065656565656566,
+            "f1": 0.7898789878987899
+          },
+          "neutral": {
+            "true_positives": 706,
+            "predicted": 809,
+            "gold": 954,
+            "precision": 0.8726823238566132,
+            "recall": 0.740041928721174,
+            "f1": 0.8009075439591605
+          },
+          "positive": {
+            "true_positives": 328,
+            "predicted": 432,
+            "gold": 404,
+            "precision": 0.7592592592592593,
+            "recall": 0.8118811881188119,
+            "f1": 0.784688995215311
+          }
+        },
+        "confusion": {
+          "negative": {
+            "negative": 359,
+            "neutral": 33,
+            "positive": 4,
+            "abstain": 0
+          },
+          "neutral": {
+            "negative": 148,
+            "neutral": 706,
+            "positive": 100,
+            "abstain": 0
+          },
+          "positive": {
+            "negative": 6,
+            "neutral": 70,
+            "positive": 328,
+            "abstain": 0
+          }
+        }
+      },
+      "broadcast_on_same_detected_spans": {
+        "vader": {
+          "mentions": 1754,
+          "accuracy": 0.43443557582668185,
+          "macro_f1": 0.437657925925563,
+          "abstentions": 0,
+          "per_class": {
+            "negative": {
+              "true_positives": 187,
+              "predicted": 406,
+              "gold": 396,
+              "precision": 0.4605911330049261,
+              "recall": 0.4722222222222222,
+              "f1": 0.46633416458852867
+            },
+            "neutral": {
+              "true_positives": 249,
+              "predicted": 341,
+              "gold": 954,
+              "precision": 0.7302052785923754,
+              "recall": 0.2610062893081761,
+              "f1": 0.38455598455598455
+            },
+            "positive": {
+              "true_positives": 326,
+              "predicted": 1007,
+              "gold": 404,
+              "precision": 0.323733862959285,
+              "recall": 0.806930693069307,
+              "f1": 0.4620836286321758
+            }
+          },
+          "confusion": {
+            "negative": {
+              "negative": 187,
+              "neutral": 38,
+              "positive": 171,
+              "abstain": 0
+            },
+            "neutral": {
+              "negative": 195,
+              "neutral": 249,
+              "positive": 510,
+              "abstain": 0
+            },
+            "positive": {
+              "negative": 24,
+              "neutral": 54,
+              "positive": 326,
+              "abstain": 0
+            }
+          }
+        },
+        "keywords": {
+          "mentions": 1754,
+          "accuracy": 0.5667046750285063,
+          "macro_f1": 0.4513943476477817,
+          "abstentions": 0,
+          "per_class": {
+            "negative": {
+              "true_positives": 52,
+              "predicted": 136,
+              "gold": 396,
+              "precision": 0.38235294117647056,
+              "recall": 0.13131313131313133,
+              "f1": 0.19548872180451127
+            },
+            "neutral": {
+              "true_positives": 765,
+              "predicted": 1270,
+              "gold": 954,
+              "precision": 0.6023622047244095,
+              "recall": 0.8018867924528302,
+              "f1": 0.6879496402877698
+            },
+            "positive": {
+              "true_positives": 177,
+              "predicted": 348,
+              "gold": 404,
+              "precision": 0.5086206896551724,
+              "recall": 0.4381188118811881,
+              "f1": 0.47074468085106386
+            }
+          },
+          "confusion": {
+            "negative": {
+              "negative": 52,
+              "neutral": 292,
+              "positive": 52,
+              "abstain": 0
+            },
+            "neutral": {
+              "negative": 70,
+              "neutral": 765,
+              "positive": 119,
+              "abstain": 0
+            },
+            "positive": {
+              "negative": 14,
+              "neutral": 213,
+              "positive": 177,
+              "abstain": 0
+            }
+          }
+        }
+      },
+      "latency": {
+        "timed_documents": 959,
+        "total_seconds": 128.13147692482744,
+        "mean_seconds": 0.13360946498939252
+      }
+    }
+  },
+  "model_manifest": {
+    "model": "fastino/gliner2.5-base-v1",
+    "revision": "54785d51df8d86a0d8f2eb212fec15871aad2c4d",
+    "files": [
+      {
+        "path": "config.json",
+        "bytes": 4103,
+        "sha256": "d6b515c21ae2100c12267fb42a3f02c1e99ad87580366aebedb161efd74441c7"
+      },
+      {
+        "path": "encoder_config/config.json",
+        "bytes": 857,
+        "sha256": "d36a845b9f25dcaf1ec45a1c4bdf65ea4ac20596537e14530ec9f660a63aeca4"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "bytes": 645,
+        "sha256": "0bf3ea0873234bd9bfdd3853c440395009ac6365a925b91654daed5396d655e1"
+      },
+      {
+        "path": "tokenizer.json",
+        "bytes": 8341713,
+        "sha256": "cbc8ae6037812709c9c26f2a160f8dc48b0440bcb79c8141804259ae2d6adac3"
+      },
+      {
+        "path": "model.safetensors",
+        "bytes": 774366564,
+        "sha256": "7274094de2e0c2a37a386f55fc4e23061a954da5bd7a335e7dfe56f2743c277a"
+      }
+    ]
+  },
+  "baseline_implementations": {
+    "vader": {
+      "requested_backend": "vader",
+      "active_backend": "vader",
+      "package_version": "3.3.2",
+      "function": "engine.sentiment.score_text",
+      "implementation_sha256": "f423f167dab410dd0d35050fa3c90f05b7170b337c2074a33c249992e75d7b8b"
+    },
+    "keywords": {
+      "requested_backend": "keywords",
+      "active_backend": "none",
+      "package_version": null,
+      "function": "engine.sentiment.score_text",
+      "implementation_sha256": "f423f167dab410dd0d35050fa3c90f05b7170b337c2074a33c249992e75d7b8b"
+    }
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "packages": {
+      "gliner2": "2.1.0",
+      "torch": "2.9.1+cpu",
+      "transformers": "4.57.3",
+      "peft": "0.18.0",
+      "vaderSentiment": "3.3.2"
+    },
+    "device": "cpu",
+    "dtype": "torch.float32",
+    "load_seconds": 8.573297645998537,
+    "timing_basis": "batch wall time divided by batch size; not serial response latency"
+  },
+  "implementation_sha256": {
+    "/workspace/scratch/b1810f0cd143/work-2026-10-29/orallexa-ai-trading-agent/eval/run_news_entity_probe.py": "0de6697a2a28bbed8bbaeb38f19bf505a8a81099da322aa46628a0b02faf378b",
+    "eval/news_entity_extraction.py": "5ed9e49f7950de5e31b4d89307ed79c6424d01f791ec3e5803dcdfc38800934e",
+    "eval/news_entity_sentiment.py": "17d6d848107966e70ace584448d3d5c4b34a203a6039dd6e4ead475e58a56acb"
+  }
+}

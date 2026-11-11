@@ -68,6 +68,36 @@ def fetch_aggregated_news(ticker: str, limit: int = 15) -> list[dict]:
     return _dedupe_and_rank(items, limit=limit)
 
 
+def fetch_news_with_status(ticker: str) -> dict:
+    """Raw RSS candidates and per-feed outcomes for the evidence-aware path.
+
+    Keep all candidates until timestamp validation and exact-snapshot dedup.
+    The legacy convenience API above retains its fuzzy dedup behavior.
+    """
+    items, sources = [], []
+    feeds = (
+        ("google_news", _GOOGLE_NEWS_URL.format(q=quote_plus(ticker))),
+        ("yahoo_finance", _YAHOO_RSS_URL.format(t=quote_plus(ticker))),
+    )
+    for source, url in feeds:
+        xml = _get_xml(url)
+        if xml is None:
+            sources.append({"source": source, "status": "unavailable"})
+            continue
+        try:
+            root = ET.fromstring(xml)
+            if root.tag != "rss" or root.find("channel") is None:
+                raise ValueError("Not an RSS feed")
+        except (ET.ParseError, ValueError):
+            sources.append({"source": source, "status": "invalid"})
+            continue
+        parsed = _parse_rss(xml, source)
+        captured = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        items.extend({**item, "captured_at_utc": captured} for item in parsed)
+        sources.append({"source": source, "status": "ok" if parsed else "empty"})
+    return {"items": items, "sources": sources}
+
+
 def _fetch_google_news(ticker: str) -> list[dict]:
     url = _GOOGLE_NEWS_URL.format(q=quote_plus(ticker))
     xml = _get_xml(url)
@@ -170,7 +200,8 @@ def _parse_pub_date(s: str) -> Optional[datetime]:
     except Exception:
         pass
     try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt if dt.tzinfo is not None else None
     except Exception:
         return None
 
