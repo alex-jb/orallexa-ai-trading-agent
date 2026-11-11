@@ -1,5 +1,9 @@
 # Local GLiNER2.5 experiment — October 29, 2026
 
+Follow-up: the [November 11 issuer identity experiment](ISSUER_IDENTITY_RESEARCH_2026_11_11.md)
+tests the same base checkpoint's spans against a captured SEC directory, with
+issuer and symbol outcomes evaluated separately from the sentiment metrics below.
+
 **Decision:** keep the base checkpoint as a research candidate. Its entity-level
 sentiment is substantially more useful than the existing whole-text baselines on
 matched mentions in this diagnostic. The small checkpoint is not a suitable

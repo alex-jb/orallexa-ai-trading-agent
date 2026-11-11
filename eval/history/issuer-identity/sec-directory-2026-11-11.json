@@ -1,0 +1,224 @@
+{
+  "kind": "controlled_mentions_against_real_sec_directory",
+  "directory": {
+    "source_url": "https://www.sec.gov/files/company_tickers_exchange.json",
+    "captured_at_utc": "2026-11-11T22:45:04.881818Z",
+    "sha256": "98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e",
+    "bytes": 521966,
+    "input_rows": 10405,
+    "distinct_rows": 10405,
+    "distinct_issuers": 8002,
+    "capture_time_basis": "caller_declared"
+  },
+  "as_of_utc": "2026-11-11T22:50:04.881818Z",
+  "historical_cutoff_utc": "2026-11-11T22:45:04.881817Z",
+  "cases_passed": 16,
+  "cases_total": 16,
+  "historical_mentions_blocked": 16,
+  "mention_status_counts": {
+    "issuer_match": 5,
+    "symbol_match": 5,
+    "name_candidate": 1,
+    "unresolved": 3,
+    "invalid_span": 1,
+    "blocked": 1
+  },
+  "input_sha256": "0ebb880c51a144ebe96d8d4e4d16b641dd5e65807f874bca3c74ec93b546d2fb",
+  "report_sha256": "55e746d7ac261953df07156e2b620b038a46d1b4bb910fbfd270106205ba9e78",
+  "cases": [
+    {
+      "id": "alphabet-name",
+      "status": "issuer_match",
+      "issuer_cik": "0001652044",
+      "ticker": null,
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "alphabet-other-class",
+      "status": "symbol_match",
+      "issuer_cik": "0001652044",
+      "ticker": "GOOG",
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": "other_symbol_same_issuer"
+    },
+    {
+      "id": "alphabet-focus-class",
+      "status": "symbol_match",
+      "issuer_cik": "0001652044",
+      "ticker": "GOOGL",
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": "same_symbol"
+    },
+    {
+      "id": "apple-full-name",
+      "status": "issuer_match",
+      "issuer_cik": "0000320193",
+      "ticker": null,
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "apple-short-name",
+      "status": "name_candidate",
+      "issuer_cik": null,
+      "ticker": null,
+      "focus_relation": "unresolved",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "utf8-full-name",
+      "status": "issuer_match",
+      "issuer_cik": "0000789019",
+      "ticker": null,
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "berkshire-class",
+      "status": "symbol_match",
+      "issuer_cik": "0001067983",
+      "ticker": "BRK-B",
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": "other_symbol_same_issuer"
+    },
+    {
+      "id": "explicit-cik",
+      "status": "issuer_match",
+      "issuer_cik": "0000320193",
+      "ticker": null,
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "wrong-exchange",
+      "status": "unresolved",
+      "issuer_cik": null,
+      "ticker": null,
+      "focus_relation": "unresolved",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "partial-notation",
+      "status": "invalid_span",
+      "issuer_cik": null,
+      "ticker": null,
+      "focus_relation": null,
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "bare-letter",
+      "status": "unresolved",
+      "issuer_cik": null,
+      "ticker": null,
+      "focus_relation": "unresolved",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "explicit-letter",
+      "status": "symbol_match",
+      "issuer_cik": "0001090872",
+      "ticker": "A",
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": "same_symbol"
+    },
+    {
+      "id": "different-company",
+      "status": "symbol_match",
+      "issuer_cik": "0001045810",
+      "ticker": "NVDA",
+      "focus_relation": "different_issuer",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "no-subsidiary-inference",
+      "status": "unresolved",
+      "issuer_cik": null,
+      "ticker": null,
+      "focus_relation": "unresolved",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "conformed-jurisdiction",
+      "status": "issuer_match",
+      "issuer_cik": "0001973239",
+      "ticker": null,
+      "focus_relation": "same_issuer",
+      "focus_symbol_relation": null
+    },
+    {
+      "id": "post-cutoff-capture",
+      "status": "blocked",
+      "issuer_cik": null,
+      "ticker": null,
+      "focus_relation": null,
+      "focus_symbol_relation": null
+    }
+  ],
+  "gliner_controlled_smoke": {
+    "kind": "controlled_checkpoint_interface_smoke",
+    "model": "fastino/gliner2.5-base-v1",
+    "revision": "54785d51df8d86a0d8f2eb212fec15871aad2c4d",
+    "weights_sha256": "7274094de2e0c2a37a386f55fc4e23061a954da5bd7a335e7dfe56f2743c277a",
+    "source_directory_sha256": "98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e",
+    "controlled_documents": 15,
+    "exact_expected_positive_cases": 10,
+    "model_mention_count": 14,
+    "modes": {
+      "model_only": {
+        "confirmed": 7,
+        "counts": {
+          "issuer_match": 4,
+          "symbol_match": 3,
+          "unresolved": 6,
+          "name_candidate": 1
+        },
+        "cases": [
+          "alphabet-name",
+          "alphabet-other-class",
+          "apple-full-name",
+          "explicit-cik",
+          "explicit-letter",
+          "different-company",
+          "conformed-jurisdiction"
+        ]
+      },
+      "model_plus_scan": {
+        "confirmed": 9,
+        "counts": {
+          "issuer_match": 4,
+          "symbol_match": 6,
+          "duplicate_span": 4,
+          "unresolved": 7,
+          "name_candidate": 1
+        },
+        "cases": [
+          "alphabet-name",
+          "alphabet-other-class",
+          "alphabet-focus-class",
+          "apple-full-name",
+          "berkshire-class",
+          "explicit-cik",
+          "explicit-letter",
+          "different-company",
+          "conformed-jurisdiction"
+        ]
+      }
+    },
+    "elapsed_seconds": 1.5038012250001884
+  },
+  "first_party_feed_spot_check": {
+    "kind": "single_first_party_feed_spot_check",
+    "feed_url": "https://www.apple.com/newsroom/rss-feed.rss",
+    "feed_sha256": "a3005f06345bedfd4ce768a0cd5097078d8bb216bb2821251b17e85303ebd744",
+    "observed_at_utc": "2026-11-11T23:01:50.485530Z",
+    "entries_examined": 12,
+    "eligible_publication_times": 0,
+    "no_updated_time_as_publication": true
+  },
+  "implementation_sha256": {
+    "engine/issuer_identity.py": "66a3019ecb189a694e85b20b5859dcf35bf4058f3a546807aac6987f81196bec",
+    "eval/run_issuer_identity_probe.py": "555fd5eebdddf71eb8c662a0d4a7943ec812e2108594479dca7e833711eb6df1",
+    "tests/test_issuer_identity.py": "d9d0fc1b4f97bdce55e7f29a8f0371139d6202fdd587a0a976dd963fcc6b44fd"
+  }
+}
